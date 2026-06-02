@@ -2,6 +2,28 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-03 — Nudge engine + FR-NDG-06 + AFib display-only (PR-5)
+
+- **Allow-list output, not free text.** The engine can only construct one of five
+  `NudgeCategory` values; there is no path to author arbitrary clinical claims.
+- **FR-NDG-06 as a structural gate, not a lint.** `NudgeGuard` is applied inside
+  `NudgeEngine.generate` — a nudge that fails is dropped before it can be returned,
+  and `assertionFailure` traps it in debug (the engine must never author one). The
+  guard targets affirmative *constructions* so disclaimers ("this is not a
+  diagnosis") and canonical units ("6.4 mmol/L") stay clean — verified by running
+  the suite, not just reading it.
+- **AFib = D9 display-only.** The cardiac lane has exactly one output shape:
+  route-to-clinician with an explicit "we don't interpret heart rhythm" line, at
+  the highest priority so the cap never hides it. No band, trend, or verdict
+  exists for cardiac. This is the top MDR exposure; treating it as display-only is
+  the deliberate de-risking choice.
+- **Baseline-relative, never clinical-reference.** Bands are ±1σ around the
+  user's own history (≥3 points required) — wellness-grade by design. We never
+  print "normal/abnormal" (guard rule `clinicalNormality`).
+- **Verification:** the whole intelligence layer is pure Foundation, so it was
+  compiled and **executed** here via a harness — all guard + engine assertions
+  passed. Tests re-run in Xcode.
+
 ## 2026-06-03 — HealthKitService (read-only) + L1→L2 persistence (PR-4)
 
 - **Read-only enforced structurally**, not just by policy: `HealthKitService`

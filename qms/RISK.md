@@ -2,6 +2,29 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-5 — nudge engine + FR-NDG-06: top hazards now mitigated in code
+
+PR-5 is the first PR that renders interpretation/advice, so it directly engages
+the top hazards. Mitigations are now **implemented and verified** (executed this
+session), not just planned:
+
+- **RK-CARD-01 (AFib read as diagnosis):** the cardiac lane is `displayOnly`.
+  The only output is a `routeToClinician` nudge that explicitly states Liviqa
+  does not interpret heart rhythm and routes to the cardiologist — no verdict,
+  band, or trend. No-signal ⇒ no cardiac nudge (T-NDG-02/03).
+- **RK-GLU-01 (acting on a glucose nudge for dosing):** no insulin/dosing
+  surface; glucose output is band-status relative to the personal baseline only.
+  The **FR-NDG-06 guard** (designated control) blocks any dose quantity, dosing
+  verb, treatment directive, diagnostic claim, or clinical-normality verdict in
+  ANY nudge string. Every engine output is run through the guard before release;
+  violators are dropped and trapped (`assertionFailure`) in debug.
+- **RK-PROV-01:** the nudge layer carries no `provenance`/tier and renders no
+  source label; provenance guard still green.
+
+Residual risk: heuristic thresholds (±1σ baseline) are wellness-grade, not
+clinical — acceptable for the wellness/watch lanes; the constrained/display-only
+lanes carry no interpretation. FR-NDG-06 tests are **blocking** (qms/VnV.md).
+
 ## PR-4 — real glucose/cardiac data now ingested; controls hold
 
 PR-4 lets real device data flow HealthKit → store. Still no rendering, nudging,
@@ -42,6 +65,6 @@ Logged per the QMS-lite "no safety-relevant change without a risk touch" rule.
 
 | ID | Hazard | Cause | Planned mitigation | Linked req | Status |
 |---|---|---|---|---|---|
-| RK-CARD-01 | User reads an AFib signal as a diagnosis or acts on it without a clinician | Cardiac data rendered with interpretation/alarm/trend framing | **Display-only lane (D9):** render the signal, route to cardiologist, no interpretation; `FR-NDG-06` forbidden-construction guard (designated control, blocking tests) | D9, FR-REG-03, FR-NDG-06 | planned (PR-5) |
-| RK-GLU-01 | User changes insulin/treatment based on a glucose nudge | Dosing/treatment language in nudge output | No insulin/dosing surface in MVP (`FR-REG-04`); allow-list output only; `FR-NDG-06` guard | FR-REG-04, FR-NDG-06 | planned (PR-5) |
-| RK-PROV-01 | Synthetic/estimate data mistaken for clinical truth | `provenance`/tier shown or clinical field accepts SIMULATED | `provenance` never renders (CI/unit guard, blocking); clinical-tier entities reject SIMULATED at schema level | NFR-PRIV-05, DataModel v1 | planned (PR-2/PR-3) |
+| RK-CARD-01 | User reads an AFib signal as a diagnosis or acts on it without a clinician | Cardiac data rendered with interpretation/alarm/trend framing | **Display-only lane (D9):** render the signal, route to cardiologist, no interpretation; `FR-NDG-06` forbidden-construction guard (designated control, blocking tests) | D9, FR-REG-03, FR-NDG-06 | **mitigated** (PR-5; T-NDG-02/03/06) |
+| RK-GLU-01 | User changes insulin/treatment based on a glucose nudge | Dosing/treatment language in nudge output | No insulin/dosing surface in MVP (`FR-REG-04`); allow-list output only; `FR-NDG-06` guard | FR-REG-04, FR-NDG-06 | **mitigated** (PR-5; T-NDG-06) |
+| RK-PROV-01 | Synthetic/estimate data mistaken for clinical truth | `provenance`/tier shown or clinical field accepts SIMULATED | `provenance` never renders (CI/unit guard, blocking); clinical-tier entities reject SIMULATED at schema level | NFR-PRIV-05, DataModel v1 | **mitigated** (PR-2/PR-3; T-PROV-01, T-DM-01) |

@@ -22,6 +22,10 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | FR-ARCH-04 | Read-only: HealthKit share/write set is **empty**; no write method anywhere | `Liviqa/Ingestion/HealthKitService.swift` (`shareTypes = []`), `HealthDataProvider.swift` | T-HK-RO-01 | implemented (typechecks vs HK SDK; unit run in Xcode) | PR-4 |
 | FR-ING-02..05 | Concrete HealthKit reads (glucose mmol/L, HRV/RHR, steps, energy, sleep, workouts) | `HealthKitService.swift` | T-HK-RO-02/03 | implemented | PR-4 |
 | FR-ING-09 | L1→L2 normalization + idempotent persistence into SwiftData | `Liviqa/Ingestion/IngestionCoordinator.swift` (`SampleMapper`) | T-MAP-01, T-MAP-02 | implemented (run in Xcode) | PR-4 |
+| FR-NDG-01..05 | On-device heuristic nudge engine; baseline-relative; capped allow-list output | `Liviqa/Intelligence/NudgeEngine.swift`, `NudgeModel.swift` | T-NDG-01/04/05/07 | implemented (compiled + executed via swiftc) | PR-5 |
+| FR-NDG-06 | Forbidden-construction guard (no dose/diagnosis/normality), **BLOCKING** | `Liviqa/Intelligence/NudgeGuard.swift` | T-NDG-06/06b/06c | **implemented & passing** (executed this session) | PR-5 |
+| D9 / FR-REG-03 | AFib/cardiac lane is display-only: route-to-clinician, no interpretation | `NudgeEngine.afibNudge`, `RegulatoryLane.displayOnly` | T-NDG-02, T-NDG-03 | implemented | PR-5 |
+| L3 lane map | Each stream tagged with its regulatory lane | `RegulatoryLane` (wellness/watch/constrained/displayOnly) | T-NDG-04 | implemented | PR-5 |
 | FR-ARCH-05 | "Demo data" indicator source flag (mock = demo) | `HealthDataProvider.swift` (`DataProviderKind.isDemoData`) | T-ING-05 | implemented (data flag; UI badge PR-4) | PR-3 |
 | NFR-PORT-01 | L1 ingestion portable (framework-free value types, provider protocol) | `Liviqa/Ingestion/*` | T-ING-01..05 | implemented | PR-3 |
 | NFR-PRIV-05 / build-rule | `provenance` never renders (file guard + type guard, **blocking**) | `scripts/guard_provenance.sh`, `ProvenanceGuardTests.swift` | T-PROV-01, T-PROV-02, T-PROV-03 | implemented (file guard green; type tests run in Xcode) | PR-3 |
@@ -30,7 +34,6 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 
 | Req ID | Title | Target PR |
 |---|---|---|
-| FR-NDG-06 | Forbidden-construction guardrail (designated control; **blocking** tests) | PR-5 |
+| FR-CTX-01 | Open-Meteo weather + air-quality context (coarse, per-session, no health egress) | PR-6 |
 | NFR-SEC-02 / OD-09 | Secure Enclave key-wrapping + AES-256 verification | PR-7 |
-| D9 / FR-REG-03 | AFib lane display-only, route-to-cardiologist | PR-5 |
 | OD-07 reconcile | Migrate locked `MetricSnapshot.glucoseMgdl` (journal sync + Supabase col) to mmol/L | later (touches sync schema) |

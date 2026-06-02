@@ -4,6 +4,29 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-5 — On-device nudge engine + FR-NDG-06 guard + AFib display-only (2026-06-03)
+- **feat(intelligence):** `NudgeEngine` — on-device, heuristic, personal-baseline
+  -relative (±1σ). Emits the strict allow-list only (verdict / number / band-status
+  / behavioural-lever / route-to-clinician), capped at 4 ("4 nudges, not 48 charts").
+- **feat(safety):** `NudgeGuard` — **FR-NDG-06 designated control**. Blocks dose
+  quantities, dosing verbs, treatment directives, affirmative diagnostic claims,
+  and clinical-normality verdicts in any nudge string. Every engine output is
+  validated before release; violators dropped + trapped in debug.
+- **feat(cardiac):** AFib/cardiac is `displayOnly` (D9) — the only output is a
+  route-to-clinician nudge (no verdict/band/interpretation), top priority so it
+  always survives the cap. No signal ⇒ no cardiac nudge.
+- **feat(model):** `RegulatoryLane` (wellness/watch/constrained/displayOnly),
+  `Baseline`, `Nudge`, `NudgeCategory`, `ClinicalSignals` — pure Foundation,
+  Android-portable, carries no `provenance`.
+- **test:** `NudgeGuardTests` (T-NDG-06/06b/06c, blocking), `NudgeEngineTests`
+  (T-NDG-01..07, T-BASE-01).
+
+_Requirements touched:_ FR-NDG-01..06, D9/FR-REG-03, L3 lane map.
+_Risk:_ RK-CARD-01, RK-GLU-01 now **mitigated** (was the top MDR exposure). See `qms/RISK.md`.
+_Verification note:_ entire layer compiled **and executed** via `swiftc` harness
+this session — guard blocks all bad strings, engine caps + routes correctly.
+Swift Testing suites re-run in Xcode.
+
 ### PR-4 — HealthKitService (read-only) + L1→L2 persistence (2026-06-03)
 - **feat(ingestion):** `HealthKitService` reads the MVP set on-device. Share/write
   set is **empty** — read-only by construction (FR-ARCH-04). Blood glucose read
