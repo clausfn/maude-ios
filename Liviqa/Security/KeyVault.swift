@@ -25,8 +25,14 @@ public final class KeyVault {
     private var cachedDEK: SymmetricKey?
     public private(set) var isHardwareBacked = false
 
-    public init(service: String? = nil) {
+    /// When true, the Secure-Enclave device key requires user presence (Face/
+    /// Touch ID, with passcode fallback) at unwrap time. Off by default so dev/
+    /// simulator flows aren't gated; opt in for a hardened build.
+    private let requireUserPresence: Bool
+
+    public init(service: String? = nil, requireUserPresence: Bool = false) {
         self.service = service ?? (Bundle.main.bundleIdentifier ?? "dev.liviqa.app") + ".keyvault"
+        self.requireUserPresence = requireUserPresence
     }
 
     // MARK: - Public API
@@ -66,7 +72,7 @@ public final class KeyVault {
             if let data = try keychainRead(account: deviceKeyAccount) {
                 return try SecureEnclave.P256.KeyAgreement.PrivateKey(dataRepresentation: data)
             }
-            let key = try SecureEnclave.P256.KeyAgreement.PrivateKey()
+            let key = try SecureEnclave.P256.KeyAgreement.PrivateKey(accessControl: deviceKeyAccessControl())
             try keychainWrite(key.dataRepresentation, account: deviceKeyAccount)
             return key
         }
@@ -78,6 +84,20 @@ public final class KeyVault {
         let key = P256.KeyAgreement.PrivateKey()
         try keychainWrite(key.rawRepresentation, account: deviceKeyAccount)
         return key
+    }
+
+    /// Access control for the SE private key: always device-bound + private-key
+    /// usage; optionally gated on user presence (biometry or passcode).
+    private func deviceKeyAccessControl() throws -> SecAccessControl {
+        var flags: SecAccessControlCreateFlags = [.privateKeyUsage]
+        if requireUserPresence { flags.insert(.userPresence) }
+        var error: Unmanaged<CFError>?
+        guard let ac = SecAccessControlCreateWithFlags(
+            nil, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, flags, &error
+        ) else {
+            throw CryptoError.keychain(errSecParam)
+        }
+        return ac
     }
 
     // MARK: - Keychain (generic password, this-device-only, after first unlock)

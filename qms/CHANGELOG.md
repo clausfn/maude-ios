@@ -4,6 +4,31 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-9 — scoped, derived-only, encrypted share boundary (2026-06-03)
+- **feat(sharing):** `ShareBundle` / `DailySummary` — the ONLY shape data may
+  leave the device. Derived daily aggregates only: no raw intraday samples, no
+  `source`, and NEVER `provenance` (internal arbitration stays on-device).
+- **feat(sharing):** `ShareScope` maps consent scope keys → unlockable metrics
+  (deny-by-default; `calendar`/unknown scopes unlock nothing).
+- **feat(sharing):** `ShareBundleBuilder` reduces `HealthSamples` to one row per
+  metric per day (mean for rates, sum for counts/minutes; sleep counts asleep
+  time only) filtered to the grant's scopes.
+- **feat(sharing):** `SecureShareExporter` JSON-encodes then AES-256-GCM-seals
+  the bundle via `KeyVault.cryptoBox()` — the PR-8 primitive becomes an enforced
+  egress control. Bundle dates are whole-second so the encrypted round-trip is
+  byte-stable.
+- **feat(security):** `KeyVault(requireUserPresence:)` opt-in — gates the Secure-
+  Enclave device key on Face/Touch ID (passcode fallback) via `SecAccessControl`.
+- **test:** `SharingTests` (T-SHARE-01..05): scope filtering, no-provenance/
+  no-source/no-raw guard on serialized JSON, deny-by-default, encrypt round-trip,
+  one-row-per-metric-per-day.
+
+_Requirements touched:_ FR-ARCH-04, NFR-PRIV-01, NFR-SEC-02.
+_Risk:_ mitigates RK-PRIV-EGRESS-01 (raw/identifying data leaving device); no new
+clinical hazard. See `qms/RISK.md`.
+_Verification note:_ all 11 sharing checks executed this session via a `swiftc`
+driver. KeyVault biometric path runs on device.
+
 ### PR-8 — Secure Enclave key-wrap + AES-256 verification (2026-06-03)
 - **feat(security):** `CryptoBox` — AES-256-GCM authenticated encryption
   (nonce‖ct‖tag combined box); `keyBitCount` exposed for strength assertions.
