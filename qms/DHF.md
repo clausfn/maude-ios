@@ -2,6 +2,20 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-03 — Open-Meteo weather/AQI context (PR-6)
+
+- **Privacy by construction.** The provider coarsens the coordinate to ~0.1°
+  before building any URL, so precise location never leaves the device. The URL
+  builders are pure functions and a test asserts the requests contain only
+  `latitude`/`longitude`/`current` — proving "no health egress" mechanically.
+- **Per-session, not a profile.** Weather is fetched on demand; only the
+  environmental values are persisted (`WeatherContext`, provenance EXTERNAL).
+  The coarse coordinate itself is not stored.
+- **Resilient.** Air quality is best-effort: an AQI failure leaves `aqi == nil`
+  rather than failing the whole snapshot. Open-Meteo is keyless and EU-hosted.
+- **Verification:** coarsening, URL privacy, and the mock provider were executed
+  via `swiftc` this session; the SwiftData entity mapping runs in Xcode.
+
 ## 2026-06-03 — Nudge engine + FR-NDG-06 + AFib display-only (PR-5)
 
 - **Allow-list output, not free text.** The engine can only construct one of five

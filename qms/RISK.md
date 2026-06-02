@@ -2,6 +2,16 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-6 — external context; privacy control added, no new clinical hazard
+
+PR-6 adds the Open-Meteo weather/AQI signal. No clinical interpretation, no
+health data leaves the device. New control:
+- **Coarse-location:** coordinates are rounded to ~0.1° (~11 km) before any
+  request, and a test proves requests carry only lat/lon + env fields (no health,
+  no identifiers, no key) — mitigates a location-privacy leak (RK-PRIV-LOC-01).
+
+No new clinical hazard introduced.
+
 ## PR-5 — nudge engine + FR-NDG-06: top hazards now mitigated in code
 
 PR-5 is the first PR that renders interpretation/advice, so it directly engages

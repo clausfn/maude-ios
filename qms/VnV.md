@@ -25,6 +25,10 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-NDG-06c | Every engine-authored nudge passes the guard | Unit | **Yes** | **pass** — executed this session |
 | T-NDG-07 | Empty/sparse history fabricates nothing | Unit | No | authored — run in Xcode |
 | T-BASE-01 | Baseline needs ≥3 points; bands at ±1σ | Unit | No | authored — run in Xcode |
+| T-CTX-01 | Coordinate coarsened to ~0.1° before any request | Unit | No | **pass** — executed this session |
+| T-CTX-02 | Request URLs carry only lat/lon + env fields (no health/identifiers) | Unit | No | **pass** — executed this session |
+| T-CTX-03 | Mock weather provider returns a snapshot offline | Unit (async) | No | **pass** — executed this session |
+| T-CTX-04 | Snapshot maps to `WeatherContext` with provenance EXTERNAL | Unit | No | authored — run in Xcode |
 | T-PROV-01 | `provenance` never appears in any SwiftUI (view-layer) file | Shell guard (`scripts/guard_provenance.sh`) | **Yes** | **pass** (2026-06-03) |
 | T-PROV-02 | `Provenance` is not `CustomStringConvertible` (no interpolatable label) | Unit | **Yes** | authored — run in Xcode |
 | T-PROV-03 | `provenance` raw values stay machine tokens (REAL/SIMULATED/EXTERNAL) | Unit | No | authored — run in Xcode |

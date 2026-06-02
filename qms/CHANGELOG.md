@@ -4,6 +4,24 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-6 — Open-Meteo weather/AQI context (coarse, no health egress) (2026-06-03)
+- **feat(context):** `OpenMeteoWeatherProvider` fetches current weather +
+  European AQI (FR-CTX-01). Coordinate is coarsened to ~0.1° (~11 km) before any
+  request (privacy control); air-quality is best-effort (non-fatal). Keyless,
+  EU-hosted. `MockWeatherProvider` for offline/tests.
+- **feat(context):** pure `OpenMeteo` URL builders — requests carry only
+  lat/lon + named env fields, proven by test (no health data, no identifiers,
+  no key). `Coordinate`/`WeatherSnapshot` value types, Foundation-only.
+- **feat(context):** `WeatherContextMapper` → `WeatherContext` entity
+  (provenance EXTERNAL); coarse coordinate is not persisted.
+- **test:** `WeatherContextTests` (T-CTX-01..04).
+
+_Requirements touched:_ FR-CTX-01, FR-CTX-02.
+_Risk:_ no new clinical hazard; adds a privacy control (coarse location, no
+health egress). See `qms/RISK.md`.
+_Verification note:_ coarsening + URL-privacy + mock executed via `swiftc` this
+session; entity mapping (SwiftData) runs in Xcode.
+
 ### PR-5 — On-device nudge engine + FR-NDG-06 guard + AFib display-only (2026-06-03)
 - **feat(intelligence):** `NudgeEngine` — on-device, heuristic, personal-baseline
   -relative (±1σ). Emits the strict allow-list only (verdict / number / band-status

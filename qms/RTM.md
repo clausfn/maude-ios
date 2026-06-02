@@ -26,6 +26,8 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | FR-NDG-06 | Forbidden-construction guard (no dose/diagnosis/normality), **BLOCKING** | `Liviqa/Intelligence/NudgeGuard.swift` | T-NDG-06/06b/06c | **implemented & passing** (executed this session) | PR-5 |
 | D9 / FR-REG-03 | AFib/cardiac lane is display-only: route-to-clinician, no interpretation | `NudgeEngine.afibNudge`, `RegulatoryLane.displayOnly` | T-NDG-02, T-NDG-03 | implemented | PR-5 |
 | L3 lane map | Each stream tagged with its regulatory lane | `RegulatoryLane` (wellness/watch/constrained/displayOnly) | T-NDG-04 | implemented | PR-5 |
+| FR-CTX-01 | Open-Meteo weather + AQI; coarse (~0.1°) coordinate, per-session, no health egress | `Liviqa/Context/OpenMeteoWeatherProvider.swift`, `WeatherContext.swift` | T-CTX-01/02/03 | implemented (executed via swiftc) | PR-6 |
+| FR-CTX-02 | Weather snapshot persists as `WeatherContext`, provenance EXTERNAL | `Liviqa/Context/WeatherContextMapper.swift` | T-CTX-04 | implemented (run in Xcode) | PR-6 |
 | FR-ARCH-05 | "Demo data" indicator source flag (mock = demo) | `HealthDataProvider.swift` (`DataProviderKind.isDemoData`) | T-ING-05 | implemented (data flag; UI badge PR-4) | PR-3 |
 | NFR-PORT-01 | L1 ingestion portable (framework-free value types, provider protocol) | `Liviqa/Ingestion/*` | T-ING-01..05 | implemented | PR-3 |
 | NFR-PRIV-05 / build-rule | `provenance` never renders (file guard + type guard, **blocking**) | `scripts/guard_provenance.sh`, `ProvenanceGuardTests.swift` | T-PROV-01, T-PROV-02, T-PROV-03 | implemented (file guard green; type tests run in Xcode) | PR-3 |
@@ -34,6 +36,5 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 
 | Req ID | Title | Target PR |
 |---|---|---|
-| FR-CTX-01 | Open-Meteo weather + air-quality context (coarse, per-session, no health egress) | PR-6 |
 | NFR-SEC-02 / OD-09 | Secure Enclave key-wrapping + AES-256 verification | PR-7 |
 | OD-07 reconcile | Migrate locked `MetricSnapshot.glucoseMgdl` (journal sync + Supabase col) to mmol/L | later (touches sync schema) |
