@@ -54,12 +54,14 @@ struct MainTabView: View {
                         TodayView(
                             nudges: appState.nudges,
                             displayName: appState.profile?.displayName,
+                            isDemoData: appState.isDemoData,
                             onOpen: { nudge in selectedNudge = nudge },
                             onCalibrate: { anchor in
                                 nudgeProfileAnchor = anchor
                                 showProfile = true
                             }
                         )
+                        .task { await appState.refreshFromHealth() }
                         .navigationDestination(item: $selectedNudge) { nudge in
                             NudgeDetailView(nudge: nudge)
                         }

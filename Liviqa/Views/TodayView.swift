@@ -6,6 +6,8 @@ import SwiftUI
 struct TodayView: View {
     let nudges: [Nudge]
     var displayName: String?
+    /// FR-ARCH-05: true when the feed is built from synthetic demo data.
+    var isDemoData: Bool = false
     var onOpen: (Nudge) -> Void
     var onCalibrate: ((ProfileSheet.Section?) -> Void)? = nil
 
@@ -32,6 +34,24 @@ struct TodayView: View {
 
                 // ── App bar ──
                 LiviqaAppBar(title: "Liviqa", showMark: true)
+
+                // ── Demo-data indicator (FR-ARCH-05) ──
+                if isDemoData {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("DEMO DATA")
+                            .font(.liviqaKicker(9))
+                            .tracking(1)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(LiviqaTheme.line2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                    .clipShape(Capsule())
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                }
 
                 // ── Greeting ──
                 VStack(alignment: .leading, spacing: 6) {

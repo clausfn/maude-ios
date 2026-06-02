@@ -4,6 +4,33 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-7 — UI wiring: live L1→L2→L3 feed + demo-data badge (2026-06-03)
+- **feat(app):** `AppState.refreshFromHealth()` runs the on-device pipeline —
+  active `HealthDataProvider` (mock or HealthKit) → `IngestionCoordinator.persist`
+  (L2, on-device only) → `NudgeEngine` (L3) — and publishes the capped,
+  FR-NDG-06-clean feed. Falls back to existing nudges if nothing fires, so the
+  Today feed is never empty. SwiftData container is optional → a store failure
+  can never crash launch.
+- **feat(app):** provider is selectable via `AppState.dataProviderKind`
+  (`.mock` default for the synthetic demo user; `.healthKit` for real data) with
+  no code change at the call sites.
+- **feat(intelligence):** `EngineNudge → Nudge` card adapter (`EngineNudge+Card.swift`)
+  — the single seam between domain output and the locked prototype card. No
+  clinical copy added; card text comes straight from the engine.
+- **feat(ui):** `TodayView` shows a neutral "DEMO DATA" badge when the feed is
+  synthetic (FR-ARCH-05). `MainTabView` triggers `refreshFromHealth()` on appear.
+- **refactor(ingestion):** split `IngestionCoordinator.sync` into `sync` +
+  `persist(_:from:to:)` so a caller can fetch once and reuse samples for L3.
+- Prototype design untouched (cardinal rule): wiring is additive (one new param,
+  one extension file, one additive badge).
+
+_Requirements touched:_ FR-ARCH-05 (demo-data disclosure), L1→L2→L3 integration.
+_Risk:_ no new clinical hazard. The display-only AFib lane stays display-only
+(`EngineNudge` → `.cardiac` accent, no clinician routing implied by the card).
+_Verification note:_ asset-less `xcodebuild` (device, signing off) shows **0 new
+errors** in any wired file; remaining errors are the authoring-sandbox macro
+plugins only. UI rendering verified by the user in Xcode.
+
 ### fix — resolve `Nudge` type collision with locked prototype (2026-06-03)
 - The PR-5 engine type `Nudge` collided with the locked prototype's
   presentation-layer `Nudge` card view-model (`Liviqa/Models/MockData.swift`),

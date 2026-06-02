@@ -89,7 +89,13 @@ public final class IngestionCoordinator {
     @discardableResult
     public func sync(from start: Date, to end: Date) async throws -> IngestSummary {
         let samples = try await provider.fetchSamples(from: start, to: end)
+        return try persist(samples, from: start, to: end)
+    }
 
+    /// Normalize + persist already-fetched samples (lets a caller fetch once and
+    /// reuse the samples for L3 nudges). Idempotent over the window.
+    @discardableResult
+    public func persist(_ samples: HealthSamples, from start: Date, to end: Date) throws -> IngestSummary {
         let glucose = try SampleMapper.glucose(samples)
         let heart = try SampleMapper.heartDaily(samples)
         let sleep = try SampleMapper.sleep(samples)

@@ -2,12 +2,22 @@
 // v02 · 2026-05-22 — added healthContext (declared baseline, HealthContext)
 import Foundation
 import Observation
+import SwiftData
 
 @Observable
 final class AppState {
 
     // Service (swap MockSupabaseService → SupabaseService when credentials are ready)
     let supabase: any SupabaseServiceProtocol
+
+    // L1 source selection. `.mock` = synthetic demo user (FR-ARCH-05 badge);
+    // `.healthKit` = real on-device data. Swap with no code change elsewhere.
+    var dataProviderKind: DataProviderKind = .mock
+    var isDemoData: Bool { dataProviderKind.isDemoData }
+
+    // On-device SwiftData store (samples never leave the device). Optional so a
+    // schema/store failure can never crash launch — the feed still works.
+    private let modelContainer: ModelContainer? = try? LiviqaStore.makeContainer()
 
     // Auth
     var session: UserSession?  = nil
@@ -96,6 +106,32 @@ final class AppState {
     @MainActor
     func loadProfile() async {
         do { profile = try await supabase.fetchProfile() } catch { /* non-fatal */ }
+    }
+
+    // MARK: - On-device health pipeline (L1 → L2 → L3)
+
+    /// Ingest the last 30 days from the active provider, persist on-device, and
+    /// regenerate the capped, FR-NDG-06-clean nudge feed. Falls back to the
+    /// existing nudges if nothing fires, so the feed is never empty.
+    @MainActor
+    func refreshFromHealth() async {
+        let provider = HealthProviderFactory.make(dataProviderKind)
+        let end = Date()
+        let start = Calendar.current.date(byAdding: .day, value: -30, to: end) ?? end
+        do {
+            try await provider.requestReadAuthorization()
+            let samples = try await provider.fetchSamples(from: start, to: end)
+            if let container = modelContainer {
+                let coordinator = IngestionCoordinator(context: container.mainContext, provider: provider)
+                try? coordinator.persist(samples, from: start, to: end)
+            }
+            let engineNudges = NudgeEngine().generate(samples: samples)
+            if !engineNudges.isEmpty {
+                nudges = engineNudges.map { Nudge(engine: $0) }
+            }
+        } catch {
+            lastError = error.localizedDescription   // keep existing nudges
+        }
     }
 
     @MainActor

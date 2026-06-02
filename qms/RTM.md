@@ -28,7 +28,8 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | L3 lane map | Each stream tagged with its regulatory lane | `RegulatoryLane` (wellness/watch/constrained/displayOnly) | T-NDG-04 | implemented | PR-5 |
 | FR-CTX-01 | Open-Meteo weather + AQI; coarse (~0.1°) coordinate, per-session, no health egress | `Liviqa/Context/OpenMeteoWeatherProvider.swift`, `WeatherContext.swift` | T-CTX-01/02/03 | implemented (executed via swiftc) | PR-6 |
 | FR-CTX-02 | Weather snapshot persists as `WeatherContext`, provenance EXTERNAL | `Liviqa/Context/WeatherContextMapper.swift` | T-CTX-04 | implemented (run in Xcode) | PR-6 |
-| FR-ARCH-05 | "Demo data" indicator source flag (mock = demo) | `HealthDataProvider.swift` (`DataProviderKind.isDemoData`) | T-ING-05 | implemented (data flag; UI badge PR-4) | PR-3 |
+| FR-ARCH-05 | "Demo data" indicator source flag (mock = demo) + UI badge | `HealthDataProvider.swift` (`DataProviderKind.isDemoData`); `AppState.isDemoData`; `TodayView` badge | T-ING-05 | implemented (data flag + UI badge) | PR-7 |
+| INT-L1L3 | Live L1→L2→L3 feed wired to Today screen | `AppState.refreshFromHealth()`; `EngineNudge+Card.swift`; `MainTabView` | (UI; user-verified) | implemented | PR-7 |
 | NFR-PORT-01 | L1 ingestion portable (framework-free value types, provider protocol) | `Liviqa/Ingestion/*` | T-ING-01..05 | implemented | PR-3 |
 | NFR-PRIV-05 / build-rule | `provenance` never renders (file guard + type guard, **blocking**) | `scripts/guard_provenance.sh`, `ProvenanceGuardTests.swift` | T-PROV-01, T-PROV-02, T-PROV-03 | implemented (file guard green; type tests run in Xcode) | PR-3 |
 
