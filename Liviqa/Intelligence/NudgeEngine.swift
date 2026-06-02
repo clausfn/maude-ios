@@ -15,8 +15,8 @@ public struct NudgeEngine: Sendable {
     public func generate(samples: HealthSamples,
                          signals: ClinicalSignals = .init(),
                          now: Date = Date(),
-                         cap: Int = 4) -> [Nudge] {
-        var candidates: [Nudge] = []
+                         cap: Int = 4) -> [EngineNudge] {
+        var candidates: [EngineNudge] = []
 
         candidates += afibNudge(signals)          // displayOnly, top priority
         candidates += glucoseNudge(samples)        // watch
@@ -42,9 +42,9 @@ public struct NudgeEngine: Sendable {
 
     /// D9 display-only: render the signal + route to cardiologist. No verdict,
     /// no band, no interpretation.
-    private func afibNudge(_ s: ClinicalSignals) -> [Nudge] {
+    private func afibNudge(_ s: ClinicalSignals) -> [EngineNudge] {
         guard s.afibSignalPresent else { return [] }
-        return [Nudge(
+        return [EngineNudge(
             category: .routeToClinician, lane: .displayOnly,
             title: "Irregular heart-rhythm signal",
             body: "Your device recorded an irregular heart-rhythm signal. "
@@ -55,7 +55,7 @@ public struct NudgeEngine: Sendable {
 
     /// Glucose (watch): today's mean vs the personal baseline of prior days.
     /// Band-status only — no targets, no dosing.
-    private func glucoseNudge(_ s: HealthSamples) -> [Nudge] {
+    private func glucoseNudge(_ s: HealthSamples) -> [EngineNudge] {
         let cal = Calendar(identifier: .gregorian)
         let byDay = Dictionary(grouping: s.glucose) { cal.startOfDay(for: $0.ts) }
         guard let today = byDay.keys.max(), byDay.count >= 4 else { return [] }
@@ -65,19 +65,19 @@ public struct NudgeEngine: Sendable {
 
         switch base.band(for: todayMean) {
         case .inBand:
-            return [Nudge(category: .bandStatus, lane: .watch,
+            return [EngineNudge(category: .bandStatus, lane: .watch,
                           title: "Glucose steady",
                           body: "Your glucose today is sitting in your usual range.",
                           priority: 55)]
         case .above:
-            return [Nudge(category: .bandStatus, lane: .watch,
+            return [EngineNudge(category: .bandStatus, lane: .watch,
                           title: "Glucose above your usual",
                           body: "Your glucose today is running above your usual range. "
                               + "A short walk after meals helps many people. "
                               + "If this keeps up, it's worth raising with \(Specialty.gp.phrase).",
                           priority: 75)]
         case .below:
-            return [Nudge(category: .bandStatus, lane: .watch,
+            return [EngineNudge(category: .bandStatus, lane: .watch,
                           title: "Glucose below your usual",
                           body: "Your glucose today is running below your usual range.",
                           priority: 75)]
@@ -85,17 +85,17 @@ public struct NudgeEngine: Sendable {
     }
 
     /// Recovery (wellness): HRV-SDNN latest vs baseline of earlier days.
-    private func recoveryNudge(_ s: HealthSamples) -> [Nudge] {
+    private func recoveryNudge(_ s: HealthSamples) -> [EngineNudge] {
         guard let (latest, base) = latestVsBaseline(s.hrv.sorted { $0.date < $1.date }.map(\.value))
         else { return [] }
         switch base.band(for: latest) {
         case .below:
-            return [Nudge(category: .behaviouralLever, lane: .wellness,
+            return [EngineNudge(category: .behaviouralLever, lane: .wellness,
                           title: "Recovery looks low",
                           body: "Your heart-rate variability is below your usual. \(Lever.windDown.phrase)",
                           priority: 60)]
         case .above:
-            return [Nudge(category: .verdict, lane: .wellness,
+            return [EngineNudge(category: .verdict, lane: .wellness,
                           title: "Recovery looking strong",
                           body: "Your recovery signals are \(Verdict.onTrack.phrase).",
                           priority: 35)]
@@ -105,11 +105,11 @@ public struct NudgeEngine: Sendable {
     }
 
     /// Sleep (wellness): last night vs baseline.
-    private func sleepNudge(_ s: HealthSamples) -> [Nudge] {
+    private func sleepNudge(_ s: HealthSamples) -> [EngineNudge] {
         let nightly = s.sleep.sorted { $0.date < $1.date }.map(\.hours)
         guard let (latest, base) = latestVsBaseline(nightly) else { return [] }
         if base.band(for: latest) == .below {
-            return [Nudge(category: .behaviouralLever, lane: .wellness,
+            return [EngineNudge(category: .behaviouralLever, lane: .wellness,
                           title: "Short night",
                           body: "Last night was shorter than your usual. \(Lever.earlierNight.phrase)",
                           priority: 45)]
@@ -118,11 +118,11 @@ public struct NudgeEngine: Sendable {
     }
 
     /// Activity (wellness): latest steps vs baseline.
-    private func activityNudge(_ s: HealthSamples) -> [Nudge] {
+    private func activityNudge(_ s: HealthSamples) -> [EngineNudge] {
         let steps = s.steps.sorted { $0.date < $1.date }.map(\.value)
         guard let (latest, base) = latestVsBaseline(steps) else { return [] }
         if base.band(for: latest) == .below {
-            return [Nudge(category: .behaviouralLever, lane: .wellness,
+            return [EngineNudge(category: .behaviouralLever, lane: .wellness,
                           title: "Quieter day for movement",
                           body: "You're moving less than your usual today. \(Lever.move.phrase)",
                           priority: 30)]
@@ -131,10 +131,10 @@ public struct NudgeEngine: Sendable {
     }
 
     /// Resting HR (watch): a plain number echo — never a target.
-    private func restingHRNumber(_ s: HealthSamples) -> [Nudge] {
+    private func restingHRNumber(_ s: HealthSamples) -> [EngineNudge] {
         guard let latest = s.restingHR.sorted(by: { $0.date < $1.date }).last else { return [] }
         let bpm = Int(latest.value.rounded())
-        return [Nudge(category: .number, lane: .watch,
+        return [EngineNudge(category: .number, lane: .watch,
                       title: "Resting heart rate",
                       body: "Your most recent resting heart rate is \(bpm) bpm.",
                       priority: 20)]

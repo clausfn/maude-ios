@@ -4,6 +4,18 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### fix — resolve `Nudge` type collision with locked prototype (2026-06-03)
+- The PR-5 engine type `Nudge` collided with the locked prototype's
+  presentation-layer `Nudge` card view-model (`Liviqa/Models/MockData.swift`),
+  producing "invalid redeclaration / ambiguous for type lookup" — the hard error
+  that blocked the Xcode build. Renamed the engine output type to `EngineNudge`
+  across `NudgeModel`/`NudgeGuard`/`NudgeEngine` (prototype left untouched, per
+  the cardinal rule). A future UI PR maps `EngineNudge` → the `Nudge` card.
+- Verified: full `xcodebuild` (device, signing off) shows the `Nudge` clash gone
+  (0 errors); all remaining build errors are the authoring-sandbox's inability to
+  run Swift macro plugins (`@Model`, `@Observable`, `#Preview`) + their cascades,
+  which do not occur in a normal Xcode toolchain.
+
 ### PR-6 — Open-Meteo weather/AQI context (coarse, no health egress) (2026-06-03)
 - **feat(context):** `OpenMeteoWeatherProvider` fetches current weather +
   European AQI (FR-CTX-01). Coordinate is coarsened to ~0.1° (~11 km) before any

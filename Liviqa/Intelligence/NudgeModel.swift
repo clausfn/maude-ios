@@ -60,9 +60,11 @@ public enum NudgeCategory: String, Sendable, CaseIterable {
     case verdict, number, bandStatus, behaviouralLever, routeToClinician
 }
 
-/// A single capped nudge. `title`/`body` are user-facing and MUST pass FR-NDG-06.
-/// NOTE: carries no `provenance` — that field never reaches this layer.
-public struct Nudge: Sendable, Identifiable, Equatable {
+/// A single capped nudge produced by the engine. `title`/`body` are user-facing
+/// and MUST pass FR-NDG-06. NOTE: carries no `provenance` — that field never
+/// reaches this layer. Named `EngineNudge` to stay distinct from the prototype's
+/// presentation-layer `Nudge` card view-model (a future UI PR maps one to the other).
+public struct EngineNudge: Sendable, Identifiable, Equatable {
     public let id: UUID
     public let category: NudgeCategory
     public let lane: RegulatoryLane

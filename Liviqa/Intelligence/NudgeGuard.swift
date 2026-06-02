@@ -52,9 +52,9 @@ public enum NudgeGuard {
 
     /// A nudge is valid iff neither its title nor body contains a forbidden
     /// construction.
-    public static func violation(in nudge: Nudge) -> ForbiddenConstruction? {
+    public static func violation(in nudge: EngineNudge) -> ForbiddenConstruction? {
         check(nudge.title) ?? check(nudge.body)
     }
 
-    public static func isValid(_ nudge: Nudge) -> Bool { violation(in: nudge) == nil }
+    public static func isValid(_ nudge: EngineNudge) -> Bool { violation(in: nudge) == nil }
 }

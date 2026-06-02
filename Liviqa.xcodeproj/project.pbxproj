@@ -101,15 +101,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		48AFF2422FBE5BDD00CFECA5 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */,
-				48AFF2412FBE5BDD00CFECA5 /* Signing.example.xcconfig */,
-			);
-			path = Config;
-			sourceTree = "<group>";
-		};
 		48AFF2062FBE5BDB00CFECA5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -118,6 +109,15 @@
 				48AFF2202FBE5BDD00CFECA5 /* LiviqaUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		48AFF2422FBE5BDD00CFECA5 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */,
+				48AFF2412FBE5BDD00CFECA5 /* Signing.example.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
