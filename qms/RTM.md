@@ -15,7 +15,7 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | DataModel v1 §2.1 | Typed sample sources (12 entities) carry source/tier/provenance | `Liviqa/Models/Domain/Entities.swift` | T-DM-03 | implemented (tests authored; run in Xcode) | PR-2 |
 | DataModel v1 §2.1 | Clinical-tier rejects SIMULATED (schema gate + type-level `ClinicalProvenance`) | `Liviqa/Models/Domain/CoreTypes.swift` | T-DM-01 | implemented | PR-2 |
 | OD-07 / FR-ING-06 | Glucose canonical mmol/L (GMI = HbA1c headline) | `CoreTypes.swift` (`GlucoseUnit`), `GlucoseSample.mmol` | T-DM-02 | implemented | PR-2 |
-| OD-09 | On-device SwiftData store, file-protection complete | `Liviqa/Models/Domain/Persistence.swift` | T-DM-03 | partial (Secure Enclave key-wrap + AES-256 verify = PR-7) | PR-2 |
+| OD-09 | On-device SwiftData store, file-protection complete | `Liviqa/Models/Domain/Persistence.swift` | T-DM-03 | implemented (store FP-complete; DEK key-wrap = `Security/`) | PR-2/PR-8 |
 | NFR-PRIV-01 | Samples never sync to cloud (`cloudKitDatabase: .none`) | `Persistence.swift` | — | implemented | PR-2 |
 | FR-ING-01 | MVP read set (HRV-SDNN, RHR, steps, active energy, glucose, sleep, workouts) modelled as value readings | `Liviqa/Ingestion/HealthSamples.swift` | T-ING-01, T-ING-02 | implemented | PR-3 |
 | FR-ING-07 | Single `HealthSamples` aggregate; no network-upload method on provider/types | `HealthSamples.swift`, `HealthDataProvider.swift` | T-ING-01 | implemented | PR-3 |
@@ -37,5 +37,5 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 
 | Req ID | Title | Target PR |
 |---|---|---|
-| NFR-SEC-02 / OD-09 | Secure Enclave key-wrapping + AES-256 verification | PR-7 |
+| NFR-SEC-02 / OD-09 | Secure Enclave key-wrapping + AES-256 verification | `Liviqa/Security/CryptoCore.swift`, `Liviqa/Security/KeyVault.swift` | T-SEC-01..06 | implemented (10/10 checks pass; SE w/ software fallback) | PR-8 |
 | OD-07 reconcile | Migrate locked `MetricSnapshot.glucoseMgdl` (journal sync + Supabase col) to mmol/L | later (touches sync schema) |

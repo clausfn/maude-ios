@@ -6,9 +6,11 @@
 // if-synced) is a SEPARATE store and never holds these entities.
 //
 // PR-2 establishes the schema + an encrypted-at-rest store (file protection
-// complete). Full AES-256 verification + Secure Enclave key wrapping is PR-7
-// (NFR-SEC-02). This factory is not yet wired into app launch; ingestion (PR-4)
-// becomes its first writer. Tests use the in-memory variant.
+// complete). The verified AES-256 + Secure-Enclave key-wrap primitive (NFR-SEC-02)
+// lives in `Liviqa/Security/` (`CryptoBox`/`KeyWrap`/`KeyVault`, PR-8) and is the
+// sanctioned way to encrypt any blob the app holds outside this store (exports,
+// caches, journal-if-synced). Ingestion (PR-4) is this store's first writer.
+// Tests use the in-memory variant.
 import Foundation
 import SwiftData
 

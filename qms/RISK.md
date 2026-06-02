@@ -2,6 +2,24 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-8 — device-bound key material; data-at-rest hazard mitigated
+
+PR-8 adds the AES-256 + Secure-Enclave key-wrap primitive (NFR-SEC-02 / OD-09).
+No clinical interpretation; this is a confidentiality/integrity control.
+- **RK-PRIV-ATREST-01 (on-device data readable if storage is extracted):** the
+  data-encryption key (AES-256) is wrapped (ECIES: ECDH → HKDF-SHA256 → AES-GCM)
+  to a P-256 device key whose private half lives in the **Secure Enclave** and
+  never leaves it. Keychain items are `…ThisDeviceOnly`. A copied Keychain/
+  backup is therefore not unwrappable on another device. Verified: wrong-device-
+  key cannot unwrap (T-SEC-04), each wrap is forward-secret/unique (T-SEC-05).
+- **Integrity:** AES-GCM authenticates every box — a single flipped byte throws
+  rather than returning corrupted plaintext (T-SEC-02). No silent corruption.
+- **Residual:** simulators without an SE fall back to a software P-256 key
+  (still AES-256, still device-only Keychain); `KeyVault.isHardwareBacked`
+  records which path is live for audit. Production hardware is SE-backed.
+
+No new clinical hazard introduced.
+
 ## PR-6 — external context; privacy control added, no new clinical hazard
 
 PR-6 adds the Open-Meteo weather/AQI signal. No clinical interpretation, no

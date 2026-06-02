@@ -4,6 +4,28 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-8 — Secure Enclave key-wrap + AES-256 verification (2026-06-03)
+- **feat(security):** `CryptoBox` — AES-256-GCM authenticated encryption
+  (nonce‖ct‖tag combined box); `keyBitCount` exposed for strength assertions.
+- **feat(security):** `KeyWrap` — ECIES wrap of the data-encryption key (DEK) to
+  a P-256 device key (ECDH → HKDF-SHA256 → AES-GCM), versioned HKDF context,
+  fresh ephemeral per wrap. `AgreementPrivateKey` abstraction unifies software
+  and `SecureEnclave.P256` keys so unwrap is identical on both paths.
+- **feat(security):** `KeyVault` — mints a 256-bit DEK on first use, wraps it to
+  a Secure-Enclave device key (private half never leaves the SE; only its
+  `.dataRepresentation` is stored), persists the wrapped DEK in the Keychain
+  (`…AfterFirstUnlockThisDeviceOnly`). Software P-256 fallback for simulators;
+  `isHardwareBacked` records the live path. `reset()` for wipe/sign-out.
+- **test:** `CryptoTests` (T-SEC-01..06) — AES-256 round-trip, GCM tamper
+  rejection, wrap/unwrap recovery, wrong-device-key failure, per-wrap
+  uniqueness, serialization round-trip.
+
+_Requirements touched:_ NFR-SEC-02, OD-09.
+_Risk:_ mitigates RK-PRIV-ATREST-01 (data-at-rest) + adds integrity guarantee;
+no new clinical hazard. See `qms/RISK.md`.
+_Verification note:_ all 10 crypto checks executed this session via a `swiftc`
+driver (software P-256). Secure-Enclave + Keychain paths run on device.
+
 ### PR-7 — UI wiring: live L1→L2→L3 feed + demo-data badge (2026-06-03)
 - **feat(app):** `AppState.refreshFromHealth()` runs the on-device pipeline —
   active `HealthDataProvider` (mock or HealthKit) → `IngestionCoordinator.persist`
