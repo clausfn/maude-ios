@@ -2,6 +2,20 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-2 — data entities only, no new clinical hazard
+
+PR-2 introduces glucose, AFib-burden, and insulin-dose **data entities** plus the
+on-device store. These are data-layer types: nothing is rendered, interpreted, or
+turned into a nudge here. Controls preserved:
+- Clinical-tier rows cannot be SIMULATED (schema gate + type-level
+  `ClinicalProvenance`) — guards RK-PROV-01.
+- `InsulinDose` is a data source only; **no insulin/dosing surface** (FR-REG-04) —
+  no UI/output path added.
+- Samples cannot leave the device: store uses `cloudKitDatabase: .none` (NFR-PRIV-01).
+
+No new hazard introduced. AFib/glucose rendering + nudge constraints are still
+the open mitigations tracked below (land in PR-5).
+
 ## PR-1 — no new hazard
 
 PR-1 is signing/identity configuration and repo relocation only. It introduces

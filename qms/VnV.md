@@ -7,6 +7,9 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | Test ID | Verifies | Type | Blocking? | Status |
 |---|---|---|---|---|
 | T-SIGN-01 | Signing identity resolves from `Config/Signing.xcconfig`; no hardcoded Team ID/bundle in tracked files | Manual + grep (see below) | No | **pass** (2026-06-03) |
+| T-DM-01 | Clinical-tier rejects SIMULATED (validator + construction) | Unit (Swift Testing) | No | authored — run in Xcode |
+| T-DM-02 | Glucose mg/dL→mmol/L conversion + round-trip (OD-07) | Unit | No | authored — run in Xcode |
+| T-DM-03 | SwiftData schema loads and round-trips; clinical constructor sets clinical tier | Unit (`@MainActor`) | No | authored — run in Xcode |
 | T-HK-RO-01 | `HealthKitService` requests an **empty** write set (read-only, `FR-ARCH-04`) | Unit | No | planned (PR-4) |
 | T-NDG-06 | Nudge bodies pass the forbidden-construction list (diagnosis/dose/normative claims) | Unit | **Yes** | planned (PR-5) |
 | T-PROV-01 | `provenance` field never reaches a user-facing surface | Unit + CI grep guard | **Yes** | planned (PR-3) |

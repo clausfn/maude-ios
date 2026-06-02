@@ -12,6 +12,11 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | FR-QMS-02 | Living ISO 14971 risk file | `qms/RISK.md` | — | in-progress | PR-1 |
 | FR-QMS-03 | Requirement ↔ test traceability for all FR/NFR/DM | `qms/RTM.md` (this file) | — | in-progress | PR-1 |
 | FR-QMS-05 | Phase-2 docs + changelogs as DHF skeleton | `qms/DHF.md`, `qms/CHANGELOG.md`, `qms/VnV.md` | — | in-progress | PR-1 |
+| DataModel v1 §2.1 | Typed sample sources (12 entities) carry source/tier/provenance | `Liviqa/Models/Domain/Entities.swift` | T-DM-03 | implemented (tests authored; run in Xcode) | PR-2 |
+| DataModel v1 §2.1 | Clinical-tier rejects SIMULATED (schema gate + type-level `ClinicalProvenance`) | `Liviqa/Models/Domain/CoreTypes.swift` | T-DM-01 | implemented | PR-2 |
+| OD-07 / FR-ING-06 | Glucose canonical mmol/L (GMI = HbA1c headline) | `CoreTypes.swift` (`GlucoseUnit`), `GlucoseSample.mmol` | T-DM-02 | implemented | PR-2 |
+| OD-09 | On-device SwiftData store, file-protection complete | `Liviqa/Models/Domain/Persistence.swift` | T-DM-03 | partial (Secure Enclave key-wrap + AES-256 verify = PR-7) | PR-2 |
+| NFR-PRIV-01 | Samples never sync to cloud (`cloudKitDatabase: .none`) | `Persistence.swift` | — | implemented | PR-2 |
 
 ## Upcoming (tracked, not yet implemented)
 
@@ -20,6 +25,6 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | FR-ING-01..13 | HealthKit ingestion (read-only set) behind `HealthDataProvider` | PR-3/PR-4 |
 | FR-NDG-06 | Forbidden-construction guardrail (designated control; **blocking** tests) | PR-5 |
 | NFR-PRIV-05 / build-rule | `provenance` never renders (CI/unit guard, **blocking**) | PR-3 |
-| OD-07 / FR-ING-06 | Glucose canonical mmol/L | PR-2 |
-| NFR-SEC-02 / OD-09 | Local store encrypted (SwiftData + Secure Enclave, AES-256) | PR-2/PR-7 |
+| NFR-SEC-02 / OD-09 | Secure Enclave key-wrapping + AES-256 verification | PR-7 |
 | D9 / FR-REG-03 | AFib lane display-only, route-to-cardiologist | PR-5 |
+| OD-07 reconcile | Migrate locked `MetricSnapshot.glucoseMgdl` (journal sync + Supabase col) to mmol/L | later (touches sync schema) |
