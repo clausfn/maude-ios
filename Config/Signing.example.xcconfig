@@ -1,0 +1,22 @@
+// Liviqa — signing & identity TEMPLATE (checked in). No real Team ID here.
+//
+// First-time setup (per machine / per developer):
+//   cp Config/Signing.example.xcconfig Config/Signing.xcconfig
+//   then set DEVELOPMENT_TEAM in Config/Signing.xcconfig.
+//
+// Config/Signing.xcconfig is gitignored. Identity NEVER lives in .swift,
+// Info.plist, or .entitlements — only here. See docs/SIGNING.md.
+//
+// Deploying under the Data for Good account later = edit Signing.xcconfig
+// only (team + bundle id), re-provision in Xcode. No code change.
+
+// Apple Developer Team ID used to code-sign. Leave EMPTY in this template.
+DEVELOPMENT_TEAM =
+
+// App identity — development defaults. DfG deployment overrides these.
+APP_BUNDLE_ID = dev.liviqa.app
+APP_GROUP = group.dev.liviqa.app
+
+// Derived. Do NOT set PRODUCT_BUNDLE_IDENTIFIER per-target in the project;
+// it flows from APP_BUNDLE_ID here (test targets append .Tests / .UITests).
+PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_ID)

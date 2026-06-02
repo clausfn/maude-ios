@@ -4,6 +4,7 @@ xcuserdata/
 *.xccheckout
 *.moved-aside
 DerivedData/
+.DerivedData/
 *.hmap
 *.ipa
 *.dSYM.zip
@@ -13,6 +14,10 @@ Pods/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Liviqa — local signing & identity (real Team ID / bundle id live here only).
+# Checked-in template is Config/Signing.example.xcconfig. See docs/SIGNING.md.
+Config/Signing.xcconfig
 
 # Liviqa — optional local overrides (committed file uses placeholders only)
 # Liviqa/Config.local.swift

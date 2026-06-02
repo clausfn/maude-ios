@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<!-- HealthKit capability. READ-ONLY is enforced in code: HealthKitService
+	     requests an empty write (toShare) set (FR-ARCH-04 / FR-ING-01). The
+	     entitlement only enables HealthKit; it does not grant write access. -->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<!-- App Group identity comes from Config/Signing.xcconfig (APP_GROUP),
+	     never hardcoded. Used by future app extensions/widgets. If a personal
+	     team has trouble provisioning the group, it can be removed without a
+	     code change (see docs/SIGNING.md). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(APP_GROUP)</string>
+	</array>
+</dict>
 </plist>
