@@ -32,26 +32,12 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
-                // ── App bar ──
-                LiviqaAppBar(title: "Liviqa", showMark: true)
-
-                // ── Demo-data indicator (FR-ARCH-05) ──
-                if isDemoData {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wand.and.stars")
-                            .font(.system(size: 9, weight: .bold))
-                        Text("DEMO DATA")
-                            .font(.liviqaKicker(9))
-                            .tracking(1)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(LiviqaTheme.line2)
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .clipShape(Capsule())
-                    .padding(.horizontal, 20)
-                    .padding(.top, 6)
-                }
+                // ── App bar (FR-ARCH-05 demo-data chip in the status slot) ──
+                LiviqaAppBar(
+                    title: "Liviqa",
+                    showMark: true,
+                    chipLabel: isDemoData ? "Demo data" : nil
+                )
 
                 // ── Greeting ──
                 VStack(alignment: .leading, spacing: 6) {
