@@ -2,6 +2,24 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-03 — HealthKitService (read-only) + L1→L2 persistence (PR-4)
+
+- **Read-only enforced structurally**, not just by policy: `HealthKitService`
+  requests authorization with `toShare: []` and exposes no write method
+  (FR-ARCH-04). The empty share set is a static property covered by T-HK-RO-01.
+- **Glucose canonical at the edge:** HealthKit blood glucose is read directly in
+  `mmol/L` (mole unit ÷ litre, OD-07) so no mg/dL ever enters the store.
+- **Daily aggregation rule:** cumulative metrics (steps, active energy) are summed
+  per day; discrete metrics (HRV-SDNN, resting HR) are averaged per day. HRV + RHR
+  merge into a single `HeartDaily` row (the DataModel v1 daily-cardio shape).
+- **Idempotent re-sync:** `IngestionCoordinator` replaces all rows in the synced
+  window before insert, so repeated syncs converge instead of duplicating.
+- **DataModel gap noted:** steps + active energy have no raw entity in v1; they are
+  retained on the in-memory `HealthSamples` to feed L3 activity/recovery streams
+  (PR-5) rather than inventing an entity outside the locked model.
+- **Verification:** `HealthKitService` typechecks against the real HealthKit SDK
+  here; the SwiftData-backed coordinator/tests run in Xcode.
+
 ## 2026-06-03 — L1 ingestion seam + provenance guard (PR-3)
 
 - **L1 / L2 split formalised.** The provider returns a framework-free

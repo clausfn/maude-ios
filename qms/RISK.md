@@ -2,6 +2,22 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-4 — real glucose/cardiac data now ingested; controls hold
+
+PR-4 lets real device data flow HealthKit → store. Still no rendering, nudging,
+or interpretation. Controls reinforced:
+- **Read-only** is now structural: HealthKit share/write set is empty
+  (`HealthKitService.shareTypes = []`, T-HK-RO-01) — the app cannot mutate the
+  user's health record (closes the "app writes bad data back" failure mode).
+- Glucose canonicalized to mmol/L at the read edge (OD-07) — no unit-confusion
+  hazard from mixed mg/dL in the store.
+- Ingested HealthKit data is `provenance = .real`, tier `good`/`estimate` (never
+  clinical) — keeps RK-PROV-01 mitigation intact; clinical gate untouched.
+- RK-CARD-01 / RK-GLU-01 unchanged: no AFib/glucose **rendering or nudge** added
+  (still land in PR-5).
+
+No new hazard introduced.
+
 ## PR-2 — data entities only, no new clinical hazard
 
 PR-2 introduces glucose, AFib-burden, and insulin-dose **data entities** plus the

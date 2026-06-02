@@ -10,7 +10,11 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-DM-01 | Clinical-tier rejects SIMULATED (validator + construction) | Unit (Swift Testing) | No | authored — run in Xcode |
 | T-DM-02 | Glucose mg/dL→mmol/L conversion + round-trip (OD-07) | Unit | No | authored — run in Xcode |
 | T-DM-03 | SwiftData schema loads and round-trips; clinical constructor sets clinical tier | Unit (`@MainActor`) | No | authored — run in Xcode |
-| T-HK-RO-01 | `HealthKitService` requests an **empty** write set (read-only, `FR-ARCH-04`) | Unit | No | planned (PR-4) |
+| T-HK-RO-01 | `HealthKitService` share/write set is **empty** (read-only, `FR-ARCH-04`) | Unit | No | authored — run in Xcode (typechecks vs HK SDK) |
+| T-HK-RO-02 | Read set = MVP 7 types | Unit | No | authored — run in Xcode |
+| T-HK-RO-03 | Sleep stage mapping (REM/Deep/inBed) | Unit | No | authored — run in Xcode |
+| T-MAP-01 | Mock→entity mapping preserves provenance; HRV+RHR merge per day | Unit (`@MainActor`) | No | authored — run in Xcode |
+| T-MAP-02 | Re-sync of a window is idempotent (replace, not duplicate) | Unit (`@MainActor`) | No | authored — run in Xcode |
 | T-NDG-06 | Nudge bodies pass the forbidden-construction list (diagnosis/dose/normative claims) | Unit | **Yes** | planned (PR-5) |
 | T-PROV-01 | `provenance` never appears in any SwiftUI (view-layer) file | Shell guard (`scripts/guard_provenance.sh`) | **Yes** | **pass** (2026-06-03) |
 | T-PROV-02 | `Provenance` is not `CustomStringConvertible` (no interpolatable label) | Unit | **Yes** | authored — run in Xcode |

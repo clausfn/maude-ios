@@ -4,6 +4,26 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-4 — HealthKitService (read-only) + L1→L2 persistence (2026-06-03)
+- **feat(ingestion):** `HealthKitService` reads the MVP set on-device. Share/write
+  set is **empty** — read-only by construction (FR-ARCH-04). Blood glucose read
+  directly in canonical mmol/L (OD-07); all readings `provenance = .real`.
+  Daily metrics aggregated per day (sum for steps/energy, mean for HRV/RHR).
+- **feat(ingestion):** `HealthProviderFactory` resolves `.healthKit` →
+  `HealthKitService` where the SDK exists, else Mock (`#if canImport(HealthKit)`).
+- **feat(ingestion):** `IngestionCoordinator` + `SampleMapper` normalize
+  `HealthSamples` into SwiftData entities (glucose, HeartDaily [HRV+RHR merged],
+  sleep, workouts). Re-sync of a window is idempotent (replace-range, no dupes).
+  Steps/active-energy stay on `HealthSamples` for L3 derivations (no raw entity).
+- **test:** `HealthKitTests` (T-HK-RO-01/02/03), `MappingTests` (T-MAP-01/02).
+
+_Requirements touched:_ FR-ARCH-04, FR-ING-02..05, FR-ING-09, OD-07, OD-09.
+_Risk:_ glucose values now flow from device→store; still data-layer only, no
+interpretation/rendering. AFib/insulin remain unsurfaced. See `qms/RISK.md`.
+_Verification note:_ `HealthKitService` typechecks against the real HealthKit
+SDK via `swiftc` this session; `IngestionCoordinator` (SwiftData macro) + Swift
+Testing suites run in Xcode on the dev machine.
+
 ### PR-3 — L1 ingestion seam + provenance guard (2026-06-03)
 - **feat(ingestion):** framework-free `HealthSamples` aggregate + value readings
   (`GlucoseReading`, `DailyMetric`, `SleepReading`, `WorkoutReading`) for the MVP

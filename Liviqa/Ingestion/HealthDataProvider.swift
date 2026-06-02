@@ -35,14 +35,19 @@ public protocol HealthDataProvider: Sendable {
     func fetchSamples(from start: Date, to end: Date) async throws -> HealthSamples
 }
 
-/// Selects the active provider. `.healthKit` is wired to `HealthKitService` in
-/// PR-4; until then it falls back to the mock so the app runs end-to-end.
+/// Selects the active provider. `.healthKit` resolves to `HealthKitService`
+/// where the SDK exists, falling back to the mock on platforms without it.
 public enum HealthProviderFactory {
     public static func make(_ kind: DataProviderKind) -> any HealthDataProvider {
         switch kind {
-        case .mock:      return MockDataProvider()
-        case .lv001:     return LV001Provider()
-        case .healthKit: return MockDataProvider()   // TODO(PR-4): HealthKitService()
+        case .mock:  return MockDataProvider()
+        case .lv001: return LV001Provider()
+        case .healthKit:
+            #if canImport(HealthKit)
+            return HealthKitService()
+            #else
+            return MockDataProvider()
+            #endif
         }
     }
 }
