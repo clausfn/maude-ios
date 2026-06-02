@@ -1,0 +1,7 @@
+// Reference only — not compiled. Copy into SupabaseService.swift when Supabase SPM is wired.
+#if canImport(Supabase)
+import Supabase
+import Foundation
+
+// ... live implementation from prior SupabaseService.swift ...
+#endif

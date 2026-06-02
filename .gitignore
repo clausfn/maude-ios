@@ -1,0 +1,21 @@
+# Xcode
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+Pods/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Liviqa — optional local overrides (committed file uses placeholders only)
+# Liviqa/Config.local.swift
+
+# macOS
+.DS_Store
