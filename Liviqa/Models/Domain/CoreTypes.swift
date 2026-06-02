@@ -71,6 +71,14 @@ public protocol Provenanced {
     var provenance: Provenance { get }
 }
 
+// MARK: - Portable domain enums (shared by L1 ingestion and L2 persistence)
+
+public enum InsulinKind: String, Codable, Sendable { case bolus, basal }
+
+public enum SleepStage: String, Codable, Sendable {
+    case awake, rem, core, deep, inBed, asleepUnspecified
+}
+
 // MARK: - Glucose canonical unit (OD-07 / D10)
 
 /// Glucose is stored in **mmol/L** everywhere on device (OD-07 resolved). This

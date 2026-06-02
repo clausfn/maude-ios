@@ -29,8 +29,6 @@ final class GlucoseSample: Provenanced {
     }
 }
 
-enum InsulinKind: String, Codable, Sendable { case bolus, basal }
-
 /// InsulinDose is modelled at raw-event granularity (DataModel v1). NOTE: there
 /// is **no insulin/dosing surface in MVP** (FR-REG-04) — this entity is a
 /// data-layer source only and must not be rendered or used to print a dose.
@@ -119,8 +117,6 @@ final class AFibBurden: Provenanced {
 }
 
 // MARK: - Sleep, activity, body
-
-enum SleepStage: String, Codable, Sendable { case awake, rem, core, deep, inBed, asleepUnspecified }
 
 @Model
 final class SleepSegment: Provenanced {

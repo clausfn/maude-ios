@@ -4,6 +4,30 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-3 — L1 ingestion seam + provenance guard (2026-06-03)
+- **feat(ingestion):** framework-free `HealthSamples` aggregate + value readings
+  (`GlucoseReading`, `DailyMetric`, `SleepReading`, `WorkoutReading`) for the MVP
+  read set (FR-ING-01). Single aggregate, no upload method anywhere (FR-ING-07).
+- **feat(ingestion):** `HealthDataProvider` protocol — read-only by contract
+  (auth + fetch only, no write surface, FR-ARCH-04) — with `DataProviderKind`
+  (`isDemoData` drives the FR-ARCH-05 indicator) and `HealthProviderFactory`.
+- **feat(ingestion):** `MockDataProvider` — deterministic, seeded synthetic
+  demo user; every reading `provenance = .simulated` so the clinical gate stays
+  satisfied. `LV001Provider` real-data stub, inert unless `LV001_DEMO` flag set
+  (no synthetic fallback — would violate the clinical gate).
+- **feat(guard):** `scripts/guard_provenance.sh` — **blocking** T-PROV-01: fails
+  if `provenance` appears in any SwiftUI file. Plus type-level guards (T-PROV-02/03).
+- **refactor(model):** move portable enums `SleepStage`/`InsulinKind` into
+  framework-free `CoreTypes.swift` (shared by L1 and L2; NFR-PORT-01).
+- **test:** `LiviqaTests/IngestionTests.swift` (T-ING-01..05),
+  `LiviqaTests/ProvenanceGuardTests.swift` (T-PROV-02/03).
+
+_Requirements touched:_ FR-ING-01, FR-ING-07, FR-ARCH-04 (partial), FR-ARCH-05
+(data flag), NFR-PORT-01, NFR-PRIV-05 (provenance render guard).
+_Risk:_ no new hazard; the provenance-never-renders control is now enforced.
+_Verification note:_ pure L1 + core layer typechecks clean via `swiftc` in this
+session; the file guard runs green here. Swift Testing suites + SwiftData run in Xcode.
+
 ### PR-2 — Typed L2 data model (2026-06-03)
 - **feat(model):** 12 typed sample entities (`GlucoseSample`, `InsulinDose`,
   `HeartDaily`, `BPReading`, `AFibBurden`, `SleepSegment`, `Workout`,

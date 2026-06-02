@@ -2,6 +2,27 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-03 — L1 ingestion seam + provenance guard (PR-3)
+
+- **L1 / L2 split formalised.** The provider returns a framework-free
+  `HealthSamples` value aggregate (FR-ING-07); L2 maps those readings into the
+  SwiftData entities (PR-4). Keeping L1 free of SwiftData/HealthKit makes it
+  unit-testable here and portable to Android Health Connect (NFR-PORT-01).
+- **Read-only by contract.** `HealthDataProvider` exposes only read-auth + fetch
+  — there is deliberately no write/save/upload method to honour (FR-ARCH-04).
+  HealthKit's empty write set is enforced in the concrete service (PR-4).
+- **MockDataProvider** is the default demo user: deterministic (seeded SplitMix64),
+  physiologically plausible, every reading `provenance = .simulated`. This keeps
+  the clinical-rejects-SIMULATED gate satisfied end-to-end. `LV001Provider` is a
+  real-data stub that stays inert unless `LV001_DEMO` is set — it must never fall
+  back to synthetic data (that would mislabel simulated data as real).
+- **provenance-never-renders** is now an enforced control, not just a convention:
+  a blocking shell guard (`scripts/guard_provenance.sh`, T-PROV-01) fails if the
+  word appears in any SwiftUI file, backed by a type-level guard ensuring
+  `Provenance` is not `CustomStringConvertible` (T-PROV-02). Ran green this session.
+- Verified the entire L1 + core layer by `swiftc -typecheck` in this session
+  (no SwiftData macro needed); Swift Testing suites run in Xcode.
+
 ## 2026-06-03 — Typed L2 data model (PR-2)
 
 - Implemented the DataModel v1 §2.1 sample sources as 12 SwiftData `@Model`

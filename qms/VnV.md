@@ -12,7 +12,14 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-DM-03 | SwiftData schema loads and round-trips; clinical constructor sets clinical tier | Unit (`@MainActor`) | No | authored — run in Xcode |
 | T-HK-RO-01 | `HealthKitService` requests an **empty** write set (read-only, `FR-ARCH-04`) | Unit | No | planned (PR-4) |
 | T-NDG-06 | Nudge bodies pass the forbidden-construction list (diagnosis/dose/normative claims) | Unit | **Yes** | planned (PR-5) |
-| T-PROV-01 | `provenance` field never reaches a user-facing surface | Unit + CI grep guard | **Yes** | planned (PR-3) |
+| T-PROV-01 | `provenance` never appears in any SwiftUI (view-layer) file | Shell guard (`scripts/guard_provenance.sh`) | **Yes** | **pass** (2026-06-03) |
+| T-PROV-02 | `Provenance` is not `CustomStringConvertible` (no interpolatable label) | Unit | **Yes** | authored — run in Xcode |
+| T-PROV-03 | `provenance` raw values stay machine tokens (REAL/SIMULATED/EXTERNAL) | Unit | No | authored — run in Xcode |
+| T-ING-01 | Mock provider yields full read set, all SIMULATED | Unit (async) | No | authored — run in Xcode |
+| T-ING-02 | Mock glucose is canonical mmol/L in plausible band | Unit | No | authored — run in Xcode |
+| T-ING-03 | Mock generator is deterministic for a fixed seed | Unit | No | authored — run in Xcode |
+| T-ING-04 | `LV001Provider` is inert without the `LV001_DEMO` flag | Unit | No | authored — run in Xcode |
+| T-ING-05 | Factory wiring + `isDemoData` flag (FR-ARCH-05) | Unit | No | authored — run in Xcode |
 
 ## T-SIGN-01 — procedure & result (PR-1)
 
@@ -35,6 +42,16 @@ xcodebuild -showBuildSettings -project Liviqa.xcodeproj -scheme Liviqa -configur
 ```
 
 Result: **pass** on Xcode 26.4.1 (2026-06-03).
+
+## T-PROV-01 — procedure & result (PR-3)
+
+```sh
+bash scripts/guard_provenance.sh Liviqa
+#   → ✓ provenance-never-renders guard passed (T-PROV-01)
+```
+
+Result: **pass** (2026-06-03). Greps every file importing SwiftUI for the word
+`provenance`; fails the build on any hit. Wired as a required CI check (below).
 
 ## CI note (later)
 A GitHub Actions workflow (PR-3+) runs lint + build + test on every PR; `T-NDG-06`
