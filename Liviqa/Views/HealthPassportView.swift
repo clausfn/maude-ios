@@ -99,6 +99,10 @@ struct HealthPassportView: View {
                             timeInRangeTile
                         }
 
+                        // ── 7 DAYS IN CONTEXT (live correlation grid, FR-PAS-05 / DM-06) ──
+                        LiviqaSectionHeader(label: "7 days in context")
+                        correlationCard
+
                         // ── YOUR WELLNESS SUMMARY ──
                         LiviqaSectionHeader(label: "Your wellness summary")
 
