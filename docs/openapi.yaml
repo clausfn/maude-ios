@@ -1,0 +1,239 @@
+openapi: 3.1.0
+info:
+  title: Liviqa Sovereign Backend
+  version: 0.1.0
+  description: >
+    EU-sovereign backend (NestJS + Prisma + Postgres on Scaleway; Ory login).
+    Citizen app (liviqa-ios) and B2B console (liviqa-b2b-console) both build to this.
+    Cardinal: NO raw HealthKit samples stored — only accounts, consent grants +
+    append-only ledger, opt-in journal, and device-derived share packages. Consent
+    enforced server-side (D-SHARE). See Liviqa_iOS_Backend_Contract_v01.
+servers:
+  - url: http://localhost:3001
+    description: Local dev (embedded Postgres; Bearer dev tokens)
+  - url: https://api.dfgworks.dk
+    description: Sovereign (Ory session)
+security:
+  - bearerAuth: []        # dev: seed tokens (dev-citizen-claus, dev-nurse, …). prod: Ory session.
+tags:
+  - name: citizen      # the iOS app acts here (Bearer dev-citizen-claus)
+  - name: recipient    # the B2B console (nurse/coach)
+  - name: analyst
+  - name: admin
+  - name: meta
+paths:
+  /health:
+    get:
+      tags: [meta]
+      security: []
+      summary: Liveness
+      responses: { '200': { description: ok } }
+  /me:
+    get:
+      tags: [meta]
+      summary: The authenticated principal (role routing)
+      responses:
+        '200': { description: account, content: { application/json: { schema: { $ref: '#/components/schemas/Account' } } } }
+        '401': { description: no session }
+
+  # ───────────────────── CITIZEN (iOS) ─────────────────────
+  /recipients:
+    get:
+      tags: [citizen]
+      summary: Recipient directory — pick a real recipient account when creating a grant
+      responses:
+        '200':
+          description: recipients
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/RecipientDirectoryEntry' } } } }
+  /grants:
+    get:
+      tags: [citizen]
+      summary: The citizen's own grants (iOS Wallet — fetchGrants)
+      responses:
+        '200': { description: grants, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/MyGrant' } } } } }
+    post:
+      tags: [citizen]
+      summary: Create a consent grant. scopeKeys may be GROUP keys (glucose, activity…) or metric keys; the backend expands groups→metrics and tightens to the recipient role template.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateGrant' } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { type: object, properties: { id: { type: string } } } } } }
+  /grants/{id}/revoke:
+    post:
+      tags: [citizen]
+      summary: Revoke a grant (immediate; ledger event; recipient view dies)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { '201': { description: revoked, content: { application/json: { schema: { type: object, properties: { revoked: { type: boolean } } } } } } }
+  /ledger:
+    get:
+      tags: [citizen]
+      summary: The citizen's own consent ledger (iOS Consent Ledger — fetchEvents)
+      parameters: [ { name: limit, in: query, schema: { type: integer, default: 100 } } ]
+      responses:
+        '200': { description: events, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LedgerEvent' } } } } }
+  /shares/{grantId}:
+    put:
+      tags: [citizen]
+      summary: Push (or supersede) the device-derived share for a grant. NO raw samples. Built by DerivedShareBuilder.
+      parameters: [ { name: grantId, in: path, required: true, schema: { type: string } } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DerivedShareRequest' } } }
+      responses:
+        '201': { description: stored, content: { application/json: { schema: { type: object, properties: { id: { type: string } } } } } }
+
+  # ───────────────────── RECIPIENT (console, Mode A) ─────────────────────
+  /shared/citizens:
+    get: { tags: [recipient], summary: Citizens who granted me an active grant, responses: { '200': { description: list } } }
+  /shared/{citizenId}/view:
+    get:
+      tags: [recipient]
+      summary: Role-templated derived view (scope/granularity/expiry enforced server-side). Revoked/expired → 403.
+      parameters: [ { name: citizenId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: view, content: { application/json: { schema: { $ref: '#/components/schemas/CitizenView' } } } }, '403': { description: no active grant } }
+  /shared/{citizenId}/metric/{key}/cohort:
+    get:
+      tags: [recipient]
+      summary: vs-cohort overlay for one in-scope metric (aggregate, k-anon; out-of-scope → 403)
+      parameters:
+        - { name: citizenId, in: path, required: true, schema: { type: string } }
+        - { name: key, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: cohort stats }, '403': { description: out of scope } }
+  /shared/appointments:
+    get: { tags: [recipient], summary: Recipient's appointments, responses: { '200': { description: list } } }
+  /shared/{citizenId}/actions:
+    get: { tags: [recipient], summary: Care actions for a citizen, parameters: [ { name: citizenId, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: list } } }
+    post:
+      tags: [recipient]
+      summary: Record a care action (message|plan|flag|addressed) — audited
+      parameters: [ { name: citizenId, in: path, required: true, schema: { type: string } } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { type: { type: string, enum: [message, plan, flag, addressed] }, note: { type: string }, insightKey: { type: string } } } } } }
+      responses: { '201': { description: created } }
+  /shared/{citizenId}/consult/start:
+    post: { tags: [recipient], summary: Start a secure consult session (audited), parameters: [ { name: citizenId, in: path, required: true, schema: { type: string } } ], responses: { '201': { description: session } } }
+  /shared/consult/{sessionId}/recording:
+    post:
+      tags: [recipient]
+      summary: Set in-call recording consent (audited)
+      parameters: [ { name: sessionId, in: path, required: true, schema: { type: string } } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { consent: { type: boolean } } } } } }
+      responses: { '201': { description: updated } }
+  /shared/consult/{sessionId}/end:
+    post: { tags: [recipient], summary: End a consult session (audited), parameters: [ { name: sessionId, in: path, required: true, schema: { type: string } } ], responses: { '201': { description: ended } } }
+
+  # ───────────────────── ANALYST / ADMIN ─────────────────────
+  /cohort/aggregate:
+    get: { tags: [analyst], summary: Mode-B cohort aggregate (k-anon floor server-enforced), responses: { '200': { description: aggregate } } }
+  /admin/accounts: { get: { tags: [admin], summary: Accounts & roles (super-admin), responses: { '200': { description: list } } } }
+  /admin/audit: { get: { tags: [admin], summary: Audit log (super-admin), parameters: [ { name: limit, in: query, schema: { type: integer } } ], responses: { '200': { description: list } } } }
+  /admin/recipients: { get: { tags: [admin], summary: Org recipients + active-grant counts (metadata only), responses: { '200': { description: list } } } }
+  /admin/recipients/{id}/grants:
+    get: { tags: [admin], summary: Grant metadata for a recipient (NO health payload), parameters: [ { name: id, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: list } } }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, description: 'Dev: seed tokens. Prod: Ory session token.' }
+  schemas:
+    Account:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [citizen, recipient, admin] }
+        role: { type: string, enum: [clinical_nurse, health_coach, analyst, b2b_admin, super_admin, citizen] }
+        email: { type: string }
+        displayName: { type: string }
+        org: { type: string, nullable: true }
+    RecipientDirectoryEntry:
+      type: object
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        org: { type: string, nullable: true }
+        role: { type: string, enum: [clinical_nurse, health_coach, analyst] }
+    CreateGrant:
+      type: object
+      required: [recipientId, recipientRole, scopeKeys, granularity, expiry]
+      properties:
+        recipientId: { type: string, description: from GET /recipients }
+        recipientRole: { type: string, enum: [clinical_nurse, health_coach] }
+        purpose: { type: string }
+        scopeKeys:
+          type: array
+          items: { type: string }
+          description: 'GROUP keys (glucose, insulin, recovery, activity, sleep, vitals, body, labs, meds, cardiac, context) or fine metric keys. Groups expand server-side.'
+        granularity: { type: object, additionalProperties: { type: string, enum: [summary, trend, events, detailed, off] } }
+        expiry: { type: string, format: date-time }
+        delivery: { type: string, enum: [live_view, snapshot], default: live_view }
+    MyGrant:
+      type: object
+      properties:
+        id: { type: string }
+        recipientName: { type: string }
+        recipientOrg: { type: string, nullable: true }
+        recipientRole: { type: string }
+        purpose: { type: string }
+        scopeKeys: { type: array, items: { type: string } }
+        active: { type: boolean }
+        delivery: { type: string }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    LedgerEvent:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [request, grant, revoke, access, refuse] }
+        grantId: { type: string, nullable: true }
+        detail: { type: object, nullable: true }
+        occurredAt: { type: string, format: date-time }
+    DerivedShareRequest:
+      type: object
+      required: [asOf, payload]
+      properties:
+        asOf: { type: string, format: date-time }
+        payload:
+          type: object
+          properties:
+            metrics:
+              type: object
+              description: 'keyed by fine metric key (tir, mean_g, hrv, rhr, steps, exercise, workouts, sleep, …)'
+              additionalProperties: { $ref: '#/components/schemas/MetricPayload' }
+            insights: { type: array, items: { $ref: '#/components/schemas/Insight' } }
+    MetricPayload:
+      type: object
+      description: 'Derived only. NO provenance/source. Backend re-checks guardrails (afib displayOnly, bolus patternOnly, meds stripped).'
+      properties:
+        unit: { type: string }
+        goal: { type: number }
+        better: { type: string, enum: [hi, lo] }
+        summary: { type: object, additionalProperties: { type: number } }
+        series:
+          type: object
+          description: 'multi-resolution {D,W,M,Y} → [{x,v}]'
+          additionalProperties: { type: array, items: { $ref: '#/components/schemas/SeriesPoint' } }
+        events: { type: array, items: { type: object, properties: { label: { type: string }, count: { type: integer } } } }
+    SeriesPoint:
+      type: object
+      properties: { x: { type: string }, v: { type: number } }
+    Insight:
+      type: object
+      properties:
+        key: { type: string, nullable: true }
+        severity: { type: string, enum: [high, med, low] }
+        title: { type: string }
+        meaning: { type: string }
+        suggested: { type: string }
+    CitizenView:
+      type: object
+      description: What the recipient renders. Server-scoped; never raw.
+      properties:
+        citizen: { type: object, properties: { alias: { type: string } } }
+        recipientRole: { type: string }
+        purpose: { type: string }
+        delivery: { type: string }
+        asOf: { type: string, nullable: true }
+        expiry: { type: string }
+        scope: { type: array, items: { type: object, properties: { key: { type: string }, granularity: { type: string } } } }
+        metrics: { type: object, additionalProperties: { $ref: '#/components/schemas/MetricPayload' } }
+        insights: { type: array, items: { $ref: '#/components/schemas/Insight' } }
+        ceReceipt: { type: string }
