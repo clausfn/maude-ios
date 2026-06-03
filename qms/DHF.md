@@ -2,6 +2,29 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-03 — TestFlight prep: live-data Release + App Store gaps (PR-30)
+
+- **Goal:** first TestFlight under the Data for Good team (`PS258XSNL8`), feeding
+  live data through the sovereign backend + Supabase GoTrue. Gap analysis:
+  `docs/TestFlight_Readiness_v01.md`.
+- **Decisions (locked):** bundle `app.liviqa.ios` (the personal team holds
+  `dev.liviqa.app`; bundle ids are globally unique); canonical hosts on
+  `liviqa.app`; **video consult gated off** in v1 (no EU Jitsi yet → avoids
+  camera/mic + NFR-SEC-07 exposure); external testers on **synthetic data only**.
+- **Live by build config, not hardcoding.** `Config.backend` returns
+  `sovereignProd` in Release/TestFlight and `.mock` in Debug, with an env override
+  for QA. This makes the shipped build "just use live data" while keeping local
+  dev synthetic — cleaner than literal hardcoding and reversible.
+- **App Store gates closed headlessly:** privacy manifest (`PrivacyInfo.xcprivacy`),
+  export-compliance (`ITSAppUsesNonExemptEncryption=false`), intended-use
+  statement (FR-QMS-01), DfG team + bundle in the gitignored `Signing.xcconfig`.
+- **Deliberately deferred to you (needs Apple login):** DfG Apple Distribution
+  cert (this Mac's Keychain has only the personal identity), App ID + App Group
+  registration, App Store Connect record + privacy nutrition labels, archive +
+  upload. Signing identity is the one true blocker for the upload itself.
+- **Verification:** simulator build succeeds; privacy manifest is bundled; bundle
+  id resolves to `app.liviqa.ios`.
+
 ## 2026-06-03 — Auth: revert Ory → Supabase Auth (self-hosted GoTrue, EU) (PR-28)
 
 - **Decision (supersedes the Ory direction).** Ory Network dropped — custom

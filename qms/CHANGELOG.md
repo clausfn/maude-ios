@@ -4,6 +4,29 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-30 — TestFlight prep: live-data Release config + App Store gaps (2026-06-03)
+- **Decisions (locked):** DfG team `PS258XSNL8`; bundle `app.liviqa.ios`; canonical
+  hosts on `liviqa.app`; video consult **gated off** in v1; external testers,
+  synthetic data only. Gap list: `docs/TestFlight_Readiness_v01.md`.
+- **feat(config):** `Config.backend` now ships **live in Release/TestFlight** —
+  Release → `sovereignProd` (`api.liviqa.app` + Supabase GoTrue `auth.liviqa.app`);
+  Debug → `.mock`; `LIVIQA_BACKEND` env still overrides. New `sovereignProd`
+  preset; `sovereignStaging` repointed to `api.liviqa.app`.
+- **feat(config):** `videoConsultEnabled = false` — `MessagesView` hides the
+  consult-join section (no EU Jitsi / camera-mic in v1; messaging stays).
+- **chore(signing):** `Config/Signing.xcconfig` (local, gitignored) → team
+  `PS258XSNL8`, bundle `app.liviqa.ios`, group `group.app.liviqa.ios`.
+- **chore(appstore):** `Info.plist` `ITSAppUsesNonExemptEncryption=false`;
+  added **`PrivacyInfo.xcprivacy`** (health/email/userID/message content, no
+  tracking; UserDefaults reason CA92.1) — bundled, build verified.
+- **docs:** `docs/INTENDED_USE.md` (FR-QMS-01); `docs/TestFlight_Readiness_v01.md`.
+- Verified: `xcodebuild build` (iPhone 17 Pro sim) succeeds; privacy manifest in
+  the .app; bundle id `app.liviqa.ios`.
+- **Still blocked (needs your Apple login):** no DfG signing identity in this
+  Mac's Keychain → add the DfG Apple ID in Xcode (automatic signing mints the
+  Apple Distribution cert); register App ID `app.liviqa.ios` + App Group + the
+  App Store Connect record; privacy nutrition labels; archive + upload.
+
 ### PR-29 — App icon (the AppIcon set had no image) (2026-06-03)
 - **fix(brand):** the `AppIcon.appiconset` declared icon slots but contained **no
   image** → blank/default icon. Installed the locked aperture app-icon

@@ -8,7 +8,9 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 |---|---|---|---|---|---|
 | D-STORE | Deployment-agnostic signing; account swap = config change | `Config/Signing.xcconfig`, `Config/Signing.example.xcconfig`, `Liviqa.xcodeproj/project.pbxproj`, `docs/SIGNING.md` | T-SIGN-01 | verified | PR-1 |
 | FR-ARCH-04 | Read-only HealthKit (never write) | `Liviqa/Liviqa.entitlements` (HK enabled), `Info.plist` (NSHealthShareUsageDescription); read-only enforced in code | T-HK-RO-01 | in-progress (entitlement + usage string set; empty write set enforced in `HealthKitService`, PR-4) | PR-1 |
-| FR-QMS-01 | Intended-use statement under version control | _pending_ `docs/INTENDED_USE.md` | — | planned | — |
+| FR-QMS-01 | Intended-use statement under version control | `docs/INTENDED_USE.md` | (review) | implemented | PR-30 |
+| Release / TestFlight | Shipped build feeds LIVE data (Release→`sovereignProd`: `api.liviqa.app` + Supabase GoTrue); Debug→`.mock`; env override; video consult gated off v1 | `Liviqa/Config.swift` (`backend`, `sovereignProd`, `videoConsultEnabled`), `Liviqa/Views/MessagesView.swift` | build verified (iOS Sim); on-device archive pending DfG signing | implemented | PR-30 |
+| App Store compliance | Privacy manifest + export-compliance + DfG team/bundle | `Liviqa/PrivacyInfo.xcprivacy`, `Liviqa/Info.plist` (`ITSAppUsesNonExemptEncryption`), `Config/Signing.xcconfig` (team `PS258XSNL8`, bundle `app.liviqa.ios`) | manifest bundled (build verified); App ID/cert/App-Store-Connect = Apple-side blockers | in-progress | PR-30 |
 | FR-QMS-02 | Living ISO 14971 risk file | `qms/RISK.md` | — | in-progress | PR-1 |
 | FR-QMS-03 | Requirement ↔ test traceability for all FR/NFR/DM | `qms/RTM.md` (this file) | — | in-progress | PR-1 |
 | FR-QMS-05 | Phase-2 docs + changelogs as DHF skeleton | `qms/DHF.md`, `qms/CHANGELOG.md`, `qms/VnV.md` | — | in-progress | PR-1 |
