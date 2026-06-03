@@ -64,6 +64,28 @@ final class AppState {
     /// sandbox so callers degrade gracefully.
     var sovereign: (any SovereignSharing)? { supabase as? SovereignSharing }
 
+    /// Citizen care-team surface (secure messaging + video consult), available on
+    /// the sovereign backend only. `nil` on mock/sandbox.
+    var careConnect: (any CareConnect)? { supabase as? CareConnect }
+
+    // Care-team UI state (loaded on demand from the sovereign backend).
+    var careThreads: [CareThread] = []
+    var activeConsults: [ConsultSummary] = []
+    var careNotifications: [CitizenNotification] = []
+
+    // MARK: - Care-team actions (FR-WAL adjacent; consult + messaging)
+
+    @MainActor
+    func refreshCareInbox() async {
+        guard let care = careConnect else { return }
+        async let t = try? await care.fetchThreads()
+        async let c = try? await care.fetchActiveConsults()
+        async let n = try? await care.fetchNotifications()
+        careThreads = await t ?? careThreads
+        activeConsults = await c ?? activeConsults
+        careNotifications = await n ?? careNotifications
+    }
+
     // MARK: - Auth actions
 
     @MainActor

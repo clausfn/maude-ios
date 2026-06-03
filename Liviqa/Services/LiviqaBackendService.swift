@@ -52,7 +52,7 @@ protocol SovereignSharing: Sendable {
 
 // MARK: - Service
 
-final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @unchecked Sendable {
+final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, CareConnect, @unchecked Sendable {
 
     private let baseURL: URL
     private let session: URLSession
@@ -62,8 +62,11 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
     /// `devToken` (seed account) is the identity.
     private let ory: OryAuthClient?
 
+    /// Keychain-backed persistence for the Ory session token (NFR-SEC-01).
+    private let tokenStore = SessionTokenStore()
+
     /// Bearer presented to the backend: a dev seed token (local) or, after Ory
-    /// sign-in, the Ory session token.
+    /// sign-in, the Ory session token (persisted in the Keychain).
     private var bearerToken: String?
 
     /// Derived-UUID → original backend id, populated on fetchGrants so that
@@ -73,9 +76,11 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
 
     init(baseURL: URL, devToken: String? = nil, ory: OryAuthClient? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
-        self.bearerToken = devToken
         self.ory = ory
         self.session = session
+        // With Ory, restore a previously persisted session token so the citizen
+        // stays signed in across launches; locally, the static seed token is it.
+        self.bearerToken = ory != nil ? (tokenStore.load() ?? devToken) : devToken
     }
 
     // MARK: - Auth (real Ory session token in prod; dev seed token locally)
@@ -85,6 +90,7 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
             // Real Ory native login → session token becomes the backend bearer.
             let result = try await ory.login(email: email, password: password)
             bearerToken = result.token
+            tokenStore.save(result.token)
             let account = try await getMe()
             return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email ?? email)
         }
@@ -105,6 +111,7 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
         if let ory, let token = bearerToken {
             try? await ory.logout(token: token)
             bearerToken = nil
+            tokenStore.clear()
         }
         // Local dev seed tokens are static; nothing to revoke server-side.
     }
@@ -237,6 +244,81 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
         _ = try await put("/shares/\(grantId)", body: request, as: IdDTO.self)
     }
 
+    // MARK: - CareConnect (citizen care-team surface)
+
+    func fetchNotifications() async throws -> [CitizenNotification] {
+        let resp = try await get("/notifications", as: NotificationsDTO.self)
+        return resp.items.map {
+            CitizenNotification(id: $0.id, kind: Self.notifKind($0.type),
+                                text: $0.text, at: BackendMapping.parseDate($0.at))
+        }
+    }
+
+    func fetchActiveConsults() async throws -> [ConsultSummary] {
+        let dtos = try await get("/consults/active", as: [ActiveConsultDTO].self)
+        return dtos.map { d in
+            ConsultSummary(
+                id: d.id,
+                roomName: d.roomName ?? "liviqa-consult-\(d.id)",
+                recipientName: d.recipientName ?? "Care team",
+                recipientOrg: d.recipientOrg,
+                startedAt: BackendMapping.parseDate(d.startedAt),
+                recordingRequested: d.recordingRequested ?? false,
+                recordingConsent: d.recordingConsent ?? false)
+        }
+    }
+
+    @discardableResult
+    func joinConsult(id: String) async throws -> String {
+        _ = try await post("/consults/\(id)/join", body: EmptyBody(), as: ConsultSessionDTO.self)
+        return "liviqa-consult-\(id)"     // deterministic room (contract §video)
+    }
+
+    @discardableResult
+    func setRecordingConsent(consultId: String, consent: Bool) async throws -> Bool {
+        let dto = try await post("/consults/\(consultId)/recording-consent",
+                                 body: ConsentBody(consent: consent), as: ConsultSessionDTO.self)
+        return dto.recordingConsent ?? consent
+    }
+
+    func fetchThreads() async throws -> [CareThread] {
+        let dtos = try await get("/threads", as: [ThreadDTO].self)
+        return dtos.map {
+            CareThread(recipientId: $0.recipientId, recipientName: $0.recipientName,
+                       recipientOrg: $0.recipientOrg, unread: $0.unread ?? 0,
+                       lastMessageAt: BackendMapping.parseDate($0.lastMessageAt))
+        }
+    }
+
+    func fetchMessages(recipientId: String) async throws -> [CareMessage] {
+        let dtos = try await get("/threads/\(recipientId)/messages", as: [MessageDTO].self)
+        return dtos.map { Self.message(from: $0, fallbackSender: .recipient) }
+    }
+
+    @discardableResult
+    func sendMessage(recipientId: String, body: String) async throws -> CareMessage {
+        let dto = try await post("/threads/\(recipientId)/messages",
+                                 body: SendMessageBody(body: body), as: MessageDTO.self)
+        return Self.message(from: dto, fallbackSender: .citizen)
+    }
+
+    private static func notifKind(_ t: String) -> CitizenNotification.Kind {
+        switch t {
+        case "consult":        return .consult
+        case "message":        return .message
+        case "access_request": return .accessRequest
+        default:               return .unknown
+        }
+    }
+
+    private static func message(from dto: MessageDTO, fallbackSender: CareMessage.Sender) -> CareMessage {
+        CareMessage(id: dto.id,
+                    sender: CareMessage.Sender(rawValue: dto.sender) ?? fallbackSender,
+                    body: dto.body,
+                    readAt: BackendMapping.parseDate(dto.readAt),
+                    createdAt: BackendMapping.parseDate(dto.createdAt) ?? Date())
+    }
+
     // MARK: - Backend id lookup
 
     private func backendID(for uuid: UUID) -> String? {
@@ -357,3 +439,42 @@ private struct IdDTO: Decodable { let id: String }
 private struct RevokedDTO: Decodable { let revoked: Bool }
 private struct EmptyBody: Encodable {}
 private struct EmptyDecodable: Decodable {}
+
+// CareConnect wire DTOs (match the citizen routes in Video_and_OAuth_Contract_v01)
+private struct NotificationsDTO: Decodable {
+    struct Item: Decodable { let id: String; let type: String; let text: String; let at: String? }
+    let unread: Int?
+    let items: [Item]
+}
+private struct ActiveConsultDTO: Decodable {
+    let id: String
+    let roomName: String?
+    let recipientName: String?
+    let recipientOrg: String?
+    let startedAt: String?
+    let recordingRequested: Bool?
+    let recordingConsent: Bool?
+}
+private struct ConsultSessionDTO: Decodable {
+    let id: String
+    let recordingRequested: Bool?
+    let recordingConsent: Bool?
+    let citizenJoinedAt: String?
+    let status: String?
+}
+private struct ThreadDTO: Decodable {
+    let recipientId: String
+    let recipientName: String
+    let recipientOrg: String?
+    let unread: Int?
+    let lastMessageAt: String?
+}
+private struct MessageDTO: Decodable {
+    let id: String
+    let sender: String
+    let body: String
+    let readAt: String?
+    let createdAt: String
+}
+private struct ConsentBody: Encodable { let consent: Bool }
+private struct SendMessageBody: Encodable { let body: String }

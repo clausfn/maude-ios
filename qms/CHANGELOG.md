@@ -4,6 +4,28 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-18 — Citizen CareConnect client + Ory token Keychain persistence (2026-06-03)
+- **docs:** `docs/Video_and_OAuth_Contract_v01.md` — cross-repo contract for the
+  citizen side of the recipient workflow already in `liviqa-backend`/
+  `liviqa-b2b-console` (Ory bearer model, deterministic Jitsi room
+  `liviqa-consult-<id>`, recording-consent direction, citizen endpoint set).
+- **feat(services):** `CareConnect` capability (sovereign-only, off the shared
+  protocol) + `LiviqaBackendService` conformance — `GET /notifications`,
+  `GET /consults/active`, `POST /consults/:id/join`,
+  `POST /consults/:id/recording-consent` (citizen-authoritative), and the new
+  messaging routes `GET /threads`, `GET/POST /threads/:recipientId/messages`.
+  Portable value types (`ConsultSummary`, `CareThread`, `CareMessage`,
+  `CitizenNotification`) + wire DTOs.
+- **feat(security):** `SessionTokenStore` (Keychain, device-only) persists the
+  Ory session token (NFR-SEC-01 / FR-AUTH-03). `LiviqaBackendService` restores it
+  on init (stay-signed-in), saves on Ory login, clears on sign-out;
+  `currentSession` revalidates via `whoami`.
+- **feat(state):** `AppState.careConnect` + `refreshCareInbox()` (threads /
+  active consults / notifications).
+- Verified: service layer typechecks clean via swiftc. UI + live calls pending.
+- Backend deferred (needs the backend repo): citizen `/threads*` routes and the
+  recipient recording route writing `recordingRequested` (not `recordingConsent`).
+
 ### chore — backend contract cross-check + bug-hunt (2026-06-03)
 - Verified `LiviqaBackendService` against the actual `liviqa-backend` repo
   controllers/services (not just openapi): routes `/me`, `/grants`, `/ledger?limit`,

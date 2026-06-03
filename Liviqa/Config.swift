@@ -17,6 +17,12 @@ enum Config {
     /// as `Authorization: Bearer`.
     static let oryURL = URL(string: "https://keen-khayyam-st5ek6x27a.projects.oryapis.com")!
 
+    /// EU-sovereign video provider domain (self-hosted Jitsi / Whereby). The
+    /// citizen joins `https://<jitsiDomain>/liviqa-consult-<sessionId>` — the same
+    /// deterministic room the console uses. `nil` ⇒ no live media (secure shell).
+    /// NFR-SEC-07: must never point at a US-parented provider on the PII path.
+    static let jitsiDomain: String? = nil
+
     enum Backend {
         case mock                                   // synthetic demo (default)
         case supabaseSandbox                        // US-parented; sandbox only
