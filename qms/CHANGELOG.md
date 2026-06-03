@@ -4,6 +4,82 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-25 — Jitsi config decision: EU-sovereign default, demo domain quarantined (2026-06-03)
+- **chore(config):** `Config.jitsiDomain` stays `nil` (secure-shell default — no
+  live media until a real EU-sovereign Jitsi/Whereby domain is set), with a TODO
+  to set it before any production/TestFlight build (NFR-SEC-07). Adds
+  `Config.jitsiDemoDomain = "meet.jit.si"` clearly marked LOCAL-PARITY ONLY
+  (US-operated — never a production default), for dev to join the same room the
+  console uses.
+
+### PR-24 — Anchored incremental HealthKit + encrypted on-device anchors (FR-ING-03/04) (2026-06-03)
+- **feat(ingestion):** `HealthKitService+Anchored` — `HKAnchoredObjectQuery` per
+  MVP type starting from a persisted `HKQueryAnchor`, plus `HKObserverQuery` +
+  `enableBackgroundDelivery` at a per-type cadence (glucose `.immediate`, the
+  rest `.hourly`). Exposed behind a framework-free capability protocol
+  `IncrementalHealthSource` (`ingestDelta()` / `startBackgroundObservers` /
+  `stopBackgroundObservers`) so the portable layer and demo providers stay
+  HealthKit-free (NFR-PORT-01).
+- **feat(security):** `EncryptedAnchorStore` — seals each anchor with the device
+  DEK (KeyVault → AES-256-GCM/`CryptoBox`) and writes it to a file under
+  Application Support, namespaced (SHA-256) per **device-local** user
+  (`LocalUserScope`, a Keychain UUID — never UserDefaults, never a server/account
+  id). `AnchorCodec` does the `HKQueryAnchor ⇆ Data` secure-coding archive.
+- **test:** `EncryptedAnchorStoreTests` (T-ANCH-01..06) — encrypted round-trip,
+  ciphertext-at-rest, per-key + per-user-scope isolation, wrong-DEK auth failure,
+  remove/clear; `AnchorCodecTests` (T-ANCH-07) — HKQueryAnchor round-trip. All
+  pass in the iOS Simulator.
+- Verified: `xcodebuild build` (iPhone 17 Pro sim) succeeds; observer/background-
+  delivery paths run on device (entitlement-gated).
+
+### PR-23 — Correlation grid UI in Health Passport (FR-PAS-05 / DM-06 follow-up) (2026-06-03)
+- **feat(ui):** `HealthPassportView.correlationCard` renders the 7×signal grid
+  from the **live** `appState.correlationWeek` (built on-device by
+  `CorrelationDeriver`, PR-17) — day headers, per-signal rows, deviation heat-map
+  cells, legend, and the pattern note/sources/strength. Reuses the locked visual
+  language from `WeekInContextView` (cardinal rule: iterate, don't rebuild — the
+  locked mock view is untouched).
+- **a11y (NFR-A11Y-01):** every cell carries `"<metric>, <day>: <level>"` using
+  the existing `CorrelationLevel.accessibilityLabel`; decorative headers/legend
+  are `accessibilityHidden`. No trust chips (NFR-PRIV-05).
+- Verified: app builds for the iOS Simulator; deriver tests (T-COR-01) green.
+
+### PR-22 — Sign in with Apple via Ory OIDC-native (2026-06-03)
+- **feat(auth):** `OryAuthClient.loginWithApple(idToken:nonce:)` runs Ory's native
+  social flow — GET login flow → POST the Apple `id_token` to the `oidc` method
+  (`id_token_nonce` binds the token to the SIWA request) → reuse
+  `parseLoginSuccess` (Ory returns the same `session_token` envelope as password).
+  Pure `oidcSubmitBody` builder for testability.
+- **feat(services):** `LiviqaBackendService.signInWithApple` (was a `notAvailable`
+  stub) now performs the real Ory OIDC login when an `OryAuthClient` is present,
+  sets the bearer, and persists the session token via `SessionTokenStore`
+  (Keychain, NFR-SEC-01); local-dev (no Ory) keeps the seed-token fallback.
+- **test:** `OryAuthParsingTests` gains T-ORY-04 (OIDC submit body: method/
+  provider/id_token/nonce; nonce omitted when empty) and T-ORY-05 (Apple OIDC
+  success parse). Run in the iOS Simulator.
+
+### PR-21 — (backend) recording-consent direction regression test (2026-06-03)
+- Backend change lives in **liviqa-backend** (commit `test(consult): …`). The
+  recipient route already set `recordingRequested` (not `recordingConsent`, fixed
+  in `73453ae`); this batch adds `workspace.service.spec.ts` asserting the
+  recipient route writes `{ recordingRequested }` only and never touches
+  `recordingConsent` (privacy-critical). Console already reflects the corrected
+  direction (liviqa-b2b-console `dd7090d`): button "Request recording" → sets
+  requested; "Recording — consented by the citizen" only when
+  `recordingConsent === true`; `guard:ci` green.
+- Verified: backend `npm test` green; live curl — nurse request →
+  requested=true/consent=false, citizen consent → consent=true.
+
+### PR-20 — (backend) citizen secure-messaging routes (2026-06-03)
+- Backend change lives in **liviqa-backend** (commit `feat(citizen): secure-
+  messaging threads routes`). Adds `@Roles('citizen')` `GET /threads`,
+  `GET /threads/:recipientId/messages` (marks recipient→citizen read on open),
+  `POST /threads/:recipientId/messages` (active-grant-gated, body cap 4000,
+  audited `message.send`). JSON shapes match the iOS `ThreadDTO`/`MessageDTO`;
+  `CareConnect`/`LiviqaBackendService` already consume them (PR-18). Backend
+  `citizen.service.spec.ts` + live curl as `dev-citizen-claus` verify list/read/
+  send and the 403 on no active grant.
+
 ### PR-19 — Care tab: secure messaging + video consult UI (2026-06-03)
 - **feat(ui):** new **Care** tab (`MainTabView`) → `MessagesView`: lists active
   consults to join and secure message threads with the care team (loads via

@@ -2,6 +2,38 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-20/21/24 — consent-direction, message gate, encrypted sync-cursors (2026-06-03)
+
+This batch wires citizen↔care-team messaging + Sign in with Apple and hardens
+incremental ingestion. No new clinical interpretation; the entries are
+consent/confidentiality controls.
+
+- **RK-CONSENT-DIR-01 (recipient records a consult without the citizen's
+  consent):** mitigated. Recording consent is one-directional — the recipient may
+  only set `recordingRequested`; `recordingConsent` is writable ONLY on the
+  citizen route (`CitizenService.recordingConsent`). The recipient route was
+  corrected (liviqa-backend `73453ae`) and is now locked by a regression test
+  (`workspace.service.spec.ts`) asserting it writes `{ recordingRequested }` only
+  and never `recordingConsent`. The console shows "requested → awaiting citizen
+  consent" until the citizen grants, and only then "Recording — consented by the
+  citizen". Verified live (request: requested=true/consent=false; citizen grant:
+  consent=true). Linked: NFR-PRIV-01, Video_and_OAuth_Contract_v01 §recording.
+- **RK-MSG-SCOPE-01 (messaging used to move health content / reach a citizen
+  without consent):** mitigated. Citizen `POST /threads/:recipientId/messages`
+  requires an active grant (`SharedService.requireActiveGrant` → 403 otherwise),
+  caps the body at 4000 chars, and is audited (`message.send`). Messaging is not
+  a health-content channel (D-BACKEND-SCOPE); raw health discussion stays in the
+  consult. Verified: 403 on no active grant.
+- **RK-PRIV-ATREST-02 (HealthKit sync cursors readable / cross-user leakage):**
+  mitigated. `HKQueryAnchor`s are sealed with the device DEK (AES-256-GCM via
+  KeyVault, the PR-8 control) and written to files namespaced per device-local
+  user — never UserDefaults, never keyed to a server/account id (FR-ING-04). A
+  wrong device key fails GCM authentication rather than returning garbage
+  (`EncryptedAnchorStoreTests`). No raw samples are stored — only the opaque
+  cursor. Linked: NFR-SEC-02, FR-ING-03/04.
+
+No new clinical hazard introduced.
+
 ## PR-12 — FR-SHARE-02 device→sovereign egress; residency + leak hazards mitigated
 
 The derived-share PUSH is now wired to the EU-sovereign backend.
