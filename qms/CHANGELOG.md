@@ -4,6 +4,24 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-17 — On-device 7-day correlation grid (FR-PAS-05 / DM-06) (2026-06-03)
+- **feat(intelligence):** `CorrelationDeriver` (pure Foundation) builds the
+  7-day × 7-signal grid as a deviation-from-usual heat map: each cell is the
+  day's value vs the user's OWN window baseline (|z| → low/medium/high/outlier),
+  personal-baseline-relative only. Derives glucose/sleep/HRV/exercise from local
+  samples; spending/calendar/weather stay `noData` (connector-only — never
+  fabricated). Emits a plain-language `patternNote`, named `patternSources`, and
+  `patternStrength` (Steady/Moderate/Strong). New portable `CorrelationGrid`.
+- **feat(models):** `CorrelationWeek.from(_:)` adapts the grid to the
+  presentation model; `AppState.refreshFromHealth` populates `correlationWeek`
+  from the same on-device samples (grid UI consumer remains a follow-up — no
+  view renders the grid yet).
+- **safety:** the pattern note is run through `NudgeGuard` in tests (no clinical
+  /diagnostic/normative language).
+- **test:** `CorrelationDeriverTests` (T-COR-01) + swiftc driver — 7×7 shape,
+  oldest-first ordering, external columns `noData`, outlier-day detection and
+  naming, steady-week path, guard-clean notes.
+
 ### PR-16 — On-device Health Passport stats derivation (FR-PAS-05 / DM-05) (2026-06-03)
 - **feat(intelligence):** `PassportStatsDeriver` (pure Foundation) computes the
   sensor half of the Passport from local `HealthSamples`: `totalReadings`,

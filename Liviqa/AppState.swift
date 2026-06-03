@@ -43,6 +43,7 @@ final class AppState {
 
     // Health Passport
     var passportStats: PassportStats = MockData.passportStats
+    var correlationWeek: CorrelationWeek = MockData.correlationWeek
 
     // DfG tokens
     var tokenBalance: Int                    = 47
@@ -144,6 +145,8 @@ final class AppState {
                 sourcesConnected: connectedSources.filter(\.isConnected).count,
                 journalEntries: journalEntries.count,
                 consentDecisions: walletEvents.count)
+            // FR-PAS-05 / DM-06: derive the 7-day correlation grid on device.
+            correlationWeek = CorrelationWeek.from(CorrelationDeriver.derive(from: samples))
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }
