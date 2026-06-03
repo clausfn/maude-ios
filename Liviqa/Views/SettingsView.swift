@@ -11,7 +11,7 @@ struct SettingsView: View {
     // Runtime display options (drive the locked design tokens at the root)
     @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.midnight.rawValue
     @AppStorage("liviqaReduceMotion") private var reduceMotion = false
-    @AppStorage("liviqaShowDemoChip") private var showDemoChip = true
+    @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
 
     // Navigation destinations
     @State private var showDataSources    = false

@@ -51,7 +51,7 @@ struct MainTabView: View {
     @State private var selectedNudge: Nudge?
     @State private var showProfile  = false   // ProfileSheet — universal avatar target
     @State private var nudgeProfileAnchor: ProfileSheet.Section? = nil
-    @AppStorage("liviqaShowDemoChip") private var showDemoChip = true
+    @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
 
     var body: some View {
         ZStack(alignment: .bottom) {

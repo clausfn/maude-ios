@@ -4,6 +4,56 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-41 — Oura redesign #7: runtime Display options + demo-chip default-off (2026-06-04)
+- **feat(ui):** SettingsView **DISPLAY** zone — Theme segmented (Midnight/Paper →
+  `liviqaThemeMode`, drives root tokens), Reduce-motion toggle (`liviqaReduceMotion`,
+  read by `LiviqaMotion`), Demo-data-chip toggle (`liviqaShowDemoChip`). All three
+  are real (no dead toggles); each writes `@AppStorage` consumed by live code.
+- **fix(brand):** `liviqaShowDemoChip` **defaults OFF** — the "Demo data" chip is a
+  forbidden `demo` label on customer-facing UI (CLAUDE.md cardinal rule); hidden by
+  default, toggle retained for the real-vs-cohort integrity marker (FR-ARCH-05).
+- **fix(ui):** profile avatar (Settings) + tab-bar avatar use invert tokens (were
+  `ink`+white → invisible on Midnight).
+- Verified: builds (iOS Sim); Paper/Midnight switch confirmed end-to-end; Today
+  renders with no provenance label by default.
+
+### PR-40 — Oura redesign #6: Journal Midnight contrast (2026-06-04)
+- **fix(ui):** JournalView selected calendar-day pill, active filter chip, and FAB
+  used `LiviqaTheme.ink` as a *surface* + white text → invisible on Midnight.
+  Switched to invert-surface tokens. No copy/data-model change.
+- Verified: builds (iOS Sim); calendar/filter/FAB all legible on Midnight + Paper.
+
+### PR-39 — Oura redesign #5: Care surface + demo threads (2026-06-04)
+- **feat(ui):** demo care-team threads (`MockData.demoCareThreads` — Nurse/Coach/GP)
+  seeded into demo sign-in so the Care tab shows content; `MessageThreadView` demo
+  message fallback + local send when no live backend.
+- **fix(ui):** thread-row avatar invert tokens (was invisible on Midnight); richer
+  empty-state card (aperture + headline) when genuinely unconnected.
+- Verified: builds (iOS Sim); Care list + avatars legible on Midnight.
+
+### PR-38 — Oura redesign #4: Wallet invert summary + CE toast (2026-06-04)
+- **feat(ui):** Wallet summary card now an **invert surface** (was `ink`+white →
+  invisible on Midnight); watermark aperture mark theme-aware; replaced bespoke CE
+  toast with shared `LiviqaToastData` + `.liviqaToast` (withdraw → rust dot).
+- Verified: builds (iOS Sim); summary card + watermark + "LV" avatar legible.
+
+### PR-37 — Oura redesign #3: Trends (gradient trend + interactive grid) (2026-06-04)
+- **feat(ui):** `AreaTrendChart` (generic gradient-area line + draw-in) in
+  OuraComponents. WeekInContextView: TIR trend hero; 7-day grid cells now tappable
+  → **day-readout** with StatusPill; theme-aware level fills (model `.color` was
+  light-only hex); row/col highlight + selection ring.
+- **feat(dev):** `LIVIQA_TAB` env (DEBUG) to deep-link the initial tab for snapshots.
+- **fix(ui):** tab-bar/Today avatar contrast on Midnight (invert tokens).
+- Verified: builds (iOS Sim); Trends renders gradient chart + interactive grid.
+
+### PR-36 — Oura redesign #2b: Today screen wired (2026-06-04)
+- **feat(ui):** TodayView radial **glucose hero** (RingView 68% TIR + glow + mono
+  6.2 mmol/L + In-range StatusPill + GlucoseCurveView + stat row) and **mini-ring
+  vitals** (Sleep/HRV/Steps), replacing the old flat rings row. Copy/data unchanged.
+- **chore:** demo profile name → `LV001` (no real names, per task); DEBUG
+  `-uiTestAutoDemo` launch hook for headless snapshotting.
+- Verified: builds (iOS Sim); Today renders the Oura hero on Midnight + Paper.
+
 ### PR-35 — Oura redesign #2: shared ring/curve/toast components (2026-06-04)
 - **feat(ui):** `OuraComponents.swift` — `RingView` (gradient moss→amber arc +
   glow + draw-in, resting state = full arc, Reduce-Motion-gated via system flag
