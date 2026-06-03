@@ -18,12 +18,13 @@ public struct NudgeEngine: Sendable {
                          cap: Int = 4) -> [EngineNudge] {
         var candidates: [EngineNudge] = []
 
-        candidates += afibNudge(signals)          // displayOnly, top priority
-        candidates += glucoseNudge(samples)        // watch
-        candidates += recoveryNudge(samples)       // wellness (HRV)
-        candidates += sleepNudge(samples)          // wellness
-        candidates += activityNudge(samples)       // wellness
-        candidates += restingHRNumber(samples)     // watch (number echo)
+        candidates += afibNudge(signals)            // displayOnly, top priority
+        candidates += glucoseNudge(samples)         // watch
+        candidates += workoutGlucoseNudge(samples)  // watch (§6.2 lead example)
+        candidates += recoveryNudge(samples)        // wellness (HRV)
+        candidates += sleepNudge(samples)           // wellness
+        candidates += activityNudge(samples)        // wellness
+        candidates += restingHRNumber(samples)      // watch (number echo)
 
         // FR-NDG-06: nothing forbidden ever ships. Drop (and trap) violators.
         let safe = candidates.filter { nudge in
@@ -82,6 +83,54 @@ public struct NudgeEngine: Sendable {
                           body: "Your glucose today is running below your usual range.",
                           priority: 75)]
         }
+    }
+
+    /// Workout↔glucose coupling (§6.2 lead example — the cycling-glucose nudge):
+    /// does the latest session of a given type drop glucose materially more than
+    /// the user's OWN recent sessions of that type at similar effort? This is a
+    /// within-user correlation only — no targets, no advice, no dosing.
+    private func workoutGlucoseNudge(_ s: HealthSamples) -> [EngineNudge] {
+        guard !s.workouts.isEmpty, s.glucose.count >= 4 else { return [] }
+
+        struct Drop { let type: String; let start: Date; let drop: Double }
+        let drops: [Drop] = s.workouts.compactMap { w in
+            guard let d = glucoseDrop(for: w, glucose: s.glucose) else { return nil }
+            return Drop(type: w.type.trimmingCharacters(in: .whitespaces), start: w.start, drop: d)
+        }
+        guard let latest = drops.max(by: { $0.start < $1.start }) else { return [] }
+
+        // Baseline from the user's PRIOR same-type sessions only.
+        let priorSameType = drops
+            .filter { $0.type.caseInsensitiveCompare(latest.type) == .orderedSame && $0.start < latest.start }
+            .map(\.drop)
+        guard let base = Baseline.from(priorSameType), base.mean > 0.3 else { return [] }
+        // Fire only when the latest drop is materially steeper than usual.
+        guard base.band(for: latest.drop) == .above else { return [] }
+        let pct = Int((((latest.drop - base.mean) / base.mean) * 100).rounded())
+        guard pct >= 15 else { return [] }
+
+        let label = latest.type.lowercased()
+        return [EngineNudge(
+            category: .bandStatus, lane: .watch,
+            title: "Glucose after your \(label)",
+            body: "Your glucose fell about \(pct)% more than usual after your latest \(label) "
+                + "session, compared with your recent \(label) sessions at similar effort. "
+                + "Worth a note in your journal.",
+            priority: 70)]
+    }
+
+    /// Glucose change around one workout: mean of the hour before start minus
+    /// mean of the two hours after end (positive ⇒ glucose fell). nil when there
+    /// isn't a reading on both sides.
+    private func glucoseDrop(for w: WorkoutReading, glucose: [GlucoseReading]) -> Double? {
+        let pre = glucose
+            .filter { $0.ts >= w.start.addingTimeInterval(-3600) && $0.ts <= w.start }
+            .map(\.mmol)
+        let post = glucose
+            .filter { $0.ts >= w.end && $0.ts <= w.end.addingTimeInterval(7200) }
+            .map(\.mmol)
+        guard !pre.isEmpty, !post.isEmpty else { return nil }
+        return mean(pre) - mean(post)
     }
 
     /// Recovery (wellness): HRV-SDNN latest vs baseline of earlier days.

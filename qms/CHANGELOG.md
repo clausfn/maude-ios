@@ -4,6 +4,20 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-15 — Nudge engine: workout↔glucose coupling rule (§6.2 lead example) (2026-06-03)
+- **feat(intelligence):** `NudgeEngine.workoutGlucoseNudge` — the prototype's
+  lead example ("glucose dropped X% more than usual after yesterday's ride").
+  Per workout it computes the glucose change (mean of the hour before start −
+  mean of the two hours after end), groups by workout type, and fires only when
+  the LATEST same-type session's drop is materially steeper (>1σ and ≥15%) than
+  the user's OWN prior same-type sessions (Baseline needs ≥3). Within-user
+  correlation only — no targets, no population norm, no advice.
+- **safety:** output runs through `NudgeGuard` (FR-NDG-06) like every stream;
+  copy stays clean (personal "more than usual", glucose accent, lane `.watch`).
+- **test:** `WorkoutGlucoseNudgeTests` (T-NDG-08) + swiftc driver — fires on a
+  steep latest ride, silent on typical drops, silent without ≥3 prior sessions;
+  guard-clean. Pure Foundation (Android-portable, NFR-PORT-01 / NFR-MAINT-02).
+
 ### PR-14 — Ory Network auth (real session tokens) for the sovereign backend (2026-06-03)
 - **feat(auth):** `OryAuthClient` runs the Ory Network NATIVE login flow
   (`GET /self-service/login/api` → `POST {ui.action}` password → `session_token`;
