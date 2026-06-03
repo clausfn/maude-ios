@@ -4,6 +4,19 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### chore — backend contract cross-check + bug-hunt (2026-06-03)
+- Verified `LiviqaBackendService` against the actual `liviqa-backend` repo
+  controllers/services (not just openapi): routes `/me`, `/grants`, `/ledger?limit`,
+  `/recipients`, `POST /grants`, `POST /grants/{id}/revoke`, `PUT /shares/{grantId}`
+  all match. DTOs match: `CreateGrantDto` (recipientId/recipientRole/scopeKeys/
+  granularity/expiry/delivery), `PushShareDto` `{ asOf, payload:{ metrics, insights } }`
+  == `DerivedShareRequest`, grant/ledger reads (`expiresAt`/`createdAt`/`occurredAt`),
+  and `/me` `AuthedAccount` (`id,kind,role,email,displayName,org`) == `AccountDTO`.
+  `Gran` = summary|trend|events|detailed|off → our `"summary"` default is valid and
+  the backend clamps to the role template regardless. No client change required.
+- Bug-hunt over PR-15/16/17 + sharing/backend client: full pure layer typechecks
+  clean together; no defects found.
+
 ### PR-17 — On-device 7-day correlation grid (FR-PAS-05 / DM-06) (2026-06-03)
 - **feat(intelligence):** `CorrelationDeriver` (pure Foundation) builds the
   7-day × 7-signal grid as a deviation-from-usual heat map: each cell is the
