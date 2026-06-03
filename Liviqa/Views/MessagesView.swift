@@ -14,7 +14,7 @@ struct MessagesView: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     if appState.careConnect == nil {
-                        infoNote("Messaging and video consultations become available once you're connected to your care team on the Liviqa network.")
+                        infoNote("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
                     } else {
                         consultsSection
                         threadsSection
@@ -38,7 +38,9 @@ struct MessagesView: View {
     // MARK: - Active consults
 
     @ViewBuilder private var consultsSection: some View {
-        if !appState.activeConsults.isEmpty {
+        // v1 ships without live video consult (Config.videoConsultEnabled = false):
+        // no EU Jitsi / camera-mic yet. Secure messaging below stays available.
+        if Config.videoConsultEnabled, !appState.activeConsults.isEmpty {
             LiviqaSectionHeader(label: "In progress")
             VStack(spacing: 10) {
                 ForEach(appState.activeConsults) { consult in

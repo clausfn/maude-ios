@@ -47,17 +47,32 @@ enum Config {
         case sovereign(baseURL: URL, devToken: String?, authURL: URL?)
     }
 
-    /// Active backend. Locked default is `.mock` (FR-ARCH-05 demo). LOCAL QA may
-    /// override at launch via env `LIVIQA_BACKEND=sovereignLocal|sovereignStaging|
-    /// supabaseSandbox` without changing the shipped default.
+    /// Active backend.
+    /// - **Release / TestFlight → live sovereign prod** (`api.liviqa.app` + Supabase
+    ///   GoTrue), so the shipped build feeds real/live data with no extra config.
+    /// - **Debug → `.mock`** (synthetic demo, FR-ARCH-05).
+    /// - `LIVIQA_BACKEND` env always wins (local QA / e2e), e.g.
+    ///   `sovereignLocal|sovereignStaging|sovereignProd|supabaseSandbox|mock`.
     static var backend: Backend {
         switch ProcessInfo.processInfo.environment["LIVIQA_BACKEND"] {
         case "sovereignLocal":   return sovereignLocal
         case "sovereignStaging": return sovereignStaging
+        case "sovereignProd":    return sovereignProd
         case "supabaseSandbox":  return .supabaseSandbox
-        default:                 return .mock     // locked default
+        case "mock":             return .mock
+        default:
+            #if DEBUG
+            return .mock              // dev default = synthetic
+            #else
+            return sovereignProd      // TestFlight/App Store = live data
+            #endif
         }
     }
+
+    /// v1 TestFlight ships WITHOUT the live video consult — no EU-sovereign Jitsi
+    /// yet (NFR-SEC-07; `meet.jit.si` is demo-only) and no camera/mic entitlements.
+    /// Secure messaging stays available. Flip on once a sovereign Jitsi is wired.
+    static let videoConsultEnabled = false
 
     /// Local sovereign backend for development (embedded Postgres; seed bearer
     /// token; no Supabase). Backend: `http://localhost:3001`, citizen seed `dev-citizen-claus`.
@@ -70,7 +85,15 @@ enum Config {
     /// Sovereign backend with real Supabase Auth (GoTrue) login. Point `baseURL` at
     /// the staging/prod API; auth runs against the self-hosted `supabaseAuthURL`.
     static let sovereignStaging: Backend = .sovereign(
-        baseURL: URL(string: "https://api.dfgworks.dk")!,
+        baseURL: URL(string: "https://api.liviqa.app")!,
+        devToken: nil,
+        authURL: supabaseAuthURL
+    )
+
+    /// Production sovereign backend (TestFlight/App Store default). Canonical hosts
+    /// are on `liviqa.app`: API `api.liviqa.app`, auth `auth.liviqa.app`.
+    static let sovereignProd: Backend = .sovereign(
+        baseURL: URL(string: "https://api.liviqa.app")!,
         devToken: nil,
         authURL: supabaseAuthURL
     )
