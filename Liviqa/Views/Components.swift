@@ -3,43 +3,20 @@
 import SwiftUI
 
 // MARK: - Aperture mark
-// Faithful SVG→SwiftUI translation of liviqa_mark_aperture_reversed_v01.svg.
-// TODO: replace with Image("liviqa_mark_aperture_reversed") once SVG is in asset catalog.
+// Embeds the LOCKED aperture-mark asset — never redraw the mark in code (brand
+// kit §1; code redraws caused prior drift). Same source SVGs as liviqa.app.
 
 struct LiviqaApertureMark: View {
     var size: CGFloat = 28
-    /// false = primary (on light bg, ink + moss)
-    /// true  = reversed (on dark bg, paper + mossRev)
+    /// false = primary (on light bg, ink + moss); true = reversed (on dark).
     var reversed: Bool = false
 
-    private var ringColor: Color { reversed ? LiviqaTheme.paper  : LiviqaTheme.ink    }
-    private var arcColor:  Color { reversed ? LiviqaTheme.mossRev : LiviqaTheme.moss   }
-    private var dotColor:  Color { reversed ? LiviqaTheme.paper  : LiviqaTheme.ink    }
-
     var body: some View {
-        ZStack {
-            // Big arc: 3-o'clock → 12-o'clock clockwise (270° = 75% of circle)
-            Circle()
-                .trim(from: 0.25, to: 1.0)
-                .stroke(ringColor,
-                        style: StrokeStyle(lineWidth: size * 0.065,
-                                           lineCap: .round))
-                .rotationEffect(.degrees(-90))
-
-            // Consent arc: 12-o'clock → 3-o'clock clockwise (90° = 25% of circle)
-            Circle()
-                .trim(from: 0.0, to: 0.25)
-                .stroke(arcColor,
-                        style: StrokeStyle(lineWidth: size * 0.065,
-                                           lineCap: .round))
-                .rotationEffect(.degrees(-90))
-
-            // Citizen dot
-            Circle()
-                .fill(dotColor)
-                .frame(width: size * 0.17, height: size * 0.17)
-        }
-        .frame(width: size, height: size)
+        Image(reversed ? "LiviqaMarkReversed" : "LiviqaMark")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityLabel("Liviqa")
     }
 }
 

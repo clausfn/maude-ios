@@ -51,16 +51,28 @@ enum LiviqaTheme {
     static let cardShadow = Color.black.opacity(0.04)
 }
 
-// MARK: - Font helpers (Phase 1: system equivalents)
-// TODO: add Lato.ttf + IBMPlexMono.ttf to project and swap these out.
+// MARK: - Font helpers — brand type (Lato + IBM Plex Mono), same as liviqa.app
+// Bundled OFL fonts (Liviqa/Fonts, UIAppFonts). Kickers/numbers/timestamps use
+// IBM Plex Mono Medium; headlines/body use Lato. Falls back to system if a face
+// fails to load.
 
 extension Font {
-    /// Mono kicker — 10–11 pt, uppercase, spaced. Uses system monospaced fallback.
+    /// Mono kicker — 10–11 pt, uppercase, spaced. IBM Plex Mono Medium.
     static func liviqaKicker(_ size: CGFloat = 10) -> Font {
-        .system(size: size, design: .monospaced).weight(.medium)
+        .custom("IBMPlexMono-Medium", size: size)
     }
-    /// Mono number — tabular, medium weight.
+    /// Mono number — tabular. IBM Plex Mono Medium.
     static func liviqaMono(_ size: CGFloat = 14) -> Font {
-        .system(size: size, design: .monospaced).weight(.medium)
+        .custom("IBMPlexMono-Medium", size: size)
+    }
+    /// Lato (headlines/body). weight maps to Regular/Bold/Black faces.
+    static func lato(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        let face: String
+        switch weight {
+        case .black, .heavy:           face = "Lato-Black"
+        case .bold, .semibold:         face = "Lato-Bold"
+        default:                       face = "Lato-Regular"
+        }
+        return .custom(face, size: size)
     }
 }

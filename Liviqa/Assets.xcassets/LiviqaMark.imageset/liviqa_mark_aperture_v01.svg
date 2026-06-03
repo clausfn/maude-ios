@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" role="img" aria-label="Liviqa aperture mark">
+  <title>Liviqa — Aperture mark v01</title>
+  <desc>Ink boundary ring open at the top-right where a moss arc carries consent out, citizen dot at centre.</desc>
+  <path d="M35 20 A15 15 0 1 1 20 5" fill="none" stroke="#0E1A2B" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M20 5 A15 15 0 0 1 35 20" fill="none" stroke="#3D7A5A" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="20" cy="20" r="3.4" fill="#0E1A2B"/>
+</svg>
