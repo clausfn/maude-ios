@@ -15,5 +15,12 @@
 	<array>
 		<string>$(APP_GROUP)</string>
 	</array>
+	<!-- Sign in with Apple (AuthView → AppleSignInCoordinator → Supabase GoTrue
+	     id_token grant). Required for the SIWA button to work; Xcode registers the
+	     "Sign in with Apple" capability on the App ID under automatic signing. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

@@ -16,6 +16,9 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
   consult-join section (no EU Jitsi / camera-mic in v1; messaging stays).
 - **chore(signing):** `Config/Signing.xcconfig` (local, gitignored) → team
   `PS258XSNL8`, bundle `app.liviqa.ios`, group `group.app.liviqa.ios`.
+- **fix(entitlements):** add `com.apple.developer.applesignin` (the SIWA button
+  was wired without its entitlement) so the App ID gets the capability under
+  automatic signing.
 - **chore(appstore):** `Info.plist` `ITSAppUsesNonExemptEncryption=false`;
   added **`PrivacyInfo.xcprivacy`** (health/email/userID/message content, no
   tracking; UserDefaults reason CA92.1) — bundled, build verified.
