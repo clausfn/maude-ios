@@ -218,6 +218,58 @@ enum MockData {
         patternStrength: "Strong"
     )
 
+    // MARK: Care threads (demo mode — secure messaging surface)
+
+    static let demoCareThreads: [CareThread] = [
+        CareThread(recipientId: "care-nurse",
+                   recipientName: "Diabetes Nurse",
+                   recipientOrg: "University Hospital",
+                   unread: 2,
+                   lastMessageAt: nil),
+        CareThread(recipientId: "care-coach",
+                   recipientName: "Sports Coach",
+                   recipientOrg: "Yourcoach.health",
+                   unread: 0,
+                   lastMessageAt: nil),
+        CareThread(recipientId: "care-gp",
+                   recipientName: "General Practitioner",
+                   recipientOrg: "City Health Clinic",
+                   unread: 0,
+                   lastMessageAt: nil),
+    ]
+
+    /// Demo conversation for a care thread (used when no live backend is connected).
+    static func demoMessages(for recipientId: String) -> [CareMessage] {
+        let now = Date()
+        func ago(_ mins: Int) -> Date { now.addingTimeInterval(Double(-mins * 60)) }
+        switch recipientId {
+        case "care-nurse":
+            return [
+                CareMessage(id: "n1", sender: .recipient,
+                            body: "Hi — I had a look at the time-in-range trend you shared. Nice improvement this week.",
+                            readAt: now, createdAt: ago(180)),
+                CareMessage(id: "n2", sender: .citizen,
+                            body: "Thanks. The evening walks seem to help the overnight numbers.",
+                            readAt: now, createdAt: ago(170)),
+                CareMessage(id: "n3", sender: .recipient,
+                            body: "Agreed. Let's keep the basal as-is and review again in two weeks.",
+                            readAt: nil, createdAt: ago(20)),
+            ]
+        case "care-coach":
+            return [
+                CareMessage(id: "c1", sender: .recipient,
+                            body: "Your HRV dipped after the late sessions — let's pull Thursday's intensity back a notch.",
+                            readAt: now, createdAt: ago(1440)),
+            ]
+        default:
+            return [
+                CareMessage(id: "g1", sender: .recipient,
+                            body: "Everything looks stable. Message me here if anything changes.",
+                            readAt: now, createdAt: ago(2880)),
+            ]
+        }
+    }
+
     // MARK: Data source connections
 
     static let connectedSources: [DataSourceConnection] = [

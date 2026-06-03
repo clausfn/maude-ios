@@ -123,6 +123,7 @@ final class AppState {
         profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date())
         grants = MockData.walletGrants
         walletEvents = MockData.walletEvents
+        careThreads = MockData.demoCareThreads
     }
 
     @MainActor

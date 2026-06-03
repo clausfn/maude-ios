@@ -13,8 +13,8 @@ struct MessagesView: View {
                 LiviqaAppBar(title: "Care", showMark: false)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    if appState.careConnect == nil {
-                        infoNote("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
+                    if appState.careConnect == nil && appState.careThreads.isEmpty {
+                        emptyStateCard("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
                     } else {
                         consultsSection
                         threadsSection
@@ -107,10 +107,10 @@ struct MessagesView: View {
     private func threadRow(_ t: CareThread) -> some View {
         HStack(spacing: 12) {
             ZStack {
-                Circle().fill(LiviqaTheme.ink).frame(width: 38, height: 38)
+                Circle().fill(LiviqaTheme.invertBG).frame(width: 38, height: 38)
                 Text(initials(t.recipientName))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LiviqaTheme.invertFG)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.recipientName)
@@ -141,6 +141,28 @@ struct MessagesView: View {
             .font(.lato(12.5)).lineSpacing(2)
             .foregroundStyle(LiviqaTheme.ink3)
             .padding(.vertical, 12)
+    }
+
+    private func emptyStateCard(_ text: String) -> some View {
+        VStack(spacing: 12) {
+            LiviqaApertureMark(size: 44, reversed: true)
+                .opacity(0.9)
+            Text("Your care team, on your terms")
+                .font(.lato(15, .bold))
+                .foregroundStyle(LiviqaTheme.ink)
+            Text(text)
+                .font(.lato(12.5)).lineSpacing(2)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(LiviqaTheme.ink3)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 18)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card).stroke(LiviqaTheme.line, lineWidth: 0.5))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+        .padding(.top, 8)
     }
 
     private func initials(_ name: String) -> String {
@@ -231,14 +253,25 @@ struct MessageThreadView: View {
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     private func load() async {
-        guard let care = appState.careConnect else { return }
+        guard let care = appState.careConnect else {
+            // Demo mode (no live backend): show a seeded conversation.
+            messages = MockData.demoMessages(for: recipientId)
+            return
+        }
         do { messages = try await care.fetchMessages(recipientId: recipientId) }
         catch { self.error = (error as? SupabaseError)?.errorDescription ?? "Couldn't load messages." }
     }
 
     private func send() async {
         let body = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !body.isEmpty, let care = appState.careConnect else { return }
+        guard !body.isEmpty else { return }
+        guard let care = appState.careConnect else {
+            // Demo mode: append locally so the composer feels live.
+            messages.append(CareMessage(id: UUID().uuidString, sender: .citizen,
+                                        body: body, readAt: nil, createdAt: Date()))
+            draft = ""
+            return
+        }
         sending = true; error = nil
         do {
             let sent = try await care.sendMessage(recipientId: recipientId, body: body)
