@@ -4,6 +4,17 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-35 — Oura redesign #2: shared ring/curve/toast components (2026-06-04)
+- **feat(ui):** `OuraComponents.swift` — `RingView` (gradient moss→amber arc +
+  glow + draw-in, resting state = full arc, Reduce-Motion-gated via system flag
+  OR in-app `liviqaReduceMotion`), `MiniRing` (vitals + delta), `GlucoseCurveView`
+  (target band + amber gradient area fill + NOW dot + x-ticks), `Toast`
+  (invert-surface pill, status dot, mono timestamp, slide-up, ~2.8s auto-dismiss),
+  `Delta`/`StatusPill`/`SourceChip`. VoiceOver labels on rings + curve.
+- Self-contained (no screen wired yet) → no visual regression. Builds (iOS Sim).
+- Next: wire into Today (radial hero + mini-ring vitals), then Trends grid,
+  Wallet invert summary, Care, Journal, + debug menu.
+
 ### PR-34 — Oura redesign #1: Midnight theme foundation (NFR-UI-THEME-01) (2026-06-04)
 - **feat(theme):** `Theme.swift` v02 — every `LiviqaTheme.*` colour is now a
   **dynamic token** (`Color.dyn(light,dark)`): light = Paper, dark = **Midnight**
