@@ -2,6 +2,20 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-12 — FR-SHARE-02 device→sovereign egress; residency + leak hazards mitigated
+
+The derived-share PUSH is now wired to the EU-sovereign backend.
+- **RK-SEC-RESIDENCY-01 (real PII to US-parented cloud, NFR-SEC-07):** mitigated —
+  `LiviqaBackendService` targets the sovereign backend (Scaleway+Ory); Supabase is
+  demoted to `.supabaseSandbox`; default backend is `.mock`. Real-user cutover sets
+  `.sovereign`.
+- **RK-PRIV-EGRESS-01 (raw/provenance leaving device):** mitigated by construction —
+  the only health payload sent is `DerivedShareBuilder`'s scoped daily aggregates;
+  the service never serializes `HealthSamples`/provenance. Backend re-checks
+  guardrails server-side. Verified live (PUT /shares 200; revoke immediate).
+- **Residual:** transport is plain HTTP for `localhost` dev only; production uses
+  TLS to `api.dfgworks.dk` (NFR-SEC-06). Dev bearer tokens are non-production.
+
 ## CORRECTION (2026-06-03) — retired off-spec egress module
 
 A prior entry here described a `ShareBundle`/`SecureShareExporter` egress module.

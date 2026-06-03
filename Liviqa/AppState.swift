@@ -54,9 +54,14 @@ final class AppState {
     // Error surface
     var lastError: String? = nil
 
-    init(supabase: any SupabaseServiceProtocol = MockSupabaseService()) {
+    init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
         self.supabase = supabase
     }
+
+    /// Sovereign-only capabilities (recipient directory + derived-share push),
+    /// available when running against the EU-sovereign backend. `nil` on mock/
+    /// sandbox so callers degrade gracefully.
+    var sovereign: (any SovereignSharing)? { supabase as? SovereignSharing }
 
     // MARK: - Auth actions
 
@@ -149,6 +154,30 @@ final class AppState {
             // Fall back to mock data so the UI is never empty
             grants       = MockData.walletGrants
             walletEvents = MockData.walletEvents
+        }
+    }
+
+    // MARK: - Derived-share push (FR-SHARE-02)
+
+    /// Build and push the DERIVED, scoped share for a grant (PUT /shares/{grantId}).
+    /// Fetches fresh samples on-device, arbitrates sources, derives only the
+    /// metrics inside the consented GROUPS, and pushes that — never raw samples,
+    /// never provenance. No-op with a friendly error if not on the sovereign backend.
+    @MainActor
+    func pushDerivedShare(grantId backendGrantId: String, scopeGroups: Set<String>) async {
+        guard let sov = sovereign else {
+            lastError = "Sharing requires the sovereign backend."
+            return
+        }
+        do {
+            let provider = HealthProviderFactory.make(dataProviderKind)
+            let end = Date()
+            let start = Calendar.current.date(byAdding: .day, value: -90, to: end) ?? end
+            let samples = try await provider.fetchSamples(from: start, to: end).arbitrated()
+            let request = DerivedShareBuilder.build(from: samples, scopeGroups: scopeGroups)
+            try await sov.pushDerivedShare(grantId: backendGrantId, request)
+        } catch {
+            lastError = error.localizedDescription
         }
     }
 

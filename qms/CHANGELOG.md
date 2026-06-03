@@ -4,6 +4,27 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-12 — FR-SHARE-02: EU-sovereign backend client + derived-share push (2026-06-03)
+- **feat(services):** `LiviqaBackendService` implements `SupabaseServiceProtocol`
+  against the EU-sovereign backend (NestJS/Scaleway+Ory) per `openapi.yaml` /
+  `Liviqa_iOS_Backend_Contract_v01` — `GET /me`, `GET /recipients`, `GET /grants`,
+  `POST /grants`(+`/revoke`), `GET /ledger`, and the new `pushDerivedShare →
+  PUT /shares/{grantId}` (body from `DerivedShareBuilder`, FR-SHARE-01).
+- **feat(services):** `SovereignSharing` protocol (recipient directory + grant
+  create + derived-share push) reached via `AppState.sovereign`; `AppState`
+  gains `pushDerivedShare(grantId:scopeGroups:)` (fetch→arbitrate→derive→push;
+  raw/provenance never leave device).
+- **feat(config):** `Config.Backend` (`.mock` default · `.supabaseSandbox` ·
+  `.sovereign(baseURL:devToken:)`) + `makeService()`; `AppState.init` selects it.
+  Supabase demoted to sandbox-only (NFR-SEC-07); default stays `.mock`.
+- **feat(services):** `BackendMapping` — pure, testable wire↔domain transforms
+  (stable UUIDv5 from opaque backend ids; ledger event/decision maps; tolerant
+  ISO-8601 parse; role→display-type). `BackendMappingTests` (T-BMAP-01..06).
+- **verify:** mapping driver green via swiftc; full write loop exercised live
+  against `http://localhost:3001` (`dev-citizen-claus`): create grant (group
+  scope) → 201, `PUT /shares` (DerivedShareBuilder body) → 200, revoke → ok.
+- Maps to FR-WAL-* / UC-07/11/12/13. Closes the open device→backend seam.
+
 ### CORRECTION — re-anchor to SRS/UseCases v05 + sovereign backend (2026-06-03)
 - **revert(sharing):** retired the off-spec `ShareBundle`/`ShareBundleBuilder`/
   `SecureShareExporter` + `SharingTests` introduced below. They duplicated the
