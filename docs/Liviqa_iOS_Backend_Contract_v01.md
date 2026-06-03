@@ -93,5 +93,8 @@ The sovereign backend now exposes the surface `SupabaseServiceProtocol` needs, s
 5. **Cutover** — real users (Claus) on Sovereign; Supabase demoted to sandbox; retire `supabase_schema.sql` for PII.
 6. **Production gates** (before non-Claus users): DPIA, DPA with Scaleway + Ory, Art. 9 onboarding consent, RLS on per-citizen partitions, pen test.
 
+## 6b. Video consultation (citizen side) — NEW
+The B2B console can start a secure video consult; **the citizen joins from the iOS app**. EU-sovereign **Jitsi** (no US provider on this PII path); room = `liviqa-consult-<sessionId>` (both ends join the same room). Citizen flow: `GET /consults/active` (room + recipient) → join Jitsi + `POST /consults/:id/join` → **recording is the citizen's consent** (`POST /consults/:id/recording-consent`; the recipient only *requests* it). `GET /notifications` surfaces consult invites. iOS detail: `liviqa-ios/docs/Video_Consult_iOS_Notes.md`.
+
 ## 7. Guardrail & boundary invariants (both codebases)
 mmol/L canonical (GMI headline) · AFib display-only, route-to-cardiology · insulin pattern-only · sexual-function meds never rendered · provenance never rendered · derived-only off device · revocation immediate + evidenced · Liviqa never asserts clinical significance (UC-18). These hold identically on device, in the backend gate, and in the console.

@@ -83,7 +83,44 @@ paths:
       responses:
         '201': { description: stored, content: { application/json: { schema: { type: object, properties: { id: { type: string } } } } } }
 
+  /notifications:
+    get:
+      tags: [citizen]
+      summary: Citizen notifications — consult invites, unread care-team messages, access requests
+      responses: { '200': { description: notifications } }
+  /consults/active:
+    get:
+      tags: [citizen]
+      summary: Active consults the citizen can join (Jitsi roomName + recipient)
+      responses: { '200': { description: 'array of { id, roomName, recipientName, recordingRequested, recordingConsent }' } }
+  /consults/{id}/join:
+    post:
+      tags: [citizen]
+      summary: Citizen joined the consult (logged)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses: { '201': { description: ok } }
+  /consults/{id}/recording-consent:
+    post:
+      tags: [citizen]
+      summary: Citizen grants/withdraws in-call recording consent (ONLY the citizen can)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { consent: { type: boolean } } } } } }
+      responses: { '201': { description: ok } }
+  /journal:
+    get: { tags: [citizen], summary: List opt-in journal entries, responses: { '200': { description: list } } }
+    put:
+      tags: [citizen]
+      summary: Create/update a journal entry (opt-in)
+      requestBody: { content: { application/json: { schema: { type: object, properties: { id: { type: string }, text: { type: string }, at: { type: string, format: date-time } } } } } }
+      responses: { '200': { description: entry } }
+  /me/export:
+    get: { tags: [citizen], summary: 'GDPR Art.20 — export all my data (no raw samples)', responses: { '200': { description: export } } }
+  /me/erase:
+    post: { tags: [citizen], summary: 'GDPR Art.17 — erase my account + data', responses: { '201': { description: 'erased + counts' } } }
+
   # ───────────────────── RECIPIENT (console, Mode A) ─────────────────────
+  # Consult: recipient REQUESTS recording (recordingRequested); the CITIZEN grants
+  # consent via /consults/{id}/recording-consent. Jitsi room = liviqa-consult-{sessionId}.
   /shared/citizens:
     get: { tags: [recipient], summary: Citizens who granted me an active grant, responses: { '200': { description: list } } }
   /shared/{citizenId}/view:
