@@ -59,6 +59,41 @@ final class OryAuthClient: @unchecked Sendable {
         }
     }
 
+    // MARK: - Native OIDC login (Sign in with Apple)
+
+    /// Sign in with Apple via Ory's native (API) social flow: the Apple identity
+    /// token obtained by `ASAuthorizationAppleIDProvider` is POSTed to the login
+    /// flow's `oidc` method. On success Ory returns the same shape as password
+    /// login (`session_token` + identity), so we reuse `parseLoginSuccess`.
+    func loginWithApple(idToken: String, nonce: String) async throws -> OrySessionResult {
+        try await loginWithOIDC(provider: "apple", idToken: idToken, nonce: nonce)
+    }
+
+    /// Generic native OIDC submit (provider id must match the Ory project config).
+    func loginWithOIDC(provider: String, idToken: String, nonce: String) async throws -> OrySessionResult {
+        // 1) Initialise a native login flow.
+        let flowData = try await send(path: "/self-service/login/api", method: "GET", body: nil)
+        guard let flow = Self.parseFlow(flowData) else {
+            throw SupabaseError.serverError("Ory: could not start login flow.")
+        }
+        // 2) Submit the provider id_token to the flow's action URL (oidc method).
+        let (data, status) = try await sendRaw(
+            urlString: flow.action, method: "POST",
+            body: Self.oidcSubmitBody(provider: provider, idToken: idToken, nonce: nonce))
+        switch status {
+        case 200:
+            guard let result = Self.parseLoginSuccess(data) else {
+                throw SupabaseError.serverError("Ory: malformed OIDC login response.")
+            }
+            return result
+        case 400, 401, 403:
+            // Flow returned with messages → token rejected / identity not linkable.
+            throw SupabaseError.invalidCredentials
+        default:
+            throw SupabaseError.serverError("Ory OIDC login failed (HTTP \(status)).")
+        }
+    }
+
     // MARK: - Session check
 
     func whoami(token: String) async throws -> OrySessionResult {
@@ -87,6 +122,19 @@ final class OryAuthClient: @unchecked Sendable {
               let ui = o["ui"] as? [String: Any],
               let action = ui["action"] as? String else { return nil }
         return Flow(id: id, action: action)
+    }
+
+    /// Native OIDC submit body. Ory binds the Apple `id_token` to the original
+    /// Sign-in-with-Apple request via `id_token_nonce` (replay protection); it is
+    /// omitted only when the caller has no nonce. Pure → unit-testable.
+    static func oidcSubmitBody(provider: String, idToken: String, nonce: String) -> Data {
+        var payload: [String: Any] = [
+            "method": "oidc",
+            "provider": provider,
+            "id_token": idToken,
+        ]
+        if !nonce.isEmpty { payload["id_token_nonce"] = nonce }
+        return (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
     }
 
     static func parseLoginSuccess(_ data: Data) -> OrySessionResult? {

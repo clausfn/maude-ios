@@ -101,8 +101,18 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     }
 
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
-        // Ory OIDC-native (Apple) flow not wired yet; email/password is the path.
-        guard ory == nil, bearerToken != nil else { throw SupabaseError.notAvailable }
+        if let ory {
+            // Real Ory native OIDC (Sign in with Apple) → session token = bearer.
+            let result = try await ory.loginWithApple(idToken: idToken, nonce: nonce)
+            bearerToken = result.token
+            tokenStore.save(result.token)
+            let account = try await getMe()
+            return UserSession(userId: BackendMapping.stableUUID(account.id),
+                               email: account.email ?? result.email)
+        }
+        // Local dev (no Ory): Apple sign-in needs the OIDC bridge; the static seed
+        // token is the only identity, so fall back to it when present.
+        guard bearerToken != nil else { throw SupabaseError.notAvailable }
         let account = try await getMe()
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
     }

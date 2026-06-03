@@ -21,7 +21,16 @@ enum Config {
     /// citizen joins `https://<jitsiDomain>/liviqa-consult-<sessionId>` — the same
     /// deterministic room the console uses. `nil` ⇒ no live media (secure shell).
     /// NFR-SEC-07: must never point at a US-parented provider on the PII path.
+    ///
+    /// TODO(NFR-SEC-07): set this to the real EU-sovereign Jitsi/Whereby domain
+    /// (self-hosted) before any production/TestFlight build with live consults.
     static let jitsiDomain: String? = nil
+
+    /// LOCAL-PARITY ONLY. `meet.jit.si` is US-operated — it must NEVER be used as a
+    /// production default (NFR-SEC-07). Use it only for local dev to exercise the
+    /// same Jitsi room the console joins (set `Config.jitsiDomain = jitsiDemoDomain`
+    /// in a throwaway local build); never commit that wired to a real-PII path.
+    static let jitsiDemoDomain = "meet.jit.si"
 
     enum Backend {
         case mock                                   // synthetic demo (default)
