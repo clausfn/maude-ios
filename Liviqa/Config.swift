@@ -24,7 +24,12 @@ enum Config {
     ///
     /// TODO(NFR-SEC-07): set this to the real EU-sovereign Jitsi/Whereby domain
     /// (self-hosted) before any production/TestFlight build with live consults.
-    static let jitsiDomain: String? = nil
+    /// Locked default is `nil` (secure shell). LOCAL QA only may opt into the demo
+    /// domain by launching with env `LIVIQA_JITSI_DEMO=1` — never a prod default.
+    static var jitsiDomain: String? {
+        if ProcessInfo.processInfo.environment["LIVIQA_JITSI_DEMO"] == "1" { return jitsiDemoDomain }
+        return nil
+    }
 
     /// LOCAL-PARITY ONLY. `meet.jit.si` is US-operated — it must NEVER be used as a
     /// production default (NFR-SEC-07). Use it only for local dev to exercise the
@@ -40,9 +45,17 @@ enum Config {
         case sovereign(baseURL: URL, devToken: String?, oryURL: URL?)
     }
 
-    /// Active backend. Flip to `.sovereignLocal` (seed tokens) or
-    /// `.sovereignStaging` (real Ory login) to leave demo mode.
-    static let backend: Backend = .mock
+    /// Active backend. Locked default is `.mock` (FR-ARCH-05 demo). LOCAL QA may
+    /// override at launch via env `LIVIQA_BACKEND=sovereignLocal|sovereignStaging|
+    /// supabaseSandbox` without changing the shipped default.
+    static var backend: Backend {
+        switch ProcessInfo.processInfo.environment["LIVIQA_BACKEND"] {
+        case "sovereignLocal":   return sovereignLocal
+        case "sovereignStaging": return sovereignStaging
+        case "supabaseSandbox":  return .supabaseSandbox
+        default:                 return .mock     // locked default
+        }
+    }
 
     /// Local sovereign backend for development (embedded Postgres; seed bearer
     /// token; no Ory). Backend: `http://localhost:3001`, citizen seed `dev-citizen-claus`.

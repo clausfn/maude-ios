@@ -24,3 +24,5 @@ Config/Signing.xcconfig
 
 # macOS
 .DS_Store
+build/
+*.xcresult/

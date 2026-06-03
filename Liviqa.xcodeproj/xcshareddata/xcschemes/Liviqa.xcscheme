@@ -40,6 +40,16 @@
                ReferencedContainer = "container:Liviqa.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "48AFF21F2FBE5BDD00CFECA5"
+               BuildableName = "LiviqaUITests.xctest"
+               BlueprintName = "LiviqaUITests"
+               ReferencedContainer = "container:Liviqa.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -120,6 +120,8 @@ struct MainTabView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("avatarButton")
+        .accessibilityLabel("Profile and settings")
     }
 
     private var tabBar: some View {
