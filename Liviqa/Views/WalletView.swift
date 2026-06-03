@@ -5,14 +5,12 @@ import SwiftUI
 
 struct WalletView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.colorScheme) private var colorScheme
 
-    // CE toast state
-    @State private var ceToastVisible = false
-    @State private var ceToastText    = ""
-    @State private var ceToastIsWithdraw = false
+    // CE confirmation toast (shared ledger pattern)
+    @State private var toast: LiviqaToastData?
 
     var body: some View {
-        ZStack(alignment: .bottom) {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
@@ -101,74 +99,18 @@ struct WalletView: View {
                 await appState.loadWallet()
             }
         }
-
-        // ── CE Toast overlay ──
-        if ceToastVisible {
-            ceToast
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .zIndex(10)
-        }
-
-        } // ZStack
-    }
-
-    // MARK: - CE Toast
-
-    private var ceToast: some View {
-        HStack(spacing: 10) {
-            // Aperture dot
-            Circle()
-                .fill(ceToastIsWithdraw ? LiviqaTheme.rust : LiviqaTheme.moss)
-                .frame(width: 8, height: 8)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(ceToastIsWithdraw ? "Consent withdrawn" : "Grant confirmed")
-                    .font(.lato(12.5, .bold))
-                    .foregroundStyle(.white)
-                Text(ceToastText)
-                    .font(.liviqaMono(10))
-                    .foregroundStyle(.white.opacity(0.75))
-                    .tracking(0.3)
-            }
-
-            Spacer()
-
-            Image(systemName: "checkmark.circle.fill")
-                .font(.lato(16))
-                .foregroundStyle(.white.opacity(0.85))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(LiviqaTheme.ink)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    ceToastIsWithdraw ? LiviqaTheme.rust.opacity(0.5) : LiviqaTheme.moss.opacity(0.5),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: Color.black.opacity(0.18), radius: 12, y: 4)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
+        .liviqaToast($toast)
     }
 
     private func showCEToast(isWithdraw: Bool, recipient: String) {
         let df = DateFormatter()
         df.dateFormat = "d MMM · HH:mm"
         let timestamp = df.string(from: Date())
-        ceToastText = "Recorded on DfG CE ledger · \(timestamp)"
-        ceToastIsWithdraw = isWithdraw
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-            ceToastVisible = true
-        }
-        Task {
-            try? await Task.sleep(nanoseconds: 2_800_000_000)
-            withAnimation(.easeOut(duration: 0.25)) {
-                ceToastVisible = false
-            }
-        }
+        toast = LiviqaToastData(
+            title: isWithdraw ? "Consent withdrawn" : "Grant confirmed",
+            detail: "Recorded on DfG CE ledger · \(timestamp)",
+            tone: isWithdraw ? .bad : .good
+        )
     }
 
     // MARK: - Summary card
@@ -178,8 +120,9 @@ struct WalletView: View {
         let withdrawnCount = appState.grants.filter { !$0.isActive }.count
 
         return ZStack(alignment: .topTrailing) {
-            // Watermark mark (reversed, faint)
-            LiviqaApertureMark(size: 120, reversed: true)
+            // Watermark mark — primary on a light invert surface (Midnight),
+            // reversed on a dark invert surface (Paper).
+            LiviqaApertureMark(size: 120, reversed: colorScheme == .light)
                 .opacity(0.16)
                 .offset(x: 18, y: -18)
 
@@ -187,21 +130,21 @@ struct WalletView: View {
                 Text("Active grants".uppercased())
                     .font(.liviqaKicker(10.5))
                     .tracking(1.4)
-                    .foregroundStyle(Color(hex: 0x9FB0C2))
+                    .foregroundStyle(LiviqaTheme.invertSub)
 
                 Text("\(activeCount) recipient\(activeCount == 1 ? "" : "s")")
                     .font(.lato(26, .black))
                     .kerning(-0.5)
-                    .foregroundStyle(LiviqaTheme.paper)
+                    .foregroundStyle(LiviqaTheme.invertFG)
                     .padding(.top, 8)
 
                 Text("Glucose & activity, shared as aggregates only.")
                     .font(.lato(13))
-                    .foregroundStyle(Color(hex: 0xC3CEDA))
+                    .foregroundStyle(LiviqaTheme.invertSub)
                     .padding(.top, 4)
 
                 Divider()
-                    .background(Color.white.opacity(0.12))
+                    .overlay(LiviqaTheme.invertLine)
                     .padding(.top, 14)
 
                 HStack(spacing: 22) {
@@ -213,9 +156,9 @@ struct WalletView: View {
             }
             .padding(18)
         }
-        .background(LiviqaTheme.ink)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+        .background(LiviqaTheme.invertBG)
+        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 4)
         .padding(.top, 4)
     }
 
@@ -224,10 +167,10 @@ struct WalletView: View {
             Text(value)
                 .font(.liviqaMono(18))
                 .monospacedDigit()
-                .foregroundStyle(.white)
+                .foregroundStyle(LiviqaTheme.invertFG)
             Text(label)
                 .font(.lato(11))
-                .foregroundStyle(Color(hex: 0x9FB0C2))
+                .foregroundStyle(LiviqaTheme.invertSub)
         }
     }
 
