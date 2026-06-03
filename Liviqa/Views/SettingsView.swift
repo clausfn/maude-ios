@@ -8,6 +8,11 @@ struct SettingsView: View {
     @State private var showDeleteConfirmStep: Int = 0   // 0=idle 1=warn 2=confirm 3=done
     @State private var showExportDone = false
 
+    // Runtime display options (drive the locked design tokens at the root)
+    @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.midnight.rawValue
+    @AppStorage("liviqaReduceMotion") private var reduceMotion = false
+    @AppStorage("liviqaShowDemoChip") private var showDemoChip = true
+
     // Navigation destinations
     @State private var showDataSources    = false
     @State private var showHealthPassport = false
@@ -19,6 +24,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                displaySection
                 myDataSection
                 consentSection
                 regulatorySection
@@ -38,6 +44,58 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $showPrivacy)        { InAppPrivacyView() }
         .sheet(isPresented: $showShare) {
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
+        }
+    }
+
+    // MARK: — Zone 0: Display
+
+    private var displaySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            zoneHeader("DISPLAY", icon: "paintbrush")
+
+            VStack(spacing: 14) {
+                // Theme — Midnight (default) / Paper
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Theme")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Spacer()
+                    }
+                    Picker("Theme", selection: $themeModeRaw) {
+                        Text("Midnight").tag(LiviqaTheme.Mode.midnight.rawValue)
+                        Text("Paper").tag(LiviqaTheme.Mode.paper.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $reduceMotion) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Reduce motion")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Skip ring draw-in and chart animations")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $showDemoChip) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Demo data chip")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Show the “Demo data” marker on Today")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+            }
+            .padding(14)
+            .background(LiviqaTheme.paper2)
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
         }
     }
 
@@ -131,11 +189,11 @@ struct SettingsView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(LiviqaTheme.ink)
+                    .fill(LiviqaTheme.invertBG)
                     .frame(width: 40, height: 40)
                 Text(initials)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LiviqaTheme.invertFG)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(appState.profile?.displayName ?? "Demo User")
