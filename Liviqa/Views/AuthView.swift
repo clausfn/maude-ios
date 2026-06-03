@@ -2,12 +2,14 @@
 // Demo mode is the single most important button for the Novo pitch — it must never fail.
 // v02 2026-05-22
 import SwiftUI
+import AuthenticationServices
 
 struct AuthView: View {
     @Environment(AppState.self) private var appState
     @State private var showEmailForm = false
     @State private var email = ""
     @State private var password = ""
+    @State private var appleCoordinator = AppleSignInCoordinator()
 
     var body: some View {
         ZStack {
@@ -182,8 +184,17 @@ struct AuthView: View {
     }
 
     private func appleSignIn() async {
-        // TODO: implement full ASAuthorizationController flow
-        // For now: fall through to demo so the pitch never fails
-        appState.signInDemo()
+        // Native Sign in with Apple → Ory OIDC-native. The Apple identity token +
+        // raw nonce go to the backend service (FR-AUTH-01). The Demo button below
+        // remains the never-fail pitch path; we do NOT silently fall back here.
+        do {
+            let result = try await appleCoordinator.signIn()
+            await appState.signInWithApple(idToken: result.idToken, nonce: result.rawNonce)
+        } catch {
+            // Swallow an explicit user cancel; surface anything else.
+            if (error as? ASAuthorizationError)?.code != .canceled {
+                appState.lastError = "Apple sign-in didn’t complete. Use email, or continue without an account."
+            }
+        }
     }
 }

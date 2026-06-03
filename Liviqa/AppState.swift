@@ -102,6 +102,19 @@ final class AppState {
     }
 
     @MainActor
+    func signInWithApple(idToken: String, nonce: String) async {
+        isSigningIn = true
+        lastError = nil
+        defer { isSigningIn = false }
+        do {
+            session = try await supabase.signInWithApple(idToken: idToken, nonce: nonce)
+            await postSignIn()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    @MainActor
     func signInDemo() {
         session = UserSession(
             userId: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
