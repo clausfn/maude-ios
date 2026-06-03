@@ -4,6 +4,25 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-34 — Oura redesign #1: Midnight theme foundation (NFR-UI-THEME-01) (2026-06-04)
+- **feat(theme):** `Theme.swift` v02 — every `LiviqaTheme.*` colour is now a
+  **dynamic token** (`Color.dyn(light,dark)`): light = Paper, dark = **Midnight**
+  (tokens locked from the design brief; no invented hues). One root
+  `.preferredColorScheme` flip (LiviqaApp, `@AppStorage("liviqaThemeMode")`,
+  **default Midnight**) recolours all ~200 existing call sites — zero per-view
+  churn, status bar + tab icons invert automatically.
+- **feat(theme):** new hooks — `gridEmpty`, `heroGlow`, `homeIndicator`,
+  `cardShadow` (per-mode), invert-surface set (`invertBG/FG/Sub/Line`), and
+  `Radius.{card,hero,vitals}`. `Mode` enum (midnight/paper) for the runtime switch.
+- **fix(ui):** AuthView's Apple + email-sign-in buttons used `ink` as a *surface*
+  + white text (broke on Midnight when ink→cream) → switched to invert-surface
+  tokens (correct on both themes). Launch background made theme-aware.
+- Verified: builds for the iOS Simulator; Midnight renders the whole sign-in
+  screen dark with the cream Lato wordmark + moss accent.
+- Next: shared Oura components (RingView/MiniRing/GlucoseCurve/Toast), then
+  Today → Trends → Wallet → Care → Journal. Brand/logo/copy unchanged; no
+  provenance rendered; cardiac stays display-only.
+
 ### PR-33 — Full app-wide Lato rollout + TestFlight build 1.0(2) (2026-06-03)
 - **feat(brand):** converted **all ~199** non-mono `.font(.system(size:…))` calls
   across every view to `.font(.lato(…))` — the whole app now renders in Lato

@@ -46,8 +46,8 @@ struct AuthView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(LiviqaTheme.ink)
-                        .foregroundStyle(.white)
+                        .background(LiviqaTheme.invertBG)
+                        .foregroundStyle(LiviqaTheme.invertFG)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
 
@@ -169,8 +169,8 @@ struct AuthView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
-                .background(LiviqaTheme.ink)
-                .foregroundStyle(.white)
+                .background(LiviqaTheme.invertBG)
+                .foregroundStyle(LiviqaTheme.invertFG)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .disabled(appState.isSigningIn || email.isEmpty || password.isEmpty)

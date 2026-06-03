@@ -12,6 +12,10 @@ struct LiviqaApp: App {
     @AppStorage("hasSeenHealthKitPrimer")    private var hasSeenHealthKitPrimer    = false
     @AppStorage("hasSeenDfGOnboarding")      private var hasSeenDfGOnboarding      = false
 
+    // Runtime theme (Midnight default) — flips every LiviqaTheme.* token at the root.
+    @AppStorage("liviqaThemeMode") private var themeModeRaw = LiviqaTheme.Mode.midnight.rawValue
+    private var themeMode: LiviqaTheme.Mode { LiviqaTheme.Mode(rawValue: themeModeRaw) ?? .midnight }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -42,6 +46,7 @@ struct LiviqaApp: App {
                 }
             }
             .environment(appState)
+            .preferredColorScheme(themeMode.colorScheme)   // Midnight (dark) by default
         }
     }
 }

@@ -52,6 +52,8 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | NFR-PRIV-05 / build-rule | `provenance` never renders (file guard + type guard, **blocking**) | `scripts/guard_provenance.sh`, `ProvenanceGuardTests.swift` | T-PROV-01, T-PROV-02, T-PROV-03 | implemented (file guard green; type tests run in Xcode) | PR-3 |
 | FR-SHARE-01 | Derive the scoped share package per consented group (derived-only, no provenance) → `PUT /shares` body | `Liviqa/Sharing/DerivedShareBuilder.swift` | T-SHARE-01..04 (`DerivedShareBuilderTests`) | implemented (run in Xcode); contract: `Liviqa_iOS_Backend_Contract_v01` | PR-TBD |
 
+| NFR-UI-THEME-01 | Dual **Paper/Midnight** theme, runtime-switchable, default Midnight; all brand tokens dynamic (light=Paper, dark=Midnight), single root `preferredColorScheme` flip; no invented hues; status bar/tabs invert | `Liviqa/Theme.swift` (`Color.dyn`, `LiviqaTheme.Mode`, invert/hero/grid hooks), `Liviqa/LiviqaApp.swift`, `Assets.xcassets/LaunchBackground.colorset` | build (iOS Sim, both modes); Midnight screenshot verified | implemented | PR-34 |
+
 ## Upcoming (tracked, not yet implemented)
 
 | Req ID | Title | Target PR |
