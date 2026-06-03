@@ -164,21 +164,63 @@ final class AppState {
     /// metrics inside the consented GROUPS, and pushes that — never raw samples,
     /// never provenance. No-op with a friendly error if not on the sovereign backend.
     @MainActor
-    func pushDerivedShare(grantId backendGrantId: String, scopeGroups: Set<String>) async {
+    func pushDerivedShare(grantId backendGrantId: String, scopeGroups: Set<String>, rangeDays: Int = 90) async {
         guard let sov = sovereign else {
             lastError = "Sharing requires the sovereign backend."
             return
         }
         do {
-            let provider = HealthProviderFactory.make(dataProviderKind)
-            let end = Date()
-            let start = Calendar.current.date(byAdding: .day, value: -90, to: end) ?? end
-            let samples = try await provider.fetchSamples(from: start, to: end).arbitrated()
-            let request = DerivedShareBuilder.build(from: samples, scopeGroups: scopeGroups)
+            let request = try await buildShare(scopeGroups: scopeGroups, rangeDays: rangeDays)
             try await sov.pushDerivedShare(grantId: backendGrantId, request)
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Full share flow used by the Share-with-clinician UI: create a consent grant
+    /// for a real recipient (group scope), derive the scoped package on-device, and
+    /// push it (PUT /shares/{grantId}). Returns the new backend grant id on success.
+    /// `nil` (with `lastError` set) on failure or when not on the sovereign backend.
+    @discardableResult
+    @MainActor
+    func createGrantAndShare(recipientId: String,
+                             role: RecipientRole,
+                             scopeGroups: Set<String>,
+                             rangeDays: Int,
+                             expiry: Date,
+                             purpose: String? = nil) async -> String? {
+        guard let sov = sovereign else {
+            lastError = "Sharing requires the sovereign backend (set Config.backend = .sovereign…)."
+            return nil
+        }
+        do {
+            let grantId = try await sov.createGrant(
+                recipientId: recipientId,
+                role: role,
+                scopeGroups: Array(scopeGroups),
+                purpose: purpose,
+                granularity: nil,
+                expiry: expiry,
+                delivery: "live_view"
+            )
+            let request = try await buildShare(scopeGroups: scopeGroups, rangeDays: rangeDays)
+            try await sov.pushDerivedShare(grantId: grantId, request)
+            await loadWallet()   // reflect the new grant + ledger event
+            return grantId
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    /// Fetch → arbitrate → derive the scoped package. Raw samples never leave here.
+    @MainActor
+    private func buildShare(scopeGroups: Set<String>, rangeDays: Int) async throws -> DerivedShareRequest {
+        let provider = HealthProviderFactory.make(dataProviderKind)
+        let end = Date()
+        let start = Calendar.current.date(byAdding: .day, value: -rangeDays, to: end) ?? end
+        let samples = try await provider.fetchSamples(from: start, to: end).arbitrated()
+        return DerivedShareBuilder.build(from: samples, scopeGroups: scopeGroups)
     }
 
     @MainActor

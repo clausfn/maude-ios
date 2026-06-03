@@ -2,6 +2,8 @@
 import SwiftUI
 
 struct ShareWithClinicianView: View {
+    @Environment(AppState.self) private var appState
+
     var nudge: Nudge? = nil
     var onDismiss: () -> Void
 
@@ -17,23 +19,56 @@ struct ShareWithClinicianView: View {
     // Step 2 — time range
     @State private var selectedRange = "Last 7 days"
 
-    // Step 3 — recipient
+    // Step 3 — recipient (live directory when on the sovereign backend; free text on mock)
+    @State private var recipients: [Recipient] = []
+    @State private var selectedRecipient: Recipient? = nil
     @State private var recipientName = ""
     @State private var recipientRole = ""
 
+    // Step 4 — send
+    @State private var isSending = false
+    @State private var sendError: String? = nil
+
     private let rangeOptions = ["Last 7 days", "Last 30 days", "Last 90 days"]
+
+    /// Live recipient directory + grant push is available only on the sovereign backend.
+    private var liveSharing: Bool { appState.sovereign != nil }
 
     private var anySelected: Bool {
         shareGlucose || shareSleep || shareHRV || shareActivity || shareNudges
     }
 
+    /// Step-1 toggles → consent GROUP keys (NudgeS aren't a scope group — insights
+    /// ride along inside the derived share). Maps to scope-vocab in the contract.
+    private var scopeGroups: Set<String> {
+        var g = Set<String>()
+        if shareGlucose  { g.insert("glucose") }
+        if shareSleep    { g.insert("sleep") }
+        if shareHRV      { g.insert("recovery") }   // hrv/rhr
+        if shareActivity { g.insert("activity") }
+        return g
+    }
+
+    private var rangeDays: Int {
+        switch selectedRange {
+        case "Last 30 days": return 30
+        case "Last 90 days": return 90
+        default:             return 7
+        }
+    }
+
+    /// Display name for the resolved recipient (picker selection or free text).
+    private var resolvedRecipientName: String {
+        selectedRecipient?.displayName ?? recipientName
+    }
+
     private var selectedItems: [String] {
         var items: [String] = []
-        if shareGlucose  { items.append("Glucose patterns · last 7 days") }
-        if shareSleep    { items.append("Sleep data · last 7 days") }
+        if shareGlucose  { items.append("Glucose patterns") }
+        if shareSleep    { items.append("Sleep data") }
         if shareHRV      { items.append("Heart rate variability") }
         if shareActivity { items.append("Training load & activity") }
-        if shareNudges   { items.append("Nudge history · this week") }
+        if shareNudges   { items.append("Nudge history") }
         return items
     }
 
@@ -75,6 +110,12 @@ struct ShareWithClinicianView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 32)
                 }
+            }
+        }
+        .task {
+            guard recipients.isEmpty, let sov = appState.sovereign else { return }
+            if let directory = try? await sov.fetchRecipients() {
+                recipients = directory
             }
         }
     }
@@ -203,10 +244,78 @@ struct ShareWithClinicianView: View {
                 .font(.title2.weight(.bold))
                 .foregroundStyle(LiviqaTheme.ink)
 
-            VStack(spacing: 0) {
-                inputRow(placeholder: "e.g. L. · Diabetes Centre", text: $recipientName)
-                Divider().padding(.horizontal, 14)
-                inputRow(placeholder: "e.g. Diabetes nurse, GP, Sports coach", text: $recipientRole)
+            if liveSharing {
+                recipientPicker
+            } else {
+                VStack(spacing: 0) {
+                    inputRow(placeholder: "e.g. L. · Diabetes Centre", text: $recipientName)
+                    Divider().padding(.horizontal, 14)
+                    inputRow(placeholder: "e.g. Diabetes nurse, GP, Sports coach", text: $recipientRole)
+                }
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(LiviqaTheme.line, lineWidth: 1)
+                )
+            }
+
+            Text("Sharing runs for 48 hours, then access ends automatically. You can withdraw sooner in your Wallet.")
+                .font(.footnote)
+                .foregroundStyle(LiviqaTheme.ink3)
+
+            navButtons(backAction: { step = 2 }, nextAction: { step = 4 }, nextDisabled: !recipientReady)
+        }
+    }
+
+    /// Step-3 readiness: a real selection on the sovereign backend, or non-empty
+    /// free text on mock/demo.
+    private var recipientReady: Bool {
+        liveSharing
+            ? selectedRecipient != nil
+            : !recipientName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    @ViewBuilder
+    private var recipientPicker: some View {
+        if recipients.isEmpty {
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Loading your care directory…")
+                    .font(.footnote)
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
+        } else {
+            VStack(spacing: 1) {
+                ForEach(recipients) { recipient in
+                    Button {
+                        selectedRecipient = recipient
+                    } label: {
+                        HStack(alignment: .center, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(recipient.displayName)
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(LiviqaTheme.ink)
+                                Text(recipientRoleLabel(recipient.role) + (recipient.org.map { " · \($0)" } ?? ""))
+                                    .font(.caption)
+                                    .foregroundStyle(LiviqaTheme.ink3)
+                            }
+                            Spacer()
+                            Image(systemName: selectedRecipient?.id == recipient.id ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 18))
+                                .foregroundStyle(selectedRecipient?.id == recipient.id ? LiviqaTheme.moss : LiviqaTheme.ink4)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.plain)
+
+                    if recipient.id != recipients.last?.id {
+                        Divider().padding(.leading, 14)
+                    }
+                }
             }
             .background(LiviqaTheme.paper2)
             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -214,12 +323,13 @@ struct ShareWithClinicianView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(LiviqaTheme.line, lineWidth: 1)
             )
+        }
+    }
 
-            Text("The link will work for 48 hours. Your care team doesn't need a Liviqa account.")
-                .font(.footnote)
-                .foregroundStyle(LiviqaTheme.ink3)
-
-            navButtons(backAction: { step = 2 }, nextAction: { step = 4 }, nextDisabled: recipientName.trimmingCharacters(in: .whitespaces).isEmpty)
+    private func recipientRoleLabel(_ role: RecipientRole) -> String {
+        switch role {
+        case .clinicalNurse: return "Clinical nurse"
+        case .healthCoach:   return "Health coach"
         }
     }
 
@@ -240,9 +350,9 @@ struct ShareWithClinicianView: View {
                 .foregroundStyle(LiviqaTheme.ink)
 
             VStack(spacing: 0) {
-                summaryRow(label: "Recipient", value: recipientName)
+                summaryRow(label: "Recipient", value: resolvedRecipientName)
                 Divider().padding(.leading, 14)
-                summaryRow(label: "Role", value: recipientRole.isEmpty ? "Not specified" : recipientRole)
+                summaryRow(label: "Role", value: step4RoleLabel)
                 Divider().padding(.leading, 14)
                 summaryRow(label: "Data", value: selectedItems.joined(separator: ", "))
                 Divider().padding(.leading, 14)
@@ -263,17 +373,62 @@ struct ShareWithClinicianView: View {
                     .font(.system(size: 14))
                     .foregroundStyle(LiviqaTheme.amber)
                     .padding(.top, 1)
-                Text("Once sent, you can revoke access in your consent record at any time.")
+                Text("Derived summaries only — no raw samples leave your device. You can revoke access in your Wallet at any time.")
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink3)
             }
 
+            if let sendError {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "xmark.octagon.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(LiviqaTheme.rust)
+                        .padding(.top, 1)
+                    Text(sendError)
+                        .font(.caption)
+                        .foregroundStyle(LiviqaTheme.rust)
+                }
+            }
+
             navButtons(
                 backAction: { step = 3 },
-                nextLabel: "Send secure link",
-                nextAction: { step = 5 },
-                nextDisabled: false
+                nextLabel: isSending ? "Sending…" : "Send secure link",
+                nextAction: { Task { await send() } },
+                nextDisabled: isSending
             )
+        }
+    }
+
+    private var step4RoleLabel: String {
+        if let role = selectedRecipient?.role { return recipientRoleLabel(role) }
+        return recipientRole.isEmpty ? "Not specified" : recipientRole
+    }
+
+    /// Perform the share. On the sovereign backend this creates a real consent
+    /// grant (group scope) and pushes the derived, scoped package
+    /// (PUT /shares/{grantId}); on mock/demo it simply advances to the confirmation.
+    @MainActor
+    private func send() async {
+        sendError = nil
+        guard liveSharing, let recipient = selectedRecipient else {
+            step = 5   // mock/demo path — keep the simulated success
+            return
+        }
+        isSending = true
+        defer { isSending = false }
+        let expiry = Calendar.current.date(byAdding: .hour, value: 48, to: Date()) ?? Date()
+        let grantId = await appState.createGrantAndShare(
+            recipientId: recipient.id,
+            role: recipient.role,
+            scopeGroups: scopeGroups,
+            rangeDays: rangeDays,
+            expiry: expiry,
+            purpose: nil
+        )
+        if grantId != nil {
+            step = 5
+        } else {
+            sendError = appState.lastError ?? "Couldn't share right now. Please try again."
         }
     }
 
@@ -303,7 +458,7 @@ struct ShareWithClinicianView: View {
                 .foregroundStyle(LiviqaTheme.moss)
 
             VStack(spacing: 8) {
-                Text("Link sent to \(recipientName)")
+                Text("Shared with \(resolvedRecipientName)")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(LiviqaTheme.ink)
                     .multilineTextAlignment(.center)
@@ -377,4 +532,5 @@ struct ShareWithClinicianView: View {
 
 #Preview {
     ShareWithClinicianView(nudge: nil, onDismiss: {})
+        .environment(AppState())
 }

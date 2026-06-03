@@ -308,8 +308,8 @@ struct WalletView: View {
     private func grantSince(_ grant: WalletGrant) -> String {
         let df = DateFormatter()
         df.dateFormat = "d MMM yyyy"
-        // Use creation date if available, otherwise fallback
-        return "Granted \(df.string(from: Date())) · contributes to a de-identified cohort"
+        let when = grant.createdAt ?? Date()
+        return "Granted \(df.string(from: when)) · contributes to a de-identified cohort"
     }
 
     // MARK: - Token wallet entry

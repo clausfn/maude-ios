@@ -4,6 +4,24 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-13 — FR-SHARE-02 UI: live recipient picker + consented share send (2026-06-03)
+- **feat(ui):** `ShareWithClinicianView` wired to the sovereign backend — step 3
+  loads the real care directory (`GET /recipients`) and lets the citizen pick a
+  recipient; step 1 toggles map to consent GROUP keys (glucose→glucose, sleep→
+  sleep, HRV→recovery, activity→activity; nudges ride along as insights, not a
+  scope group); "Send" creates the grant (group scope, 48h expiry) and pushes the
+  derived package. Falls back to the simulated flow on `.mock`/demo.
+- **feat(state):** `AppState.createGrantAndShare(recipientId:role:scopeGroups:
+  rangeDays:expiry:)` — create grant → derive (fetch→arbitrate→DerivedShareBuilder)
+  → `PUT /shares/{grantId}` → reload wallet. `pushDerivedShare` gains `rangeDays`.
+  Raw samples/provenance never leave the device.
+- **feat(ui):** `WalletView` "granted since" now uses the grant's real `createdAt`;
+  grants + consent ledger already render from the live mapping (PR-12). Withdraw →
+  `POST /grants/{id}/revoke` via `toggleGrant` (one-way, evidenced).
+- Verified: sourcekit clean; full Xcode build pending on-device (sandbox has no
+  simulator runtime). Backend write loop already proven live (PR-12).
+- Completes FR-SHARE-02 / UC-07/11/12 on the citizen surface.
+
 ### PR-12 — FR-SHARE-02: EU-sovereign backend client + derived-share push (2026-06-03)
 - **feat(services):** `LiviqaBackendService` implements `SupabaseServiceProtocol`
   against the EU-sovereign backend (NestJS/Scaleway+Ory) per `openapi.yaml` /
