@@ -14,9 +14,18 @@ import HealthKit
 
 public struct HealthKitService: HealthDataProvider {
     public let kind: DataProviderKind = .healthKit
-    private let store = HKHealthStore()
+    let store = HKHealthStore()
 
-    public init() {}
+    /// Encrypted, device-local persistence for HKQueryAnchors (FR-ING-03/04).
+    /// Built from the device DEK + a device-local user scope (never a server id).
+    let anchors: EncryptedAnchorStore?
+    /// Retains live observer queries so background delivery can be torn down.
+    let registry = ObserverRegistry()
+
+    public init(anchors: EncryptedAnchorStore? = nil) {
+        self.anchors = anchors
+            ?? (try? EncryptedAnchorStore(keyVault: .shared, userScope: LocalUserScope.current()))
+    }
 
     // MARK: Authorization scopes
 

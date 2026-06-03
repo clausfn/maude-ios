@@ -207,6 +207,131 @@ struct HealthPassportView: View {
         #endif
     }
 
+    // MARK: - Correlation grid (FR-PAS-05 / DM-06, live appState.correlationWeek)
+
+    /// Column order mirrors `CorrelationDeriver.signalLabels`:
+    /// glucose · sleep · hrv · exercise · spending · calendar · weather.
+    private let correlationMetricLabels = [
+        "GLUCOSE", "SLEEP", "HRV", "EXERCISE", "SPENDING", "CALENDAR", "WEATHER"
+    ]
+
+    private var correlationCard: some View {
+        let week = appState.correlationWeek
+        return VStack(alignment: .leading, spacing: 12) {
+
+            // Heat-map: rows = signals, columns = days (oldest → today).
+            VStack(alignment: .leading, spacing: 10) {
+                // Day headers
+                HStack(spacing: 0) {
+                    Spacer().frame(width: 74)
+                    ForEach(week.days) { day in
+                        Text(day.dayLabel)
+                            .font(.liviqaKicker(9))
+                            .tracking(0.5)
+                            .foregroundStyle(LiviqaTheme.ink3)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityHidden(true)
+                    }
+                }
+                // Metric rows
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(Array(correlationMetricLabels.enumerated()), id: \.offset) { rowIndex, label in
+                        HStack(spacing: 0) {
+                            Text(label)
+                                .font(.liviqaKicker(8))
+                                .tracking(0.4)
+                                .foregroundStyle(LiviqaTheme.ink4)
+                                .frame(width: 74, alignment: .leading)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                            ForEach(week.days) { day in
+                                let level = rowIndex < day.values.count ? day.values[rowIndex] : .noData
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(level.color)
+                                    .frame(width: 28, height: 28)
+                                    .frame(maxWidth: .infinity)
+                                    // NFR-A11Y-01: per-cell label = metric + day + the
+                                    // existing CorrelationLevel.accessibilityLabel.
+                                    .accessibilityElement()
+                                    .accessibilityLabel("\(label), \(day.dayLabel): \(level.accessibilityLabel)")
+                            }
+                        }
+                    }
+                }
+                // Legend
+                HStack(spacing: 14) {
+                    correlationSwatch(.noData,  "No data")
+                    correlationSwatch(.low,     "Normal")
+                    correlationSwatch(.high,    "Elevated")
+                    correlationSwatch(.outlier, "Outlier")
+                    Spacer()
+                }
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+
+            // Pattern note / sources / strength — your-own-data framing, no chips.
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("PATTERN")
+                        .font(.liviqaKicker(9))
+                        .tracking(1)
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Spacer()
+                    Text(week.patternStrength)
+                        .font(.liviqaKicker(9))
+                        .tracking(0.5)
+                        .foregroundStyle(LiviqaTheme.amber)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(LiviqaTheme.amber2)
+                        .clipShape(Capsule())
+                }
+                Text(week.patternNote)
+                    .font(.system(size: 13))
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !week.patternSources.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(week.patternSources, id: \.self) { source in
+                            Text(source.uppercased())
+                                .font(.liviqaKicker(9))
+                                .tracking(0.5)
+                                .foregroundStyle(LiviqaTheme.moss)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(LiviqaTheme.moss3)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        }
+    }
+
+    private func correlationSwatch(_ level: CorrelationLevel, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(level.color)
+                .frame(width: 10, height: 10)
+            Text(label)
+                .font(.liviqaKicker(8))
+                .foregroundStyle(LiviqaTheme.ink4)
+        }
+    }
+
     // MARK: - Stat tile
 
     private func statTile(value: String, label: String, subtitle: String) -> some View {
