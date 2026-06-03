@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Archive + upload Liviqa to TestFlight — runnable headlessly (no Xcode GUI).
 #
-# PREREQS (one-time, yours):
-#   1) Data for Good Apple ID added in Xcode ▸ Settings ▸ Accounts (gives the CLI
-#      a session to mint the Apple Distribution cert + App Store profile via
-#      -allowProvisioningUpdates). Team: Fonden Data For Good (PS258XSNL8).
-#   2) An App Store Connect API key for upload (App Store Connect ▸ Users and
-#      Access ▸ Integrations ▸ App Store Connect API ▸ generate). Put the .p8 at
-#      ~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8 and export:
+# PREREQS (one-time, yours — only TWO things):
+#   1) An App Store Connect API key, role **Admin** (App Store Connect ▸ Users and
+#      Access ▸ Integrations ▸ App Store Connect API ▸ "+"). Download AuthKey_<ID>.p8
+#      (one-time download!) and note its Key ID + Issuer ID. With this key the CLI
+#      creates the App ID, App Group, Apple Distribution cert, and profile itself
+#      — no Xcode account needed. Then:
 #        export ASC_KEY_ID=XXXXXXXXXX
 #        export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-#   3) The app record (bundle app.liviqa.ios) created in App Store Connect.
+#        export ASC_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8
+#      (also keep the .p8 at that ~/.appstoreconnect/private_keys path so the
+#       upload step's altool finds it.)
+#   2) The app record (bundle app.liviqa.ios) created in App Store Connect ▸ Apps.
+#      (I can do this for you in the browser via the Chrome extension.)
 #
-# Then: ./scripts/archive_upload.sh
+# Then: ./scripts/archive_upload.sh   (I can run this for you once 1 & 2 are done.)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,11 +23,21 @@ ARCHIVE="build/Liviqa.xcarchive"
 EXPORT="build/export"
 rm -rf "$ARCHIVE" "$EXPORT"
 
+# If an API key is provided, xcodebuild uses it to create the App ID, the Apple
+# Distribution cert, and the profile — fully headless, no Xcode account needed.
+# (The key needs role Admin so it can create the distribution certificate.)
+AUTH=()
+if [ -n "${ASC_KEY_ID:-}" ] && [ -n "${ASC_ISSUER_ID:-}" ] && [ -n "${ASC_KEY_PATH:-}" ]; then
+  AUTH=(-authenticationKeyPath "$ASC_KEY_PATH" \
+        -authenticationKeyID "$ASC_KEY_ID" \
+        -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+fi
+
 echo "▸ Archiving (Release, automatic signing, provisioning updates allowed)…"
 xcodebuild -scheme Liviqa -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
-  -allowProvisioningUpdates \
+  -allowProvisioningUpdates "${AUTH[@]}" \
   archive
 
 echo "▸ Exporting signed .ipa…"
@@ -32,7 +45,7 @@ xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
   -exportPath "$EXPORT" \
   -exportOptionsPlist Config/ExportOptions.plist \
-  -allowProvisioningUpdates
+  -allowProvisioningUpdates "${AUTH[@]}"
 
 IPA="$(ls "$EXPORT"/*.ipa 2>/dev/null | head -1)"
 [ -n "$IPA" ] || { echo "no .ipa produced"; exit 1; }
