@@ -11,5 +11,7 @@
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Liviqa reads your Health data on-device to show your trends and personal, plain-language nudges. Your health data stays on this device and is never uploaded.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Liviqa is read-only and never writes to Apple Health. It only reads your data on-device to show your trends and personal nudges; nothing is written back.</string>
 </dict>
 </plist>
