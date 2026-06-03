@@ -173,19 +173,19 @@ struct JournalView: View {
                                 Text(dayLetter(day))
                                     .font(.liviqaKicker(9))
                                     .kerning(0.5)
-                                    .foregroundStyle(isSelected ? .white : LiviqaTheme.ink4)
+                                    .foregroundStyle(isSelected ? LiviqaTheme.invertFG : LiviqaTheme.ink4)
 
                                 Text(dayNumber(day))
                                     .font(.system(size: 13, weight: isSelected ? .bold : .regular,
                                                   design: .monospaced))
-                                    .foregroundStyle(isSelected ? .white : LiviqaTheme.ink2)
+                                    .foregroundStyle(isSelected ? LiviqaTheme.invertFG : LiviqaTheme.ink2)
 
                                 Circle()
-                                    .fill(hasContent ? (isSelected ? Color.white.opacity(0.7) : LiviqaTheme.moss) : Color.clear)
+                                    .fill(hasContent ? (isSelected ? LiviqaTheme.invertFG.opacity(0.7) : LiviqaTheme.moss) : Color.clear)
                                     .frame(width: 4, height: 4)
                             }
                             .frame(width: 36, height: 58)
-                            .background(isSelected ? LiviqaTheme.ink : Color.clear)
+                            .background(isSelected ? LiviqaTheme.invertBG : Color.clear)
                             .cornerRadius(10)
                         }
                         .buttonStyle(.plain)
@@ -214,10 +214,10 @@ struct JournalView: View {
                     Text(f.rawValue)
                         .font(.liviqaKicker(10))
                         .kerning(0.5)
-                        .foregroundStyle(activeFilter == f ? .white : LiviqaTheme.ink3)
+                        .foregroundStyle(activeFilter == f ? LiviqaTheme.invertFG : LiviqaTheme.ink3)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(activeFilter == f ? LiviqaTheme.ink : LiviqaTheme.paper2)
+                        .background(activeFilter == f ? LiviqaTheme.invertBG : LiviqaTheme.paper2)
                         .cornerRadius(20)
                         .overlay(Capsule().stroke(LiviqaTheme.line, lineWidth: activeFilter == f ? 0 : 0.5))
                 }
@@ -544,12 +544,12 @@ struct JournalView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(LiviqaTheme.ink)
+                    .fill(LiviqaTheme.invertBG)
                     .frame(width: 52, height: 52)
-                    .shadow(color: LiviqaTheme.ink.opacity(0.3), radius: 12, y: 4)
+                    .shadow(color: LiviqaTheme.cardShadow, radius: 12, y: 4)
                 Image(systemName: "plus")
                     .font(.lato(20, .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LiviqaTheme.invertFG)
             }
         }
     }
