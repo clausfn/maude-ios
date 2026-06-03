@@ -8,11 +8,17 @@ import SwiftUI
 
 struct LiviqaApertureMark: View {
     var size: CGFloat = 28
-    /// false = primary (on light bg, ink + moss); true = reversed (on dark).
-    var reversed: Bool = false
+    /// Override the asset variant. `nil` (default) = auto: reversed (white ring)
+    /// on dark Midnight, primary (ink ring) on light Paper. Pass an explicit
+    /// value only when the mark sits on a surface that opposes the page (e.g. a
+    /// watermark on an invert card).
+    var reversed: Bool? = nil
+
+    @Environment(\.colorScheme) private var colorScheme
+    private var useReversed: Bool { reversed ?? (colorScheme == .dark) }
 
     var body: some View {
-        Image(reversed ? "LiviqaMarkReversed" : "LiviqaMark")
+        Image(useReversed ? "LiviqaMarkReversed" : "LiviqaMark")
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
@@ -30,7 +36,7 @@ struct LiviqaAppBar: View {
     var body: some View {
         HStack(spacing: 10) {
             if showMark {
-                LiviqaApertureMark(size: 26, reversed: false)
+                LiviqaApertureMark(size: 26)
                 Text("Liviqa")
                     .font(.lato(17, .black))
                     .kerning(-0.3)

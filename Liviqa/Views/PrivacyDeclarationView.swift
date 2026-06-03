@@ -29,7 +29,7 @@ struct PrivacyDeclarationView: View {
             VStack(spacing: 0) {
 
                 // Mark
-                LiviqaApertureMark(size: 44, reversed: false)
+                LiviqaApertureMark(size: 44)
                     .padding(.top, 64)
 
                 // Heading

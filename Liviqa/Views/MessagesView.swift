@@ -145,7 +145,7 @@ struct MessagesView: View {
 
     private func emptyStateCard(_ text: String) -> some View {
         VStack(spacing: 12) {
-            LiviqaApertureMark(size: 44, reversed: true)
+            LiviqaApertureMark(size: 44)
                 .opacity(0.9)
             Text("Your care team, on your terms")
                 .font(.lato(15, .bold))

@@ -20,7 +20,7 @@ struct AuthView: View {
 
                 // ── Wordmark ──
                 VStack(spacing: 10) {
-                    LiviqaApertureMark(size: 52, reversed: false)
+                    LiviqaApertureMark(size: 52)
                     Text("Liviqa")
                         .font(.lato(36, .black))
                         .kerning(-0.7)
