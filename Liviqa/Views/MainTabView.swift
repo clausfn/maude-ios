@@ -5,13 +5,14 @@
 import SwiftUI
 
 enum LiviqaTab: String, CaseIterable {
-    case today, trends, wallet, journal
+    case today, trends, wallet, care, journal
 
     var title: String {
         switch self {
         case .today:   return "Today"
         case .trends:  return "Trends"
         case .wallet:  return "Wallet"
+        case .care:    return "Care"
         case .journal: return "Journal"
         }
     }
@@ -22,6 +23,7 @@ enum LiviqaTab: String, CaseIterable {
         case .today:   return "circle"
         case .trends:  return "chart.line.uptrend.xyaxis"
         case .wallet:  return "rectangle.stack"
+        case .care:    return "bubble.left.and.bubble.right"
         case .journal: return "doc.text"
         }
     }
@@ -31,6 +33,7 @@ enum LiviqaTab: String, CaseIterable {
         case .today:   return "circle.fill"
         case .trends:  return "chart.line.uptrend.xyaxis"
         case .wallet:  return "rectangle.stack.fill"
+        case .care:    return "bubble.left.and.bubble.right.fill"
         case .journal: return "doc.text.fill"
         }
     }
@@ -79,6 +82,11 @@ struct MainTabView: View {
                 case .wallet:
                     NavigationStack {
                         WalletView()
+                            .toolbar { ToolbarItem(placement: .automatic) { avatarButton } }
+                    }
+                case .care:
+                    NavigationStack {
+                        MessagesView()
                             .toolbar { ToolbarItem(placement: .automatic) { avatarButton } }
                     }
                 case .journal:

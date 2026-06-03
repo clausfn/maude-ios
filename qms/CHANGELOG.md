@@ -4,6 +4,20 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-19 — Care tab: secure messaging + video consult UI (2026-06-03)
+- **feat(ui):** new **Care** tab (`MainTabView`) → `MessagesView`: lists active
+  consults to join and secure message threads with the care team (loads via
+  `AppState.refreshCareInbox`; pull-to-refresh). `MessageThreadView` is a chat
+  (bubbles + composer) over `CareConnect.fetchMessages`/`sendMessage`.
+- **feat(ui):** `ConsultView` joins the deterministic EU room
+  (`https://<jitsiDomain>/liviqa-consult-<id>`) in a `WKWebView` (inline media);
+  falls back to a secure shell when no EU domain is set (NFR-SEC-07). The
+  citizen owns recording consent (Allow/Stop → `setRecordingConsent`), reflecting
+  a recipient request; the consented-only framing is shown beside the call.
+- Verified: SourceKit clean (no lints); full Xcode/simulator build pending
+  (sandbox has no iOS runtime). Live data needs the deferred backend `/threads`
+  routes; consult/notifications routes already exist.
+
 ### PR-18 — Citizen CareConnect client + Ory token Keychain persistence (2026-06-03)
 - **docs:** `docs/Video_and_OAuth_Contract_v01.md` — cross-repo contract for the
   citizen side of the recipient workflow already in `liviqa-backend`/
