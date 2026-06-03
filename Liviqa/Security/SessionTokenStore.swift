@@ -1,6 +1,7 @@
-// SessionTokenStore.swift — Keychain persistence for the Ory session token
+// SessionTokenStore.swift — Keychain persistence for the auth access token
 // (NFR-SEC-01 / FR-AUTH-03: auth tokens live in the Keychain, never in
-// UserDefaults or plain files).
+// UserDefaults or plain files). The token is the Supabase (GoTrue) access-token
+// JWT presented to the backend as a bearer.
 //
 // A small generic-password store, isolated from `KeyVault` (which manages the
 // Secure-Enclave data key). Device-only, available after first unlock. Pure
@@ -12,7 +13,7 @@ public struct SessionTokenStore: Sendable {
     private let service: String
     private let account: String
 
-    public init(service: String = "io.liviqa.session", account: String = "ory.session_token") {
+    public init(service: String = "io.liviqa.session", account: String = "auth.access_token") {
         self.service = service
         self.account = account
     }

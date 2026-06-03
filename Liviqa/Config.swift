@@ -12,10 +12,11 @@ enum Config {
 
     // MARK: - Backend selection
 
-    /// Ory Network project (auth provider for the sovereign backend). The app runs
-    /// the native login flow here to get a session token, presented to the backend
-    /// as `Authorization: Bearer`.
-    static let oryURL = URL(string: "https://keen-khayyam-st5ek6x27a.projects.oryapis.com")!
+    /// Supabase Auth (self-hosted GoTrue, EU/Scaleway) — the auth provider for the
+    /// sovereign backend (NFR-SEC-07: EU-sovereign, not Ory, not Supabase Cloud).
+    /// The app signs in here and presents the Supabase access token (JWT) to the
+    /// backend as `Authorization: Bearer`. See docs/Auth_Supabase_v01.md.
+    static let supabaseAuthURL = URL(string: "https://auth.liviqa.app")!
 
     /// EU-sovereign video provider domain (self-hosted Jitsi / Whereby). The
     /// citizen joins `https://<jitsiDomain>/liviqa-consult-<sessionId>` — the same
@@ -40,9 +41,10 @@ enum Config {
     enum Backend {
         case mock                                   // synthetic demo (default)
         case supabaseSandbox                        // US-parented; sandbox only
-        // EU-sovereign (real PII). `devToken` = local seed bearer; `oryURL` = real
-        // Ory auth (when set, sign-in uses Ory and the bearer is the Ory session token).
-        case sovereign(baseURL: URL, devToken: String?, oryURL: URL?)
+        // EU-sovereign (real PII). `devToken` = local seed bearer; `authURL` =
+        // self-hosted Supabase Auth (when set, sign-in uses GoTrue and the bearer
+        // is the Supabase access-token JWT).
+        case sovereign(baseURL: URL, devToken: String?, authURL: URL?)
     }
 
     /// Active backend. Locked default is `.mock` (FR-ARCH-05 demo). LOCAL QA may
@@ -58,19 +60,19 @@ enum Config {
     }
 
     /// Local sovereign backend for development (embedded Postgres; seed bearer
-    /// token; no Ory). Backend: `http://localhost:3001`, citizen seed `dev-citizen-claus`.
+    /// token; no Supabase). Backend: `http://localhost:3001`, citizen seed `dev-citizen-claus`.
     static let sovereignLocal: Backend = .sovereign(
         baseURL: URL(string: "http://localhost:3001")!,
         devToken: "dev-citizen-claus",
-        oryURL: nil
+        authURL: nil
     )
 
-    /// Sovereign backend with real Ory login (email/password). Point `baseURL` at
-    /// the staging/prod API; auth runs against `oryURL`.
+    /// Sovereign backend with real Supabase Auth (GoTrue) login. Point `baseURL` at
+    /// the staging/prod API; auth runs against the self-hosted `supabaseAuthURL`.
     static let sovereignStaging: Backend = .sovereign(
         baseURL: URL(string: "https://api.dfgworks.dk")!,
         devToken: nil,
-        oryURL: oryURL
+        authURL: supabaseAuthURL
     )
 
     /// Build the service for a backend. Defaults to the active `backend`.
@@ -80,9 +82,10 @@ enum Config {
             return MockSupabaseService()
         case .supabaseSandbox:
             return SupabaseService()
-        case .sovereign(let url, let token, let oryURL):
-            let ory = oryURL.map { OryAuthClient(baseURL: $0) }
-            return LiviqaBackendService(baseURL: url, devToken: token, ory: ory)
+        case .sovereign(let url, let token, let authURL):
+            // Self-hosted GoTrue needs no apikey; pass one here only if fronted by Kong.
+            let auth = authURL.map { SupabaseAuthClient(baseURL: $0, apiKey: nil) }
+            return LiviqaBackendService(baseURL: url, devToken: token, auth: auth)
         }
     }
 }

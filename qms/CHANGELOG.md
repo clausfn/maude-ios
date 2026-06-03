@@ -4,6 +4,26 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-28 — Auth: revert Ory → Supabase Auth (self-hosted GoTrue, EU) (FR-AUTH-01) (2026-06-03)
+- **Decision:** Ory Network dropped (custom domains $70/mo, unjustified for the
+  sandbox). Auth = **Supabase Auth (GoTrue) self-hosted on Scaleway (EU)** —
+  sovereign + $0 license, so NFR-SEC-07 still holds (self-hosted EU GoTrue, NOT
+  Supabase Cloud/US). See `docs/Auth_Supabase_v01.md`; backend `AuthGuard`
+  already verifies the Supabase JWT (jose, HS256/JWKS, link-by-email).
+- **feat(auth):** new `SupabaseAuthClient` (GoTrue) — `login` (password grant),
+  `loginWithApple` (native `id_token` grant), `user` (session check), `logout`,
+  with pure body builders + response parsers. `LiviqaBackendService` now takes a
+  `SupabaseAuthClient` (was `OryAuthClient`): sign-in obtains the Supabase access
+  token, persists it via `SessionTokenStore` (Keychain, NFR-SEC-01), and presents
+  it as the backend bearer. `currentSession` validates the token via GoTrue.
+- **feat(config):** `Config.supabaseAuthURL` (self-hosted GoTrue) + `.sovereign(…,
+  authURL:)`; `sovereignStaging` points auth at it; `sovereignLocal` keeps the dev
+  seed token (no Supabase needed locally). `LIVIQA_BACKEND` env override unchanged.
+- **revert:** removed `OryAuthClient` + `OryAuthParsingTests` + `OryAppleParsingTests`.
+  `AppleSignInCoordinator` is unchanged (its id_token + raw nonce now feed GoTrue).
+- **test:** `SupabaseAuthParsingTests` (T-SBA-01..05) — password/Apple grant
+  bodies, token + user parsing, nonce helpers. 8-suite simulator run green.
+
 ### PR-27 — Anchor cadence fix + re-entrancy guard + testable AnchorSync (FR-ING-03/04) (2026-06-03)
 - **fix(ingestion):** correct per-type background-delivery cadence — step count
   `.hourly` (high churn), every other signal `.immediate`.

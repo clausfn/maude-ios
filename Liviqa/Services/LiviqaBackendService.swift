@@ -57,16 +57,16 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     private let baseURL: URL
     private let session: URLSession
 
-    /// Real Ory auth (Ory Network native flow). When present, sign-in obtains an
-    /// Ory session token used as the bearer. When `nil` (local dev), the static
-    /// `devToken` (seed account) is the identity.
-    private let ory: OryAuthClient?
+    /// Supabase Auth (self-hosted GoTrue, EU). When present, sign-in obtains a
+    /// Supabase access-token (JWT) used as the bearer. When `nil` (local dev), the
+    /// static `devToken` (seed account) is the identity.
+    private let auth: SupabaseAuthClient?
 
-    /// Keychain-backed persistence for the Ory session token (NFR-SEC-01).
+    /// Keychain-backed persistence for the access token (NFR-SEC-01).
     private let tokenStore = SessionTokenStore()
 
-    /// Bearer presented to the backend: a dev seed token (local) or, after Ory
-    /// sign-in, the Ory session token (persisted in the Keychain).
+    /// Bearer presented to the backend: a dev seed token (local) or, after
+    /// Supabase sign-in, the Supabase access token (persisted in the Keychain).
     private var bearerToken: String?
 
     /// Derived-UUID → original backend id, populated on fetchGrants so that
@@ -74,23 +74,23 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     private var grantBackendIDs: [UUID: String] = [:]
     private let mapLock = NSLock()
 
-    init(baseURL: URL, devToken: String? = nil, ory: OryAuthClient? = nil, session: URLSession = .shared) {
+    init(baseURL: URL, devToken: String? = nil, auth: SupabaseAuthClient? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
-        self.ory = ory
+        self.auth = auth
         self.session = session
-        // With Ory, restore a previously persisted session token so the citizen
+        // With Supabase, restore a previously persisted access token so the citizen
         // stays signed in across launches; locally, the static seed token is it.
-        self.bearerToken = ory != nil ? (tokenStore.load() ?? devToken) : devToken
+        self.bearerToken = auth != nil ? (tokenStore.load() ?? devToken) : devToken
     }
 
-    // MARK: - Auth (real Ory session token in prod; dev seed token locally)
+    // MARK: - Auth (Supabase access token in prod; dev seed token locally)
 
     func signInWithEmail(email: String, password: String) async throws -> UserSession {
-        if let ory {
-            // Real Ory native login → session token becomes the backend bearer.
-            let result = try await ory.login(email: email, password: password)
-            bearerToken = result.token
-            tokenStore.save(result.token)
+        if let auth {
+            // Supabase (GoTrue) login → access token becomes the backend bearer.
+            let result = try await auth.login(email: email, password: password)
+            bearerToken = result.accessToken
+            tokenStore.save(result.accessToken)
             let account = try await getMe()
             return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email ?? email)
         }
@@ -101,25 +101,25 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     }
 
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
-        if let ory {
-            // Real Ory native OIDC (Sign in with Apple) → session token = bearer.
-            let result = try await ory.loginWithApple(idToken: idToken, nonce: nonce)
-            bearerToken = result.token
-            tokenStore.save(result.token)
+        if let auth {
+            // Supabase native id_token grant (Sign in with Apple) → access token = bearer.
+            let result = try await auth.loginWithApple(idToken: idToken, nonce: nonce)
+            bearerToken = result.accessToken
+            tokenStore.save(result.accessToken)
             let account = try await getMe()
             return UserSession(userId: BackendMapping.stableUUID(account.id),
                                email: account.email ?? result.email)
         }
-        // Local dev (no Ory): Apple sign-in needs the OIDC bridge; the static seed
-        // token is the only identity, so fall back to it when present.
+        // Local dev (no Supabase): Apple sign-in needs the GoTrue bridge; the static
+        // seed token is the only identity, so fall back to it when present.
         guard bearerToken != nil else { throw SupabaseError.notAvailable }
         let account = try await getMe()
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
     }
 
     func signOut() async throws {
-        if let ory, let token = bearerToken {
-            try? await ory.logout(token: token)
+        if let auth, let token = bearerToken {
+            try? await auth.logout(token: token)
             bearerToken = nil
             tokenStore.clear()
         }
@@ -127,10 +127,11 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     }
 
     func currentSession() async -> UserSession? {
-        // With Ory, validate the live session; locally, the seed token is enough.
-        if let ory, let token = bearerToken {
-            guard let result = try? await ory.whoami(token: token) else { return nil }
-            return UserSession(userId: BackendMapping.stableUUID(result.identityID), email: result.email)
+        // With Supabase, validate the live token; locally, the seed token is enough.
+        if let auth, let token = bearerToken {
+            guard (try? await auth.user(token: token)) != nil,
+                  let account = try? await getMe() else { return nil }
+            return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
         }
         guard bearerToken != nil, let account = try? await getMe() else { return nil }
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)

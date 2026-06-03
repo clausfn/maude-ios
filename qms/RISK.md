@@ -2,6 +2,17 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-28 — auth provider change (Ory → self-hosted Supabase GoTrue); sovereignty held (2026-06-03)
+
+- **RK-SEC-RESIDENCY-02 (auth on US-parented infra, NFR-SEC-07):** NOT regressed.
+  Ory Network is replaced by **Supabase Auth (GoTrue) self-hosted in the EU**
+  (Scaleway), not Supabase Cloud. Real-PII auth stays on EU-sovereign infra;
+  tokens are Keychain-only (NFR-SEC-01). The backend verifies the Supabase JWT
+  locally (jose) and never calls a US service per request. Had this been wired to
+  Supabase *Cloud*, it would breach NFR-SEC-07 — the control is "self-hosted EU
+  GoTrue", recorded here and in `docs/Auth_Supabase_v01.md`.
+- No new clinical hazard. The app-level consent gate + backend authz are unchanged.
+
 ## PR-20/21/24 — consent-direction, message gate, encrypted sync-cursors (2026-06-03)
 
 This batch wires citizen↔care-team messaging + Sign in with Apple and hardens

@@ -8,17 +8,17 @@ The two codebases were built to the same *principles* but different *implementat
 | Concern | iOS app today | B2B backend/console | Status |
 |---|---|---|---|
 | Backend | **Supabase** (`SupabaseServiceProtocol`, `supabase_schema.sql`); default `MockSupabaseService` | **NestJS + Scaleway** (EU-sovereign) | **Divergent** |
-| Sovereignty | Supabase Inc = **US-parented** → fails `NFR-SEC-07` for real PII | Scaleway (FR) + Ory (EU) | **iOS must migrate for real users** |
+| Sovereignty | Supabase *Cloud* = **US-parented** → fails `NFR-SEC-07` for real PII | Scaleway (FR) + **self-hosted Supabase Auth (EU)** | **point the app at the self-hosted URL** |
 | Grant model | `WalletGrant`: `recipientName` (free text), `recipientType` (clinical/research/…), coarse `scopeKeys`, `isActive`, `expiresAt` | `consent_grant`: recipient **account** + `recipientRole` (clinical_nurse/health_coach), `granularity` map, `purpose`, `delivery`, `ceReceipt` | **Reconcile** |
 | Scope vocabulary | coarse groups: `glucose, sleep, hrv, activity` (+ nudges) | fine metrics: `tir, mean_g, bolus, …` | **Reconcile via group→metric map** |
 | Sharing topology | **user-mediated**: device builds a summary, citizen shows/exports it; grant = metadata only | **device pushes `derived_share`** → recipient pulls a live, revocable view | **iOS lacks the push** |
-| Recipient identity | free-text name | recipient account (Ory) that logs into the console | **Reconcile via directory** |
+| Recipient identity | free-text name | recipient account (Supabase Auth) that logs into the console | **Reconcile via directory** |
 | Ledger | `wallet_events` (event_type, actor, scope, decision) | `consent_event` (append-only) | **Aligned in spirit** |
 
 Net: the console renders `derived_share`s the app never writes, keyed to recipient accounts the app doesn't reference. This contract closes that.
 
 ## 1. Sovereignty decision (blocking for real users)
-**Supabase is sandbox/dev only.** Any real citizen data (Claus on TestFlight onward) goes to the **sovereign backend** (`api.dfgworks.dk` → Scaleway + Ory), per `D-SOV`/`D-CLOUD`/`D-CONTROLLER`. The iOS app keeps its `SupabaseServiceProtocol` seam but swaps the implementation to `LiviqaBackendService` (sovereign). No data migration needed — the app defaults to `MockSupabaseService` and no real Supabase data exists.
+**Supabase *Cloud* is not used for PII.** Real citizen data goes to the **sovereign NestJS backend** (Scaleway, EU); auth is **self-hosted Supabase Auth (GoTrue)** in the EU — so we keep the Supabase integration the app already has, just self-hosted. The iOS app keeps its `SupabaseServiceProtocol` seam, points the Supabase client at the self-hosted URL, and sends the Supabase access token as a bearer to the API.
 
 ## 2. Canonical scope vocabulary (group ↔ metric)
 The citizen consents at **group** level on device; the backend/console render **fine metrics** within each consented group. One map, both sides (backend: `src/shared/scope-vocab.ts`):
@@ -82,16 +82,16 @@ The sovereign backend now exposes the surface `SupabaseServiceProtocol` needs, s
 | `fetchProfile()` | `GET /me` |
 | (new) recipient picker | `GET /recipients` |
 | (new) `pushDerivedShare(_:)` | `PUT /shares/{grantId}` |
-| auth | **Ory** (replaces Supabase auth) |
+| auth | **Supabase Auth** (self-hosted EU); send the access token as Bearer to the API |
 | `fetch/upsert/deleteJournalEntry` | `PUT /journal` (opt-in; deferred parity) |
 
 ## 6. Migration plan (incremental, low-risk)
 1. **Backend ready** ✓ — scope-vocab + `/recipients` + `/grants` + `/ledger` + `PUT /shares` exist and are verified.
-2. **iOS `LiviqaBackendService`** — implement `SupabaseServiceProtocol` against the sovereign API (Ory session + bearer); add `pushDerivedShare`. Swap `AppState(supabase:)` to it behind a `Config.backend` flag (Mock | Supabase-sandbox | **Sovereign**).
+2. **iOS `LiviqaBackendService`** — implement `SupabaseServiceProtocol` against the sovereign API (Supabase access-token bearer); add `pushDerivedShare`. Swap `AppState(supabase:)` to it behind a `Config.backend` flag (Mock | Supabase-sandbox | **Sovereign**).
 3. **iOS `DerivedShareBuilder`** — derive the scoped payload per consented group from on-device samples; push on grant create + sync.
 4. **Grant UI** — `ShareWithClinicianView`/`WalletView` pick a recipient from `GET /recipients` and send group scope keys.
 5. **Cutover** — real users (Claus) on Sovereign; Supabase demoted to sandbox; retire `supabase_schema.sql` for PII.
-6. **Production gates** (before non-Claus users): DPIA, DPA with Scaleway + Ory, Art. 9 onboarding consent, RLS on per-citizen partitions, pen test.
+6. **Production gates** (before non-Claus users): DPIA, DPA with Scaleway, Art. 9 onboarding consent, RLS on per-citizen partitions, pen test.
 
 ## 6b. Video consultation (citizen side) — NEW
 The B2B console can start a secure video consult; **the citizen joins from the iOS app**. EU-sovereign **Jitsi** (no US provider on this PII path); room = `liviqa-consult-<sessionId>` (both ends join the same room). Citizen flow: `GET /consults/active` (room + recipient) → join Jitsi + `POST /consults/:id/join` → **recording is the citizen's consent** (`POST /consults/:id/recording-consent`; the recipient only *requests* it). `GET /notifications` surfaces consult invites. iOS detail: `liviqa-ios/docs/Video_Consult_iOS_Notes.md`.
