@@ -22,7 +22,7 @@ struct AuthView: View {
                 VStack(spacing: 10) {
                     LiviqaApertureMark(size: 52, reversed: false)
                     Text("Liviqa")
-                        .font(.system(size: 36, weight: .black))
+                        .font(.lato(36, .black))
                         .kerning(-0.7)
                         .foregroundStyle(LiviqaTheme.ink)
                     Text("Your data. Your insights. Your terms.")

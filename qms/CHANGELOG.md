@@ -4,6 +4,24 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-32 — Brand alignment to liviqa.app (mark asset, Lato + IBM Plex Mono, launch) (2026-06-03)
+- **feat(brand):** embed the **locked aperture mark** as an image asset
+  (`LiviqaMark`/`LiviqaMarkReversed`, the same SVGs as the website) and rewrite
+  `LiviqaApertureMark` to render it — no more code-drawn mark (brand kit §1:
+  "embed the asset, never redraw"; code redraws caused prior drift). Same API, so
+  all call sites are unchanged.
+- **feat(brand):** bundle the site's real OFL fonts — **Lato** (Regular/Bold/
+  Black) + **IBM Plex Mono** (Regular/Medium) — via `UIAppFonts`. `Theme` now uses
+  IBM Plex Mono for kickers/numbers and adds `Font.lato(_:_:)`; the sign-in
+  wordmark renders in Lato Black. (Full headline/body Lato rollout across all
+  views is a follow-up — needs per-screen visual QA for metric shifts.)
+- **feat(brand):** branded **launch screen** — paper `#F7F5F1` (`LaunchBackground`)
+  instead of the default black.
+- Palette already matched the kit (Theme tokens = design tokens). App icon = PR-29.
+- Verified: builds for the iOS Simulator; fonts in the bundle, mark + launch color
+  in `Assets.car`, PostScript names confirmed (no system fallback); sign-in screen
+  matches liviqa.app (paper, aperture mark, Lato wordmark).
+
 ### PR-31 — First TestFlight upload (2026-06-03)
 - **release:** Liviqa **1.0 (1)** archived (Release/live-data), signed with a
   freshly-minted Apple Distribution cert + App Store profile (all created headless
