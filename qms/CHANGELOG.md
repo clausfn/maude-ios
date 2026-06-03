@@ -4,6 +4,23 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-31 — First TestFlight upload (2026-06-03)
+- **release:** Liviqa **1.0 (1)** archived (Release/live-data), signed with a
+  freshly-minted Apple Distribution cert + App Store profile (all created headless
+  via the App Store Connect API key), exported, and **uploaded to TestFlight** —
+  "UPLOAD SUCCEEDED" (Delivery UUID 097e69a0-49fd-4e88-88d7-a66740b78b83). Bundle
+  `dev.liviqa.app`, team PS258XSNL8.
+- **fix(appstore):** added `NSHealthUpdateUsageDescription` — Apple rejects upload
+  (90683) without the HealthKit *write* purpose string even though Liviqa is
+  read-only.
+- Found via the existing DfG App Store Connect record (Liviqa / `dev.liviqa.app`)
+  + App ID `486FL49R3M` — so the earlier `app.liviqa.ios` plan was dropped; reused
+  the existing identifier (no new App ID / app record).
+- **State:** `api.liviqa.app` LIVE (TLS, `/me`→401 auth-gated). `auth.liviqa.app`
+  (GoTrue) NOT yet deployed → sign-in won't work for testers until it's up
+  (see `liviqa-backend/docs/Deploy_Prod_Hosts_Prompt_v01.md`). Hold external
+  testers until auth is live.
+
 ### PR-30 — TestFlight prep: live-data Release config + App Store gaps (2026-06-03)
 - **Decisions (locked):** DfG team `PS258XSNL8`; bundle `app.liviqa.ios`; canonical
   hosts on `liviqa.app`; video consult **gated off** in v1; external testers,
