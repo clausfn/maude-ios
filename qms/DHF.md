@@ -2,6 +2,32 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-03 — Auth: revert Ory → Supabase Auth (self-hosted GoTrue, EU) (PR-28)
+
+- **Decision (supersedes the Ory direction).** Ory Network dropped — custom
+  domains cost $70/mo, unjustified for the sandbox. Auth = **Supabase Auth
+  (GoTrue), self-hosted on Scaleway (EU)**. Rationale doc: `docs/Auth_Supabase_v01.md`
+  / backend `docs/Supabase_Auth_Setup_v01.md`.
+- **Sovereignty held (NFR-SEC-07).** The load-bearing control is *self-hosted EU
+  GoTrue* — **not** Supabase Cloud (US). Self-hosting gives EU residency + $0
+  license. Wiring this to Supabase Cloud would breach NFR-SEC-07; recorded in
+  RISK as `RK-SEC-RESIDENCY-02`. Founder-approved override of the earlier
+  "Supabase = sandbox-only" note, scoped strictly to *self-hosted* GoTrue.
+- **Minimal blast radius.** The app was already built on `SupabaseServiceProtocol`;
+  only the auth *source* changed. New `SupabaseAuthClient` (GoTrue: password grant,
+  native Apple `id_token` grant, `/user`, logout) replaces `OryAuthClient`;
+  `LiviqaBackendService` swaps the injected client; `Config` gains
+  `supabaseAuthURL` + `.sovereign(authURL:)`. `AppleSignInCoordinator` is
+  unchanged — its id_token + raw nonce now feed GoTrue. Access token is
+  Keychain-only (`SessionTokenStore`, NFR-SEC-01).
+- **Backend already aligned.** `AuthGuard` verifies the Supabase JWT (`jose`,
+  HS256 via `SUPABASE_JWT_SECRET` or `SUPABASE_JWKS_URL`), link-by-email; no
+  backend change in this PR.
+- **Verification:** `SupabaseAuthParsingTests` (T-SBA-01..05) run green in the iOS
+  Simulator; app compiles; local e2e uses the dev-token path. Standing up the
+  `supabase/gotrue` container + `supabaseAuthURL`/`SUPABASE_JWT_SECRET` is a
+  deploy step.
+
 ## 2026-06-03 — Open-Meteo weather/AQI context (PR-6)
 
 - **Privacy by construction.** The provider coarsens the coordinate to ~0.1°

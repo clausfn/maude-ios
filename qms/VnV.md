@@ -37,6 +37,31 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-ING-03 | Mock generator is deterministic for a fixed seed | Unit | No | authored — run in Xcode |
 | T-ING-04 | `LV001Provider` is inert without the `LV001_DEMO` flag | Unit | No | authored — run in Xcode |
 | T-ING-05 | Factory wiring + `isDemoData` flag (FR-ARCH-05) | Unit | No | authored — run in Xcode |
+| T-SBA-01 | Supabase password-grant body (`email`/`password`) | Unit (Swift Testing) | No | **pass** — iOS Simulator (2026-06-03) |
+| T-SBA-02 | Apple `id_token`-grant body (`provider:apple`/`id_token`/`nonce`; nonce omitted when empty) | Unit | No | **pass** — iOS Simulator |
+| T-SBA-03 | GoTrue token response parse (`access_token`+`user.id`/`email`+`refresh_token`; no token ⇒ nil) | Unit | No | **pass** — iOS Simulator |
+| T-SBA-04 | GoTrue `/user` parse (`id`/`email`; empty ⇒ nil) | Unit | No | **pass** — iOS Simulator |
+| T-SBA-05 | Apple nonce: SHA-256 deterministic + 64-hex; random nonce length + uniqueness | Unit | No | **pass** — iOS Simulator |
+| T-ANCH-01..06 | EncryptedAnchorStore: round-trip, ciphertext-at-rest, per-key + per-user-scope isolation, wrong-DEK auth-fail, remove/clear | Unit | No | **pass** — iOS Simulator |
+| T-ANCH-07 | `HKQueryAnchor ⇆ Data` secure-coding round-trip | Unit | No | **pass** — iOS Simulator |
+| T-ANCH-08 | Fake-provider anchor-advances-on-sync (resume from prior cursor; no-new ⇒ unchanged) | Unit (async) | No | **pass** — iOS Simulator |
+
+## T-SBA — Supabase Auth (GoTrue) parsing & V&V (PR-28)
+
+Auth is **Supabase Auth (self-hosted GoTrue, EU)** (reverted from Ory; NFR-SEC-07
+held — self-hosted EU, not Supabase Cloud). The request-body builders + response
+parsers in `SupabaseAuthClient` are pure and were run in the iOS Simulator
+(`SupabaseAuthParsingTests`, T-SBA-01..05). The backend verifies the Supabase JWT
+(`jose`, HS256/JWKS, link-by-email) — covered backend-side. End-to-end against the
+local backend uses the dev-token path (`DEV_AUTH=true`); real GoTrue login is a
+deploy step (stand up `supabase/gotrue`, set `SUPABASE_JWT_SECRET`).
+
+```
+✔ SupabaseAuthParsingTests — 5/5
+✔ EncryptedAnchorStoreTests (incl. anchor-advances), AnchorCodecTests
+✔ NudgeGuard / Crypto / BackendMapping / PassportStats / Correlation
+Test run: 8 suites passed (iOS 17 Simulator, Xcode 26.4.1)
+```
 
 ## T-SIGN-01 — procedure & result (PR-1)
 
