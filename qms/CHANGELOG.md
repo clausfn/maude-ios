@@ -4,6 +4,40 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-27 — Anchor cadence fix + re-entrancy guard + testable AnchorSync (FR-ING-03/04) (2026-06-03)
+- **fix(ingestion):** correct per-type background-delivery cadence — step count
+  `.hourly` (high churn), every other signal `.immediate`.
+- **fix(ingestion):** re-entrancy guard in `ObserverRegistry` — an observer
+  wake-up during an in-flight sync is coalesced (`beginSync`/`endSync`), so two
+  `ingestDelta()` passes never overlap.
+- **refactor(ingestion):** extract a portable `AnchorSync.advance(store:key:fetch:)`
+  seam (no HealthKit) — loads the encrypted anchor, runs the source from it,
+  persists the advanced anchor. The HK query is injected, so the
+  anchor-advances-on-sync behaviour is testable with a fake.
+- **test:** `EncryptedAnchorStoreTests.anchorAdvancesOnEachSync` (T-ANCH-08) —
+  fake provider; each sync resumes from the prior cursor and moves it forward; a
+  no-new-anchor sync leaves it put. 9-suite simulator run green.
+
+### PR-26 — Sign in with Apple: ASAuthorizationController → Ory OIDC (FR-AUTH-01) (2026-06-03)
+- **feat(auth):** `AppleSignInCoordinator` runs the native `ASAuthorizationController`
+  flow with a SHA-256-hashed nonce, returning the Apple `id_token` + the RAW
+  nonce. `AuthView`'s "Continue with Apple" now calls it →
+  `AppState.signInWithApple` → `LiviqaBackendService.signInWithApple` (the PR-22
+  Ory OIDC submit), persisting the Ory session token in the Keychain. No silent
+  demo fallback; the Demo button stays the separate never-fail path. User cancel
+  is swallowed; other errors surface.
+- **test:** moved the Apple/OIDC parsing tests into their own `OryAppleParsingTests`
+  (OIDC submit body, Apple success envelope) + a nonce test (deterministic
+  SHA-256, correct length, run-to-run uniqueness).
+- Note: the Apple sheet needs the "Sign in with Apple" entitlement to complete on
+  device; the parsing/nonce logic is unit-tested headlessly.
+- **chore(e2e):** local-QA hooks so the Care tab can be exercised against the
+  local backend without changing shipped defaults — `Config.backend`/`jitsiDomain`
+  read `LIVIQA_BACKEND` / `LIVIQA_JITSI_DEMO` env (defaults stay `.mock` / `nil`),
+  and `NSAllowsLocalNetworking` lets the app reach `http://localhost`. Backend
+  seed now provisions an **active consult session** (nurse↔LV001) so the consult
+  is joinable out of the box (liviqa-backend `prisma/seed.ts`).
+
 ### PR-25 — Jitsi config decision: EU-sovereign default, demo domain quarantined (2026-06-03)
 - **chore(config):** `Config.jitsiDomain` stays `nil` (secure-shell default — no
   live media until a real EU-sovereign Jitsi/Whereby domain is set), with a TODO
