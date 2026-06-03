@@ -4,6 +4,16 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-29 — App icon (the AppIcon set had no image) (2026-06-03)
+- **fix(brand):** the `AppIcon.appiconset` declared icon slots but contained **no
+  image** → blank/default icon. Installed the locked aperture app-icon
+  (`Brand_Assets/liviqa_appicon_aperture_1024.png`), flattened onto the brand
+  off-white `#F7F5F1` (opaque, no alpha — iOS requires it; the alpha came from the
+  source's rounded corners, which iOS masks itself). Single 1024 universal entry;
+  actool generates all sizes. Cardinal rule honoured — locked mark, not redrawn.
+- Note: delete the old app from the simulator/device once (iOS caches the blank
+  icon) and re-run to see it.
+
 ### PR-28 — Auth: revert Ory → Supabase Auth (self-hosted GoTrue, EU) (FR-AUTH-01) (2026-06-03)
 - **Decision:** Ory Network dropped (custom domains $70/mo, unjustified for the
   sandbox). Auth = **Supabase Auth (GoTrue) self-hosted on Scaleway (EU)** —
