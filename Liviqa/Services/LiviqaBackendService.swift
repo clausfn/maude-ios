@@ -57,8 +57,13 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
     private let baseURL: URL
     private let session: URLSession
 
-    /// Dev bearer token (seed accounts, e.g. "dev-citizen-claus"). In production
-    /// this is replaced by an Ory session token acquired via the auth flow.
+    /// Real Ory auth (Ory Network native flow). When present, sign-in obtains an
+    /// Ory session token used as the bearer. When `nil` (local dev), the static
+    /// `devToken` (seed account) is the identity.
+    private let ory: OryAuthClient?
+
+    /// Bearer presented to the backend: a dev seed token (local) or, after Ory
+    /// sign-in, the Ory session token.
     private var bearerToken: String?
 
     /// Derived-UUID → original backend id, populated on fetchGrants so that
@@ -66,33 +71,50 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, @un
     private var grantBackendIDs: [UUID: String] = [:]
     private let mapLock = NSLock()
 
-    init(baseURL: URL, devToken: String? = nil, session: URLSession = .shared) {
+    init(baseURL: URL, devToken: String? = nil, ory: OryAuthClient? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.bearerToken = devToken
+        self.ory = ory
         self.session = session
     }
 
-    // MARK: - Auth (Ory in prod; dev bearer token here)
+    // MARK: - Auth (real Ory session token in prod; dev seed token locally)
 
     func signInWithEmail(email: String, password: String) async throws -> UserSession {
-        // Dev/local: the bearer token IS the identity (seed accounts). A real Ory
-        // password/native flow replaces this; the seam is unchanged.
+        if let ory {
+            // Real Ory native login → session token becomes the backend bearer.
+            let result = try await ory.login(email: email, password: password)
+            bearerToken = result.token
+            let account = try await getMe()
+            return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email ?? email)
+        }
+        // Local dev: the static seed token IS the identity.
         guard bearerToken != nil else { throw SupabaseError.notAvailable }
         let account = try await getMe()
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: email)
     }
 
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
-        guard bearerToken != nil else { throw SupabaseError.notAvailable }
+        // Ory OIDC-native (Apple) flow not wired yet; email/password is the path.
+        guard ory == nil, bearerToken != nil else { throw SupabaseError.notAvailable }
         let account = try await getMe()
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
     }
 
     func signOut() async throws {
-        // Local dev tokens are static; nothing to revoke server-side here.
+        if let ory, let token = bearerToken {
+            try? await ory.logout(token: token)
+            bearerToken = nil
+        }
+        // Local dev seed tokens are static; nothing to revoke server-side.
     }
 
     func currentSession() async -> UserSession? {
+        // With Ory, validate the live session; locally, the seed token is enough.
+        if let ory, let token = bearerToken {
+            guard let result = try? await ory.whoami(token: token) else { return nil }
+            return UserSession(userId: BackendMapping.stableUUID(result.identityID), email: result.email)
+        }
         guard bearerToken != nil, let account = try? await getMe() else { return nil }
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
     }

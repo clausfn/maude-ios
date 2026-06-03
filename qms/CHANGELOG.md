@@ -4,6 +4,22 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-14 — Ory Network auth (real session tokens) for the sovereign backend (2026-06-03)
+- **feat(auth):** `OryAuthClient` runs the Ory Network NATIVE login flow
+  (`GET /self-service/login/api` → `POST {ui.action}` password → `session_token`;
+  `GET /sessions/whoami`; `POST /self-service/logout/api`). Pure response parsers
+  are unit-tested (`OryAuthParsingTests`, verified via swiftc) without networking.
+- **feat(services):** `LiviqaBackendService` takes an optional `OryAuthClient`.
+  When present, `signInWithEmail` performs a real Ory login and the returned
+  session token becomes the backend `Authorization: Bearer` (openapi: "prod: Ory
+  session token"); `currentSession` validates via whoami; `signOut` revokes.
+  When absent (local dev), the static seed token remains the identity.
+- **feat(config):** `Config.oryURL` (Ory project) + `.sovereign(…, oryURL:)`;
+  `sovereignLocal` (seed tokens, no Ory) and `sovereignStaging` (real Ory login)
+  presets. Default backend stays `.mock`.
+- Note: Apple/OIDC-native via Ory not wired yet (email/password is the path);
+  session token is in-memory (Keychain persistence = follow-up).
+
 ### PR-13 — FR-SHARE-02 UI: live recipient picker + consented share send (2026-06-03)
 - **feat(ui):** `ShareWithClinicianView` wired to the sovereign backend — step 3
   loads the real care directory (`GET /recipients`) and lets the citizen pick a
