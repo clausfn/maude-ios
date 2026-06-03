@@ -47,6 +47,17 @@ struct LiviqaApp: App {
             }
             .environment(appState)
             .preferredColorScheme(themeMode.colorScheme)   // Midnight (dark) by default
+            #if DEBUG
+            .task {
+                // Snapshot/UI-test hook: jump straight into demo Today (skips onboarding+auth).
+                if ProcessInfo.processInfo.arguments.contains("-uiTestAutoDemo") {
+                    hasSeenPrivacyDeclaration = true
+                    hasSeenHealthKitPrimer = true
+                    hasSeenDfGOnboarding = true
+                    if appState.session == nil { appState.signInDemo() }
+                }
+            }
+            #endif
         }
     }
 }

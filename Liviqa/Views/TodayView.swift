@@ -62,9 +62,14 @@ struct TodayView: View {
                 .padding(.bottom, 4)
                 .padding(.horizontal, 20)
 
-                // ── Metric rings ──
-                MetricRingsRow(rings: MockData.rings)
+                // ── Glucose hero (radial) ──
+                glucoseHero
                     .padding(.top, 18)
+                    .padding(.horizontal, 20)
+
+                // ── Vitals (mini rings) ──
+                vitalsCard
+                    .padding(.top, 14)
                     .padding(.horizontal, 20)
 
                 // ── Lifestyle context card ──
@@ -98,6 +103,73 @@ struct TodayView: View {
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    // MARK: — Glucose hero (radial)
+
+    /// Demo 24h CGM trace (mmol/L); last value = NOW (6.2). Presentation seed.
+    private static let glucoseDay: [Double] =
+        [5.4,5.1,4.9,5.0,5.3,6.8,7.9,7.2,6.4,6.0,7.5,8.6,7.8,6.9,6.2,5.8,6.5,7.3,8.1,7.0,6.3,5.9,6.1,6.2]
+
+    private var glucoseHero: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle().fill(LiviqaTheme.heroGlow).blur(radius: 44).frame(width: 200, height: 200)
+                RingView(progress: 0.68, size: 212, lineWidth: 16,
+                         a11yLabel: "Time in range 68 percent. In range, steady.")
+                VStack(spacing: 6) {
+                    Text("GLUCOSE · NOW").font(.liviqaKicker(10)).tracking(1.4)
+                        .foregroundStyle(LiviqaTheme.amber)
+                    HStack(alignment: .lastTextBaseline, spacing: 4) {
+                        Text("6.2").font(.liviqaMono(40)).foregroundStyle(LiviqaTheme.ink)
+                        Text("mmol/L").font(.liviqaKicker(11)).foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    StatusPill(text: "In range · → Steady", dot: LiviqaTheme.moss)
+                }
+            }
+            Text("You've spent 68% of today in your target range.")
+                .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
+                .multilineTextAlignment(.center)
+
+            GlucoseCurveView(values: Self.glucoseDay)
+
+            HStack(spacing: 0) {
+                heroStat("TIME IN RANGE", "68%", "+3 pts", LiviqaTheme.moss)
+                Divider().frame(height: 30).overlay(LiviqaTheme.line)
+                heroStat("GMI", "6.4%", "≈ HbA1c", LiviqaTheme.ink3)
+                Divider().frame(height: 30).overlay(LiviqaTheme.line)
+                heroStat("24H AVG", "7.1", "mmol/L", LiviqaTheme.ink3)
+            }
+        }
+        .padding(18)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.hero))
+        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.hero).stroke(LiviqaTheme.line, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 14, y: 8)
+    }
+
+    private func heroStat(_ kicker: String, _ value: String, _ sub: String, _ subColor: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(kicker).font(.liviqaKicker(8)).tracking(0.8).foregroundStyle(LiviqaTheme.ink4)
+            Text(value).font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
+            Text(sub).font(.liviqaKicker(8)).foregroundStyle(subColor)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: — Vitals (mini rings)
+
+    private var vitalsCard: some View {
+        HStack(spacing: 8) {
+            MiniRing(progress: 0.78, value: "7h 02", label: "Sleep", delta: "▼ −28 min", deltaTone: .bad, warn: true)
+            MiniRing(progress: 0.55, value: "42 ms", label: "HRV",   delta: "▼ −8 ms",   deltaTone: .bad, warn: true)
+            MiniRing(progress: 0.68, value: "5.6k",  label: "Steps", delta: "68% of goal", deltaTone: .neutral)
+        }
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.vitals))
+        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.vitals).stroke(LiviqaTheme.line, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 4)
     }
 
     // MARK: — Lifestyle pattern card

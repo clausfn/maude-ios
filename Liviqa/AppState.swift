@@ -120,7 +120,7 @@ final class AppState {
             userId: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             email: nil
         )
-        profile = UserProfile(id: session!.userId, displayName: "Claus", avatarURL: nil, createdAt: Date())
+        profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date())
         grants = MockData.walletGrants
         walletEvents = MockData.walletEvents
     }
