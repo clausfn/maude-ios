@@ -20,7 +20,10 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | FR-ING-01 | MVP read set (HRV-SDNN, RHR, steps, active energy, glucose, sleep, workouts) modelled as value readings | `Liviqa/Ingestion/HealthSamples.swift` | T-ING-01, T-ING-02 | implemented | PR-3 |
 | FR-ING-07 | Single `HealthSamples` aggregate; no network-upload method on provider/types | `HealthSamples.swift`, `HealthDataProvider.swift` | T-ING-01 | implemented | PR-3 |
 | FR-ARCH-04 | Read-only: HealthKit share/write set is **empty**; no write method anywhere | `Liviqa/Ingestion/HealthKitService.swift` (`shareTypes = []`), `HealthDataProvider.swift` | T-HK-RO-01 | implemented (typechecks vs HK SDK; unit run in Xcode) | PR-4 |
-| FR-ARCH-04 / NFR-PRIV-01 | Outbound data is derived daily aggregates only, scoped to consent, encrypted — never raw samples / provenance / source | `Liviqa/Sharing/ShareBundle.swift`, `ShareBundleBuilder.swift`, `SecureShareExporter.swift` | T-SHARE-01..05 | implemented (11/11 checks pass) | PR-9 |
+| FR-SHARE-01 | Derive scoped share package for `PUT /shares/{grantId}` (consent GROUPS; derived-only; no provenance/source) | `Liviqa/Sharing/DerivedShareBuilder.swift` | `DerivedShareBuilderTests` (Xcode) | implemented (canonical builder; per backend contract §4) | (existing) |
+| FR-SHARE-02 | Wire device→sovereign backend: `Config.backend`, `LiviqaBackendService`, recipient picker, `pushDerivedShare` | `Config.swift`, `Services/*` (pending) | — | planned | next |
+| NFR-SEC-07 | Cloud holding real PII must be EU-sovereign, not US-parented (Supabase → `liviqa-backend`, Scaleway+Ory) | `docs/Sovereign_Backend_Integration_v01.md`; `SupabaseServiceProtocol` seam | — | planned (seam exists; impl = FR-SHARE-02) | next |
+| FR-PROV-01 | Per-metric source arbitration: highest tier wins, lower fills gaps, never blend clinical with estimate | `Liviqa/Ingestion/SourceArbiter.swift`; `AppState.refreshFromHealth()` | T-ARB-01..05 | implemented (verified via swiftc) | — |
 | FR-ING-02..05 | Concrete HealthKit reads (glucose mmol/L, HRV/RHR, steps, energy, sleep, workouts) | `HealthKitService.swift` | T-HK-RO-02/03 | implemented | PR-4 |
 | FR-ING-09 | L1→L2 normalization + idempotent persistence into SwiftData | `Liviqa/Ingestion/IngestionCoordinator.swift` (`SampleMapper`) | T-MAP-01, T-MAP-02 | implemented (run in Xcode) | PR-4 |
 | FR-NDG-01..05 | On-device heuristic nudge engine; baseline-relative; capped allow-list output | `Liviqa/Intelligence/NudgeEngine.swift`, `NudgeModel.swift` | T-NDG-01/04/05/07 | implemented (compiled + executed via swiftc) | PR-5 |
@@ -33,10 +36,13 @@ Status legend: `planned` · `in-progress` · `implemented` · `verified`.
 | INT-L1L3 | Live L1→L2→L3 feed wired to Today screen | `AppState.refreshFromHealth()`; `EngineNudge+Card.swift`; `MainTabView` | (UI; user-verified) | implemented | PR-7 |
 | NFR-PORT-01 | L1 ingestion portable (framework-free value types, provider protocol) | `Liviqa/Ingestion/*` | T-ING-01..05 | implemented | PR-3 |
 | NFR-PRIV-05 / build-rule | `provenance` never renders (file guard + type guard, **blocking**) | `scripts/guard_provenance.sh`, `ProvenanceGuardTests.swift` | T-PROV-01, T-PROV-02, T-PROV-03 | implemented (file guard green; type tests run in Xcode) | PR-3 |
+| FR-SHARE-01 | Derive the scoped share package per consented group (derived-only, no provenance) → `PUT /shares` body | `Liviqa/Sharing/DerivedShareBuilder.swift` | T-SHARE-01..04 (`DerivedShareBuilderTests`) | implemented (run in Xcode); contract: `Liviqa_iOS_Backend_Contract_v01` | PR-TBD |
 
 ## Upcoming (tracked, not yet implemented)
 
 | Req ID | Title | Target PR |
 |---|---|---|
 | NFR-SEC-02 / OD-09 | Secure Enclave key-wrapping + AES-256 verification | `Liviqa/Security/CryptoCore.swift`, `Liviqa/Security/KeyVault.swift` | T-SEC-01..06 | implemented (10/10 checks pass; SE w/ software fallback) | PR-8 |
+| FR-SHARE-02 | `LiviqaBackendService: SupabaseServiceProtocol` against the EU-sovereign backend (Ory auth) + `pushDerivedShare` → swap `AppState(supabase:)` behind `Config.backend` | next (Xcode session; see `docs/Sovereign_Backend_Integration_v01.md`) |
+| NFR-SEC-07 / D-SOV | Demote Supabase to sandbox; real PII on Scaleway+Ory only (US-parented provider off the PII path) | with FR-SHARE-02 |
 | OD-07 reconcile | Migrate locked `MetricSnapshot.glucoseMgdl` (journal sync + Supabase col) to mmol/L | later (touches sync schema) |

@@ -4,7 +4,24 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
-### PR-9 — scoped, derived-only, encrypted share boundary (2026-06-03)
+### CORRECTION — re-anchor to SRS/UseCases v05 + sovereign backend (2026-06-03)
+- **revert(sharing):** retired the off-spec `ShareBundle`/`ShareBundleBuilder`/
+  `SecureShareExporter` + `SharingTests` introduced below. They duplicated the
+  existing, on-contract `DerivedShareBuilder` (FR-SHARE-01) and diverged from it
+  (individual scope keys vs consent GROUPS; a local AES envelope vs the contract's
+  TLS `PUT /shares/{grantId}`). `DerivedShareBuilder` is the canonical builder.
+- **docs(qms):** re-anchored RTM to actual SRS IDs — FR-SHARE-01 (DerivedShareBuilder),
+  FR-SHARE-02 (sovereign wiring, planned), **NFR-SEC-07** (cloud holding real PII
+  must be EU-sovereign — `liviqa-backend`/Scaleway+Ory, not US-parented Supabase),
+  FR-PROV-01 (SourceArbiter). Root cause of the divergence: building from the
+  derived RTM instead of `Liviqa_SRS_v05`/`Liviqa_UseCases_v05` and
+  `docs/Sovereign_Backend_Integration_v01.md`.
+- **feat(ingestion):** `SourceArbiter` (FR-PROV-01) retained — highest tier wins,
+  lower fills gaps, never blends clinical with estimate; wired into
+  `AppState.refreshFromHealth()` before persist/engine. Verified via swiftc.
+- Retained as on-spec: PR-7 (FR-ARCH-05/UC-05), PR-8 KeyVault (NFR-SEC-01/02).
+
+### PR-9 [RETIRED] — scoped, derived-only, encrypted share boundary (2026-06-03)
 - **feat(sharing):** `ShareBundle` / `DailySummary` — the ONLY shape data may
   leave the device. Derived daily aggregates only: no raw intraday samples, no
   `source`, and NEVER `provenance` (internal arbitration stays on-device).

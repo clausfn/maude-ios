@@ -120,7 +120,9 @@ final class AppState {
         let start = Calendar.current.date(byAdding: .day, value: -30, to: end) ?? end
         do {
             try await provider.requestReadAuthorization()
-            let samples = try await provider.fetchSamples(from: start, to: end)
+            // §2.3: arbitrate sources (highest tier wins, lower fills gaps) before
+            // anything persists or feeds the engine.
+            let samples = try await provider.fetchSamples(from: start, to: end).arbitrated()
             if let container = modelContainer {
                 let coordinator = IngestionCoordinator(context: container.mainContext, provider: provider)
                 try? coordinator.persist(samples, from: start, to: end)

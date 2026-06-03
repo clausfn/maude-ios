@@ -2,21 +2,18 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
-## PR-9 — egress boundary; raw/identifying-data-leak hazard mitigated
+## CORRECTION (2026-06-03) — retired off-spec egress module
 
-PR-9 adds the only sanctioned outbound shape (`ShareBundle`). Confidentiality/
-privacy control; no clinical interpretation.
-- **RK-PRIV-EGRESS-01 (raw samples / provenance / identifiers leaving device):**
-  the builder emits derived DAILY AGGREGATES only — raw timestamps, meal context,
-  `source`, `tier`, and `provenance` are dropped before the bundle exists. A
-  blocking test inspects the serialized JSON and fails the build if `provenance`,
-  `source`, or `SIMULATED` ever appears (T-SHARE-02). Output is filtered to the
-  consent grant's scopes (deny-by-default, T-SHARE-01/03), and the bundle is
-  AES-256-GCM-encrypted at the boundary (T-SHARE-04).
-- **Residual:** the user still chooses to share; scope correctness depends on the
-  grant. No raw or provenance data can be in the bundle by construction + test.
+A prior entry here described a `ShareBundle`/`SecureShareExporter` egress module.
+That module duplicated and diverged from the canonical `DerivedShareBuilder`
+(FR-SHARE-01) and assumed a local AES envelope instead of the contract's TLS
+push to the EU-sovereign backend. It has been **retired**. The egress hazard is
+owned by `DerivedShareBuilder` + the sovereign backend integration (below).
 
-No new clinical hazard introduced.
+- **RK-PRIV-EGRESS-01 (raw/provenance/identifiers leaving device):** mitigated by
+  `DerivedShareBuilder` (derived GROUPS only, no provenance/source; backend also
+  strips) delivered over TLS (NFR-SEC-06) to an EU-sovereign backend (NFR-SEC-07,
+  not US-parented Supabase). Control verified by `DerivedShareBuilderTests`.
 
 ## PR-8 — device-bound key material; data-at-rest hazard mitigated
 
