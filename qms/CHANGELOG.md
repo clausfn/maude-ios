@@ -4,6 +4,20 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-33 — Full app-wide Lato rollout + TestFlight build 1.0(2) (2026-06-03)
+- **feat(brand):** converted **all ~199** non-mono `.font(.system(size:…))` calls
+  across every view to `.font(.lato(…))` — the whole app now renders in Lato
+  (headlines/body), matching liviqa.app. Monospaced/rounded faces preserved
+  (kickers/numbers stay IBM Plex Mono; one calendar day-number stays monospaced).
+- **release:** bumped to build **1.0 (2)**, re-archived + uploaded to TestFlight —
+  "UPLOAD SUCCEEDED" (Delivery UUID 3698bb2f-7ebe-49f4-a9cd-cfeb8b820493). This is
+  the first fully brand-aligned build (icon + embedded mark + Lato/Plex fonts +
+  paper launch). (Build 1.0(1) predated the brand work.)
+- Verified: builds for the iOS Simulator; sign-in screen confirmed in Lato.
+  Inner screens not screenshot-QA'd here (no tap-automation bridge) — eyeball in
+  TestFlight for any Lato metric/wrap shifts; layouts mostly use
+  minimumScaleFactor/flexible frames so risk is low.
+
 ### PR-32 — Brand alignment to liviqa.app (mark asset, Lato + IBM Plex Mono, launch) (2026-06-03)
 - **feat(brand):** embed the **locked aperture mark** as an image asset
   (`LiviqaMark`/`LiviqaMarkReversed`, the same SVGs as the website) and rewrite
