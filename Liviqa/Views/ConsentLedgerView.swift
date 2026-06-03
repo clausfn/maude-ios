@@ -11,7 +11,7 @@ struct ConsentLedgerView: View {
                 // ── Header note ──
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "link.circle")
-                        .font(.system(size: 14))
+                        .font(.lato(14))
                         .foregroundStyle(LiviqaTheme.moss)
                     Text("Every consent decision is independently logged and cannot be edited, deleted, or backdated.")
                         .font(.caption)
@@ -51,13 +51,13 @@ struct ConsentLedgerView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.shield")
-                .font(.system(size: 32))
+                .font(.lato(32))
                 .foregroundStyle(LiviqaTheme.moss)
             Text("No decisions on record yet.")
-                .font(.system(size: 15, weight: .bold))
+                .font(.lato(15, .bold))
                 .foregroundStyle(LiviqaTheme.ink)
             Text("Your first grant or refusal will appear here.")
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .foregroundStyle(LiviqaTheme.ink3)
                 .multilineTextAlignment(.center)
         }
@@ -79,7 +79,7 @@ struct ConsentLedgerView: View {
                     .fill(iconBackground(event))
                     .frame(width: 32, height: 32)
                 Image(systemName: iconName(event))
-                    .font(.system(size: 13))
+                    .font(.lato(13))
                     .foregroundStyle(iconForeground(event))
             }
 

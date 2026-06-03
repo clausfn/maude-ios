@@ -46,7 +46,7 @@ struct WalletView: View {
 
                     // Forward note
                     Text("Withdrawing stops future sharing immediately. Completed analyses are not affected. Every change is logged.")
-                        .font(.system(size: 11.5))
+                        .font(.lato(11.5))
                         .lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink3)
                         .padding(.leading, 12)
@@ -79,9 +79,9 @@ struct WalletView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.down")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.lato(14, .medium))
                             Text("Download full disclosure report")
-                                .font(.system(size: 13.5, weight: .bold))
+                                .font(.lato(13.5, .bold))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(12)
@@ -123,7 +123,7 @@ struct WalletView: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(ceToastIsWithdraw ? "Consent withdrawn" : "Grant confirmed")
-                    .font(.system(size: 12.5, weight: .bold))
+                    .font(.lato(12.5, .bold))
                     .foregroundStyle(.white)
                 Text(ceToastText)
                     .font(.liviqaMono(10))
@@ -134,7 +134,7 @@ struct WalletView: View {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16))
+                .font(.lato(16))
                 .foregroundStyle(.white.opacity(0.85))
         }
         .padding(.horizontal, 16)
@@ -190,13 +190,13 @@ struct WalletView: View {
                     .foregroundStyle(Color(hex: 0x9FB0C2))
 
                 Text("\(activeCount) recipient\(activeCount == 1 ? "" : "s")")
-                    .font(.system(size: 26, weight: .black))
+                    .font(.lato(26, .black))
                     .kerning(-0.5)
                     .foregroundStyle(LiviqaTheme.paper)
                     .padding(.top, 8)
 
                 Text("Glucose & activity, shared as aggregates only.")
-                    .font(.system(size: 13))
+                    .font(.lato(13))
                     .foregroundStyle(Color(hex: 0xC3CEDA))
                     .padding(.top, 4)
 
@@ -226,7 +226,7 @@ struct WalletView: View {
                 .monospacedDigit()
                 .foregroundStyle(.white)
             Text(label)
-                .font(.system(size: 11))
+                .font(.lato(11))
                 .foregroundStyle(Color(hex: 0x9FB0C2))
         }
     }
@@ -240,7 +240,7 @@ struct WalletView: View {
             // Row 1: name + status pill
             HStack(alignment: .center) {
                 Text(grant.recipientName)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.lato(15, .bold))
                     .kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.ink)
                 Spacer()
@@ -273,7 +273,7 @@ struct WalletView: View {
 
             // Since / description
             Text(grantSince(grant))
-                .font(.system(size: 12))
+                .font(.lato(12))
                 .foregroundStyle(LiviqaTheme.ink3)
                 .padding(.top, 10)
 
@@ -284,7 +284,7 @@ struct WalletView: View {
 
             HStack {
                 Button("View scope") {}
-                    .font(.system(size: 12.5, weight: .bold))
+                    .font(.lato(12.5, .bold))
                     .foregroundStyle(LiviqaTheme.ink2)
                 Spacer()
                 Button("Withdraw") {
@@ -293,7 +293,7 @@ struct WalletView: View {
                         showCEToast(isWithdraw: true, recipient: grant.recipientName)
                     }
                 }
-                .font(.system(size: 12.5, weight: .bold))
+                .font(.lato(12.5, .bold))
                 .foregroundStyle(LiviqaTheme.rust)
             }
             .padding(.top, 10)
@@ -322,7 +322,7 @@ struct WalletView: View {
                         .fill(LiviqaTheme.moss2)
                         .frame(width: 36, height: 36)
                     Image(systemName: "circle.hexagongrid.fill")
-                        .font(.system(size: 15))
+                        .font(.lato(15))
                         .foregroundStyle(LiviqaTheme.moss)
                 }
                 VStack(alignment: .leading, spacing: 2) {
@@ -356,7 +356,7 @@ struct WalletView: View {
                 .foregroundStyle(LiviqaTheme.moss)
 
             Text("Your sharing settings are backed by an independent privacy record. Liviqa can read it — only you can change it.")
-                .font(.system(size: 12.5))
+                .font(.lato(12.5))
                 .lineSpacing(2.5)
                 .foregroundStyle(LiviqaTheme.ink2)
         }
@@ -424,10 +424,10 @@ struct WalletView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.lato(13, .bold))
                     .foregroundStyle(titleColor)
                 Text(detail)
-                    .font(.system(size: 12))
+                    .font(.lato(12))
                     .foregroundStyle(LiviqaTheme.ink3)
             }
 

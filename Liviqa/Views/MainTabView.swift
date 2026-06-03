@@ -133,9 +133,9 @@ struct MainTabView: View {
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: tab == item ? item.symbolFilled : item.symbol)
-                            .font(.system(size: 20))
+                            .font(.lato(20))
                         Text(item.title)
-                            .font(.system(size: 10, weight: tab == item ? .bold : .regular))
+                            .font(.lato(10, tab == item ? .bold : .regular))
                             .tracking(0.2)
                         // Active moss dot
                         Circle()

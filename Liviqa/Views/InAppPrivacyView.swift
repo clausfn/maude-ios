@@ -49,7 +49,7 @@ struct InAppPrivacyView: View {
                         .foregroundStyle(LiviqaTheme.amber)
 
                     Text("Liviqa is a personal wellness application, not a medical device. It does not diagnose, treat, monitor, or manage any medical condition. Patterns are generated from your own data for your own awareness. Always consult a qualified healthcare professional before changing your care, medication, or treatment.")
-                        .font(.system(size: 14))
+                        .font(.lato(14))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -96,7 +96,7 @@ struct InAppPrivacyView: View {
                 .tracking(1.0)
                 .foregroundStyle(LiviqaTheme.ink3)
             Text(body)
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .foregroundStyle(LiviqaTheme.ink2)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -109,7 +109,7 @@ struct InAppPrivacyView: View {
                 .font(.footnote)
                 .foregroundStyle(LiviqaTheme.moss)
             Image(systemName: "arrow.up.right")
-                .font(.system(size: 11, weight: .medium))
+                .font(.lato(11, .medium))
                 .foregroundStyle(LiviqaTheme.moss)
         }
     }

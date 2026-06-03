@@ -26,7 +26,7 @@ struct AuthView: View {
                         .kerning(-0.7)
                         .foregroundStyle(LiviqaTheme.ink)
                     Text("Your data. Your insights. Your terms.")
-                        .font(.system(size: 13))
+                        .font(.lato(13))
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
                 .padding(.bottom, 48)
@@ -40,9 +40,9 @@ struct AuthView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "apple.logo")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.lato(15, .medium))
                             Text("Continue with Apple")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.lato(15, .medium))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -60,7 +60,7 @@ struct AuthView: View {
                                 showEmailForm = true
                             }
                         }
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.lato(14, .medium))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -72,7 +72,7 @@ struct AuthView: View {
                     // Error
                     if let error = appState.lastError {
                         Text(error)
-                            .font(.system(size: 12))
+                            .font(.lato(12))
                             .foregroundStyle(LiviqaTheme.rust)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 4)
@@ -88,9 +88,9 @@ struct AuthView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.right.circle")
-                                .font(.system(size: 14))
+                                .font(.lato(14))
                             Text("Continue without account")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.lato(14, .bold))
                         }
                         .foregroundStyle(LiviqaTheme.moss)
                         .frame(maxWidth: .infinity)
@@ -126,14 +126,14 @@ struct AuthView: View {
     private var emailField: some View {
         #if os(iOS)
         TextField("Email", text: $email)
-            .font(.system(size: 14))
+            .font(.lato(14))
             .textContentType(.emailAddress)
             .autocorrectionDisabled()
             .keyboardType(.emailAddress)
             .textInputAutocapitalization(.never)
         #else
         TextField("Email", text: $email)
-            .font(.system(size: 14))
+            .font(.lato(14))
             .textContentType(.emailAddress)
             .autocorrectionDisabled()
         #endif
@@ -149,7 +149,7 @@ struct AuthView: View {
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(LiviqaTheme.line))
 
             SecureField("Password", text: $password)
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .textContentType(.password)
                 .padding(12)
                 .background(LiviqaTheme.paper)
@@ -164,7 +164,7 @@ struct AuthView: View {
                         ProgressView().tint(.white)
                     } else {
                         Text("Sign in")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.lato(14, .bold))
                     }
                 }
                 .frame(maxWidth: .infinity)

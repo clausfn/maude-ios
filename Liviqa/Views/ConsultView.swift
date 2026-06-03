@@ -37,10 +37,10 @@ struct ConsultView: View {
                     videoStage
                     recordingCard
                     if let error {
-                        Text(error).font(.system(size: 12.5)).foregroundStyle(LiviqaTheme.rust)
+                        Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)
                     }
                     Text("\(consult.recipientName)\(consult.recipientOrg.map { " · \($0)" } ?? "") can see only the summary you've consented to share — not your raw data, which stays on your device.")
-                        .font(.system(size: 12)).lineSpacing(2)
+                        .font(.lato(12)).lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink3)
                     leaveButton
                 }
@@ -78,9 +78,9 @@ struct ConsultView: View {
                         .foregroundStyle(.white)
                 }
                 Text("Connecting to \(consult.recipientName)…")
-                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                    .font(.lato(13, .semibold)).foregroundStyle(.white)
                 Text("Secure consultation · live video activates when your clinic's EU video room is configured.")
-                    .font(.system(size: 11)).multilineTextAlignment(.center)
+                    .font(.lato(11)).multilineTextAlignment(.center)
                     .foregroundStyle(LiviqaTheme.ink4)
                     .padding(.horizontal, 24)
             }
@@ -97,7 +97,7 @@ struct ConsultView: View {
                 Image(systemName: recordingConsent ? "record.circle.fill" : "record.circle")
                     .foregroundStyle(recordingConsent ? LiviqaTheme.rust : LiviqaTheme.ink3)
                 Text(recordingConsent ? "Recording on — you allowed it" : "Recording is off")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.lato(14, .semibold))
                     .foregroundStyle(LiviqaTheme.ink)
                 Spacer()
                 if working { ProgressView() }
@@ -105,11 +105,11 @@ struct ConsultView: View {
             Text(consult.recordingRequested && !recordingConsent
                  ? "\(consult.recipientName) asked to record this call. Only you can allow it — and you can stop any time."
                  : "Only you can allow recording. You can withdraw at any time; it's logged either way.")
-                .font(.system(size: 12)).lineSpacing(2)
+                .font(.lato(12)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink3)
             Button { Task { await toggleRecording() } } label: {
                 Text(recordingConsent ? "Stop recording" : "Allow recording")
-                    .font(.system(size: 13.5, weight: .bold))
+                    .font(.lato(13.5, .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
@@ -129,7 +129,7 @@ struct ConsultView: View {
     private var leaveButton: some View {
         Button { dismiss() } label: {
             Text("Leave consultation")
-                .font(.system(size: 14, weight: .bold))
+                .font(.lato(14, .bold))
                 .foregroundStyle(LiviqaTheme.ink)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)

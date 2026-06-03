@@ -53,7 +53,7 @@ struct ProfileSheet: View {
                         // ── Header ──
                         VStack(alignment: .leading, spacing: 4) {
                             Text(appState.profile?.displayName ?? "Your profile")
-                                .font(.system(size: 22, weight: .black))
+                                .font(.lato(22, .black))
                                 .kerning(-0.4)
                                 .foregroundStyle(LiviqaTheme.ink)
                             Text("Liviqa uses this to personalise your nudges. Stays on device.")
@@ -74,14 +74,14 @@ struct ProfileSheet: View {
                         NavigationLink(destination: SettingsView()) {
                             HStack(spacing: 10) {
                                 Image(systemName: "gearshape")
-                                    .font(.system(size: 14))
+                                    .font(.lato(14))
                                     .foregroundStyle(LiviqaTheme.ink3)
                                 Text("Privacy, consent & app settings")
-                                    .font(.system(size: 14))
+                                    .font(.lato(14))
                                     .foregroundStyle(LiviqaTheme.ink3)
                                 Spacer()
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .medium))
+                                    .font(.lato(11, .medium))
                                     .foregroundStyle(LiviqaTheme.ink4)
                             }
                         }
@@ -98,7 +98,7 @@ struct ProfileSheet: View {
                             dismiss()
                         } label: {
                             Text("Sign out")
-                                .font(.system(size: 14))
+                                .font(.lato(14))
                                 .foregroundStyle(LiviqaTheme.rust)
                         }
                         .padding(.horizontal, 22)
@@ -128,7 +128,7 @@ struct ProfileSheet: View {
                         appState.healthContext = draft
                         dismiss()
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.lato(15, .semibold))
                     .foregroundStyle(LiviqaTheme.moss)
                 }
                 ToolbarItem(placement: .cancellationAction) {
@@ -158,16 +158,16 @@ struct ProfileSheet: View {
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: section.icon)
-                        .font(.system(size: 13))
+                        .font(.lato(13))
                         .foregroundStyle(LiviqaTheme.moss)
                         .frame(width: 20)
                     Text(section.label)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.lato(15, .semibold))
                         .foregroundStyle(LiviqaTheme.ink)
                     Spacer()
                     sectionBadge(for: section)
                     Image(systemName: expanded == section ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.lato(11, .medium))
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
                 .padding(.horizontal, 22)
@@ -204,7 +204,7 @@ struct ProfileSheet: View {
             ].compactMap { $0 }.count
             if filled > 0 {
                 Text("\(filled) set")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.lato(11, .medium))
                     .foregroundStyle(LiviqaTheme.moss)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
@@ -220,7 +220,7 @@ struct ProfileSheet: View {
         case .lifestyle:
             if !draft.dietApproach.isEmpty {
                 Text(draft.dietApproach)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.lato(11, .medium))
                     .foregroundStyle(LiviqaTheme.ink3)
                     .lineLimit(1)
             }
@@ -231,7 +231,7 @@ struct ProfileSheet: View {
     private func countBadge(_ n: Int) -> some View {
         if n > 0 {
             Text("\(n)")
-                .font(.system(size: 11, weight: .bold))
+                .font(.lato(11, .bold))
                 .foregroundStyle(.white)
                 .frame(width: 20, height: 20)
                 .background(LiviqaTheme.ink)
@@ -267,7 +267,7 @@ struct ProfileSheet: View {
                             .frame(width: 80, alignment: .leading)
                         TextField("Year", text: intBinding($entry.diagnosedYear))
                             .textFieldStyle(.plain)
-                            .font(.system(size: 14))
+                            .font(.lato(14))
                             .foregroundStyle(LiviqaTheme.ink)
                             .keyboardType(.numberPad)
                     }
@@ -286,7 +286,7 @@ struct ProfileSheet: View {
                 withAnimation { draft.conditions.append(ConditionEntry(name: "")) }
             } label: {
                 Label("Add condition", systemImage: "plus.circle")
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(.lato(13.5, .medium))
                     .foregroundStyle(LiviqaTheme.moss)
             }
             .buttonStyle(.plain)
@@ -323,7 +323,7 @@ struct ProfileSheet: View {
                 .frame(width: 180, alignment: .leading)
             TextField(placeholder, text: doubleBinding(value))
                 .textFieldStyle(.plain)
-                .font(.system(size: 14, weight: .medium))
+                .font(.lato(14, .medium))
                 .foregroundStyle(LiviqaTheme.ink)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.decimalPad)
@@ -339,7 +339,7 @@ struct ProfileSheet: View {
                 .frame(width: 180, alignment: .leading)
             TextField(placeholder, text: intBinding(value))
                 .textFieldStyle(.plain)
-                .font(.system(size: 14, weight: .medium))
+                .font(.lato(14, .medium))
                 .foregroundStyle(LiviqaTheme.ink)
                 .multilineTextAlignment(.trailing)
                 .keyboardType(.numberPad)
@@ -358,7 +358,7 @@ struct ProfileSheet: View {
             ForEach($draft.goals) { $goal in
                 HStack(spacing: 8) {
                     TextField("Goal", text: $goal.text)
-                        .font(.system(size: 14))
+                        .font(.lato(14))
                         .foregroundStyle(LiviqaTheme.ink)
                         .textFieldStyle(.plain)
                     if draft.goals.count > 1 {
@@ -382,7 +382,7 @@ struct ProfileSheet: View {
                     withAnimation { draft.goals.append(GoalEntry(text: "")) }
                 } label: {
                     Label("Add goal", systemImage: "plus.circle")
-                        .font(.system(size: 13.5, weight: .medium))
+                        .font(.lato(13.5, .medium))
                         .foregroundStyle(LiviqaTheme.moss)
                 }
                 .buttonStyle(.plain)
@@ -412,7 +412,7 @@ struct ProfileSheet: View {
                 }
             } label: {
                 Label("Add medication", systemImage: "plus.circle")
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(.lato(13.5, .medium))
                     .foregroundStyle(LiviqaTheme.moss)
             }
             .buttonStyle(.plain)
@@ -449,7 +449,7 @@ struct ProfileSheet: View {
                 }
             } label: {
                 Label("Add care team member", systemImage: "plus.circle")
-                    .font(.system(size: 13.5, weight: .medium))
+                    .font(.lato(13.5, .medium))
                     .foregroundStyle(LiviqaTheme.moss)
             }
             .buttonStyle(.plain)
@@ -466,7 +466,7 @@ struct ProfileSheet: View {
                     .foregroundStyle(LiviqaTheme.ink3)
                 TextField("e.g. Low-carbohydrate, Mediterranean, no restriction",
                           text: $draft.dietApproach)
-                    .font(.system(size: 14))
+                    .font(.lato(14))
                     .foregroundStyle(LiviqaTheme.ink)
                     .textFieldStyle(.plain)
                     .padding(12)
@@ -481,7 +481,7 @@ struct ProfileSheet: View {
                     .foregroundStyle(LiviqaTheme.ink3)
                 TextField("e.g. Cycling 4× / week, 60–90 min",
                           text: $draft.trainingPattern)
-                    .font(.system(size: 14))
+                    .font(.lato(14))
                     .foregroundStyle(LiviqaTheme.ink)
                     .textFieldStyle(.plain)
                     .padding(12)
@@ -520,12 +520,12 @@ struct ProfileSheet: View {
                                placeholder: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.lato(10, .semibold))
                 .foregroundStyle(LiviqaTheme.ink4)
                 .textCase(.uppercase)
                 .tracking(0.5)
             TextField(placeholder ?? label, text: text)
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .foregroundStyle(LiviqaTheme.ink)
                 .textFieldStyle(.plain)
         }

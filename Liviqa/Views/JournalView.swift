@@ -231,7 +231,7 @@ struct JournalView: View {
     private var vaultCount: some View {
         HStack(spacing: 5) {
             Image(systemName: "lock.fill")
-                .font(.system(size: 10))
+                .font(.lato(10))
                 .foregroundStyle(LiviqaTheme.moss)
             Text("\(vaultDocs.count) files")
                 .font(.liviqaKicker(10))
@@ -246,7 +246,7 @@ struct JournalView: View {
             // Prompt / text area
             if composerExpanded {
                 TextEditor(text: $composerText)
-                    .font(.system(size: 14))
+                    .font(.lato(14))
                     .foregroundStyle(LiviqaTheme.ink)
                     #if os(iOS)
                     .focused($composerFocused)
@@ -268,11 +268,11 @@ struct JournalView: View {
                             .frame(width: 32, height: 32)
                             .overlay(
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.lato(13, .medium))
                                     .foregroundStyle(LiviqaTheme.moss)
                             )
                         Text("How are you feeling today?")
-                            .font(.system(size: 14))
+                            .font(.lato(14))
                             .foregroundStyle(LiviqaTheme.ink3)
                         Spacer()
                     }
@@ -368,7 +368,7 @@ struct JournalView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "text.and.command.macwindow")
-                .font(.system(size: 32))
+                .font(.lato(32))
                 .foregroundStyle(LiviqaTheme.line)
             Text("Nothing here yet")
                 .font(.footnote)
@@ -412,7 +412,7 @@ struct JournalView: View {
             .padding(.bottom, 8)
 
             Text(entry.body)
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .lineSpacing(3)
                 .foregroundStyle(LiviqaTheme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -461,7 +461,7 @@ struct JournalView: View {
     private func metricChip(icon: String, value: String, unit: String, color: Color) -> some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 9))
+                .font(.lato(9))
                 .foregroundStyle(color)
             Text(value)
                 .font(.liviqaMono(11))
@@ -481,7 +481,7 @@ struct JournalView: View {
                     .fill(vaultColor(doc.type.colorKey).opacity(0.12))
                     .frame(width: 40, height: 40)
                 Image(systemName: doc.type.icon)
-                    .font(.system(size: 16))
+                    .font(.lato(16))
                     .foregroundStyle(vaultColor(doc.type.colorKey))
             }
 
@@ -508,7 +508,7 @@ struct JournalView: View {
 
             if doc.isEncrypted {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 11))
+                    .font(.lato(11))
                     .foregroundStyle(LiviqaTheme.moss)
             }
         }
@@ -548,7 +548,7 @@ struct JournalView: View {
                     .frame(width: 52, height: 52)
                     .shadow(color: LiviqaTheme.ink.opacity(0.3), radius: 12, y: 4)
                 Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.lato(20, .medium))
                     .foregroundStyle(.white)
             }
         }

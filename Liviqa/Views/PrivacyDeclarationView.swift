@@ -35,11 +35,11 @@ struct PrivacyDeclarationView: View {
                 // Heading
                 VStack(spacing: 6) {
                     Text("Before we begin")
-                        .font(.system(size: 26, weight: .black))
+                        .font(.lato(26, .black))
                         .kerning(-0.5)
                         .foregroundStyle(LiviqaTheme.ink)
                     Text("A few things you should know")
-                        .font(.system(size: 14))
+                        .font(.lato(14))
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
                 .multilineTextAlignment(.center)
@@ -61,7 +61,7 @@ struct PrivacyDeclarationView: View {
                 VStack(spacing: 16) {
                     Button(action: onDone) {
                         Text("Understood")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.lato(16, .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(LiviqaTheme.ink)
@@ -70,7 +70,7 @@ struct PrivacyDeclarationView: View {
                     }
 
                     Text("These principles apply to the entire app, always.")
-                        .font(.system(size: 11))
+                        .font(.lato(11))
                         .foregroundStyle(LiviqaTheme.ink4)
                         .multilineTextAlignment(.center)
                 }
@@ -89,7 +89,7 @@ struct PrivacyDeclarationView: View {
                     .fill(LiviqaTheme.moss2)
                     .frame(width: 38, height: 38)
                 Image(systemName: icon)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.lato(15, .medium))
                     .foregroundStyle(LiviqaTheme.moss)
             }
             .frame(width: 38)
@@ -97,11 +97,11 @@ struct PrivacyDeclarationView: View {
             // Text
             VStack(alignment: .leading, spacing: 3) {
                 Text(statement)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.lato(14, .bold))
                     .foregroundStyle(LiviqaTheme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
-                    .font(.system(size: 12.5))
+                    .font(.lato(12.5))
                     .foregroundStyle(LiviqaTheme.ink3)
                     .lineSpacing(1.5)
                     .fixedSize(horizontal: false, vertical: true)

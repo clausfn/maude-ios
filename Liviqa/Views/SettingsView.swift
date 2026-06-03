@@ -158,7 +158,7 @@ struct SettingsView: View {
                     .fill(color.opacity(0.12))
                     .frame(width: 32, height: 32)
                 Image(systemName: icon)
-                    .font(.system(size: 13))
+                    .font(.lato(13))
                     .foregroundStyle(color)
             }
             .padding(.leading, 16)
@@ -224,7 +224,7 @@ struct SettingsView: View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.shield")
                 .foregroundStyle(LiviqaTheme.moss)
-                .font(.system(size: 20))
+                .font(.lato(20))
             VStack(alignment: .leading, spacing: 2) {
                 Text("No active sharing")
                     .font(.footnote.weight(.medium))
@@ -248,7 +248,7 @@ struct SettingsView: View {
                     .fill(grant.isActive ? LiviqaTheme.moss2 : LiviqaTheme.line2)
                     .frame(width: 32, height: 32)
                 Image(systemName: "building.2")
-                    .font(.system(size: 12))
+                    .font(.lato(12))
                     .foregroundStyle(grant.isActive ? LiviqaTheme.moss : LiviqaTheme.ink4)
             }
             .padding(.leading, 16)
@@ -342,7 +342,7 @@ struct SettingsView: View {
     private func regulatoryLinkRow(label: String, icon: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .foregroundStyle(LiviqaTheme.ink3)
                 .frame(width: 32)
                 .padding(.leading, 16)
@@ -361,7 +361,7 @@ struct SettingsView: View {
     private var versionRow: some View {
         HStack(spacing: 14) {
             Image(systemName: "info.circle")
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .foregroundStyle(LiviqaTheme.ink4)
                 .frame(width: 32)
                 .padding(.leading, 16)
@@ -480,7 +480,7 @@ struct SettingsView: View {
                     .fill(color.opacity(0.12))
                     .frame(width: 32, height: 32)
                 Image(systemName: icon)
-                    .font(.system(size: 13))
+                    .font(.lato(13))
                     .foregroundStyle(color)
             }
             .padding(.leading, 16)
@@ -502,7 +502,7 @@ struct SettingsView: View {
     private func zoneHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 11))
+                .font(.lato(11))
                 .foregroundStyle(LiviqaTheme.ink3)
             Text(title)
                 .font(.liviqaKicker(10))

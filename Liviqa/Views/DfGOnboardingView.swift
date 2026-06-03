@@ -85,7 +85,7 @@ private struct Page1View: View {
 
                     // Headline
                     Text("An independent body that works for you — not for institutions.")
-                        .font(.system(size: 26, weight: .black))
+                        .font(.lato(26, .black))
                         .kerning(-0.4)
                         .foregroundStyle(LiviqaTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -93,7 +93,7 @@ private struct Page1View: View {
 
                     // Body — paragraph 1
                     Text("Every time anyone requests your health data, a neutral record is created. Not by Liviqa. Not by the requester. By a foundation that answers to you — and represents your interests in the data economy.")
-                        .font(.system(size: 15))
+                        .font(.lato(15))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -101,7 +101,7 @@ private struct Page1View: View {
 
                     // Body — paragraph 2
                     Text("You can't be quietly overridden. Every access request is logged. Every refusal is logged. You can inspect the full record at any time.")
-                        .font(.system(size: 15))
+                        .font(.lato(15))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -115,7 +115,7 @@ private struct Page1View: View {
             // Continue button — pinned outside ScrollView
             Button(action: onContinue) {
                 Text("Continue")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.lato(15, .bold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(LiviqaTheme.moss)
@@ -132,7 +132,7 @@ private struct Page1View: View {
                     showLearnMore = true
                 } label: {
                     Text("What is the Data for Good Foundation?")
-                        .font(.system(size: 12))
+                        .font(.lato(12))
                         .foregroundStyle(LiviqaTheme.ink3)
                         .underline()
                 }
@@ -161,7 +161,7 @@ private struct Page2View: View {
                                 .fill(LiviqaTheme.moss2)
                                 .frame(width: 80, height: 80)
                             Image(systemName: "checkmark.shield.fill")
-                                .font(.system(size: 36))
+                                .font(.lato(36))
                                 .foregroundStyle(LiviqaTheme.moss)
                         }
                         Spacer()
@@ -177,7 +177,7 @@ private struct Page2View: View {
 
                     // Headline
                     Text("Every decision.\nPermanently recorded.")
-                        .font(.system(size: 26, weight: .black))
+                        .font(.lato(26, .black))
                         .kerning(-0.4)
                         .foregroundStyle(LiviqaTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -185,7 +185,7 @@ private struct Page2View: View {
 
                     // Body — paragraph 1
                     Text("Each time you grant or withdraw access, that decision is written to an independent record. It cannot be edited, deleted, or backdated — by anyone, including Liviqa.")
-                        .font(.system(size: 15))
+                        .font(.lato(15))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -193,7 +193,7 @@ private struct Page2View: View {
 
                     // Body — paragraph 2
                     Text("If a requester claims they were given access you never approved, the record will show otherwise. If you change your mind and withdraw consent, that withdrawal is also on record.")
-                        .font(.system(size: 15))
+                        .font(.lato(15))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -232,7 +232,7 @@ private struct Page2View: View {
 
                     // Caption
                     Text("No one, including Liviqa, can alter this record.")
-                        .font(.system(size: 11.5))
+                        .font(.lato(11.5))
                         .italic()
                         .foregroundStyle(LiviqaTheme.ink4)
                         .frame(maxWidth: .infinity)
@@ -247,7 +247,7 @@ private struct Page2View: View {
             // Continue button — pinned outside ScrollView
             Button(action: onContinue) {
                 Text("Continue")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.lato(15, .bold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(LiviqaTheme.moss)
@@ -279,7 +279,7 @@ private struct Page3View: View {
                                 .fill(LiviqaTheme.line2)
                                 .frame(width: 80, height: 80)
                             Image(systemName: "iphone")
-                                .font(.system(size: 36))
+                                .font(.lato(36))
                                 .foregroundStyle(LiviqaTheme.ink3)
                         }
                         Spacer()
@@ -295,7 +295,7 @@ private struct Page3View: View {
 
                     // Headline
                     Text("Your data lives where you choose.")
-                        .font(.system(size: 26, weight: .black))
+                        .font(.lato(26, .black))
                         .kerning(-0.4)
                         .foregroundStyle(LiviqaTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -303,7 +303,7 @@ private struct Page3View: View {
 
                     // Body
                     Text("All processing happens on this device. You decide whether and where to back up your Liviqa data. The default is on-device only — nothing leaves unless you choose it.")
-                        .font(.system(size: 15))
+                        .font(.lato(15))
                         .foregroundStyle(LiviqaTheme.ink2)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -324,7 +324,7 @@ private struct Page3View: View {
 
                     // GDPR footnote
                     Text("Your rights under GDPR Articles 15–22 apply in full. Full legal text at liviqa.app/privacy")
-                        .font(.system(size: 11))
+                        .font(.lato(11))
                         .foregroundStyle(LiviqaTheme.ink4)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
@@ -338,7 +338,7 @@ private struct Page3View: View {
             // Get started button — pinned outside ScrollView
             Button(action: onComplete) {
                 Text("Get started")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.lato(15, .bold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(LiviqaTheme.moss)
@@ -363,17 +363,17 @@ private struct LedgerRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.lato(16))
                 .foregroundStyle(iconColor)
                 .frame(width: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.lato(13, .medium))
                     .foregroundStyle(LiviqaTheme.ink)
                     .lineLimit(1)
                 Text(meta)
-                    .font(.system(size: 11.5))
+                    .font(.lato(11.5))
                     .foregroundStyle(LiviqaTheme.ink4)
             }
 
@@ -396,7 +396,7 @@ private struct BackupOptionCard: View {
             HStack(alignment: .top, spacing: 14) {
                 // Icon
                 Image(systemName: option.icon)
-                    .font(.system(size: 18))
+                    .font(.lato(18))
                     .foregroundStyle(isSelected ? LiviqaTheme.moss : LiviqaTheme.ink3)
                     .frame(width: 24)
                     .padding(.top, 2)
@@ -404,10 +404,10 @@ private struct BackupOptionCard: View {
                 // Text
                 VStack(alignment: .leading, spacing: 4) {
                     Text(option.label)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.lato(14, .bold))
                         .foregroundStyle(LiviqaTheme.ink)
                     Text(option.description)
-                        .font(.system(size: 12.5))
+                        .font(.lato(12.5))
                         .foregroundStyle(LiviqaTheme.ink3)
                         .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -474,13 +474,13 @@ private struct LearnMoreSheet: View {
 
                 // Heading
                 Text("About Data for Good Foundation")
-                    .font(.system(size: 20, weight: .black))
+                    .font(.lato(20, .black))
                     .kerning(-0.3)
                     .foregroundStyle(LiviqaTheme.ink)
 
                 // Body
                 Text("Data for Good Foundation is a non-commercial, purpose-locked body that represents you in the data economy. It does not hold your health data — it holds the verified record of who requested it, what you decided, and when. That record answers to you, not to institutions or requesters.")
-                    .font(.system(size: 15))
+                    .font(.lato(15))
                     .foregroundStyle(LiviqaTheme.ink2)
                     .lineSpacing(3.5)
                     .fixedSize(horizontal: false, vertical: true)
@@ -493,7 +493,7 @@ private struct LearnMoreSheet: View {
                     isPresented = false
                 } label: {
                     Text("Got it")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.lato(15, .bold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(LiviqaTheme.ink)

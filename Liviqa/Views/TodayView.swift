@@ -53,7 +53,7 @@ struct TodayView: View {
                             Text(greeting)
                         }
                     }
-                    .font(.system(size: 30, weight: .black))
+                    .font(.lato(30, .black))
                     .kerning(-0.7)
                     .lineSpacing(1)
                     .foregroundStyle(LiviqaTheme.ink)
@@ -122,7 +122,7 @@ struct TodayView: View {
             }
 
             Text("High meeting load + late dinner → HRV dip")
-                .font(.system(size: 14, weight: .bold))
+                .font(.lato(14, .bold))
                 .kerning(-0.2)
                 .foregroundStyle(LiviqaTheme.ink)
 
@@ -137,7 +137,7 @@ struct TodayView: View {
             .frame(height: 5)
 
             Text("Wednesday's back-to-back meetings and a meal after 21:00 track with a 15% lower HRV the following morning in your data. This pattern showed up on 3 of the last 4 high-load days.")
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
 

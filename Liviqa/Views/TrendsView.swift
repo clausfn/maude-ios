@@ -94,7 +94,7 @@ struct TrendsView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(pair)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.lato(14, .bold))
                     .kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.ink)
                 Spacer()
@@ -120,7 +120,7 @@ struct TrendsView: View {
             .padding(.vertical, 11)
 
             Text(body)
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
         }
@@ -144,7 +144,7 @@ struct TrendsView: View {
                 .foregroundStyle(LiviqaTheme.ink3)
                 .padding(.top, 5)
             Text(delta)
-                .font(.system(size: 11, weight: .bold))
+                .font(.lato(11, .bold))
                 .foregroundStyle(
                     up == nil ? LiviqaTheme.ink3 :
                     (up! ? LiviqaTheme.moss : LiviqaTheme.rust)

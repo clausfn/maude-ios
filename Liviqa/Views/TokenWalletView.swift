@@ -171,7 +171,7 @@ struct TokenWalletView: View {
         HStack(spacing: 10) {
             Image(systemName: "lock.shield")
                 .foregroundStyle(LiviqaTheme.moss)
-                .font(.system(size: 14))
+                .font(.lato(14))
             Text("You earn tokens when your device contributes to anonymised research queries. Your health data never leaves this phone.")
                 .font(.caption)
                 .foregroundStyle(LiviqaTheme.ink3)
@@ -280,7 +280,7 @@ struct TokenWalletView: View {
                     .fill(option.category == .charity ? LiviqaTheme.rust2 : LiviqaTheme.moss2)
                     .frame(width: 40, height: 40)
                 Image(systemName: option.icon)
-                    .font(.system(size: 16))
+                    .font(.lato(16))
                     .foregroundStyle(option.category == .charity ? LiviqaTheme.rust : LiviqaTheme.moss)
             }
 
@@ -312,7 +312,7 @@ struct TokenWalletView: View {
         if confirmedId == option.id {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(LiviqaTheme.moss)
-                .font(.system(size: 22))
+                .font(.lato(22))
         } else {
             Button {
                 guard canAfford else { return }
@@ -346,7 +346,7 @@ struct TokenWalletView: View {
     private func sectionHeader(title: String, icon: String, color: Color) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 11))
+                .font(.lato(11))
                 .foregroundStyle(color)
             Text(title)
                 .font(.liviqaKicker(10))

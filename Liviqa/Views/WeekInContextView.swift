@@ -156,7 +156,7 @@ struct WeekInContextView: View {
 
             // Pattern note
             Text(week.patternNote)
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .foregroundStyle(LiviqaTheme.ink2)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -254,10 +254,10 @@ struct WeekInContextView: View {
         VStack(spacing: 20) {
             Spacer()
             Text("Share flow coming soon")
-                .font(.system(size: 15, weight: .medium))
+                .font(.lato(15, .medium))
                 .foregroundStyle(LiviqaTheme.ink2)
             Button("Dismiss") { showShare = false }
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .foregroundStyle(LiviqaTheme.moss)
             Spacer()
         }
@@ -329,7 +329,7 @@ private struct WeeklyMetricCard: View {
                 .minimumScaleFactor(0.8)
 
             Text(deltaLabel)
-                .font(.system(size: 11, weight: .bold))
+                .font(.lato(11, .bold))
                 .foregroundStyle(deltaColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)

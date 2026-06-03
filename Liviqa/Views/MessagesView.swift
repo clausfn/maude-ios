@@ -61,18 +61,18 @@ struct MessagesView: View {
             ZStack {
                 Circle().fill(LiviqaTheme.moss).frame(width: 38, height: 38)
                 Image(systemName: "video.fill")
-                    .font(.system(size: 15)).foregroundStyle(.white)
+                    .font(.lato(15)).foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(c.recipientName) is ready to talk")
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(.lato(14.5, .semibold))
                     .foregroundStyle(LiviqaTheme.ink)
                 Text(c.recipientOrg ?? "Tap to join the secure consultation")
-                    .font(.system(size: 12)).foregroundStyle(LiviqaTheme.ink3)
+                    .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
             }
             Spacer()
             Text("Join")
-                .font(.system(size: 13, weight: .bold))
+                .font(.lato(13, .bold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14).padding(.vertical, 7)
                 .background(Capsule().fill(LiviqaTheme.moss))
@@ -114,21 +114,21 @@ struct MessagesView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.recipientName)
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(.lato(14.5, .semibold))
                     .foregroundStyle(LiviqaTheme.ink)
                 if let org = t.recipientOrg {
-                    Text(org).font(.system(size: 12)).foregroundStyle(LiviqaTheme.ink3)
+                    Text(org).font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
                 }
             }
             Spacer()
             if t.unread > 0 {
                 Text("\(t.unread)")
-                    .font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                    .font(.lato(11, .bold)).foregroundStyle(.white)
                     .frame(minWidth: 18, minHeight: 18)
                     .background(Circle().fill(LiviqaTheme.moss))
             }
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.lato(12, .semibold))
                 .foregroundStyle(LiviqaTheme.ink4)
         }
         .padding(12)
@@ -138,7 +138,7 @@ struct MessagesView: View {
 
     private func infoNote(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12.5)).lineSpacing(2)
+            .font(.lato(12.5)).lineSpacing(2)
             .foregroundStyle(LiviqaTheme.ink3)
             .padding(.vertical, 12)
     }
@@ -172,7 +172,7 @@ struct MessageThreadView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         if let error {
-                            Text(error).font(.system(size: 12.5)).foregroundStyle(LiviqaTheme.rust)
+                            Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)
                                 .padding(.vertical, 8)
                         }
                         ForEach(messages) { m in bubble(m).id(m.id) }
@@ -195,7 +195,7 @@ struct MessageThreadView: View {
         HStack {
             if m.isMine { Spacer(minLength: 40) }
             Text(m.body)
-                .font(.system(size: 14)).foregroundStyle(m.isMine ? .white : LiviqaTheme.ink)
+                .font(.lato(14)).foregroundStyle(m.isMine ? .white : LiviqaTheme.ink)
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(RoundedRectangle(cornerRadius: 14)
                     .fill(m.isMine ? LiviqaTheme.moss : LiviqaTheme.paper2))
@@ -209,14 +209,14 @@ struct MessageThreadView: View {
     private var composer: some View {
         HStack(spacing: 10) {
             TextField("Message your care team…", text: $draft, axis: .vertical)
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(RoundedRectangle(cornerRadius: 18).fill(LiviqaTheme.paper2))
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
                 .lineLimit(1...4)
             Button { Task { await send() } } label: {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                    .font(.lato(16, .bold)).foregroundStyle(.white)
                     .frame(width: 38, height: 38)
                     .background(Circle().fill(canSend ? LiviqaTheme.moss : LiviqaTheme.line))
             }

@@ -19,7 +19,7 @@ struct DataSourcesView: View {
                 // ── Privacy note ──
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle")
-                        .font(.system(size: 14))
+                        .font(.lato(14))
                         .foregroundStyle(LiviqaTheme.amber)
                     Text("All sources are processed on this device. Patterns are extracted locally — raw data is never sent anywhere.")
                         .font(.caption)
@@ -60,7 +60,7 @@ struct DataSourcesView: View {
                         .foregroundStyle(LiviqaTheme.ink4)
 
                     Text("Liviqa extracts patterns from your data — it never reads individual transactions, message content, or event details. The numbers that drive your nudges stay on this device.")
-                        .font(.system(size: 13))
+                        .font(.lato(13))
                         .lineSpacing(3)
                         .foregroundStyle(LiviqaTheme.ink2)
 
@@ -96,7 +96,7 @@ struct DataSourcesView: View {
                     .fill(source.iconColor.opacity(0.12))
                     .frame(width: 32, height: 32)
                 Image(systemName: source.icon)
-                    .font(.system(size: 14))
+                    .font(.lato(14))
                     .foregroundStyle(source.iconColor)
             }
 

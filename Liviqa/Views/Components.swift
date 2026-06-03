@@ -32,12 +32,12 @@ struct LiviqaAppBar: View {
             if showMark {
                 LiviqaApertureMark(size: 26, reversed: false)
                 Text("Liviqa")
-                    .font(.system(size: 17, weight: .black))
+                    .font(.lato(17, .black))
                     .kerning(-0.3)
                     .foregroundStyle(LiviqaTheme.ink)
             } else {
                 Text(title)
-                    .font(.system(size: 17, weight: .black))
+                    .font(.lato(17, .black))
                     .kerning(-0.3)
                     .foregroundStyle(LiviqaTheme.ink)
             }
@@ -50,7 +50,7 @@ struct LiviqaAppBar: View {
                         .fill(LiviqaTheme.moss)
                         .frame(width: 6, height: 6)
                     Text(label)
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.lato(11, .bold))
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -137,7 +137,7 @@ struct NudgeCard: View {
 
             // Body
             Text(nudge.body)
-                .font(.system(size: 14.5))
+                .font(.lato(14.5))
                 .foregroundStyle(LiviqaTheme.ink2)
                 .lineSpacing(2.5)
                 .fixedSize(horizontal: false, vertical: true)
@@ -164,14 +164,14 @@ struct NudgeCard: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 11))
+                            .font(.lato(11))
                             .foregroundStyle(LiviqaTheme.amber)
                         Text(prompt)
-                            .font(.system(size: 12))
+                            .font(.lato(12))
                             .foregroundStyle(LiviqaTheme.ink3)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.lato(10, .medium))
                             .foregroundStyle(LiviqaTheme.ink4)
                     }
                 }
@@ -199,7 +199,7 @@ struct NudgePrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12.5, weight: .medium))
+            .font(.lato(12.5, .medium))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(color)
@@ -212,7 +212,7 @@ struct NudgePrimaryButtonStyle: ButtonStyle {
 struct NudgeSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12.5, weight: .medium))
+            .font(.lato(12.5, .medium))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(LiviqaTheme.paper)

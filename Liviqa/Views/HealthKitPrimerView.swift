@@ -36,19 +36,19 @@ struct HealthKitPrimerView: View {
                             .fill(LiviqaTheme.moss2)
                             .frame(width: 72, height: 72)
                         Image(systemName: "heart.text.square.fill")
-                            .font(.system(size: 32))
+                            .font(.lato(32))
                             .foregroundStyle(LiviqaTheme.moss)
                     }
                     .padding(.top, 56)
 
                     Text("Connect Apple Health")
-                        .font(.system(size: 24, weight: .black))
+                        .font(.lato(24, .black))
                         .kerning(-0.4)
                         .foregroundStyle(LiviqaTheme.ink)
                         .padding(.top, 4)
 
                     Text("Liviqa reads only what it needs.\nNothing leaves your device without your consent.")
-                        .font(.system(size: 13.5))
+                        .font(.lato(13.5))
                         .foregroundStyle(LiviqaTheme.ink3)
                         .multilineTextAlignment(.center)
                         .lineSpacing(2.5)
@@ -78,10 +78,10 @@ struct HealthKitPrimerView: View {
                 // Privacy note
                 HStack(spacing: 8) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
+                        .font(.lato(11))
                         .foregroundStyle(LiviqaTheme.ink4)
                     Text("Apple Health access is read-only. Liviqa cannot write to or modify your health records.")
-                        .font(.system(size: 11.5))
+                        .font(.lato(11.5))
                         .foregroundStyle(LiviqaTheme.ink4)
                         .lineSpacing(1.5)
                         .fixedSize(horizontal: false, vertical: true)
@@ -96,9 +96,9 @@ struct HealthKitPrimerView: View {
                     Button(action: onConnect) {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.fill")
-                                .font(.system(size: 14))
+                                .font(.lato(14))
                             Text("Connect Apple Health")
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.lato(15, .bold))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
@@ -109,7 +109,7 @@ struct HealthKitPrimerView: View {
 
                     Button(action: onSkip) {
                         Text("Skip for now — connect later in Settings")
-                            .font(.system(size: 13))
+                            .font(.lato(13))
                             .foregroundStyle(LiviqaTheme.ink3)
                     }
                 }
@@ -122,17 +122,17 @@ struct HealthKitPrimerView: View {
     private func dataTypeRow(symbol: String, label: String, purpose: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 16))
+                .font(.lato(16))
                 .foregroundStyle(LiviqaTheme.moss)
                 .frame(width: 24)
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(label)
-                    .font(.system(size: 13.5, weight: .bold))
+                    .font(.lato(13.5, .bold))
                     .foregroundStyle(LiviqaTheme.ink)
                 Text(purpose)
-                    .font(.system(size: 12.5))
+                    .font(.lato(12.5))
                     .foregroundStyle(LiviqaTheme.ink3)
                     .lineSpacing(1.5)
                     .fixedSize(horizontal: false, vertical: true)

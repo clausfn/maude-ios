@@ -43,7 +43,7 @@ struct NotificationSettingsView: View {
                 // On-device note
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 13))
+                        .font(.lato(13))
                         .foregroundStyle(LiviqaTheme.moss)
                         .padding(.top, 1)
                     Text("All nudges are generated on this device. Your patterns never leave to produce them.")

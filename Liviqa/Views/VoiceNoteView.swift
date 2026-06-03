@@ -46,7 +46,7 @@ struct VoiceNoteView: View {
             // ── Header ──
             HStack {
                 Text("Voice note")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.lato(17, .bold))
                     .foregroundStyle(LiviqaTheme.ink)
                 Spacer()
                 Button {
@@ -54,7 +54,7 @@ struct VoiceNoteView: View {
                     onDismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.lato(14, .medium))
                         .foregroundStyle(LiviqaTheme.ink3)
                         .padding(8)
                         .background(LiviqaTheme.line2)
@@ -70,7 +70,7 @@ struct VoiceNoteView: View {
                 ForEach(contextItems, id: \.0) { item in
                     VStack(spacing: 3) {
                         Image(systemName: item.0)
-                            .font(.system(size: 11))
+                            .font(.lato(11))
                             .foregroundStyle(LiviqaTheme.ink4)
                         Text(item.2)
                             .font(.liviqaMono(13))
@@ -181,7 +181,7 @@ struct VoiceNoteView: View {
             } label: {
                 VStack(spacing: 4) {
                     Image(systemName: discardIcon)
-                        .font(.system(size: 20))
+                        .font(.lato(20))
                         .foregroundStyle(LiviqaTheme.ink3)
                         .frame(width: 48, height: 48)
                         .background(LiviqaTheme.line2)
@@ -204,7 +204,7 @@ struct VoiceNoteView: View {
                         .frame(width: 72, height: 72)
                         .shadow(color: mainButtonFill.opacity(0.3), radius: 12, y: 4)
                     Image(systemName: mainButtonIcon)
-                        .font(.system(size: 28, weight: .medium))
+                        .font(.lato(28, .medium))
                         .foregroundStyle(.white)
                 }
             }
@@ -216,7 +216,7 @@ struct VoiceNoteView: View {
             } label: {
                 VStack(spacing: 4) {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 20))
+                        .font(.lato(20))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
                         .background(LiviqaTheme.moss)
@@ -289,7 +289,7 @@ struct VoiceNoteView: View {
                     .clipShape(Capsule())
             }
             Text(transcription)
-                .font(.system(size: 13))
+                .font(.lato(13))
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
         }
@@ -303,10 +303,10 @@ struct VoiceNoteView: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(LiviqaTheme.moss)
-                .font(.system(size: 18))
+                .font(.lato(18))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Note saved")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.lato(13, .bold))
                     .foregroundStyle(LiviqaTheme.ink)
                 Text("Linked to today's metrics and stored on this device.")
                     .font(.caption)

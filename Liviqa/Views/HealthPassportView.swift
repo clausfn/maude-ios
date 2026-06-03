@@ -135,14 +135,14 @@ struct HealthPassportView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(alignment: .top, spacing: 10) {
                                 Image(systemName: "checkmark.shield.fill")
-                                    .font(.system(size: 16))
+                                    .font(.lato(16))
                                     .foregroundStyle(LiviqaTheme.moss)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("All data processing happens on this device.")
-                                        .font(.system(size: 13.5, weight: .bold))
+                                        .font(.lato(13.5, .bold))
                                         .foregroundStyle(LiviqaTheme.ink)
                                     Text("Your consent decisions are independently logged and cannot be edited by anyone — including Liviqa.")
-                                        .font(.system(size: 12.5))
+                                        .font(.lato(12.5))
                                         .lineSpacing(2)
                                         .foregroundStyle(LiviqaTheme.ink2)
                                 }
@@ -173,12 +173,12 @@ struct HealthPassportView: View {
 
                         HStack {
                             Text("\(appState.passportStats.sourcesConnected) active")
-                                .font(.system(size: 13.5, weight: .medium))
+                                .font(.lato(13.5, .medium))
                                 .foregroundStyle(LiviqaTheme.moss)
                             Spacer()
                             NavigationLink(destination: DataSourcesView()) {
                                 Text("Manage →")
-                                    .font(.system(size: 13.5, weight: .medium))
+                                    .font(.lato(13.5, .medium))
                                     .foregroundStyle(LiviqaTheme.moss)
                             }
                         }
@@ -294,7 +294,7 @@ struct HealthPassportView: View {
                         .clipShape(Capsule())
                 }
                 Text(week.patternNote)
-                    .font(.system(size: 13))
+                    .font(.lato(13))
                     .foregroundStyle(LiviqaTheme.ink2)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -393,28 +393,28 @@ struct HealthPassportView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 13))
+                    .font(.lato(13))
                     .foregroundStyle(value != nil ? LiviqaTheme.moss : LiviqaTheme.ink4)
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.lato(12, .semibold))
                         .foregroundStyle(LiviqaTheme.ink3)
                     if let v = value, !v.isEmpty {
                         Text(v)
-                            .font(.system(size: 13))
+                            .font(.lato(13))
                             .foregroundStyle(LiviqaTheme.ink)
                             .lineLimit(1)
                     } else {
                         Text(fallback)
-                            .font(.system(size: 13))
+                            .font(.lato(13))
                             .foregroundStyle(LiviqaTheme.ink4)
                             .italic()
                     }
                 }
                 Spacer()
                 Image(systemName: "pencil")
-                    .font(.system(size: 12))
+                    .font(.lato(12))
                     .foregroundStyle(LiviqaTheme.ink4)
             }
             .padding(.horizontal, 14)
@@ -429,15 +429,15 @@ struct HealthPassportView: View {
                             delta: String, deltaColor: Color) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.lato(14))
                 .foregroundStyle(LiviqaTheme.ink3)
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 12.5))
+                    .font(.lato(12.5))
                     .foregroundStyle(LiviqaTheme.ink3)
                 Text(delta)
-                    .font(.system(size: 11.5))
+                    .font(.lato(11.5))
                     .foregroundStyle(deltaColor)
             }
             Spacer()

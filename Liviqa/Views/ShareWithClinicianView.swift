@@ -180,7 +180,7 @@ struct ShareWithClinicianView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: binding.wrappedValue ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 18))
+                    .font(.lato(18))
                     .foregroundStyle(binding.wrappedValue ? LiviqaTheme.moss : LiviqaTheme.line)
                 Text(label)
                     .font(.footnote)
@@ -212,7 +212,7 @@ struct ShareWithClinicianView: View {
                                 .foregroundStyle(option == selectedRange ? LiviqaTheme.moss : LiviqaTheme.ink)
                             Spacer()
                             Image(systemName: option == selectedRange ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 18))
+                                .font(.lato(18))
                                 .foregroundStyle(option == selectedRange ? LiviqaTheme.moss : LiviqaTheme.ink4)
                         }
                         .padding(.horizontal, 14)
@@ -304,7 +304,7 @@ struct ShareWithClinicianView: View {
                             }
                             Spacer()
                             Image(systemName: selectedRecipient?.id == recipient.id ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 18))
+                                .font(.lato(18))
                                 .foregroundStyle(selectedRecipient?.id == recipient.id ? LiviqaTheme.moss : LiviqaTheme.ink4)
                         }
                         .padding(.horizontal, 14)
@@ -370,7 +370,7 @@ struct ShareWithClinicianView: View {
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.circle")
-                    .font(.system(size: 14))
+                    .font(.lato(14))
                     .foregroundStyle(LiviqaTheme.amber)
                     .padding(.top, 1)
                 Text("Derived summaries only — no raw samples leave your device. You can revoke access in your Wallet at any time.")
@@ -381,7 +381,7 @@ struct ShareWithClinicianView: View {
             if let sendError {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "xmark.octagon.fill")
-                        .font(.system(size: 14))
+                        .font(.lato(14))
                         .foregroundStyle(LiviqaTheme.rust)
                         .padding(.top, 1)
                     Text(sendError)
@@ -454,7 +454,7 @@ struct ShareWithClinicianView: View {
             Spacer(minLength: 32)
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 56))
+                .font(.lato(56))
                 .foregroundStyle(LiviqaTheme.moss)
 
             VStack(spacing: 8) {
