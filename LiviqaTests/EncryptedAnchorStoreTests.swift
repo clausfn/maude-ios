@@ -82,6 +82,39 @@ struct EncryptedAnchorStoreTests {
         #expect(try store.load(for: "sleep") == nil)
     }
 
+    @Test func anchorAdvancesOnEachSync() async throws {
+        // Fake "provider": each sync sees the prior anchor and returns an advanced
+        // one. Proves AnchorSync resumes from the persisted cursor and moves it
+        // forward (the FR-ING-03/04 incremental contract), with no HealthKit.
+        let store = makeStore(scope: "sync-user", dir: tempDir())
+        var seen: [Data?] = []
+        var counter = 0
+        func sync() async throws -> Int {
+            try await AnchorSync.advance(store: store, key: "steps") { current in
+                seen.append(current)                      // resumes from here
+                counter += 1
+                return (added: counter, anchor: Data([UInt8(counter)]))
+            }
+        }
+
+        let a1 = try await sync()
+        let a2 = try await sync()
+        let a3 = try await sync()
+
+        #expect(a1 == 1)
+        #expect(a2 == 2)
+        #expect(a3 == 3)
+        #expect(seen[0] == nil)                            // first sync: no prior anchor
+        #expect(seen[1] == Data([1]))                      // second resumes from anchor #1
+        #expect(seen[2] == Data([2]))                      // third resumes from anchor #2
+        #expect(try store.load(for: "steps") == Data([3])) // persisted cursor advanced
+
+        // A sync that returns no new anchor leaves the cursor where it was.
+        let a4 = try await AnchorSync.advance(store: store, key: "steps") { _ in (added: 0, anchor: nil) }
+        #expect(a4 == 0)
+        #expect(try store.load(for: "steps") == Data([3]))
+    }
+
     private func sha(_ s: String) -> String {
         SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined()
     }

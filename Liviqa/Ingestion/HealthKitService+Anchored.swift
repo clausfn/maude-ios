@@ -33,6 +33,25 @@ public protocol IncrementalHealthSource: Sendable {
     func stopBackgroundObservers()
 }
 
+/// Portable anchor-advance seam (no HealthKit). `advance` loads the current
+/// persisted (encrypted) anchor, hands it to `fetch` (the source — real HealthKit
+/// in prod, a fake in tests), persists the returned anchor, and reports how many
+/// new samples arrived. This is the unit that makes "the anchor advances on each
+/// sync" testable without a device.
+public enum AnchorSync {
+    @discardableResult
+    public static func advance(
+        store: EncryptedAnchorStore,
+        key: String,
+        fetch: (_ current: Data?) async throws -> (added: Int, anchor: Data?)
+    ) async throws -> Int {
+        let current = try store.load(for: key)
+        let (added, newAnchor) = try await fetch(current)
+        if let newAnchor { try store.save(newAnchor, for: key) }
+        return added
+    }
+}
+
 #if canImport(HealthKit)
 import HealthKit
 
@@ -51,11 +70,25 @@ enum AnchorCodec {
     }
 }
 
-/// Holds the live observer queries so they can be retained and stopped. Reference
-/// type (a struct provider can't own mutable query handles).
+/// Holds the live observer queries (so they can be retained + stopped) and a
+/// re-entrancy flag so an observer wake-up during an in-flight sync is coalesced
+/// rather than running a second overlapping pass. Reference type (a struct
+/// provider can't own mutable query handles).
 final class ObserverRegistry: @unchecked Sendable {
     private var queries: [HKObserverQuery] = []
+    private var syncing = false
     private let lock = NSLock()
+
+    /// Re-entrancy guard: returns false if a sync is already running.
+    func beginSync() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if syncing { return false }
+        syncing = true
+        return true
+    }
+    func endSync() {
+        lock.lock(); syncing = false; lock.unlock()
+    }
 
     func start(store: HKHealthStore,
                types: [(HKSampleType, HKUpdateFrequency)],
@@ -92,26 +125,41 @@ extension HealthKitService: IncrementalHealthSource {
         return t
     }
 
-    /// Per-type background-delivery cadence: glucose is time-critical (.immediate);
-    /// the rest batch hourly to spare the battery.
+    /// Per-type background-delivery cadence: step count batches `.hourly` (high
+    /// churn, low urgency); every other signal is `.immediate`.
     static var observedTypesWithFrequency: [(HKSampleType, HKUpdateFrequency)] {
-        observedTypes.map { type in
-            let isGlucose = (type as? HKQuantityType) == HKObjectType.quantityType(forIdentifier: .bloodGlucose)
-            return (type, isGlucose ? .immediate : .hourly)
+        let steps = HKObjectType.quantityType(forIdentifier: .stepCount)
+        return observedTypes.map { type in
+            (type, (type == steps) ? .hourly : .immediate)
         }
     }
 
     public func ingestDelta() async throws -> IngestDelta {
+        // Re-entrancy guard: an observer wake-up mid-sync is coalesced (no overlap).
+        guard registry.beginSync() else { return IngestDelta(changedTypes: [], newSampleCount: 0) }
+        defer { registry.endSync() }
+
         guard HKHealthStore.isHealthDataAvailable() else {
             throw HealthProviderError.unavailableOnPlatform
         }
+
         var changed: [String] = []
         var total = 0
         for type in Self.observedTypes {
             let key = type.identifier
-            let (added, newAnchor) = try await runAnchored(type, anchorKey: key)
+            let added: Int
+            if let anchors {
+                // Resume from the encrypted, persisted anchor and advance it.
+                added = try await AnchorSync.advance(store: anchors, key: key) { current in
+                    let from = current.flatMap { try? AnchorCodec.decode($0) }
+                    let (n, newAnchor) = try await self.queryAnchored(type, from: from)
+                    return (n, try newAnchor.map { try AnchorCodec.encode($0) })
+                }
+            } else {
+                // No encrypted store available → still fetch, just not persisted.
+                added = try await queryAnchored(type, from: nil).added
+            }
             if added > 0 { changed.append(key); total += added }
-            if let newAnchor { try? anchors?.save(try AnchorCodec.encode(newAnchor), for: key) }
         }
         return IngestDelta(changedTypes: changed, newSampleCount: total)
     }
@@ -127,14 +175,12 @@ extension HealthKitService: IncrementalHealthSource {
         registry.stop(store: store)
     }
 
-    /// Run one HKAnchoredObjectQuery from the persisted (decrypted) anchor;
-    /// returns the count of new samples + the advanced anchor.
-    private func runAnchored(_ type: HKSampleType, anchorKey: String) async throws -> (added: Int, anchor: HKQueryAnchor?) {
-        let storedData: Data? = (try? anchors?.load(for: anchorKey)) ?? nil
-        let stored = storedData.flatMap { try? AnchorCodec.decode($0) }
-        return try await withCheckedThrowingContinuation { cont in
+    /// One HKAnchoredObjectQuery from `anchor`; returns new-sample count + the
+    /// advanced anchor.
+    private func queryAnchored(_ type: HKSampleType, from anchor: HKQueryAnchor?) async throws -> (added: Int, anchor: HKQueryAnchor?) {
+        try await withCheckedThrowingContinuation { cont in
             let q = HKAnchoredObjectQuery(
-                type: type, predicate: nil, anchor: stored, limit: HKObjectQueryNoLimit
+                type: type, predicate: nil, anchor: anchor, limit: HKObjectQueryNoLimit
             ) { _, added, _, newAnchor, error in
                 if let error { cont.resume(throwing: error) }
                 else { cont.resume(returning: (added?.count ?? 0, newAnchor)) }
