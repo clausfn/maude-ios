@@ -136,6 +136,14 @@ final class AppState {
             if !engineNudges.isEmpty {
                 nudges = engineNudges.map { Nudge(engine: $0) }
             }
+            // FR-PAS-05 / DM-05: refresh the derived half of the Passport from
+            // the same on-device samples (the count half comes from app state).
+            passportStats = PassportStats.compose(
+                derived: PassportStatsDeriver.derive(from: samples),
+                nudgesGenerated: nudges.count,
+                sourcesConnected: connectedSources.filter(\.isConnected).count,
+                journalEntries: journalEntries.count,
+                consentDecisions: walletEvents.count)
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }

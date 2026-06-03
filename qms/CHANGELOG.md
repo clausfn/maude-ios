@@ -4,6 +4,21 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-16 — On-device Health Passport stats derivation (FR-PAS-05 / DM-05) (2026-06-03)
+- **feat(intelligence):** `PassportStatsDeriver` (pure Foundation) computes the
+  sensor half of the Passport from local `HealthSamples`: `totalReadings`,
+  `daysTracked` (distinct calendar days across all streams), `glucoseTimeInRange`
+  (% in the 3.9–10.0 mmol/L band by default, or the user's `ClinicalTargets`
+  band, FR-PAS-03), and `avgSleepHours` (asleep stages only — `awake`/`inBed`
+  excluded). New `DerivedPassportStats` value type (NFR-PORT-01).
+- **feat(models):** `PassportStats.compose(derived:…)` composes the sensor half
+  with the count half (nudges, connected sources, journal, consent decisions).
+- **feat(state):** `AppState.refreshFromHealth` now refreshes `passportStats`
+  from the same arbitrated on-device samples, so the Passport reflects live data
+  instead of the static `MockData` seed.
+- **test:** `PassportStatsDeriverTests` (T-PAS-01) + swiftc driver — TIR 70%,
+  avg-sleep excludes awake, daysTracked, totalReadings, empty-safe, custom band.
+
 ### PR-15 — Nudge engine: workout↔glucose coupling rule (§6.2 lead example) (2026-06-03)
 - **feat(intelligence):** `NudgeEngine.workoutGlucoseNudge` — the prototype's
   lead example ("glucose dropped X% more than usual after yesterday's ride").
