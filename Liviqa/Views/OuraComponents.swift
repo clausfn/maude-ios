@@ -193,6 +193,90 @@ struct GlucoseCurveView: View {
     }
 }
 
+// MARK: - Area trend chart (generic gradient area + line + draw-in)
+
+struct AreaTrendChart: View {
+    var values: [Double]
+    var tint: Color = LiviqaTheme.moss
+    var height: CGFloat = 120
+    var xTicks: [String] = []
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @State private var shown = false
+
+    private var t: Double { LiviqaMotion.reduced(systemReduceMotion) ? 1 : (shown ? 1 : 0) }
+    private var lo: Double { values.min() ?? 0 }
+    private var hi: Double { values.max() ?? 1 }
+
+    private func y(_ v: Double, _ h: CGFloat) -> CGFloat {
+        let span = max(0.0001, hi - lo)
+        let norm = (v - lo) / span
+        return h - CGFloat(norm) * (h * 0.82) - h * 0.09     // 9% padding top/bottom
+    }
+    private func x(_ i: Int, _ w: CGFloat) -> CGFloat {
+        values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            ZStack(alignment: .bottomLeading) {
+                if values.count > 1 {
+                    area(w, h).fill(LinearGradient(
+                        colors: [tint.opacity(0.30), tint.opacity(0.0)],
+                        startPoint: .top, endPoint: .bottom))
+                    line(w, h).trimmedStroke(t: t, color: tint)
+                    Circle().fill(tint).frame(width: 7, height: 7)
+                        .overlay(Circle().stroke(LiviqaTheme.paper2, lineWidth: 2))
+                        .position(x: x(values.count - 1, w), y: y(values.last!, h))
+                        .opacity(t)
+                }
+            }
+        }
+        .frame(height: height)
+        .overlay(alignment: .bottom) {
+            if !xTicks.isEmpty {
+                HStack {
+                    ForEach(Array(xTicks.enumerated()), id: \.offset) { idx, tck in
+                        Text(tck).font(.liviqaKicker(9)).foregroundStyle(LiviqaTheme.ink4)
+                        if idx != xTicks.count - 1 { Spacer() }
+                    }
+                }
+                .offset(y: 16)
+            }
+        }
+        .padding(.bottom, xTicks.isEmpty ? 0 : 18)
+        .onAppear { shown = true }
+        .accessibilityElement()
+        .accessibilityLabel("Trend chart")
+    }
+
+    private func line(_ w: CGFloat, _ h: CGFloat) -> Path {
+        var p = Path()
+        for (i, v) in values.enumerated() {
+            let pt = CGPoint(x: x(i, w), y: y(v, h))
+            i == 0 ? p.move(to: pt) : p.addLine(to: pt)
+        }
+        return p
+    }
+    private func area(_ w: CGFloat, _ h: CGFloat) -> Path {
+        var p = line(w, h)
+        p.addLine(to: CGPoint(x: x(values.count - 1, w), y: h))
+        p.addLine(to: CGPoint(x: 0, y: h))
+        p.closeSubpath()
+        return p
+    }
+}
+
+private extension Path {
+    /// Animated draw-in stroke (gated by caller's reduce-motion `t`).
+    func trimmedStroke(t: Double, color: Color) -> some View {
+        self.trim(from: 0, to: max(0.0001, t))
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .animation(.easeOut(duration: 1.0), value: t)
+    }
+}
+
 // MARK: - Toast (CE-ledger confirmation pattern)
 
 struct LiviqaToastData: Equatable {

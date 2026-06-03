@@ -41,7 +41,13 @@ enum LiviqaTab: String, CaseIterable {
 
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
-    @State private var tab: LiviqaTab = .today
+    @State private var tab: LiviqaTab = {
+        #if DEBUG
+        if let raw = ProcessInfo.processInfo.environment["LIVIQA_TAB"],
+           let t = LiviqaTab(rawValue: raw) { return t }
+        #endif
+        return .today
+    }()
     @State private var selectedNudge: Nudge?
     @State private var showProfile  = false   // ProfileSheet — universal avatar target
     @State private var nudgeProfileAnchor: ProfileSheet.Section? = nil
@@ -112,11 +118,11 @@ struct MainTabView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(LiviqaTheme.ink)
+                    .fill(LiviqaTheme.invertBG)
                     .frame(width: 32, height: 32)
                 Text(profileInitials)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LiviqaTheme.invertFG)
             }
         }
         .buttonStyle(.plain)
