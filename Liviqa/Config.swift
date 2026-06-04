@@ -92,9 +92,9 @@ enum Config {
     /// Sovereign backend with real Supabase Auth (GoTrue) login. Point `baseURL` at
     /// the staging/prod API; auth runs against the self-hosted `supabaseAuthURL`.
     static let sovereignStaging: Backend = .sovereign(
-        baseURL: URL(string: "https://api.liviqa.app")!,
+        baseURL: URL(string: "https://sandbox.liviqa.app")!,   // staging API (NOT prod)
         devToken: nil,
-        authURL: supabaseAuthURL
+        authURL: supabaseAuthURL                                // single shared GoTrue for now
     )
 
     /// Production sovereign backend (TestFlight/App Store default). Canonical hosts
