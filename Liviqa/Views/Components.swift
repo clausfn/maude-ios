@@ -201,7 +201,9 @@ struct NudgeCard: View {
 // MARK: - Button styles
 
 struct NudgePrimaryButtonStyle: ButtonStyle {
-    var color: Color = LiviqaTheme.ink
+    /// Invert surface so the primary CTA contrasts the page on BOTH themes
+    /// (was `ink` + white → cream-on-cream, invisible on Midnight).
+    var color: Color = LiviqaTheme.invertBG
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -209,7 +211,7 @@ struct NudgePrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(color)
-            .foregroundStyle(.white)
+            .foregroundStyle(LiviqaTheme.invertFG)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .opacity(configuration.isPressed ? 0.85 : 1)
     }

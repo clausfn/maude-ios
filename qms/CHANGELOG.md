@@ -4,6 +4,26 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-44 — TestFlight feedback fixes: secondary-screen Midnight contrast (2026-06-04)
+- Source: 3 TestFlight beta-feedback items on build 1.0(10.2) (iPhone 16, iOS 26.6).
+- **fix(ui) [fb3 "Check Color on buttons"]:** `NudgePrimaryButtonStyle` used
+  `LiviqaTheme.ink` as a surface + white text → cream-on-cream (invisible) on
+  Midnight. Now invert tokens. Affected "Open"/"Show pattern" nudge CTAs.
+- **fix(ui) [fb2 "Same"]:** `NudgeDetailView` had a hardcoded `Color.white` card
+  (pale text unreadable on Midnight) + a dark-green RGB body/stroke on the share
+  card. Now `paper2`/`ink2`/`moss3` tokens; flat `ChartPlaceholder` replaced with
+  the gradient `AreaTrendChart`.
+- **fix(ui) [fb1 "Graphic for Time in range does not work"]:** `AreaTrendChart`
+  fill was nearly invisible on Midnight (moss .30 over dark). Strengthened
+  gradient (.45→.06) + added baseline gridlines so it reads as a chart.
+- **fix(ui) sweep (same root cause, reachable secondary screens):**
+  PrivacyDeclaration "Understood" + DfGOnboarding "Got it" buttons, ProfileSheet
+  count badge, and the TokenWallet balance card — all `ink`-as-surface+white →
+  invert tokens. TokenWallet's code-drawn `apertureMini` (brand-rule violation)
+  replaced with the locked `LiviqaApertureMark` asset (theme-aware variant).
+- ConsultView shell left as-is (behind disabled `videoConsultEnabled` flag, v1).
+- Verified: builds (iOS Sim); Trends TIR chart screenshot shows visible fill+grid.
+
 ### PR-43 — TestFlight build 1.0(10.2) + ASC attach helper (2026-06-04)
 - **build(release):** `CURRENT_PROJECT_VERSION` 2 → **10.2** (MARKETING_VERSION
   unchanged at 1.0) — updates the existing **1.0 internal test train**

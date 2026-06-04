@@ -234,7 +234,7 @@ struct ProfileSheet: View {
                 .font(.lato(11, .bold))
                 .foregroundStyle(.white)
                 .frame(width: 20, height: 20)
-                .background(LiviqaTheme.ink)
+                .background(LiviqaTheme.moss)
                 .clipShape(Circle())
         }
     }

@@ -496,8 +496,8 @@ private struct LearnMoreSheet: View {
                         .font(.lato(15, .bold))
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(LiviqaTheme.ink)
-                        .foregroundStyle(.white)
+                        .background(LiviqaTheme.invertBG)
+                        .foregroundStyle(LiviqaTheme.invertFG)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .padding(.bottom, 36)

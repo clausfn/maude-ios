@@ -48,6 +48,7 @@ private let demoSpendOptions: [TokenSpendOption] = [
 // MARK: - Main View
 
 struct TokenWalletView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var balance: Int = 12
     @State private var selectedTab: SpendTab = .inApp
     @State private var redeemingId: UUID? = nil
@@ -86,42 +87,45 @@ struct TokenWalletView: View {
     private var balanceCard: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14)
-                .fill(LiviqaTheme.ink)
+                .fill(LiviqaTheme.invertBG)
 
             VStack(spacing: 4) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("TOKEN BALANCE")
                             .font(.liviqaKicker(10))
-                            .foregroundStyle(LiviqaTheme.ink4)
+                            .foregroundStyle(LiviqaTheme.invertSub)
                             .kerning(1)
 
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text("\(balance)")
                                 .font(.system(size: 48, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(LiviqaTheme.invertFG)
                             Text("DfG")
                                 .font(.liviqaKicker(13))
-                                .foregroundStyle(LiviqaTheme.mossRev)
+                                .foregroundStyle(LiviqaTheme.moss)
                                 .padding(.bottom, 8)
                         }
                     }
                     Spacer()
-                    apertureMini
+                    // Real locked mark; primary on a light invert surface (Midnight),
+                    // reversed on a dark invert surface (Paper).
+                    LiviqaApertureMark(size: 34, reversed: colorScheme == .light)
+                        .opacity(0.9)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
                 Divider()
-                    .background(Color.white.opacity(0.1))
+                    .overlay(LiviqaTheme.invertLine)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
 
                 HStack(spacing: 0) {
                     statCell(label: "EARNED", value: "14", sublabel: "last 30 days")
-                    Divider().frame(width: 1, height: 36).background(Color.white.opacity(0.1))
+                    Divider().frame(width: 1, height: 36).overlay(LiviqaTheme.invertLine)
                     statCell(label: "DONATED", value: "2", sublabel: "all time")
-                    Divider().frame(width: 1, height: 36).background(Color.white.opacity(0.1))
+                    Divider().frame(width: 1, height: 36).overlay(LiviqaTheme.invertLine)
                     statCell(label: "REDEEMED", value: "0", sublabel: "in-app")
                 }
                 .padding(.bottom, 16)
@@ -133,36 +137,16 @@ struct TokenWalletView: View {
         VStack(spacing: 2) {
             Text(label)
                 .font(.liviqaKicker(9))
-                .foregroundStyle(LiviqaTheme.ink4)
+                .foregroundStyle(LiviqaTheme.invertSub)
                 .kerning(1)
             Text(value)
                 .font(.liviqaMono(20))
-                .foregroundStyle(.white)
+                .foregroundStyle(LiviqaTheme.invertFG)
             Text(sublabel)
                 .font(.liviqaKicker(9))
-                .foregroundStyle(LiviqaTheme.ink3)
+                .foregroundStyle(LiviqaTheme.invertSub)
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private var apertureMini: some View {
-        Canvas { ctx, size in
-            let cx = size.width / 2, cy = size.height / 2, r: CGFloat = size.width * 0.38
-            // Ink arc (275°)
-            var ink = Path(); ink.addArc(center: .init(x: cx, y: cy), radius: r,
-                startAngle: .degrees(90), endAngle: .degrees(5), clockwise: false)
-            ctx.stroke(ink, with: .color(Color(hex: 0x0E1A2B).opacity(0.6)),
-                       style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-            // Moss arc (85°)
-            var moss = Path(); moss.addArc(center: .init(x: cx, y: cy), radius: r,
-                startAngle: .degrees(5), endAngle: .degrees(90), clockwise: false)
-            ctx.stroke(moss, with: .color(LiviqaTheme.mossRev),
-                       style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-            // Dot
-            ctx.fill(Path(ellipseIn: .init(x: cx-2.2, y: cy-2.2, width: 4.4, height: 4.4)),
-                     with: .color(.white.opacity(0.7)))
-        }
-        .frame(width: 36, height: 36)
     }
 
     // MARK: Principle Note

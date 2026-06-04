@@ -63,11 +63,25 @@ struct NudgeDetailView: View {
                     }
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(LiviqaTheme.paper2)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line))
 
-                ChartPlaceholder(title: "CGM · last six rides", value: "−35%")
+                // CGM trend (gradient area chart)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("CGM · LAST SIX RIDES")
+                            .font(.liviqaKicker(10.5)).tracking(0.8)
+                            .foregroundStyle(LiviqaTheme.ink3)
+                        Spacer()
+                        Text("−35%").font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
+                    }
+                    AreaTrendChart(values: [9.1, 8.2, 7.6, 6.9, 6.4, 6.0], tint: LiviqaTheme.moss)
+                }
+                .padding(14)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 0.5))
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Share this pattern with your diabetes nurse?")
@@ -75,14 +89,14 @@ struct NudgeDetailView: View {
                         .foregroundStyle(LiviqaTheme.moss)
                     Text("Only this week's glucose and activity summary — no raw data. Your nurse sees the pattern, not your records. Reversible at any time.")
                         .font(.caption)
-                        .foregroundStyle(Color(red: 0.14, green: 0.29, blue: 0.24))
+                        .foregroundStyle(LiviqaTheme.ink2)
                     Button("Share via wallet · 7 days") {}
                         .buttonStyle(NudgePrimaryButtonStyle(color: LiviqaTheme.moss))
                 }
                 .padding(14)
                 .background(LiviqaTheme.moss2)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(red: 0.78, green: 0.86, blue: 0.80)))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3))
 
                 Text("Related, on your phone")
                     .font(.caption.weight(.semibold))

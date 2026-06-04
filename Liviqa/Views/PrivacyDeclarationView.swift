@@ -64,8 +64,8 @@ struct PrivacyDeclarationView: View {
                             .font(.lato(16, .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(LiviqaTheme.ink)
-                            .foregroundStyle(.white)
+                            .background(LiviqaTheme.invertBG)
+                            .foregroundStyle(LiviqaTheme.invertFG)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
 

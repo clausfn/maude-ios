@@ -221,12 +221,18 @@ struct AreaTrendChart: View {
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
             ZStack(alignment: .bottomLeading) {
+                // baseline gridlines so it reads as a chart (not a floating line)
+                ForEach(0..<3, id: \.self) { i in
+                    let gy = h * (0.18 + 0.32 * CGFloat(i))
+                    Path { p in p.move(to: CGPoint(x: 0, y: gy)); p.addLine(to: CGPoint(x: w, y: gy)) }
+                        .stroke(LiviqaTheme.gridEmpty, lineWidth: 1)
+                }
                 if values.count > 1 {
                     area(w, h).fill(LinearGradient(
-                        colors: [tint.opacity(0.30), tint.opacity(0.0)],
+                        colors: [tint.opacity(0.45), tint.opacity(0.06)],
                         startPoint: .top, endPoint: .bottom))
                     line(w, h).trimmedStroke(t: t, color: tint)
-                    Circle().fill(tint).frame(width: 7, height: 7)
+                    Circle().fill(tint).frame(width: 8, height: 8)
                         .overlay(Circle().stroke(LiviqaTheme.paper2, lineWidth: 2))
                         .position(x: x(values.count - 1, w), y: y(values.last!, h))
                         .opacity(t)
