@@ -4,6 +4,33 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-43 — TestFlight build 1.0(10.2) + ASC attach helper (2026-06-04)
+- **build(release):** `CURRENT_PROJECT_VERSION` 2 → **10.2** (MARKETING_VERSION
+  unchanged at 1.0) — updates the existing **1.0 internal test train**
+  (TestFlight shows `1.0 (10.2)`). Archived → exported → uploaded (altool:
+  *UPLOAD SUCCEEDED*, Delivery UUID `f6667962-…`).
+- **chore(ci):** `scripts/asc_attach_build.py` — stdlib-only App Store Connect
+  client (ES256 JWT signed via openssl, DER→raw conversion) that polls a build's
+  `processingState` until VALID and reports group assignment.
+- **verified:** build reached **VALID**; export compliance pre-answered
+  (`ITSAppUsesNonExemptEncryption=false` → API `usesNonExemptEncryption:false`);
+  not expired. Internal **Internal DfG** group auto-distributes processed builds
+  (API confirms internal groups can't be manually assigned: 422
+  `ENTITY_UNPROCESSABLE`), so 1.0(10.2) is live for internal testers.
+- No requirement/risk-control change; release-engineering only.
+
+### PR-42 — Oura redesign #8: theme-aware aperture logo (white ring on Midnight) (2026-06-04)
+- **fix(brand):** `LiviqaApertureMark` now auto-selects the asset variant from
+  `colorScheme` — **reversed** (white `#F7F5F1` ring, the locked dark-bg brand
+  mark) on Midnight, **primary** (ink ring) on Paper. `reversed:` is now an
+  optional override, kept only for the Wallet watermark on an invert surface.
+- **fix(ui):** app bar / AuthView / PrivacyDeclaration / Care empty-state marks
+  switched from forced `reversed: false`/`true` to auto → the logo was invisible
+  (dark mark on dark) and read like a faint spinner on Midnight; now visible.
+- Locked aperture **asset unchanged** (no code redraw, brand cardinal rule); no
+  rotation on the mark (the only `rotationEffect`s are chart ring trims).
+- Verified: builds (iOS Sim); Today app-bar logo renders the white ring on Midnight.
+
 ### PR-41 — Oura redesign #7: runtime Display options + demo-chip default-off (2026-06-04)
 - **feat(ui):** SettingsView **DISPLAY** zone — Theme segmented (Midnight/Paper →
   `liviqaThemeMode`, drives root tokens), Reduce-motion toggle (`liviqaReduceMotion`,
