@@ -69,6 +69,13 @@ enum Config {
         }
     }
 
+    /// Gates the live sign-in options (Apple + email) on the auth screen. While
+    /// `false`, the auth screen shows ONLY "Continue without account" (demo) so
+    /// TestFlight UI testers never hit a broken sign-in. Flip to `true` once the
+    /// GoTrue ↔ backend secret is verified (and Apple provider enabled).
+    /// See docs/Auth_Deploy_Handoff_v01.md.
+    static let authEnabled = false
+
     /// v1 TestFlight ships WITHOUT the live video consult — no EU-sovereign Jitsi
     /// yet (NFR-SEC-07; `meet.jit.si` is demo-only) and no camera/mic entitlements.
     /// Secure messaging stays available. Flip on once a sovereign Jitsi is wired.

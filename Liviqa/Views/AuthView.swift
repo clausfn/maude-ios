@@ -34,62 +34,67 @@ struct AuthView: View {
                 // ── Sign in card ──
                 VStack(spacing: 12) {
 
-                    // Apple Sign In (currently falls back to demo on error)
-                    Button {
-                        Task { await appleSignIn() }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "apple.logo")
-                                .font(.lato(15, .medium))
-                            Text("Continue with Apple")
-                                .font(.lato(15, .medium))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(LiviqaTheme.invertBG)
-                        .foregroundStyle(LiviqaTheme.invertFG)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-
-                    // Email/password toggle
-                    if showEmailForm {
-                        emailForm
-                    } else {
-                        Button("Sign in with email") {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showEmailForm = true
+                    // Live sign-in (Apple + email) — gated until auth is verified
+                    // end-to-end (Config.authEnabled). Hidden in the current
+                    // TestFlight build so UI testers never hit a broken flow.
+                    if Config.authEnabled {
+                        // Apple Sign In
+                        Button {
+                            Task { await appleSignIn() }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "apple.logo")
+                                    .font(.lato(15, .medium))
+                                Text("Continue with Apple")
+                                    .font(.lato(15, .medium))
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(LiviqaTheme.invertBG)
+                            .foregroundStyle(LiviqaTheme.invertFG)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
-                        .font(.lato(14, .medium))
-                        .foregroundStyle(LiviqaTheme.ink2)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(LiviqaTheme.paper2)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line))
+
+                        // Email/password toggle
+                        if showEmailForm {
+                            emailForm
+                        } else {
+                            Button("Sign in with email") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showEmailForm = true
+                                }
+                            }
+                            .font(.lato(14, .medium))
+                            .foregroundStyle(LiviqaTheme.ink2)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(LiviqaTheme.paper2)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line))
+                        }
+
+                        // Error
+                        if let error = appState.lastError {
+                            Text(error)
+                                .font(.lato(12))
+                                .foregroundStyle(LiviqaTheme.rust)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 4)
+                        }
+
+                        Divider()
+                            .background(LiviqaTheme.line2)
+                            .padding(.vertical, 4)
                     }
 
-                    // Error
-                    if let error = appState.lastError {
-                        Text(error)
-                            .font(.lato(12))
-                            .foregroundStyle(LiviqaTheme.rust)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 4)
-                    }
-
-                    // Demo mode — primary path for pitch and preview
-                    Divider()
-                        .background(LiviqaTheme.line2)
-                        .padding(.vertical, 4)
-
+                    // Demo mode — primary path for pitch, preview, and UI testing
                     Button {
                         appState.signInDemo()
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.right.circle")
                                 .font(.lato(14))
-                            Text("Continue without account")
+                            Text(Config.authEnabled ? "Continue without account" : "Enter Liviqa")
                                 .font(.lato(14, .bold))
                         }
                         .foregroundStyle(LiviqaTheme.moss)

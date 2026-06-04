@@ -4,6 +4,19 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-45 — Demo-first TestFlight build for UI testing (auth gated) + 1.0(10.4) (2026-06-04)
+- **feat(config):** `Config.authEnabled` (default **false**). While false the auth
+  screen hides the live Apple + email sign-in and shows a single **"Enter Liviqa"**
+  (demo) entry — TestFlight UI testers never hit a broken sign-in (GoTrue secret
+  not yet verified end-to-end; Apple provider disabled; GoTrue signup disabled).
+- Rationale: UI testing must not depend on the backend/auth layer. Demo mode
+  renders all 5 screens with deterministic synthetic data. Flip `authEnabled` true
+  once `SUPABASE_JWT_SECRET == GOTRUE_JWT_SECRET` is confirmed + Apple enabled
+  (see docs/Auth_Deploy_Handoff_v01.md).
+- **build(release):** `CURRENT_PROJECT_VERSION` 10.3 → **10.4**.
+- Verified: builds (iOS Sim); auth screen shows white aperture logo + lone
+  "Enter Liviqa" on Midnight.
+
 ### PR-44 — TestFlight feedback fixes: secondary-screen Midnight contrast (2026-06-04)
 - Source: 3 TestFlight beta-feedback items on build 1.0(10.2) (iPhone 16, iOS 26.6).
 - **fix(ui) [fb3 "Check Color on buttons"]:** `NudgePrimaryButtonStyle` used
