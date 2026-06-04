@@ -3,6 +3,42 @@
 _Handoff to the B2B/console backend chat. Created 2026-06-04. Status verified same day._
 _Companion to `docs/Deploy_Prod_Hosts_Prompt_v01.md`._
 
+---
+
+## Round 2 — GoTrue is LIVE, 2 items left (2026-06-04, later same day)
+
+**Status flipped: `auth.liviqa.app` is UP.** Verified:
+
+| Check | Result |
+|---|---|
+| `auth.liviqa.app` DNS (public) | ✅ resolves → `163.172.143.5` (sslip.io) |
+| `auth.liviqa.app/health` + `/auth/v1/health` | ✅ 200, valid TLS, **GoTrue v2.189.0** |
+| `/settings` | ✅ `email: true`, `disable_signup: false`, `mailer_autoconfirm: true` |
+| `/.well-known/jwks.json` | `{"keys":[]}` → **HS256 (symmetric secret)** mode |
+| `api.liviqa.app/health` / `/me` (no token) | ✅ 200 / ✅ 401 (guard live) |
+
+**Two items remain before TestFlight sign-in is fully unblocked:**
+
+1. **Confirm the backend ↔ GoTrue secret match.** Empty JWKS ⇒ HS256, so
+   `api.liviqa.app` must have **`SUPABASE_JWT_SECRET` == GoTrue's `GOTRUE_JWT_SECRET`**
+   (not the JWKS URL) and **`DEV_AUTH=false`**. Can't be verified from outside —
+   the guard maps tokens to seeded accounts by email, so an unknown signup returns
+   401 regardless of whether the secret matches. **To prove the chain end-to-end,
+   provide one seeded credential** (e.g. LV001 citizen email + password): then
+   GoTrue password-grant → `access_token` → `api.liviqa.app/me` returning **200**
+   confirms it.
+
+2. **Enable the Apple provider.** `/settings` shows `apple: false`, so
+   "Continue with Apple" still fails (email/password works). Set
+   `GOTRUE_EXTERNAL_APPLE_ENABLED=true` + Apple client id/secret for bundle
+   `dev.liviqa.app`, or defer Apple (testers use email + demo).
+
+Already good: email provider on, signups allowed, autoconfirm on (no email step).
+Once #1 is confirmed (ideally with a seeded login to test), the app gets verified
+end-to-end and a new TestFlight build cut only if client config must change.
+
+---
+
 ## TL;DR
 
 TestFlight sign-in is blocked because `auth.liviqa.app` does not exist yet. Deploy
