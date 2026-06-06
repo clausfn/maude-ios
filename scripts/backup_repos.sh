@@ -17,7 +17,15 @@ mkdir -p "$DEST"
 # Extra repos/folders that live OUTSIDE ~/Documents/Claude/Projects:
 EXTERNAL=(
   "$HOME/Developer/DataForGood/liviqa-ios"
+  "$HOME/Documents/Claude/Artifacts"     # Cowork deliverables (dashboards/trackers)
+  "$HOME/Documents/Claude/Scheduled"     # scheduled-task definitions
 )
+
+# Cowork session store under Application Support — 23 GB of per-session scratch
+# (project copies + caches + per-session artifacts/backups). Mostly redundant with
+# the project folders above, so it's OPT-IN. Run with INCLUDE_SESSIONS=1 to add it
+# (heavily de-bulked: caches, node_modules, nested .git and build dirs excluded).
+SESSION_STORE="$HOME/Library/Application Support/Claude/local-agent-mode-sessions"
 
 EXCLUDES=(
   --exclude='*/node_modules' --exclude='*/build' --exclude='*/.build'
@@ -55,11 +63,23 @@ for entry in "$PROJECTS"/*; do
 done
 shopt -u nullglob dotglob
 
-# 2) External repos
+# 2) External repos / output folders
 for src in "${EXTERNAL[@]}"; do
   [ -d "$src" ] || { echo "SKIP (missing): $src"; continue; }
   archive "$(dirname "$src")" "$(basename "$src")"
 done
+
+# 3) Opt-in: Cowork session store (Application Support) — de-bulked
+if [ "${INCLUDE_SESSIONS:-0}" = "1" ] && [ -d "$SESSION_STORE" ]; then
+  echo "  … session store (this is large, please wait)"
+  tar "${EXCLUDES[@]}" \
+      --exclude='*/Cache' --exclude='*/GPUCache' --exclude='*/.git' \
+      --exclude='*/Code Cache' --exclude='*/*Cache*' \
+      -czf "$DEST/cowork-sessions.tar.gz" \
+      -C "$(dirname "$SESSION_STORE")" "$(basename "$SESSION_STORE")"
+  echo "  ✓ cowork-sessions  ($(du -h "$DEST/cowork-sessions.tar.gz" | cut -f1))"
+  echo "## cowork-sessions (Application Support session store)" >> "$DEST/MANIFEST.txt"
+fi
 
 echo
 echo "Done. Snapshot folder:"
