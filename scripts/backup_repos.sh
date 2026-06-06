@@ -13,13 +13,19 @@ STAMP="$(date +%Y-%m-%d_%H%M)"
 DEST="$ONEDRIVE/Backups/Liviqa_repos/$STAMP"
 mkdir -p "$DEST"
 
-# Repos to back up (ours + the local-only prototype). Third-party upstreams skipped.
+# Repos/folders to back up. Whole project folders are used where a repo is nested
+# among valuable docs, so the snapshot captures git history + working tree + docs.
+# Third-party upstreams (opentele-server) are intentionally skipped.
 REPOS=(
   "$HOME/Developer/DataForGood/liviqa-ios"
   "$HOME/Documents/Claude/Projects/Liviqa/20_Build/repos/liviqa-backend"
   "$HOME/Documents/Claude/Projects/Liviqa/20_Build/repos/liviqa-b2b-console"
   "$HOME/Documents/Claude/Projects/Liviqa/10_Website"
   "$HOME/Documents/Claude/Projects/Liviqa/09_Liviqa_iOS_Prototype"
+  # DfG — whole project folder (incl. dfg-professional-sandbox repo + Novo briefs/docs)
+  "$HOME/Documents/Claude/Projects/DfG Works"
+  # PPCN — whole project folder (incl. PPCN-xyz-website + ppcn-site repos + brand assets)
+  "$HOME/Documents/Claude/Projects/PPCN New website and brand"
 )
 
 EXCLUDES=(
