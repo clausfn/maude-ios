@@ -13,7 +13,10 @@ enum NudgeFixtures {
         var s = HealthSamples.empty
         for i in 0..<7 {
             let day = cal.date(byAdding: .day, value: i, to: start)!
-            s.hrv.append(.init(date: day, kind: .hrvSDNN, value: i == 6 ? 30 : 55, source: "Mock", tier: .good, provenance: .simulated))
+            // Baseline HRV must have natural variance: a zero-σ baseline is always
+            // in-band by design (see baselineBands), so a flat 55 would never let
+            // the low last day register as "below". Real HRV varies day to day.
+            s.hrv.append(.init(date: day, kind: .hrvSDNN, value: i == 6 ? 30 : 55 + Double(i), source: "Mock", tier: .good, provenance: .simulated))
             s.restingHR.append(.init(date: day, kind: .restingHR, value: 58, source: "Mock", tier: .good, provenance: .simulated))
             s.steps.append(.init(date: day, kind: .steps, value: i == 6 ? 2000 : 8000, source: "Mock", tier: .estimate, provenance: .simulated))
             s.sleep.append(.init(date: day, stage: .asleepUnspecified, hours: i == 6 ? 5 : 7.5, source: "Mock", tier: .estimate, provenance: .simulated))

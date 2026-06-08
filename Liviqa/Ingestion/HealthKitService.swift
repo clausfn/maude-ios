@@ -29,14 +29,27 @@ public struct HealthKitService: HealthDataProvider {
 
     // MARK: Authorization scopes
 
-    /// READ set — the MVP read set only. (FR-ING-01)
+    /// READ set — full HealthKit capture. Original MVP set (FR-ING-01) plus the
+    /// extended panel (insulin, BP, AFib, body-comp, heart/respiratory). Any
+    /// identifier the running OS doesn't know resolves to nil and is skipped, so
+    /// this stays compile- and runtime-safe across SDK versions. Read-only.
     static var readTypes: Set<HKObjectType> {
         var t: Set<HKObjectType> = [HKObjectType.workoutType()]
-        if let hrv = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) { t.insert(hrv) }
-        if let rhr = HKObjectType.quantityType(forIdentifier: .restingHeartRate) { t.insert(rhr) }
-        if let steps = HKObjectType.quantityType(forIdentifier: .stepCount) { t.insert(steps) }
-        if let energy = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) { t.insert(energy) }
-        if let glucose = HKObjectType.quantityType(forIdentifier: .bloodGlucose) { t.insert(glucose) }
+        let quantityIds: [HKQuantityTypeIdentifier] = [
+            // MVP set
+            .heartRateVariabilitySDNN, .restingHeartRate, .stepCount,
+            .activeEnergyBurned, .bloodGlucose,
+            // Heart / respiratory panel
+            .heartRate, .walkingHeartRateAverage, .heartRateRecoveryOneMinute,
+            .respiratoryRate, .oxygenSaturation, .vo2Max,
+            // Cardiometabolic + body
+            .insulinDelivery, .atrialFibrillationBurden,
+            .bloodPressureSystolic, .bloodPressureDiastolic,
+            .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex,
+        ]
+        for id in quantityIds {
+            if let type = HKObjectType.quantityType(forIdentifier: id) { t.insert(type) }
+        }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { t.insert(sleep) }
         return t
     }
@@ -57,17 +70,34 @@ public struct HealthKitService: HealthDataProvider {
         guard HKHealthStore.isHealthDataAvailable() else {
             throw HealthProviderError.unavailableOnPlatform
         }
+        let bpm = HKUnit.count().unitDivided(by: .minute())
         async let glucose = readGlucose(start, end)
         async let hrv = readDaily(.heartRateVariabilitySDNN, .hrvSDNN, unit: .secondUnit(with: .milli), start, end, tier: .good, cumulative: false)
-        async let rhr = readDaily(.restingHeartRate, .restingHR, unit: HKUnit.count().unitDivided(by: .minute()), start, end, tier: .good, cumulative: false)
+        async let rhr = readDaily(.restingHeartRate, .restingHR, unit: bpm, start, end, tier: .good, cumulative: false)
         async let steps = readDaily(.stepCount, .steps, unit: .count(), start, end, tier: .estimate, cumulative: true)
         async let energy = readDaily(.activeEnergyBurned, .activeEnergy, unit: .kilocalorie(), start, end, tier: .estimate, cumulative: true)
         async let sleep = readSleep(start, end)
         async let workouts = readWorkouts(start, end)
 
+        // Full-HealthKit capture — extended heart/respiratory panel + cardiometabolic.
+        async let heartRate  = readDaily(.heartRate, .heartRate, unit: bpm, start, end, tier: .good, cumulative: false)
+        async let walkingHR  = readDaily(.walkingHeartRateAverage, .walkingHR, unit: bpm, start, end, tier: .good, cumulative: false)
+        async let hrRecovery = readDaily(.heartRateRecoveryOneMinute, .hrRecovery, unit: bpm, start, end, tier: .good, cumulative: false)
+        async let respRate   = readDaily(.respiratoryRate, .respiratoryRate, unit: bpm, start, end, tier: .good, cumulative: false)
+        async let spo2       = readSpO2(start, end)
+        async let vo2        = readVO2Max(start, end)
+        async let insulin    = readInsulin(start, end)
+        async let bp         = readBloodPressure(start, end)
+        async let afib       = readAFib(start, end)
+        async let body       = readBodyComposition(start, end)
+
+        let heartExtras = try await heartRate + walkingHR + hrRecovery + respRate + spo2 + vo2
+
         return try await HealthSamples(
             glucose: glucose, hrv: hrv, restingHR: rhr, steps: steps,
-            activeEnergy: energy, sleep: sleep, workouts: workouts)
+            activeEnergy: energy, sleep: sleep, workouts: workouts,
+            heartExtras: heartExtras, insulin: insulin, bloodPressure: bp,
+            afib: afib, bodyComposition: body)
     }
 
     // MARK: Readers
@@ -138,6 +168,108 @@ public struct HealthKitService: HealthDataProvider {
                 source: w.sourceRevision.source.name,
                 tier: .estimate, provenance: .real)
         }
+    }
+
+    // MARK: Extended readers (full HealthKit capture)
+
+    /// SpO₂ daily mean. HealthKit stores oxygen saturation as a fraction; ×100 → %.
+    private func readSpO2(_ start: Date, _ end: Date) async throws -> [DailyMetric] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) else { return [] }
+        return dailyMean(try await quantitySamples(type, start, end), kind: .spo2,
+                         unit: .percent(), scale: 100)
+    }
+
+    /// VO₂max daily mean. Unit string "ml/kg*min" — verify against the SDK.
+    private func readVO2Max(_ start: Date, _ end: Date) async throws -> [DailyMetric] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .vo2Max) else { return [] }
+        return dailyMean(try await quantitySamples(type, start, end), kind: .vo2max,
+                         unit: HKUnit(from: "ml/kg*min"), scale: 1)
+    }
+
+    /// Insulin delivery events. FR-REG-04: data-layer only (never a dose surface).
+    /// Metadata reason: 1 = basal, 2 = bolus (HKInsulinDeliveryReason).
+    private func readInsulin(_ start: Date, _ end: Date) async throws -> [InsulinReading] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .insulinDelivery) else { return [] }
+        let samples = try await quantitySamples(type, start, end)
+        return samples.map { s in
+            let reason = (s.metadata?[HKMetadataKeyInsulinDeliveryReason] as? NSNumber)?.intValue
+            let kind: InsulinKind = (reason == 1) ? .basal : .bolus
+            return InsulinReading(ts: s.startDate, kind: kind,
+                                  units: s.quantity.doubleValue(for: .internationalUnit()),
+                                  source: s.sourceRevision.source.name,
+                                  tier: .good, provenance: .real)
+        }
+    }
+
+    /// Blood pressure via the systolic+diastolic correlation (paired reliably).
+    private func readBloodPressure(_ start: Date, _ end: Date) async throws -> [BloodPressureReading] {
+        guard let bpType = HKObjectType.correlationType(forIdentifier: .bloodPressure),
+              let sysType = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic),
+              let diaType = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic) else { return [] }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [.strictStartDate])
+        let raw = try await sampleQuery(bpType, predicate)
+        let mmHg = HKUnit.millimeterOfMercury()
+        return raw.compactMap { $0 as? HKCorrelation }.compactMap { corr -> BloodPressureReading? in
+            guard let sys = corr.objects(for: sysType).first as? HKQuantitySample,
+                  let dia = corr.objects(for: diaType).first as? HKQuantitySample else { return nil }
+            return BloodPressureReading(
+                ts: corr.startDate,
+                sys: Int(sys.quantity.doubleValue(for: mmHg).rounded()),
+                dia: Int(dia.quantity.doubleValue(for: mmHg).rounded()),
+                source: corr.sourceRevision.source.name, tier: .good, provenance: .real)
+        }
+    }
+
+    /// AFib burden %. OD-11: display-only — captured as the watch's own number.
+    private func readAFib(_ start: Date, _ end: Date) async throws -> [AFibReading] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .atrialFibrillationBurden) else { return [] }
+        let samples = try await quantitySamples(type, start, end)
+        return samples.map { s in
+            AFibReading(ts: s.startDate,
+                        pct: s.quantity.doubleValue(for: .percent()) * 100,   // fraction → %
+                        source: s.sourceRevision.source.name, tier: .good, provenance: .real)
+        }
+    }
+
+    /// Body composition: weight / fat% / lean / BMI merged into one row per day.
+    private func readBodyComposition(_ start: Date, _ end: Date) async throws -> [BodyCompositionReading] {
+        let cal = Calendar(identifier: .gregorian)
+        func perDay(_ id: HKQuantityTypeIdentifier, _ unit: HKUnit) async throws -> [(Date, Double, String)] {
+            guard let type = HKObjectType.quantityType(forIdentifier: id) else { return [] }
+            return try await quantitySamples(type, start, end).map {
+                (cal.startOfDay(for: $0.startDate), $0.quantity.doubleValue(for: unit), $0.sourceRevision.source.name)
+            }
+        }
+        var weight: [Date: (Double, String)] = [:], fat: [Date: Double] = [:]
+        var lean: [Date: Double] = [:], bmi: [Date: Double] = [:]
+        for (d, v, s) in try await perDay(.bodyMass, .gramUnit(with: .kilo)) { weight[d] = (v, s) }
+        for (d, v, _) in try await perDay(.bodyFatPercentage, .percent()) { fat[d] = v * 100 }   // fraction → %
+        for (d, v, _) in try await perDay(.leanBodyMass, .gramUnit(with: .kilo)) { lean[d] = v }
+        for (d, v, _) in try await perDay(.bodyMassIndex, .count()) { bmi[d] = v }
+        let days = Set(weight.keys).union(fat.keys).union(lean.keys).union(bmi.keys)
+        return days.map { d in
+            BodyCompositionReading(ts: d, weightKg: weight[d]?.0, fatPct: fat[d],
+                                   leanKg: lean[d], bmi: bmi[d],
+                                   source: weight[d]?.1 ?? "HealthKit",
+                                   tier: .good, provenance: .real)
+        }.sorted { $0.ts < $1.ts }
+    }
+
+    /// Daily mean of quantity samples → DailyMetric (used by SpO₂ / VO₂max).
+    private func dailyMean(_ samples: [HKQuantitySample], kind: DailyMetricKind,
+                           unit: HKUnit, scale: Double) -> [DailyMetric] {
+        let cal = Calendar(identifier: .gregorian)
+        var byDay: [Date: (sum: Double, n: Int, src: String)] = [:]
+        for s in samples {
+            let day = cal.startOfDay(for: s.startDate)
+            let v = s.quantity.doubleValue(for: unit) * scale
+            let cur = byDay[day] ?? (0, 0, s.sourceRevision.source.name)
+            byDay[day] = (cur.sum + v, cur.n + 1, cur.src)
+        }
+        return byDay.map { day, a in
+            DailyMetric(date: day, kind: kind, value: a.n > 0 ? a.sum / Double(a.n) : 0,
+                        source: a.src, tier: .good, provenance: .real)
+        }.sorted { $0.date < $1.date }
     }
 
     // MARK: Query wrappers (async over HKSampleQuery)

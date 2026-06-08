@@ -30,9 +30,15 @@ struct LiviqaApp: App {
                 } else if !hasSeenHealthKitPrimer {
                     // Screen 3 — HealthKit primer (once, after first sign-in)
                     HealthKitPrimerView {
-                        // Connect → request HealthKit permissions (TODO: add HKHealthStore call)
+                        // Connect → switch to real on-device Health data and request read
+                        // authorization now (FR-ING-01/02). The system permission sheet
+                        // appears; ingestion + nudges then refresh against the user's
+                        // real HealthKit data. (Skip stays on demo data — never an error.)
+                        appState.dataProviderKind = .healthKit
+                        Task { await appState.refreshFromHealth() }
                         hasSeenHealthKitPrimer = true
                     } onSkip: {
+                        // FR-ING-02: skipped authorization routes to demo data, not an error.
                         hasSeenHealthKitPrimer = true
                     }
                 } else if !hasSeenDfGOnboarding {

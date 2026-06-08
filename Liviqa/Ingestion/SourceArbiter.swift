@@ -57,7 +57,13 @@ public extension HealthSamples {
             steps:        SourceArbiter.arbitrate(steps,        key: dailyKey),
             activeEnergy: SourceArbiter.arbitrate(activeEnergy, key: dailyKey),
             sleep:        SourceArbiter.arbitrate(sleep)        { "\($0.stage.rawValue)@\(day($0.date))" },
-            workouts:     SourceArbiter.arbitrate(workouts)     { $0.start.timeIntervalSince1970 }
+            workouts:     SourceArbiter.arbitrate(workouts)     { $0.start.timeIntervalSince1970 },
+            // Full-HealthKit streams: same §2.3 rule per logical slot.
+            heartExtras:     SourceArbiter.arbitrate(heartExtras, key: dailyKey),
+            insulin:         SourceArbiter.arbitrate(insulin)        { "\($0.kind.rawValue)@\($0.ts.timeIntervalSince1970)" },
+            bloodPressure:   SourceArbiter.arbitrate(bloodPressure)  { $0.ts.timeIntervalSince1970 },
+            afib:            SourceArbiter.arbitrate(afib)           { $0.ts.timeIntervalSince1970 },
+            bodyComposition: SourceArbiter.arbitrate(bodyComposition) { day($0.ts) }
         )
     }
 }
