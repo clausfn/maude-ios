@@ -98,7 +98,39 @@ struct TodayView: View {
         #endif
     }
 
-    // MARK: — The single insight hero ("we noticed something")
+    // MARK: — Calm affirming lead (the all-clear day must feel good, not empty)
+
+    private var calmHero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
+                Text("Today".uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            Text(affirmHeadline)
+                .font(.lato(20, .black)).kerning(-0.4).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 10)
+            Text(affirmSub)
+                .font(.lato(13)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .padding(.top, 7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+    }
+
+    private var affirmHeadline: String { "You're having a steady week." }
+    private var affirmSub: String {
+        "Sleep, glucose and recovery are all tracking close to your own normal."
+    }
+
+    // MARK: — Deviation insight (demoted under the calm state)
 
     private var insightHero: some View {
         Button {
@@ -107,7 +139,7 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     Circle().fill(LiviqaTheme.clay).frame(width: 7, height: 7)
-                    Text("We noticed something".uppercased())
+                    Text("In your data".uppercased())
                         .font(.liviqaKicker(10)).tracking(1.2)
                         .foregroundStyle(LiviqaTheme.clayText)
                 }
