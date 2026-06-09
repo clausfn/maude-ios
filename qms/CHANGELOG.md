@@ -4,6 +4,16 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-56 — Rich detail screens (Phase 5) — tap a Home pillar → descriptive detail (2026-06-10)
+- **feat(ui):** `MetricDetailView` (Sleep/Glucose/Recovery/Heart). Sleep shows a
+  **stages timeline** (Deep/Light/REM/Awake stacked bar + legend, mins + %, "time
+  asleep of in bed"); the others show a week `AreaTrendChart`. Each screen carries the
+  big value, a delta pill, a descriptive observation ("a pattern in your own data, not
+  a medical finding"), and a "Discuss in the assistant" hand-off.
+- **feat(ui):** Home signal chips are now tappable — `NavigationLink(WellnessPillar)` +
+  `navigationDestination`. Oura-depth presentation, **descriptive-only / non-MDSW** (no
+  scores, verdicts, prediction, or advice).
+
 ### PR-54/55 — Liviqa Watch app (watchOS) — descriptive wellness glance (2026-06-10)
 - **feat(watch):** `LiviqaWatch/` scaffold — `WatchHomeView` (calm affirming line +
   wellness pillars Glucose/Sleep/Recovery/Heart, two-state moss/clay), `WatchModels`
