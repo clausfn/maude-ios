@@ -5,6 +5,7 @@ import SwiftUI
 
 struct WeekInContextView: View {
 
+    @Environment(AppState.self) private var appState
     @State private var showShare = false
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil
@@ -148,6 +149,16 @@ struct WeekInContextView: View {
             Text("In your data, your HRV ran lower mid-week — the days with higher meeting load and later meals. A pattern in your own data, not a medical finding.")
                 .font(.lato(12.5)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
+            Button { appState.showAssistant = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles").font(.system(size: 11, weight: .bold))
+                    Text("Ask the assistant about this").font(.lato(12.5, .bold))
+                    Image(systemName: "arrow.right").font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(LiviqaTheme.moss)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
         }
         .padding(14)
         .background(LiviqaTheme.paper2)

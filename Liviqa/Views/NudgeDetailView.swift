@@ -10,6 +10,7 @@ import SwiftUI
 struct NudgeDetailView: View {
     let nudge: Nudge
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
     @State private var showDepth = false
 
     private var ev: NudgeEvidence? { nudge.evidence }
@@ -28,6 +29,8 @@ struct NudgeDetailView: View {
                 } else {
                     asserted
                 }
+
+                discussInAssistant
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 28)
@@ -36,6 +39,27 @@ struct NudgeDetailView: View {
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    // MARK: — Discuss in the assistant (Oura "Advisor" hand-off, descriptive-only)
+
+    private var discussInAssistant: some View {
+        Button {
+            appState.showAssistant = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles").font(.lato(13, .bold))
+                Text("Discuss in the assistant").font(.lato(14, .bold))
+            }
+            .foregroundStyle(LiviqaTheme.moss)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 2)
     }
 
     // MARK: — Asserted (gated / emerging)

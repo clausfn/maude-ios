@@ -4,6 +4,12 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-53 — Assistant hand-off (Phase 4) — "Discuss in the assistant"
+- NudgeDetailView gains a "Discuss in the assistant" secondary CTA; Insights recovery
+  card gains "Ask the assistant about this →". Opens the guarded chat (appState.showAssistant).
+  Liviqa's descriptive-only version of Oura's "Dive in with Advisor".
+
+
 ### PR-49 — Assistant: visible entry point + build 1.0(10.17) (2026-06-09)
 - **fix(ui):** added a visible ✨ "Ask" button in the app bar (next to the avatar) on
   every main screen → opens the assistant directly. Was previously only reachable via
