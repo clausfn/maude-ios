@@ -26,3 +26,4 @@ Config/Signing.xcconfig
 .DS_Store
 build/
 *.xcresult/
+Liviqa/Secrets.swift

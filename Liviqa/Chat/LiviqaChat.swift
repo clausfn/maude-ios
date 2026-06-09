@@ -133,6 +133,18 @@ struct ChatHealthSummary {
     static let demo = ChatHealthSummary(
         avgGlucoseMmol7d: 6.7, glucoseTIRpct7d: 68,
         sleepAvgHours7d: 7.03, restingHRavg7d: 58, stepsAvg7d: 5600)
+
+    /// The ONLY data handed to a cloud model: the user's own summarised numbers.
+    /// (Never raw samples; never anything that isn't the user's own metric.)
+    func promptContext() -> String {
+        var lines: [String] = []
+        if let g = avgGlucoseMmol7d { lines.append(String(format: "- 7-day average glucose: %.1f mmol/L", g)) }
+        if let t = glucoseTIRpct7d  { lines.append("- 7-day glucose time-in-range: \(t)%") }
+        if let s = sleepAvgHours7d  { lines.append(String(format: "- 7-day average sleep: %.2f hours", s)) }
+        if let r = restingHRavg7d   { lines.append("- 7-day average resting heart rate: \(r) bpm") }
+        if let st = stepsAvg7d      { lines.append("- 7-day average steps: \(st) per day") }
+        return lines.isEmpty ? "(no tracked data available)" : lines.joined(separator: "\n")
+    }
 }
 
 // MARK: - Descriptive responder
@@ -180,7 +192,7 @@ struct ChatEngine {
     var responder: ChatResponder = LocalDataResponder()
     var summary: ChatHealthSummary = .empty
 
-    /// The one entry point the UI calls. Guard-first, guard-last.
+    /// On-device deterministic path (default). Guard-first, guard-last.
     func respond(to prompt: String) -> String {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return LiviqaChatCopy.safetyLine }
@@ -189,6 +201,30 @@ struct ChatEngine {
         // 2. Generate a descriptive candidate, then 3. sanitise it.
         let candidate = responder.candidate(for: trimmed, summary: summary)
         return ChatGuard.sanitizeOutput(candidate)
+    }
+
+    /// Enhanced (cloud) path — only when the user opted into cloud consent. The guard
+    /// runs BEFORE (no out-of-scope request ever reaches Mistral) and AFTER (any drift
+    /// in the model's answer is blocked → safety line). Falls back to the on-device
+    /// deterministic answer if the network/model fails.
+    func respondCloud(to prompt: String) async -> String {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return LiviqaChatCopy.safetyLine }
+        if ChatGuard.inputIsOutOfScope(trimmed) { return LiviqaChatCopy.safetyLine }
+        guard MistralClient.hasKey else { return respond(to: trimmed) }
+        let userMessage = """
+        The user's own tracked data (the ONLY data you may describe):
+        \(summary.promptContext())
+
+        The user asks: \(trimmed)
+        """
+        do {
+            let candidate = try await MistralClient.complete(
+                system: LiviqaChatCopy.systemPrompt, user: userMessage)
+            return ChatGuard.sanitizeOutput(candidate)
+        } catch {
+            return ChatGuard.sanitizeOutput(responder.candidate(for: trimmed, summary: summary))
+        }
     }
 }
 

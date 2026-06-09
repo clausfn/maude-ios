@@ -14,6 +14,7 @@ struct ChatView: View {
     @State private var messages: [ChatMessage] = []
     @State private var draft = ""
     @State private var engine = ChatEngine(summary: .demo)
+    @State private var thinking = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +27,15 @@ struct ChatView: View {
             }
         }
         .background(LiviqaTheme.paper.ignoresSafeArea())
+        #if DEBUG
+        .task {
+            // Snapshot hook: auto-send one seed question (LIVIQA_CHAT_SEED).
+            if let seed = ProcessInfo.processInfo.environment["LIVIQA_CHAT_SEED"],
+               consentProcess, messages.isEmpty {
+                draft = seed; send()
+            }
+        }
+        #endif
     }
 
     // MARK: - Header (reuses brand, not the system nav bar)
@@ -78,8 +88,8 @@ struct ChatView: View {
 
                 consentToggle(
                     title: "Enhanced answers (cloud)",
-                    detail: "Send your data to Mistral's EU service for higher-quality answers. Not available yet — on-device only for now.",
-                    isOn: $consentCloud, enabled: false)
+                    detail: "Send your tracked-data summary to Mistral's EU service for higher-quality, natural-language answers. Off = answers are generated on this device. Mistral does not train on your data.",
+                    isOn: $consentCloud, enabled: MistralClient.hasKey)
 
                 consentToggle(
                     title: "Contribute anonymised data for research",
@@ -121,6 +131,12 @@ struct ChatView: View {
                     LazyVStack(alignment: .leading, spacing: 10) {
                         if messages.isEmpty { starter }
                         ForEach(messages) { m in bubble(m).id(m.id) }
+                        if thinking {
+                            Text("…").font(.lato(14)).foregroundStyle(LiviqaTheme.ink3)
+                                .padding(.horizontal, 12).padding(.vertical, 9)
+                                .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.paper2))
+                                .id("thinking")
+                        }
                     }
                     .padding(.horizontal, 16).padding(.vertical, 14)
                 }
@@ -154,7 +170,7 @@ struct ChatView: View {
     private func bubble(_ m: ChatMessage) -> some View {
         HStack {
             if m.role == .user { Spacer(minLength: 40) }
-            Text(m.text)
+            Text(m.text.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: ""))
                 .font(.lato(14)).foregroundStyle(m.role == .user ? LiviqaTheme.invertFG : LiviqaTheme.ink)
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(RoundedRectangle(cornerRadius: 14)
@@ -191,11 +207,21 @@ struct ChatView: View {
 
     private func send() {
         let q = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return }
+        guard !q.isEmpty, !thinking else { return }
         messages.append(ChatMessage(role: .user, text: q))
-        let reply = engine.respond(to: q)          // guard-first / guard-last
-        messages.append(ChatMessage(role: .assistant, text: reply))
         draft = ""
+        if consentCloud && MistralClient.hasKey {
+            // Enhanced (cloud) — Mistral, guard-first/last; async.
+            thinking = true
+            Task {
+                let reply = await engine.respondCloud(to: q)
+                thinking = false
+                messages.append(ChatMessage(role: .assistant, text: reply))
+            }
+        } else {
+            // On-device deterministic (default).
+            messages.append(ChatMessage(role: .assistant, text: engine.respond(to: q)))
+        }
     }
 
     /// One-tap withdrawal: stop processing, purge history (+ any embeddings — none

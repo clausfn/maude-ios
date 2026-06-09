@@ -4,6 +4,19 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-47 — Assistant: Mistral cloud "Enhanced" mode (opt-in) (2026-06-09)
+- **feat(chat):** `MistralClient.swift` — Mistral EU chat-completions (mistral-small-latest);
+  `ChatEngine.respondCloud` runs the deterministic guard BEFORE (no out-of-scope ask
+  reaches Mistral) and AFTER (drift → safety line), with on-device fallback on error.
+  Only the user's own summarised numbers (`promptContext`) are sent — never raw samples.
+- **feat(ui):** "Enhanced answers (cloud)" consent toggle is now live (enabled only when a
+  key is present); off = on-device deterministic answers (default). Async send + thinking
+  state; assistant markdown emphasis stripped for display.
+- **security:** API key in gitignored `Liviqa/Secrets.swift` (template committed); NOT in
+  git. Key still ships in the binary → move behind an api.liviqa.app proxy before public
+  release (flagged). Verified live: Mistral answered descriptively; guard tests still green (10).
+
+
 ### PR-46 — Wellness-scope AI assistant (non-MDSW) + deterministic guard (2026-06-09)
 - **feat(chat):** `Liviqa/Chat/LiviqaChat.swift` — wellness-scope assistant: fixed
   copy (intended purpose / static safety line / AI label / system prompt),
