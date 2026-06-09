@@ -18,6 +18,8 @@ struct WeekInContextView: View {
 
     /// Weekly glucose time-in-range %, oldest → today (presentation seed).
     private static let tirWeek: [Double] = [71, 74, 69, 78, 80, 76, 84]
+    /// Weekly HRV (ms), oldest → today — the recovery / stress axis (presentation seed).
+    private static let hrvWeek: [Double] = [48, 45, 39, 41, 44, 50, 52]
 
     struct SelectedCell: Equatable { let day: Int; let metric: Int }
 
@@ -58,6 +60,11 @@ struct WeekInContextView: View {
                     tirTrendCard
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
+
+                    // 2b. Recovery & stress (HRV) — descriptive, no stress score/verdict
+                    recoveryCard
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
 
                     // 2. Section header
                     LiviqaSectionHeader(label: "7 days in context")
@@ -111,6 +118,36 @@ struct WeekInContextView: View {
             }
             AreaTrendChart(values: Self.tirWeek, tint: LiviqaTheme.moss,
                            xTicks: week.days.map { $0.dayLabel })
+        }
+        .padding(14)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 0.5))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+    }
+
+    // MARK: - Recovery & stress card (HRV) — descriptive only
+
+    private var recoveryCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                HStack(spacing: 5) {
+                    Image(systemName: "waveform.path.ecg").font(.system(size: 11)).foregroundStyle(LiviqaTheme.moss)
+                    Text("RECOVERY · STRESS (HRV)")
+                        .font(.liviqaKicker(10.5)).tracking(0.8)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
+                Spacer()
+                HStack(spacing: 6) {
+                    Text("52 ms").font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
+                    StatusPill(text: "▲ 4 ms", dot: nil)
+                }
+            }
+            AreaTrendChart(values: Self.hrvWeek, tint: LiviqaTheme.moss,
+                           xTicks: week.days.map { $0.dayLabel })
+            Text("In your data, your HRV ran lower mid-week — the days with higher meeting load and later meals. A pattern in your own data, not a medical finding.")
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
         }
         .padding(14)
         .background(LiviqaTheme.paper2)
