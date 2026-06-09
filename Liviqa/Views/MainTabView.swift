@@ -57,6 +57,7 @@ struct MainTabView: View {
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     #if DEBUG
     @State private var debugOpenChat = false
+    @State private var debugOpenThread = false
     #endif
 
     private func hideNavBar<V: View>(_ v: V) -> some View {
@@ -122,8 +123,14 @@ struct MainTabView: View {
         .animation(.easeInOut(duration: 0.25), value: appState.incomingConsult?.id)
         #if DEBUG
         .sheet(isPresented: $debugOpenChat) { ChatView(nudges: appState.nudges) }
+        .fullScreenCover(isPresented: $debugOpenThread) {
+            NavigationStack {
+                MessageThreadView(recipientId: "care-nurse", title: "Diabetes nurse", subtitle: "Endocrinology")
+            }
+        }
         .task {
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_CHAT"] == "1" { debugOpenChat = true }
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_THREAD"] == "1" { debugOpenThread = true }
         }
         #endif
         .sheet(isPresented: Binding(

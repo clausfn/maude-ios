@@ -222,6 +222,13 @@ struct MessageThreadView: View {
     @State private var draft = ""
     @State private var sending = false
     @State private var error: String?
+    @FocusState private var composerFocused: Bool
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy, animated: Bool = true) {
+        guard let last = messages.last else { return }
+        if animated { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
+        else { proxy.scrollTo(last.id, anchor: .bottom) }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -240,15 +247,26 @@ struct MessageThreadView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }
-                .onChange(of: messages.count) { _, _ in
-                    if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
+                .scrollDismissesKeyboard(.interactively)
+                // Land on the newest message — on open, on new messages, and when the
+                // keyboard appears (so the latest is never hidden behind it).
+                .onChange(of: messages.count) { _, _ in scrollToLatest(proxy) }
+                .onChange(of: composerFocused) { _, focused in
+                    if focused {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { scrollToLatest(proxy) }
+                    }
+                }
+                .task {
+                    await load()
+                    // After the first load lays out, pin to the bottom (no animation).
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    scrollToLatest(proxy, animated: false)
                 }
             }
 
             composer
         }
         .background(LiviqaTheme.paper)
-        .task { await load() }
         .liviqaDetail()
     }
 
@@ -257,11 +275,12 @@ struct MessageThreadView: View {
             if m.isMine { Spacer(minLength: 40) }
             Text(m.body)
                 .font(.lato(14)).foregroundStyle(m.isMine ? .white : LiviqaTheme.ink)
+                .textSelection(.enabled)
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(RoundedRectangle(cornerRadius: 14)
                     .fill(m.isMine ? LiviqaTheme.moss : LiviqaTheme.paper2))
                 .overlay(RoundedRectangle(cornerRadius: 14)
-                    .stroke(m.isMine ? Color.clear : LiviqaTheme.line, lineWidth: 1))
+                    .stroke(m.isMine ? Color.clear : LiviqaTheme.line2, lineWidth: 1))
             if !m.isMine { Spacer(minLength: 40) }
         }
         .frame(maxWidth: .infinity, alignment: m.isMine ? .trailing : .leading)
@@ -271,9 +290,12 @@ struct MessageThreadView: View {
         HStack(spacing: 10) {
             TextField("Message your care team…", text: $draft, axis: .vertical)
                 .font(.lato(14))
+                .foregroundStyle(LiviqaTheme.ink)   // explicit: never follow system label colour
+                .tint(LiviqaTheme.moss)
+                .focused($composerFocused)
                 .padding(.horizontal, 12).padding(.vertical, 9)
                 .background(RoundedRectangle(cornerRadius: 18).fill(LiviqaTheme.paper2))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line2, lineWidth: 1))
                 .lineLimit(1...4)
             Button { Task { await send() } } label: {
                 Image(systemName: "arrow.up")
