@@ -4,6 +4,8 @@
 import SwiftUI
 
 struct ChatView: View {
+    /// Current nudges — drives contextual starter questions (what the engine found).
+    var nudges: [Nudge] = []
     @Environment(\.dismiss) private var dismiss
 
     // Granular, standalone, defaults-off consent (severable, withdrawable).
@@ -150,10 +152,9 @@ struct ChatView: View {
 
     private var starter: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Ask about your own data").font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.ink)
-            ForEach(["What was my average glucose last week?",
-                     "How much did I sleep on average?",
-                     "How much of my week was glucose in range?"], id: \.self) { ex in
+            Text(nudges.isEmpty ? "Ask about your own data" : "Based on what your data showed")
+                .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.ink)
+            ForEach(ChatSuggestions.contextual(from: nudges), id: \.self) { ex in
                 Button { draft = ex; send() } label: {
                     Text(ex).font(.lato(13)).foregroundStyle(LiviqaTheme.moss)
                         .padding(.horizontal, 12).padding(.vertical, 9)

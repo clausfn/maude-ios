@@ -139,7 +139,7 @@ struct ProfileSheet: View {
                 }
             }
             .background(LiviqaTheme.paper.ignoresSafeArea())
-            .sheet(isPresented: $showChat) { ChatView() }
+            .sheet(isPresented: $showChat) { ChatView(nudges: appState.nudges) }
             .navigationTitle("About you")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

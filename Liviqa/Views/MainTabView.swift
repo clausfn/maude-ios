@@ -119,7 +119,7 @@ struct MainTabView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: appState.incomingConsult?.id)
         #if DEBUG
-        .sheet(isPresented: $debugOpenChat) { ChatView() }
+        .sheet(isPresented: $debugOpenChat) { ChatView(nudges: appState.nudges) }
         .task {
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_CHAT"] == "1" { debugOpenChat = true }
         }

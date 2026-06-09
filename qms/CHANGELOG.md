@@ -4,6 +4,19 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-48 — Assistant: contextual questions from the nudge engine (2026-06-09)
+- **feat(chat):** `ChatSuggestions` — descriptive, pre-vetted follow-up questions keyed
+  to the user's current nudges (sleep / glucose / HRV / activity). Cardiac / heart-rhythm
+  nudges (route-to-clinician) produce **no** questions. Chat starter now shows
+  "Based on what your data showed" with contextual prompts; falls back to defaults.
+- **feat(data):** HRV added to `ChatHealthSummary` (+ responder + cloud context) so
+  recovery-themed questions are answerable.
+- **test:** `ChatSuggestionsTests` — every offered question stays in scope (guard never
+  refuses a suggestion); cardiac → defaults only. 13 chat tests total green.
+- Whoop/Oura-style companion pattern, mapped to descriptive-only (non-MDSW): the engine
+  finds the pattern, the assistant describes it on request — never interprets/advises.
+
+
 ### PR-47 — Assistant: Mistral cloud "Enhanced" mode (opt-in) (2026-06-09)
 - **feat(chat):** `MistralClient.swift` — Mistral EU chat-completions (mistral-small-latest);
   `ChatEngine.respondCloud` runs the deterministic guard BEFORE (no out-of-scope ask

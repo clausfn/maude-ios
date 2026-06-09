@@ -123,6 +123,7 @@ struct ChatHealthSummary {
     var glucoseTIRpct7d: Int?
     var sleepAvgHours7d: Double?
     var restingHRavg7d: Int?
+    var hrvAvgMs7d: Int?
     var stepsAvg7d: Int?
 
     static let empty = ChatHealthSummary()
@@ -132,7 +133,7 @@ struct ChatHealthSummary {
     /// builder from AppState/HealthKit when wiring real data.
     static let demo = ChatHealthSummary(
         avgGlucoseMmol7d: 6.7, glucoseTIRpct7d: 68,
-        sleepAvgHours7d: 7.03, restingHRavg7d: 58, stepsAvg7d: 5600)
+        sleepAvgHours7d: 7.03, restingHRavg7d: 58, hrvAvgMs7d: 42, stepsAvg7d: 5600)
 
     /// The ONLY data handed to a cloud model: the user's own summarised numbers.
     /// (Never raw samples; never anything that isn't the user's own metric.)
@@ -142,6 +143,7 @@ struct ChatHealthSummary {
         if let t = glucoseTIRpct7d  { lines.append("- 7-day glucose time-in-range: \(t)%") }
         if let s = sleepAvgHours7d  { lines.append(String(format: "- 7-day average sleep: %.2f hours", s)) }
         if let r = restingHRavg7d   { lines.append("- 7-day average resting heart rate: \(r) bpm") }
+        if let v = hrvAvgMs7d       { lines.append("- 7-day average HRV: \(v) ms") }
         if let st = stepsAvg7d      { lines.append("- 7-day average steps: \(st) per day") }
         return lines.isEmpty ? "(no tracked data available)" : lines.joined(separator: "\n")
     }
@@ -173,6 +175,9 @@ struct LocalDataResponder: ChatResponder {
         if has(["sleep", "slept", "asleep"]), let h = s.sleepAvgHours7d {
             let hrs = Int(h); let mins = Int((h - Double(hrs)) * 60)
             return "Your average sleep over the last 7 days was \(hrs)h \(String(format: "%02d", mins))m."
+        }
+        if has(["hrv", "variability", "recovery"]), let v = s.hrvAvgMs7d {
+            return "Your average HRV over the last 7 days was \(v) ms."
         }
         if has(["resting", "heart rate", "hr", "pulse", "bpm"]), let r = s.restingHRavg7d {
             return "Your average resting heart rate over the last 7 days was \(r) bpm."
