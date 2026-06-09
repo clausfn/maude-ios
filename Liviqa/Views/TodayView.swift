@@ -187,20 +187,28 @@ struct TodayView: View {
 
     // MARK: — Signal row (your value vs your own normal)
 
+    // Wellness pillars (Sleep · Glucose · Recovery · Heart) — topic by icon+label,
+    // state by the single moss/clay dot (locked two-state). "Recovery" carries the
+    // stress axis (HRV) descriptively — no stress score/verdict.
     private var signalRow: some View {
         HStack(spacing: 8) {
-            signalChip("Sleep", signals?.sleep ?? "6h52", clay: false)
-            signalChip("In range", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true)
-            signalChip("HRV", signals?.hrv ?? "48", clay: false)
-            signalChip("RHR", signals?.rhr ?? "58", clay: false)
+            signalChip("Sleep", "moon.fill", signals?.sleep ?? "6h52", clay: false)
+            signalChip("Glucose", "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true)
+            signalChip("Recovery", "waveform.path.ecg", signals?.hrv ?? "48", clay: false)
+            signalChip("Heart", "heart.fill", signals?.rhr ?? "58", clay: false)
         }
     }
 
-    private func signalChip(_ label: String, _ value: String, clay: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased())
-                .font(.liviqaKicker(8)).tracking(0.5)
-                .foregroundStyle(LiviqaTheme.ink3)
+    private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 9))
+                    .foregroundStyle(clay ? LiviqaTheme.clay : LiviqaTheme.moss)
+                Text(label.uppercased())
+                    .font(.liviqaKicker(8)).tracking(0.4)
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
             HStack(spacing: 5) {
                 Circle().fill(clay ? LiviqaTheme.clay : LiviqaTheme.moss).frame(width: 6, height: 6)
                 Text(value)
@@ -209,8 +217,8 @@ struct TodayView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 10)
         .background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
