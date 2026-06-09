@@ -125,6 +125,12 @@ struct MainTabView: View {
         }
         #endif
         .sheet(isPresented: Binding(
+            get: { appState.showAssistant },
+            set: { appState.showAssistant = $0 }
+        )) {
+            ChatView(nudges: appState.nudges)
+        }
+        .sheet(isPresented: Binding(
             get: { showProfile || appState.showProfileSheet },
             set: { open in
                 if !open {

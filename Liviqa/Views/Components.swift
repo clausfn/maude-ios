@@ -73,6 +73,21 @@ struct LiviqaAppBar: View {
 
             if showsAvatar, let appState {
                 Button {
+                    appState.showAssistant = true
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.lato(15, .bold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(LiviqaTheme.moss2))
+                        .overlay(Circle().stroke(LiviqaTheme.moss3, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Ask the assistant")
+            }
+
+            if showsAvatar, let appState {
+                Button {
                     appState.showProfileSheet = true
                 } label: {
                     ZStack {

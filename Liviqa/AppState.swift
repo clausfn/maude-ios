@@ -62,6 +62,8 @@ final class AppState {
     // across the redesigned screens, which hide the system nav bar).
     /// Set by the avatar button in `LiviqaAppBar`; MainTabView presents ProfileSheet.
     var showProfileSheet = false
+    /// Set by the ✨ Ask button in the app bar; MainTabView presents the assistant.
+    var showAssistant = false
     /// >0 while a full-screen detail (chat, consult, a pushed screen) is on top —
     /// MainTabView hides the floating tab bar so it can't overlap the content.
     var detailDepth = 0

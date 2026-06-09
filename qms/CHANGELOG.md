@@ -4,6 +4,13 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-49 — Assistant: visible entry point + build 1.0(10.17) (2026-06-09)
+- **fix(ui):** added a visible ✨ "Ask" button in the app bar (next to the avatar) on
+  every main screen → opens the assistant directly. Was previously only reachable via
+  a buried row in the profile sheet. `AppState.showAssistant` + MainTabView sheet.
+- build bump 10.16 → 10.17 for TestFlight.
+
+
 ### PR-48 — Assistant: contextual questions from the nudge engine (2026-06-09)
 - **feat(chat):** `ChatSuggestions` — descriptive, pre-vetted follow-up questions keyed
   to the user's current nudges (sleep / glucose / HRV / activity). Cardiac / heart-rhythm
