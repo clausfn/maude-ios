@@ -86,6 +86,22 @@ enum Config {
     /// are in Info.plist. Secure messaging stays available regardless.
     static let videoConsultEnabled = true
 
+    // MARK: - DfG wallet (My DfG) integration — eIDAS 2.0 verifiable credentials
+    /// OFF until Partisia provides the sandbox pack. When enabled, a consent moment
+    /// can hand off to the My DfG wallet to present/sign a credential, then return.
+    /// All values below are PLACEHOLDERS — fill from Partisia (see
+    /// `~/Desktop/Liviqa_DfG_Wallet_Demo_Prep_v01_20260609.md`). The shipped app is
+    /// unaffected while this is `false`.
+    static let dfgWalletEnabled = false
+    /// Universal link / scheme that opens the My DfG wallet with a request.
+    /// e.g. "https://wallet.dataforgoodfoundation.org/present" (TBC by Partisia).
+    static let dfgWalletRequestBase = "https://wallet.dataforgoodfoundation.org/present"
+    /// Where the wallet returns control to Liviqa (must match an Associated Domain
+    /// or registered URL scheme + the AASA we host). TBC by Partisia.
+    static let dfgWalletReturnURL = "https://www.liviqa.app/wallet/callback"
+    /// Our verifier / relying-party client id issued by Partisia (sandbox). TBC.
+    static let dfgWalletClientID = "<<FILL_FROM_PARTISIA>>"
+
     /// Local sovereign backend for development (embedded Postgres; seed bearer
     /// token; no Supabase). Backend: `http://localhost:3001`, citizen seed `dev-citizen-claus`.
     static let sovereignLocal: Backend = .sovereign(

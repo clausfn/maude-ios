@@ -2,6 +2,41 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-09 — DfG wallet (My DfG) integration — scaffold (feature-flagged OFF)
+
+- **Goal.** Prepare a live Liviqa → My DfG wallet consent demo (eIDAS 2.0 /
+  verifiable credentials) for Folkemøde, pending Partisia sandbox credentials.
+- **Scaffold (inert while `Config.dfgWalletEnabled == false`).** `Config` gains
+  wallet placeholders (request base, return URL, client id — all TBC from Partisia).
+  `Services/DfGWalletService.swift`: builds the presentation-request URL, opens
+  My DfG (`UIApplication.open`), `isCallback`/`handleReturn` parse the wallet's
+  return (vp_token), with `DfGWalletConsentButton` (hidden unless enabled). Protocol
+  payload (OpenID4VP) and presentation verification are TODO(Partisia).
+- **Website piece.** Staged AASA + README at
+  `10_Website/liviqa-web/_dfg-wallet-wellknown/` — `apple-app-site-association` so
+  iOS opens My DfG from a request link ("Apple connects to the right wallet"), to be
+  finalised with Partisia's My DfG AppID and moved into `.well-known/`.
+- **Prep runbook:** `~/Desktop/Liviqa_DfG_Wallet_Demo_Prep_v01_20260609.md`. Critical
+  path = Partisia credentials (email to Kim). Shipped app unaffected until enabled.
+
+## 2026-06-09 — TestFlight cleanup: 10.15 as the single canonical build
+
+- **Goal.** Only the latest build (10.15) available to testers; retire the rest.
+- **Action (via `scripts/asc_cleanup_builds.py`, ASC API).** Expired 11 legacy
+  builds (v1, v2, 10.5–10.14). Attached 10.15 to the external "Liviqa beta tester"
+  group and **submitted it for Beta App Review** so it can reach the public link
+  (`testflight.apple.com/join/hdXVzcSF`).
+- **TestFlight constraint recorded.** Internal groups always expose *every* non-
+  expired build — a build can only be hidden from internal testers by expiring it.
+  External/public-link builds require Beta App Review.
+- **Completed same session.** 10.15 was already APPROVED for external (the app's
+  prior external approval carried to the update), so `watch-finish` expired
+  10.2/10.3/10.4 immediately. **End state: 10.15 is the only non-expired build,
+  live on both Internal DfG and the public link; all 14 older builds expired.**
+- **No hard force-update exists** beyond expiring old builds (+ the app's
+  onboarding-version replay gate). Expired builds can't be launched; TestFlight
+  steers testers to the newest available build.
+
 ## 2026-06-09 — In-app incoming instant call + consent-first join (10.15)
 
 - **What.** A clinician can start an instant secure consultation from the console
