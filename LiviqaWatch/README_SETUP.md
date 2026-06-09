@@ -37,8 +37,27 @@ Xcode creates a `Liviqa Watch App/` group with a starter `ContentView`/`App`.
   prediction, or advice (non-MDSW, same line as the phone).
 - Two-state colour: moss = in your range, clay = worth noticing. Midnight palette.
 
-## Next steps (after the target exists — I can build these)
-- **Real data:** WatchConnectivity to receive the descriptive snapshot from the phone
-  (or a HealthKit-on-watch query). Keep the snapshot descriptive at the source.
-- **Complication** (WidgetKit watchOS): a glanceable in-range % / calm dot on the face.
+## 5. Live data — WatchConnectivity (files already written)
+1. Add **`Connectivity/WatchSessionReceiver.swift`** to the **Liviqa Watch App** target.
+   (The watch `@main` already hosts it and feeds the glance.)
+2. Add **`Connectivity/PhoneWatchSync.swift`** to the **Liviqa (iOS)** target.
+3. From the iOS app, call `PhoneWatchSync.shared.push(stateLine:signals:)` with the
+   user's own descriptive values (e.g. in `AppState.refreshFromHealth()` or when Home
+   appears). Until then the watch shows the demo snapshot. Example dict is in the
+   header of `PhoneWatchSync.swift`.
+
+## 6. Complication (optional) — Widget Extension (watchOS)
+1. **File ▸ New ▸ Target… ▸ watchOS ▸ Widget Extension** → name **"Liviqa Complication"**
+   (uncheck "Include Configuration App Intent" / Live Activity).
+2. Delete the generated widget swift; add **`Complication/LiviqaComplication.swift`** to
+   that target (it already has the `@main`).
+3. **App Group** (shared value): select the **Liviqa Watch App** target and the
+   **Liviqa Complication** target → Signing & Capabilities → **+ Capability ▸ App Groups**
+   → add **`group.dev.liviqa.app`** to both. (The iOS app already uses this group.)
+4. Run the watch scheme → on the watch face, add the **Liviqa** complication
+   (In range). It shows the last value the watch received; refreshes on update.
+
+## Next steps (I can build these once targets exist)
+- Wire `PhoneWatchSync.push(...)` to real on-device signals in the iOS app.
 - **Tap-through:** a second screen per pillar (descriptive detail).
+- Optional **HealthKit-on-watch** query so the watch works standalone.
