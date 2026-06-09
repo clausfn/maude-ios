@@ -4,6 +4,26 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-54/55 — Liviqa Watch app (watchOS) — descriptive wellness glance (2026-06-10)
+- **feat(watch):** `LiviqaWatch/` scaffold — `WatchHomeView` (calm affirming line +
+  wellness pillars Glucose/Sleep/Recovery/Heart, two-state moss/clay), `WatchModels`
+  (descriptive snapshot), `WatchTheme` (locked Midnight palette), `LiviqaWatchApp`.
+  Descriptive-only, non-MDSW (no scores/verdicts/advice — same line as the phone).
+- **feat(watch):** WatchConnectivity — `PhoneWatchSync` (iOS→watch descriptive
+  app-context push) + `WatchSessionReceiver` (live snapshot, mirrors in-range to the
+  App Group, reloads the complication).
+- **feat(watch):** `LiviqaComplication` (WidgetKit watchOS) — descriptive in-range
+  face complication (circular/rectangular/corner/inline).
+- watchOS + Widget **targets must be created in Xcode** (cannot hand-edit pbxproj
+  safely); source is inert until then (iOS build unaffected). See
+  `LiviqaWatch/README_SETUP.md`.
+
+### PR-50–52 — v2 redesign (calm wellness companion): nav IA · Home · Stress pillar (2026-06-10)
+- **feat(ui):** 5-tab IA Home·Insights·Journal·Privacy·Settings (Care off the bar);
+  Home leads with a calm affirming state + wellness-pillar signals (Recovery = stress
+  axis, descriptive); Insights gains a descriptive Recovery·Stress (HRV) trend.
+  Design System v2; brand + two-state colour intact; descriptive-only.
+
 ### PR-53 — Assistant hand-off (Phase 4) — "Discuss in the assistant"
 - NudgeDetailView gains a "Discuss in the assistant" secondary CTA; Insights recovery
   card gains "Ask the assistant about this →". Opens the guarded chat (appState.showAssistant).
