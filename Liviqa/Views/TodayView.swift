@@ -40,6 +40,17 @@ struct TodayView: View {
     }
 
     var body: some View {
+        #if DEBUG
+        if let p = ProcessInfo.processInfo.environment["LIVIQA_OPEN_PILLAR"],
+           let pillar = WellnessPillar(rawValue: p) {
+            MetricDetailView(pillar: pillar)
+        } else { mainBody }
+        #else
+        mainBody
+        #endif
+    }
+
+    private var mainBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
@@ -192,11 +203,20 @@ struct TodayView: View {
     // stress axis (HRV) descriptively — no stress score/verdict.
     private var signalRow: some View {
         HStack(spacing: 8) {
-            signalChip("Sleep", "moon.fill", signals?.sleep ?? "6h52", clay: false)
-            signalChip("Glucose", "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true)
-            signalChip("Recovery", "waveform.path.ecg", signals?.hrv ?? "48", clay: false)
-            signalChip("Heart", "heart.fill", signals?.rhr ?? "58", clay: false)
+            NavigationLink(value: WellnessPillar.sleep) {
+                signalChip("Sleep", "moon.fill", signals?.sleep ?? "6h52", clay: false)
+            }.buttonStyle(.plain)
+            NavigationLink(value: WellnessPillar.glucose) {
+                signalChip("Glucose", "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true)
+            }.buttonStyle(.plain)
+            NavigationLink(value: WellnessPillar.recovery) {
+                signalChip("Recovery", "waveform.path.ecg", signals?.hrv ?? "48", clay: false)
+            }.buttonStyle(.plain)
+            NavigationLink(value: WellnessPillar.heart) {
+                signalChip("Heart", "heart.fill", signals?.rhr ?? "58", clay: false)
+            }.buttonStyle(.plain)
         }
+        .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
     }
 
     private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool) -> some View {
