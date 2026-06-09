@@ -4,6 +4,16 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-57 — Fix "can't see the message" in care threads (beta feedback) (2026-06-10)
+- **fix(ui):** `MessageThreadView` — explicit composer text colour (never follows the
+  system label colour, so typed text stays visible in any appearance); reliable
+  scroll-to-latest on open / new message / keyboard focus (latest no longer hidden
+  behind the keyboard); interactive keyboard dismiss; stronger recipient-bubble
+  separation; selectable text. `DEBUG LIVIQA_OPEN_THREAD` deep-link for verification.
+- Verified prior beta items already in place: consent token collapsed under "Technical
+  details" (`ConsentLedgerView`); DfG logo + high-contrast balance card (`TokenWalletView`).
+  Care/video-consult **flow** rework remains a separate, larger track.
+
 ### PR-56 — Rich detail screens (Phase 5) — tap a Home pillar → descriptive detail (2026-06-10)
 - **feat(ui):** `MetricDetailView` (Sleep/Glucose/Recovery/Heart). Sleep shows a
   **stages timeline** (Deep/Light/REM/Awake stacked bar + legend, mins + %, "time
