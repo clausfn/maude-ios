@@ -60,7 +60,8 @@ struct TodayView: View {
                         .foregroundStyle(LiviqaTheme.ink)
                         .padding(.top, 4)
 
-                    insightHero
+                    // Calm, affirming lead (not an alert) — the everyday day-good state.
+                    calmHero
                         .padding(.top, 14)
 
                     Text("Your signals · vs your normal".uppercased())
@@ -70,6 +71,16 @@ struct TodayView: View {
                         .padding(.bottom, 9)
 
                     signalRow
+
+                    // Deviations are demoted below the calm state (not the hero).
+                    if !nudges.isEmpty {
+                        Text("Worth a look".uppercased())
+                            .font(.liviqaKicker(9)).tracking(1)
+                            .foregroundStyle(LiviqaTheme.ink3)
+                            .padding(.top, 20)
+                            .padding(.bottom, 9)
+                        insightHero
+                    }
 
                     Text("Not averages. Yours.".uppercased())
                         .font(.liviqaKicker(11)).tracking(0.6)
