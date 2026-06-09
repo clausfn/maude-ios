@@ -15,7 +15,7 @@ struct WalletView: View {
             VStack(alignment: .leading, spacing: 0) {
 
                 // ── App bar ──
-                LiviqaAppBar(title: "Wallet", showMark: false)
+                LiviqaAppBar(title: "Privacy", showMark: false)
 
                 VStack(alignment: .leading, spacing: 0) {
 

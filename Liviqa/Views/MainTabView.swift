@@ -4,37 +4,39 @@
 // Design ref: Liviqa_App_UI_Aperture_v01_20260521.html (tab bar)
 import SwiftUI
 
+// v2 information architecture (Design System v2): a calm, consumer-first 5-tab IA.
+// Care (clinician messaging/consult) moved OFF the primary bar — reachable from the
+// profile sheet — so the everyday app no longer reads as a clinical tool.
 enum LiviqaTab: String, CaseIterable {
-    case today, trends, wallet, care, journal
+    case home, insights, journal, privacy, settings
 
     var title: String {
         switch self {
-        case .today:   return "Today"
-        case .trends:  return "Trends"
-        case .wallet:  return "Wallet"
-        case .care:    return "Care"
-        case .journal: return "Journal"
+        case .home:     return "Home"
+        case .insights: return "Insights"
+        case .journal:  return "Journal"
+        case .privacy:  return "Privacy"
+        case .settings: return "Settings"
         }
     }
 
-    // SF Symbols that approximate the mockup icons
     var symbol: String {
         switch self {
-        case .today:   return "circle"
-        case .trends:  return "chart.line.uptrend.xyaxis"
-        case .wallet:  return "rectangle.stack"
-        case .care:    return "bubble.left.and.bubble.right"
-        case .journal: return "doc.text"
+        case .home:     return "circle"
+        case .insights: return "chart.line.uptrend.xyaxis"
+        case .journal:  return "doc.text"
+        case .privacy:  return "lock.shield"
+        case .settings: return "gearshape"
         }
     }
 
     var symbolFilled: String {
         switch self {
-        case .today:   return "circle.fill"
-        case .trends:  return "chart.line.uptrend.xyaxis"
-        case .wallet:  return "rectangle.stack.fill"
-        case .care:    return "bubble.left.and.bubble.right.fill"
-        case .journal: return "doc.text.fill"
+        case .home:     return "circle.fill"
+        case .insights: return "chart.line.uptrend.xyaxis"
+        case .journal:  return "doc.text.fill"
+        case .privacy:  return "lock.shield.fill"
+        case .settings: return "gearshape.fill"
         }
     }
 }
@@ -46,7 +48,7 @@ struct MainTabView: View {
         if let raw = ProcessInfo.processInfo.environment["LIVIQA_TAB"],
            let t = LiviqaTab(rawValue: raw) { return t }
         #endif
-        return .today
+        return .home
     }()
     @State private var selectedNudge: Nudge?
     @State private var showProfile  = false   // ProfileSheet — universal avatar target
@@ -71,7 +73,7 @@ struct MainTabView: View {
 
             Group {
                 switch tab {
-                case .today:
+                case .home:
                     NavigationStack {
                         hideNavBar(TodayView(
                             nudges: appState.nudges,
@@ -89,14 +91,14 @@ struct MainTabView: View {
                             NudgeDetailView(nudge: nudge).liviqaDetail()
                         }
                     }
-                case .trends:
+                case .insights:
                     NavigationStack { hideNavBar(WeekInContextView()) }
-                case .wallet:
-                    NavigationStack { hideNavBar(WalletView()) }
-                case .care:
-                    NavigationStack { hideNavBar(MessagesView()) }
                 case .journal:
                     JournalView()
+                case .privacy:
+                    NavigationStack { hideNavBar(WalletView()) }
+                case .settings:
+                    NavigationStack { SettingsView() }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -159,7 +161,7 @@ struct MainTabView: View {
             ForEach(LiviqaTab.allCases, id: \.self) { item in
                 Button {
                     tab = item
-                    if item != .today { selectedNudge = nil }
+                    if item != .home { selectedNudge = nil }
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: tab == item ? item.symbolFilled : item.symbol)

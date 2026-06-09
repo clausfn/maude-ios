@@ -71,6 +71,25 @@ struct ProfileSheet: View {
                                 .id(section)
                         }
 
+                        // ── Care team (moved off the primary tab bar in v2 IA) ──
+                        NavigationLink(destination: MessagesView()) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "bubble.left.and.bubble.right")
+                                    .font(.lato(14))
+                                    .foregroundStyle(LiviqaTheme.moss)
+                                Text("Your care team")
+                                    .font(.lato(14))
+                                    .foregroundStyle(LiviqaTheme.ink2)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.lato(11, .medium))
+                                    .foregroundStyle(LiviqaTheme.ink4)
+                            }
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.top, 6)
+                        .padding(.bottom, 6)
+
                         // ── Assistant (wellness-scope AI chat) ──
                         Button { showChat = true } label: {
                             HStack(spacing: 10) {
