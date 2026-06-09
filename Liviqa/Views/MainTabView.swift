@@ -53,6 +53,9 @@ struct MainTabView: View {
     @State private var nudgeProfileAnchor: ProfileSheet.Section? = nil
     @State private var joiningConsult: ConsultSummary? = nil   // accepted an incoming call
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
+    #if DEBUG
+    @State private var debugOpenChat = false
+    #endif
 
     private func hideNavBar<V: View>(_ v: V) -> some View {
         #if os(iOS)
@@ -115,6 +118,12 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: appState.incomingConsult?.id)
+        #if DEBUG
+        .sheet(isPresented: $debugOpenChat) { ChatView() }
+        .task {
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_CHAT"] == "1" { debugOpenChat = true }
+        }
+        #endif
         .sheet(isPresented: Binding(
             get: { showProfile || appState.showProfileSheet },
             set: { open in

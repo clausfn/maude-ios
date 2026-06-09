@@ -4,6 +4,25 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-46 — Wellness-scope AI assistant (non-MDSW) + deterministic guard (2026-06-09)
+- **feat(chat):** `Liviqa/Chat/LiviqaChat.swift` — wellness-scope assistant: fixed
+  copy (intended purpose / static safety line / AI label / system prompt),
+  **deterministic `ChatGuard`** (input refusal + output sanitise; blocks prediction/
+  prognosis/diagnosis/symptom/triage/treatment → safety line; strips imperatives +
+  sexual-function meds), `LocalDataResponder` (descriptive-only, on-device), `ChatEngine`
+  (guard-first/guard-last). Compliance authority: counsel memo (06_Regulatory).
+- **feat(ui):** `ChatView.swift` — standalone consent (3 toggles, defaults off,
+  withdrawable; cloud + research wired-but-disabled), persistent AI label, descriptive
+  chat. In-memory history only (no persistence); withdrawal purges + resets consent.
+  Entry = one row in ProfileSheet (brand/chrome/nav unchanged).
+- **test(chat):** `LiviqaTests/ChatGuardTests` — 10 acceptance tests green (red-team
+  prompts → safety line; descriptive answered; drift blocked; meds stripped; copy clean).
+- **build:** on-device default; cloud "Enhanced" mode NOT built. No real LLM yet
+  (deterministic). Open decision (LLM/cloud) flagged to DfG Works. See
+  docs/AIChat_BuildNote_v01.md.
+- Verified: builds (iOS Sim); consent + chat screenshots on Midnight.
+
+
 ### PR-52 — TestFlight 1.0(10.11–10.12) — beta-feedback UI fixes + Midnight contrast sweep (2026-06-09)
 - **fix(ui) [beta feedback]:** read the 4 TestFlight `betaFeedbackScreenshotSubmissions`
   via the ASC API and fixed each (tester on Midnight/dark theme):

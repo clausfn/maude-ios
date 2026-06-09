@@ -41,6 +41,7 @@ struct ProfileSheet: View {
 
     @State private var expanded: Section? = nil
     @State private var draft: HealthContext = .demo
+    @State private var showChat = false
 
     // MARK: - Body
 
@@ -69,6 +70,26 @@ struct ProfileSheet: View {
                             profileSection(section, proxy: proxy)
                                 .id(section)
                         }
+
+                        // ── Assistant (wellness-scope AI chat) ──
+                        Button { showChat = true } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "sparkles")
+                                    .font(.lato(14))
+                                    .foregroundStyle(LiviqaTheme.moss)
+                                Text("Ask the assistant about your data")
+                                    .font(.lato(14))
+                                    .foregroundStyle(LiviqaTheme.ink2)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.lato(11, .medium))
+                                    .foregroundStyle(LiviqaTheme.ink4)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 22)
+                        .padding(.top, 6)
+                        .padding(.bottom, 12)
 
                         // ── Footer: Settings link ──
                         NavigationLink(destination: SettingsView()) {
@@ -118,6 +139,7 @@ struct ProfileSheet: View {
                 }
             }
             .background(LiviqaTheme.paper.ignoresSafeArea())
+            .sheet(isPresented: $showChat) { ChatView() }
             .navigationTitle("About you")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
