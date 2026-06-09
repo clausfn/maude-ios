@@ -6,6 +6,13 @@ import SwiftUI
 struct MessagesView: View {
     @Environment(AppState.self) private var appState
     @State private var loading = false
+    @State private var showPlan = false
+
+    private var careTeamName: String {
+        appState.careThreads.first?.recipientName
+            ?? appState.activeConsults.first?.recipientName
+            ?? "your care team"
+    }
 
     var body: some View {
         ScrollView {
@@ -13,6 +20,7 @@ struct MessagesView: View {
                 LiviqaAppBar(title: "Care", showMark: false)
 
                 VStack(alignment: .leading, spacing: 0) {
+                    planCard
                     if appState.careConnect == nil && appState.careThreads.isEmpty {
                         emptyStateCard("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
                     } else {
@@ -27,6 +35,36 @@ struct MessagesView: View {
         .background(LiviqaTheme.paper)
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $showPlan) {
+            PlanConsultView(recipientName: careTeamName)
+        }
+    }
+
+    // MARK: - Plan a consultation (patient-side scheduling)
+
+    private var planCard: some View {
+        Button { showPlan = true } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(LiviqaTheme.moss2).frame(width: 38, height: 38)
+                    Image(systemName: "calendar.badge.plus").font(.system(size: 16)).foregroundStyle(LiviqaTheme.moss)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Plan a consultation").font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text("Pick a time with \(careTeamName) — add it to your calendar")
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3).lineLimit(1).minimumScaleFactor(0.9)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(12)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
     }
 
     private func load() async {
@@ -38,8 +76,8 @@ struct MessagesView: View {
     // MARK: - Active consults
 
     @ViewBuilder private var consultsSection: some View {
-        // v1 ships without live video consult (Config.videoConsultEnabled = false):
-        // no EU Jitsi / camera-mic yet. Secure messaging below stays available.
+        // Live video consult is on (self-hosted EU Jitsi). An active consult shows
+        // here as a "ready to talk" card → tap to join. Secure messaging below too.
         if Config.videoConsultEnabled, !appState.activeConsults.isEmpty {
             LiviqaSectionHeader(label: "In progress")
             VStack(spacing: 10) {
@@ -187,7 +225,7 @@ struct MessageThreadView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            LiviqaAppBar(title: title, showMark: false)
+            LiviqaAppBar(title: title, showMark: false, showsAvatar: false)
                 .padding(.horizontal, 16)
 
             ScrollViewReader { proxy in
@@ -211,6 +249,7 @@ struct MessageThreadView: View {
         }
         .background(LiviqaTheme.paper)
         .task { await load() }
+        .liviqaDetail()
     }
 
     private func bubble(_ m: CareMessage) -> some View {

@@ -55,20 +55,20 @@ struct TrendsView: View {
                     correlationCard(
                         pair: "Late meals → Deep sleep",
                         strength: "Moderate",
-                        strengthColor: LiviqaTheme.amber,
-                        strengthBg: LiviqaTheme.amber2,
+                        strengthColor: LiviqaTheme.clay,
+                        strengthBg: LiviqaTheme.clay2,
                         barProgress: 0.60,
-                        barColor: LiviqaTheme.amber,
+                        barColor: LiviqaTheme.clay,
                         body: "Eating after 21:00 tracks with about a fifth less deep sleep that night."
                     )
 
                     correlationCard(
                         pair: "Air quality → Activity",
                         strength: "Moderate",
-                        strengthColor: LiviqaTheme.amber,
-                        strengthBg: LiviqaTheme.amber2,
+                        strengthColor: LiviqaTheme.clay,
+                        strengthBg: LiviqaTheme.clay2,
                         barProgress: 0.55,
-                        barColor: LiviqaTheme.amber,
+                        barColor: LiviqaTheme.clay,
                         body: "High-pollution days line up with roughly 40% less time spent active outdoors."
                     )
 

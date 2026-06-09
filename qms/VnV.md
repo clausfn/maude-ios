@@ -11,15 +11,15 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-DM-02 | Glucose mg/dL→mmol/L conversion + round-trip (OD-07) | Unit | No | authored — run in Xcode |
 | T-DM-03 | SwiftData schema loads and round-trips; clinical constructor sets clinical tier | Unit (`@MainActor`) | No | authored — run in Xcode |
 | T-HK-RO-01 | `HealthKitService` share/write set is **empty** (read-only, `FR-ARCH-04`) | Unit | No | authored — run in Xcode (typechecks vs HK SDK) |
-| T-HK-RO-02 | Read set = MVP 7 types | Unit | No | authored — run in Xcode |
+| T-HK-RO-02 | Full-capture read set present (MVP + insulin/AFib/BP/body-comp/heart panel), ≥20 types; write set stays empty | Unit | No | **pass** — iOS Sim (PR-46) |
 | T-HK-RO-03 | Sleep stage mapping (REM/Deep/inBed) | Unit | No | authored — run in Xcode |
 | T-MAP-01 | Mock→entity mapping preserves provenance; HRV+RHR merge per day | Unit (`@MainActor`) | No | authored — run in Xcode |
-| T-MAP-02 | Re-sync of a window is idempotent (replace, not duplicate) | Unit (`@MainActor`) | No | authored — run in Xcode |
+| T-MAP-02 | Re-sync of a window is idempotent (replace, not duplicate; union-bound delete) | Unit (`@MainActor`) | No | **pass** — iOS Sim (fixed PR-46) |
 | T-NDG-01 | Nudge output is capped (≤4) | Unit | No | authored — run in Xcode (also executed via harness) |
 | T-NDG-02 | AFib lane is display-only: routeToClinician, top priority | Unit | **Yes** | authored — run in Xcode (executed via harness) |
 | T-NDG-03 | No AFib signal ⇒ no cardiac nudge | Unit | **Yes** | authored — run in Xcode (executed via harness) |
 | T-NDG-04 | Only allow-listed categories emitted | Unit | No | authored — run in Xcode |
-| T-NDG-05 | Baseline-relative: low-HRV day ⇒ recovery lever | Unit | No | authored — run in Xcode |
+| T-NDG-05 | Baseline-relative: low-HRV day ⇒ recovery lever (fixture given realistic baseline variance) | Unit | No | **pass** — iOS Sim (fixed PR-46) |
 | T-NDG-06 | Forbidden constructions (dose/treatment/dosing-verb/diagnosis/normality) all blocked | Unit (parameterized) | **Yes** | **pass** — executed this session |
 | T-NDG-06b | Legitimate baseline-relative copy + disclaimers pass | Unit | **Yes** | **pass** — executed this session |
 | T-NDG-06c | Every engine-authored nudge passes the guard | Unit | **Yes** | **pass** — executed this session |
@@ -45,6 +45,36 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-ANCH-01..06 | EncryptedAnchorStore: round-trip, ciphertext-at-rest, per-key + per-user-scope isolation, wrong-DEK auth-fail, remove/clear | Unit | No | **pass** — iOS Simulator |
 | T-ANCH-07 | `HKQueryAnchor ⇆ Data` secure-coding round-trip | Unit | No | **pass** — iOS Simulator |
 | T-ANCH-08 | Fake-provider anchor-advances-on-sync (resume from prior cursor; no-new ⇒ unchanged) | Unit (async) | No | **pass** — iOS Simulator |
+
+## PR-46/47 — full HealthKit capture + Design System v2 (2026-06-09)
+
+Full-suite run on the iOS Simulator (iPhone 17, Xcode 26.4.1). **Claus cannot build
+in Xcode (signing/destination issues on his side), so verification is run here:**
+`xcodebuild build` + `xcodebuild test` + `simctl io screenshot` per change.
+
+```
+✔ xcodebuild build — BUILD SUCCEEDED (iOS Simulator, CODE_SIGNING_ALLOWED=NO)
+✔ LiviqaTests — 78 tests in 19 suites, 0 failures
+   incl. readSetIsFullCaptureSet (PR-46), reSyncIsIdempotent + baselineRelativeRecovery
+   (both pre-existing failures, now green)
+```
+
+- **Zero new regressions from Step A** — proven by a baseline `git stash` run: the
+  only two reds (`reSyncIsIdempotent`, `NudgeEngineTests`) were red on the clean
+  tree *before* the change; the read-set-count test was the only test my change
+  legitimately touched, and it was updated to `readSetIsFullCaptureSet`.
+- **Read-only preserved:** T-HK-RO-01 (empty write set) unchanged; the wider read
+  set is authorization-only.
+- **Idempotency (T-MAP-02):** fixed via union-bound window delete; re-sync converges
+  (was 48 glucose rows where 42 expected → now stable). No data dropped.
+- **Regulated controls re-verified at the data layer:** insulin dose-blind
+  (FR-REG-04), AFib display-only (T-NDG-02/03) — the new HealthKit reads add no
+  rendering. Surfacing them (Step B) stays gated by FR-NDG-06 + RQ-01.
+- **Design v2:** build green in both Paper and Midnight; Today screen screenshotted
+  in both — the glucose arc now reads moss → clay (the two-state attention logic).
+- **Real-device sanity (flagged, not yet verified):** SpO₂/body-fat percent scaling
+  (×100 from HealthKit's fraction) and the VO₂max unit string `"ml/kg*min"` compile
+  but want a glance against live values on Claus's device.
 
 ## T-SBA — Supabase Auth (GoTrue) parsing & V&V (PR-28)
 

@@ -80,6 +80,7 @@ struct TokenWalletView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .liviqaDetail()
     }
 
     // MARK: Balance Card
@@ -108,10 +109,12 @@ struct TokenWalletView: View {
                         }
                     }
                     Spacer()
-                    // Real locked mark; primary on a light invert surface (Midnight),
-                    // reversed on a dark invert surface (Paper).
-                    LiviqaApertureMark(size: 34, reversed: colorScheme == .light)
-                        .opacity(0.9)
+                    // DfG logo (these are DfG tokens) — negative (light) on the dark
+                    // invert card in Paper, primary (dark) on the cream card in Midnight.
+                    Image(colorScheme == .light ? "dfg-logo-negative" : "dfg-logo")
+                        .resizable().scaledToFit()
+                        .frame(height: 26)
+                        .opacity(0.95)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -215,7 +218,7 @@ struct TokenWalletView: View {
 
     private var spendSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "SPEND", icon: "arrow.up.circle.fill", color: LiviqaTheme.amber)
+            sectionHeader(title: "SPEND", icon: "arrow.up.circle.fill", color: LiviqaTheme.clay)
 
             // Tab picker
             HStack(spacing: 0) {
@@ -250,8 +253,8 @@ struct TokenWalletView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(selectedTab == tab ? LiviqaTheme.ink : Color.clear)
-            .foregroundStyle(selectedTab == tab ? Color.white : LiviqaTheme.ink3)
+            .background(selectedTab == tab ? LiviqaTheme.invertBG : Color.clear)
+            .foregroundStyle(selectedTab == tab ? LiviqaTheme.invertFG : LiviqaTheme.ink3)
         }
         .cornerRadius(9)
         .padding(2)
@@ -317,8 +320,8 @@ struct TokenWalletView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(canAfford ? LiviqaTheme.ink : LiviqaTheme.line)
-                .foregroundStyle(canAfford ? Color.white : LiviqaTheme.ink4)
+                .background(canAfford ? LiviqaTheme.invertBG : LiviqaTheme.line)
+                .foregroundStyle(canAfford ? LiviqaTheme.invertFG : LiviqaTheme.ink4)
                 .cornerRadius(8)
             }
             .disabled(!canAfford)

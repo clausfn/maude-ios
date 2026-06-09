@@ -27,6 +27,9 @@ final class AppState {
     // Today
     var rings:  [MetricRing]   = MockData.rings
     var nudges: [Nudge]        = MockData.todayNudges
+    /// Live Home "signals vs your normal" chips, derived from real HealthKit
+    /// samples. nil ⇒ no real data yet → Home shows the demo seeds.
+    var todaySignals: TodaySignals? = nil
 
     // Wallet
     var grants:       [WalletGrant]  = []
@@ -55,6 +58,14 @@ final class AppState {
     // Error surface
     var lastError: String? = nil
 
+    // Navigation UI state (shared so the custom app bar / tab bar stay consistent
+    // across the redesigned screens, which hide the system nav bar).
+    /// Set by the avatar button in `LiviqaAppBar`; MainTabView presents ProfileSheet.
+    var showProfileSheet = false
+    /// >0 while a full-screen detail (chat, consult, a pushed screen) is on top —
+    /// MainTabView hides the floating tab bar so it can't overlap the content.
+    var detailDepth = 0
+
     init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
         self.supabase = supabase
     }
@@ -72,6 +83,37 @@ final class AppState {
     var careThreads: [CareThread] = []
     var activeConsults: [ConsultSummary] = []
     var careNotifications: [CitizenNotification] = []
+
+    // Incoming-call ring — a clinician started an instant consult; we surface it as
+    // an in-app incoming call with a consent flow. Poll-based (no push infra yet).
+    var incomingConsult: ConsultSummary? = nil
+    private var knownConsultIDs: Set<String> = []
+    private var incomingPrimed = false
+
+    /// Poll active consults; ring on a NEW one (not the consults already present at
+    /// app start, and not while a call is already on screen).
+    @MainActor
+    func pollIncomingCall() async {
+        guard let care = careConnect else { return }
+        guard let consults = try? await care.fetchActiveConsults() else { return }
+        activeConsults = consults
+        let ids = Set(consults.map(\.id))
+        if !incomingPrimed {                 // first poll: adopt the baseline, don't ring
+            knownConsultIDs = ids
+            incomingPrimed = true
+            return
+        }
+        if incomingConsult == nil, let fresh = consults.first(where: { !knownConsultIDs.contains($0.id) }) {
+            incomingConsult = fresh           // ring
+        }
+        knownConsultIDs = ids
+    }
+
+    @MainActor
+    func dismissIncoming() {
+        if let c = incomingConsult { knownConsultIDs.insert(c.id) }
+        incomingConsult = nil
+    }
 
     // MARK: - Care-team actions (FR-WAL adjacent; consult + messaging)
 
@@ -183,6 +225,8 @@ final class AppState {
                 consentDecisions: walletEvents.count)
             // FR-PAS-05 / DM-06: derive the 7-day correlation grid on device.
             correlationWeek = CorrelationWeek.from(CorrelationDeriver.derive(from: samples))
+            // Home signal chips — show the user's OWN latest values (nil keeps seeds).
+            todaySignals = TodaySignalsDeriver.derive(from: samples)
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }

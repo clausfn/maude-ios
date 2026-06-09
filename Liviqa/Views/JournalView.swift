@@ -72,6 +72,7 @@ struct JournalView: View {
     @State private var showDocumentPicker = false
     @State private var showAddSheet       = false
     @State private var showVoiceNote      = false
+    @State private var showMoodSheet      = false
 
     // FAB / filter
     @State private var activeFilter: TimelineFilter = .all
@@ -104,6 +105,16 @@ struct JournalView: View {
                         .padding(.horizontal, 20)
                         .padding(.bottom, 8)
 
+                    // Tap-first capture (Design v2 · the v1-review fix: lead with
+                    // actions, not a blank "how are you feeling" prompt).
+                    captureGrid
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
+
+                    suggestionChips
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+
                     composerCard
                         .padding(.horizontal, 20)
                         .padding(.bottom, 4)
@@ -126,6 +137,13 @@ struct JournalView: View {
             fab
                 .padding(.trailing, 20)
                 .padding(.bottom, 28)
+        }
+        .sheet(isPresented: $showMoodSheet) {
+            moodSheet
+            #if os(iOS)
+                .presentationDetents([.height(300)])
+                .presentationDragIndicator(.hidden)
+            #endif
         }
 #if os(iOS)
         .sheet(isPresented: $showDocumentPicker) {
@@ -236,6 +254,153 @@ struct JournalView: View {
             Text("\(vaultDocs.count) files")
                 .font(.liviqaKicker(10))
                 .foregroundStyle(LiviqaTheme.ink4)
+        }
+    }
+
+    // MARK: Quick-capture (tap-first)
+
+    private var captureGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("CAPTURE")
+                .font(.liviqaKicker(10)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+
+            HStack(spacing: 8) {
+                captureButton("Log mood", icon: "face.smiling", tint: LiviqaTheme.moss, bg: LiviqaTheme.moss2) {
+                    showMoodSheet = true
+                }
+                captureButton("Add meal", icon: "fork.knife", tint: LiviqaTheme.moss, bg: LiviqaTheme.moss2) {
+                    expandComposer(tag: "Meal", prompt: "What did you eat?")
+                }
+            }
+            HStack(spacing: 8) {
+                captureButton("Add symptom", icon: "waveform.path.ecg", tint: LiviqaTheme.clay, bg: LiviqaTheme.clay2) {
+                    expandComposer(tag: "Symptom", prompt: "What are you noticing?")
+                }
+                captureButton("Voice note", icon: "mic.fill", tint: LiviqaTheme.moss, bg: LiviqaTheme.moss2) {
+                    #if os(iOS)
+                    showVoiceNote = true
+                    #endif
+                }
+            }
+            captureButton("Upload a document or photo", icon: "arrow.up.doc",
+                          tint: LiviqaTheme.ink3, bg: LiviqaTheme.line2, wide: true) {
+                #if os(iOS)
+                showDocumentPicker = true
+                #endif
+            }
+        }
+    }
+
+    private func captureButton(_ label: String, icon: String, tint: Color, bg: Color,
+                               wide: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10).fill(bg).frame(width: 38, height: 38)
+                    Image(systemName: icon).font(.system(size: 16, weight: .medium)).foregroundStyle(tint)
+                }
+                Text(label)
+                    .font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    .lineLimit(1).minimumScaleFactor(0.85)
+                if wide { Spacer() }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(13)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+            .shadow(color: LiviqaTheme.cardShadow, radius: 6, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // Context-aware suggestions so the user never faces a blank page.
+    private var suggestionChips: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("SUGGESTED NOW")
+                .font(.liviqaKicker(10)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            HStack(spacing: 8) {
+                ForEach(contextSuggestions, id: \.self) { s in
+                    Button { expandComposer(tag: "Note", prompt: s) } label: {
+                        HStack(spacing: 7) {
+                            Circle().fill(LiviqaTheme.clay).frame(width: 6, height: 6)
+                            Text(s).font(.lato(12.5, .bold))
+                        }
+                        .foregroundStyle(LiviqaTheme.clayText)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(LiviqaTheme.clay2)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(LiviqaTheme.clay3, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var contextSuggestions: [String] {
+        let hr = Calendar.current.component(.hour, from: Date())
+        switch hr {
+        case 5..<11:  return ["Note how you slept?", "Log breakfast?"]
+        case 11..<15: return ["Log lunch?", "How's your energy?"]
+        case 18..<23: return ["It's evening — log dinner?", "Note how today went?"]
+        default:      return ["Note how you slept?", "How's your energy?"]
+        }
+    }
+
+    // Mood quick-capture sheet — one tap logs, with a warm confirm.
+    private var moodSheet: some View {
+        VStack(spacing: 0) {
+            Capsule().fill(LiviqaTheme.line).frame(width: 38, height: 4).padding(.top, 12).padding(.bottom, 18)
+            Text("How's your energy?")
+                .font(.lato(20, .black)).kerning(-0.4).foregroundStyle(LiviqaTheme.ink)
+            Text("One tap. You can add a note after — or not.")
+                .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
+
+            HStack(spacing: 14) {
+                moodFace("Low", "face.dashed", "low energy")
+                moodFace("Flat", "minus", "flat")
+                moodFace("Good", "face.smiling", "good energy")
+                moodFace("Great", "face.smiling.inverse", "great energy")
+            }
+            .padding(.top, 22)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .background(LiviqaTheme.paper.ignoresSafeArea())
+    }
+
+    private func moodFace(_ label: String, _ icon: String, _ logged: String) -> some View {
+        Button { logMood(logged) } label: {
+            VStack(spacing: 7) {
+                ZStack {
+                    Circle().stroke(LiviqaTheme.line, lineWidth: 1.5).frame(width: 54, height: 54)
+                    Image(systemName: icon).font(.system(size: 22)).foregroundStyle(LiviqaTheme.ink3)
+                }
+                Text(label).font(.lato(11, .bold)).foregroundStyle(LiviqaTheme.ink3)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func logMood(_ logged: String) {
+        var entry = JournalEntry(body: "Logged — \(logged).", tags: ["Mood"])
+        entry.metrics = nil
+        withAnimation {
+            journalEntries.insert(entry, at: 0)
+            showMoodSheet = false
+        }
+    }
+
+    private func expandComposer(tag: String, prompt: String) {
+        withAnimation(.spring(response: 0.3)) {
+            composerTags.insert(tag)
+            composerExpanded = true
+            composerFocused = true
         }
     }
 
@@ -408,6 +573,11 @@ struct JournalView: View {
                         .foregroundStyle(tagColor(tag))
                 }
                 Spacer()
+                HStack(spacing: 3) {
+                    Image(systemName: "lock.fill").font(.system(size: 8))
+                    Text("on device").font(.liviqaKicker(8.5)).tracking(0.3)
+                }
+                .foregroundStyle(LiviqaTheme.moss)
             }
             .padding(.bottom, 8)
 
@@ -441,7 +611,7 @@ struct JournalView: View {
                 metricChip(icon: "drop.fill",
                            value: String(format: "%.1f", g / 18),
                            unit: "mmol/L",
-                           color: LiviqaTheme.amber)
+                           color: LiviqaTheme.clay)
             }
             if let s = m.sleepHours {
                 metricChip(icon: "moon.fill",
@@ -607,7 +777,7 @@ struct JournalView: View {
 
     private func tagColor(_ tag: String) -> Color {
         switch tag {
-        case "Glucose": return LiviqaTheme.amber
+        case "Glucose": return LiviqaTheme.clay
         case "Sleep":   return LiviqaTheme.moss
         case "Mood":    return LiviqaTheme.ink3
         default:        return LiviqaTheme.ink3
@@ -616,7 +786,7 @@ struct JournalView: View {
 
     private func tagBg(_ tag: String) -> Color {
         switch tag {
-        case "Glucose": return LiviqaTheme.amber2
+        case "Glucose": return LiviqaTheme.clay2
         case "Sleep":   return LiviqaTheme.moss2
         default:        return LiviqaTheme.line2
         }
@@ -624,7 +794,7 @@ struct JournalView: View {
 
     private func vaultColor(_ key: VaultDocType.VaultColor) -> Color {
         switch key {
-        case .amber: return LiviqaTheme.amber
+        case .amber: return LiviqaTheme.clay
         case .moss:  return LiviqaTheme.moss
         case .ink:   return LiviqaTheme.ink
         case .blue:  return Color(hex: 0x2992A5)

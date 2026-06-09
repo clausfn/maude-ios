@@ -51,7 +51,16 @@ struct MainTabView: View {
     @State private var selectedNudge: Nudge?
     @State private var showProfile  = false   // ProfileSheet — universal avatar target
     @State private var nudgeProfileAnchor: ProfileSheet.Section? = nil
+    @State private var joiningConsult: ConsultSummary? = nil   // accepted an incoming call
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
+
+    private func hideNavBar<V: View>(_ v: V) -> some View {
+        #if os(iOS)
+        return v.toolbar(.hidden, for: .navigationBar)
+        #else
+        return v
+        #endif
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -61,74 +70,73 @@ struct MainTabView: View {
                 switch tab {
                 case .today:
                     NavigationStack {
-                        TodayView(
+                        hideNavBar(TodayView(
                             nudges: appState.nudges,
                             displayName: appState.profile?.displayName,
                             isDemoData: appState.isDemoData && showDemoChip,
+                            signals: appState.todaySignals,
                             onOpen: { nudge in selectedNudge = nudge },
                             onCalibrate: { anchor in
                                 nudgeProfileAnchor = anchor
-                                showProfile = true
+                                appState.showProfileSheet = true
                             }
-                        )
+                        ))
                         .task { await appState.refreshFromHealth() }
                         .navigationDestination(item: $selectedNudge) { nudge in
-                            NudgeDetailView(nudge: nudge)
-                        }
-                        .toolbar {
-                            ToolbarItem(placement: .automatic) {
-                                avatarButton
-                            }
+                            NudgeDetailView(nudge: nudge).liviqaDetail()
                         }
                     }
                 case .trends:
-                    NavigationStack {
-                        WeekInContextView()
-                            .toolbar { ToolbarItem(placement: .automatic) { avatarButton } }
-                    }
+                    NavigationStack { hideNavBar(WeekInContextView()) }
                 case .wallet:
-                    NavigationStack {
-                        WalletView()
-                            .toolbar { ToolbarItem(placement: .automatic) { avatarButton } }
-                    }
+                    NavigationStack { hideNavBar(WalletView()) }
                 case .care:
-                    NavigationStack {
-                        MessagesView()
-                            .toolbar { ToolbarItem(placement: .automatic) { avatarButton } }
-                    }
+                    NavigationStack { hideNavBar(MessagesView()) }
                 case .journal:
                     JournalView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, 72)
+            .padding(.bottom, appState.detailDepth == 0 ? 72 : 0)
 
-            tabBar
-        }
-        .sheet(isPresented: $showProfile, onDismiss: { nudgeProfileAnchor = nil }) {
-            ProfileSheet(openSection: nudgeProfileAnchor)
-        }
-    }
+            if appState.detailDepth == 0 {
+                tabBar
+            }
 
-    // MARK: - Avatar button (universal)
-
-    private var avatarButton: some View {
-        Button {
-            nudgeProfileAnchor = nil
-            showProfile = true
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(LiviqaTheme.invertBG)
-                    .frame(width: 32, height: 32)
-                Text(profileInitials)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(LiviqaTheme.invertFG)
+            // Incoming instant call (a clinician started a consult) — consent-first.
+            if let incoming = appState.incomingConsult, joiningConsult == nil {
+                IncomingCallView(
+                    consult: incoming,
+                    onJoin: { joiningConsult = incoming; appState.dismissIncoming() },
+                    onDecline: { appState.dismissIncoming() }
+                )
+                .transition(.opacity)
+                .zIndex(100)
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("avatarButton")
-        .accessibilityLabel("Profile and settings")
+        .animation(.easeInOut(duration: 0.25), value: appState.incomingConsult?.id)
+        .sheet(isPresented: Binding(
+            get: { showProfile || appState.showProfileSheet },
+            set: { open in
+                if !open {
+                    showProfile = false
+                    appState.showProfileSheet = false
+                    nudgeProfileAnchor = nil
+                }
+            }
+        )) {
+            ProfileSheet(openSection: nudgeProfileAnchor)
+        }
+        .fullScreenCover(item: $joiningConsult) { consult in
+            NavigationStack { ConsultView(consult: consult) }
+        }
+        .task {
+            // Poll for an incoming instant call (no push infra yet).
+            while !Task.isCancelled {
+                await appState.pollIncomingCall()
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
+            }
+        }
     }
 
     private var tabBar: some View {
@@ -165,12 +173,4 @@ struct MainTabView: View {
         }
     }
 
-    private var profileInitials: String {
-        let name = appState.profile?.displayName ?? "C"
-        let parts = name.split(separator: " ")
-        if parts.count >= 2 {
-            return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
-        }
-        return String(name.prefix(2)).uppercased()
-    }
 }

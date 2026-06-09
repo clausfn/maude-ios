@@ -9,6 +9,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Liviqa adds a consultation you plan to your own calendar, with a reminder. It never reads your existing events.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Liviqa uses your camera only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Liviqa uses your microphone only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Liviqa reads your Health data on-device to show your trends and personal, plain-language nudges. Your health data stays on this device and is never uploaded.</string>
 	<key>NSHealthUpdateUsageDescription</key>

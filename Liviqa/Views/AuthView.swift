@@ -1,6 +1,6 @@
-// AuthView.swift — Sign in gate. Three paths: Apple, email/password, Demo mode.
-// Demo mode is the single most important button for the Novo pitch — it must never fail.
-// v02 2026-05-22
+// AuthView.swift — Sign-in gate (Design System v2). Premium, paper-ground,
+// evidence-led. Apple primary · email secondary · demo a quiet tertiary.
+// v03 2026-06-09
 import SwiftUI
 import AuthenticationServices
 
@@ -16,187 +16,172 @@ struct AuthView: View {
             LiviqaTheme.paper.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer()
+                Spacer(minLength: 40)
 
-                // ── Wordmark ──
-                VStack(spacing: 10) {
-                    LiviqaApertureMark(size: 52)
+                // ── Brand hero ──
+                VStack(spacing: 14) {
+                    LiviqaApertureMark(size: 60)
                     Text("Liviqa")
-                        .font(.lato(36, .black))
-                        .kerning(-0.7)
+                        .font(.lato(40, .black))
+                        .kerning(LiviqaTheme.Tracking.wordmark)
                         .foregroundStyle(LiviqaTheme.ink)
-                    Text("Your data. Your insights. Your terms.")
-                        .font(.lato(13))
+                    Text("Your own data, understood.\nNot averages — yours.")
+                        .font(.lato(14))
+                        .lineSpacing(3)
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
-                .padding(.bottom, 48)
+                .padding(.bottom, 44)
 
-                // ── Sign in card ──
-                VStack(spacing: 12) {
-
-                    // Live sign-in (Apple + email) — gated until auth is verified
-                    // end-to-end (Config.authEnabled). Hidden in the current
-                    // TestFlight build so UI testers never hit a broken flow.
+                // ── Sign-in ──
+                VStack(spacing: 11) {
                     if Config.authEnabled {
-                        // Apple Sign In
-                        Button {
-                            Task { await appleSignIn() }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "apple.logo")
-                                    .font(.lato(15, .medium))
-                                Text("Continue with Apple")
-                                    .font(.lato(15, .medium))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(LiviqaTheme.invertBG)
-                            .foregroundStyle(LiviqaTheme.invertFG)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
+                        appleButton
 
-                        // Email/password toggle
                         if showEmailForm {
                             emailForm
                         } else {
-                            Button("Sign in with email") {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showEmailForm = true
-                                }
+                            secondaryButton("Continue with email", icon: "envelope") {
+                                withAnimation(.easeInOut(duration: 0.2)) { showEmailForm = true }
                             }
-                            .font(.lato(14, .medium))
-                            .foregroundStyle(LiviqaTheme.ink2)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(LiviqaTheme.paper2)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line))
                         }
 
-                        // Error
                         if let error = appState.lastError {
                             Text(error)
                                 .font(.lato(12))
                                 .foregroundStyle(LiviqaTheme.rust)
                                 .multilineTextAlignment(.center)
+                                .padding(.top, 2)
                                 .padding(.horizontal, 4)
                         }
-
-                        Divider()
-                            .background(LiviqaTheme.line2)
-                            .padding(.vertical, 4)
                     }
 
-                    // Demo mode — primary path for pitch, preview, and UI testing
+                    // Quiet demo path (no account) — kept for a quick look-around.
                     Button {
                         appState.signInDemo()
                     } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.right.circle")
-                                .font(.lato(14))
-                            Text(Config.authEnabled ? "Continue without account" : "Enter Liviqa")
-                                .font(.lato(14, .bold))
-                        }
-                        .foregroundStyle(LiviqaTheme.moss)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(LiviqaTheme.moss2)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss3, lineWidth: 1))
+                        Text(Config.authEnabled ? "Continue without an account" : "Enter Liviqa")
+                            .font(.lato(13, .bold))
+                            .foregroundStyle(LiviqaTheme.ink3)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
                     }
+                    .padding(.top, Config.authEnabled ? 2 : 0)
                 }
-                .padding(20)
-                .background(LiviqaTheme.paper2)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 0.5))
-                .shadow(color: LiviqaTheme.cardShadow, radius: 12, y: 4)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 28)
 
                 Spacer()
 
-                // Privacy note
-                Text("Data stays on your device. Nothing shared without your consent.")
-                    .font(.caption2)
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 32)
+                // ── Sovereignty footer ──
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text("Your data stays on your device. Nothing leaves without your consent.")
+                        .font(.liviqaKicker(9.5)).tracking(0.3)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
+                .padding(.bottom, 30)
             }
         }
     }
 
-    // MARK: - Email form
+    // MARK: — Buttons
 
-    @ViewBuilder
-    private var emailField: some View {
-        #if os(iOS)
-        TextField("Email", text: $email)
-            .font(.lato(14))
-            .textContentType(.emailAddress)
-            .autocorrectionDisabled()
-            .keyboardType(.emailAddress)
-            .textInputAutocapitalization(.never)
-        #else
-        TextField("Email", text: $email)
-            .font(.lato(14))
-            .textContentType(.emailAddress)
-            .autocorrectionDisabled()
-        #endif
+    private var appleButton: some View {
+        Button {
+            Task { await appleSignIn() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "apple.logo").font(.system(size: 17, weight: .medium))
+                Text("Continue with Apple").font(.lato(16, .bold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(LiviqaTheme.invertBG)
+            .foregroundStyle(LiviqaTheme.invertFG)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
     }
+
+    private func secondaryButton(_ title: String, icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.system(size: 14, weight: .medium))
+                Text(title).font(.lato(15, .bold))
+            }
+            .foregroundStyle(LiviqaTheme.ink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+        }
+    }
+
+    // MARK: — Email form
 
     @ViewBuilder
     private var emailForm: some View {
-        VStack(spacing: 8) {
-            emailField
-                .padding(12)
-                .background(LiviqaTheme.paper)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(LiviqaTheme.line))
-
-            SecureField("Password", text: $password)
-                .font(.lato(14))
-                .textContentType(.password)
-                .padding(12)
-                .background(LiviqaTheme.paper)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(LiviqaTheme.line))
-
+        VStack(spacing: 9) {
+            inputField {
+                #if os(iOS)
+                TextField("Email", text: $email)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                #else
+                TextField("Email", text: $email).autocorrectionDisabled()
+                #endif
+            }
+            inputField {
+                SecureField("Password", text: $password)
+                    .textContentType(.password)
+            }
             Button {
                 Task { await emailSignIn() }
             } label: {
                 Group {
                     if appState.isSigningIn {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(LiviqaTheme.invertFG)
                     } else {
-                        Text("Sign in")
-                            .font(.lato(14, .bold))
+                        Text("Sign in").font(.lato(15, .bold))
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
+                .padding(.vertical, 14)
                 .background(LiviqaTheme.invertBG)
                 .foregroundStyle(LiviqaTheme.invertFG)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .disabled(appState.isSigningIn || email.isEmpty || password.isEmpty)
         }
     }
 
-    // MARK: - Actions
+    private func inputField<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .font(.lato(15))
+            .foregroundStyle(LiviqaTheme.ink)
+            .padding(14)
+            .background(LiviqaTheme.paper)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
+    }
+
+    // MARK: — Actions
 
     private func emailSignIn() async {
         await appState.signInWithEmail(email: email, password: password)
     }
 
     private func appleSignIn() async {
-        // Native Sign in with Apple → Ory OIDC-native. The Apple identity token +
-        // raw nonce go to the backend service (FR-AUTH-01). The Demo button below
-        // remains the never-fail pitch path; we do NOT silently fall back here.
         do {
             let result = try await appleCoordinator.signIn()
             await appState.signInWithApple(idToken: result.idToken, nonce: result.rawNonce)
         } catch {
-            // Swallow an explicit user cancel; surface anything else.
             if (error as? ASAuthorizationError)?.code != .canceled {
                 appState.lastError = "Apple sign-in didn’t complete. Use email, or continue without an account."
             }

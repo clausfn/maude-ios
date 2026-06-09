@@ -2,6 +2,92 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-09 — In-app incoming instant call + consent-first join (10.15)
+
+- **What.** A clinician can start an instant secure consultation from the console
+  ("Call now" on a panel patient / Start consultation); the citizen's app now
+  surfaces a full-screen **incoming-call** overlay (`Views/IncomingCallView.swift`)
+  and, on Join, drops into the existing `ConsultView` (sovereign Jitsi room).
+- **Decision — joining IS the consent (consent-first).** The overlay states, before
+  any connection: data stays on device, the clinician sees only what was consented,
+  and **recording stays off unless separately allowed in-call**. Declining dismisses;
+  there is no auto-answer. This keeps the call inside the same granular-consent
+  posture as every other share (`FR-CONSENT-*`), rather than treating a call as a
+  privileged channel.
+- **How (no push infra yet).** `AppState.pollIncomingCall()` polls active consults
+  on an 8 s loop from `MainTabView.task`; the first *new* consult id raises
+  `incomingConsult`. `dismissIncoming()` marks it seen so it cannot re-fire. A real
+  APNs push replaces the poll later — logged as follow-up, not a blocker.
+- **Surface.** Always-dark call chrome (`#0C1520`) regardless of theme; avatar pulse;
+  Decline (rust) / Join (moss). Camera/mic usage strings already present in Info.plist.
+- **Verification.** Xcode `BUILD SUCCEEDED`; archived + uploaded via the isolated-
+  keychain path (`scripts/archive_upload_isolated.sh`), Delivery UUID
+  `9afca9b8-c48b-43a2-a4f4-aed64bef96b7`. Pairs with the console instant-call /
+  worklist / presence work (see `liviqa-b2b-console/CHANGELOG.md`).
+
+## 2026-06-09 — Design System v2 foundation: Paper default + clay attention tone (PR-47)
+
+- **Source.** A `claude.ai/design` handoff bundle (in `_liviqa_design_reference/`,
+  outside the repo). Read the chat transcript for intent: the thesis is
+  *comprehension → insight → behaviour change*, "not population averages — yours",
+  with always-on evidence metadata (N · baseline · r · p + a "still learning" gate).
+  Keeps the locked brand (aperture mark, Lato, ink/moss). Locked screen directions:
+  Correlation C, Home C, Baseline Aperture-arc, Week heatmap, Consent A, Privacy
+  one-tap pause, Journal quick-capture, 5-tab IA.
+- **The foundation already matched.** `Theme.swift` is built from the same
+  `Liviqa_Design_Tokens_v01` source as the design's `colors.css`; the palette,
+  Lato, and IBM Plex Mono were already in place. So v2 is a small token *delta*,
+  not a recolor.
+- **Decision — clay over amber (the keystone, founder-confirmed in design chat).**
+  The single patient "worth noticing" tone is **clay `#BD7A33`** (tuned candidate 4),
+  *not* amber. Amber reads as a warning light — wrong for an app below the
+  medical-device line whose voice is never diagnostic. Patient app = two calm
+  states (moss = in-range, clay = notice); the saturated green/amber/red triage
+  ramp is the *console's* logic, deliberately not shared. Recorded as a risk
+  control (`RK-ALARM-01`, RISK.md) because it bears on `FR-REG-02`.
+- **Decision — default to Paper.** The design is light/paper-first; the app default
+  flips Midnight → Paper. Midnight stays user-selectable; the dynamic tokens flip
+  the whole app via one root `preferredColorScheme`, so no per-view change.
+- **Applied as a token sweep.** `amber → clay` across `Liviqa/Views/*.swift`
+  (the amber token is retained for engine/console). Added the confidence ramp and
+  the semantic type scale (with the design's exact tracking).
+- **Verification.** I cannot have Claus build (Xcode signing/destination issues on
+  his side), so I build + screenshot myself: `xcodebuild` (iOS Sim) BUILD
+  SUCCEEDED, LiviqaTests 78/78 green, Today screen screenshotted in both Paper and
+  Midnight — the glucose arc now reads moss → clay. Screens (Today hero,
+  Correlation, Baseline arc, Week, sovereignty set) are the next, screenshot-
+  reviewed phase. The 5-tab IA rename and any new insulin/AFib nudge copy are
+  **held for Claus** (structural / RQ-01 counsel).
+
+## 2026-06-09 — Full HealthKit capture (Step A) + auth wiring + ingestion fixes (PR-46)
+
+- **Decision — capture everything HealthKit holds.** Founder direction ("I want
+  all… everything"): the data model (`Entities.swift`) already had the entities, so
+  ingestion was widened to populate them — insulin, AFib burden, blood pressure,
+  body composition, and the full heart/respiratory panel — alongside the original
+  MVP set. Rationale: the founder's real CGM (via Zukka→HealthKit) and insulin (via
+  mySugr→HealthKit) already live in Apple Health, so the demo/real data flows by
+  *reading*, not by bundling PII or file import. Labs and the medication list are
+  **not** in HealthKit and remain a separate file-import path (sundhed.dk/InBody).
+- **Boundary held at the data layer.** Reading insulin/AFib does not cross the
+  device line: insulin stays dose-blind (`FR-REG-04`), AFib display-only
+  (`OD-11`/`D9`); see RISK.md PR-46/47. Rendering the new signals is Step B and
+  gated by the `FR-NDG-06` guard + the RQ-01 decision.
+- **Read-only preserved.** The wider read set is authorization-only; the share/
+  write set stays empty (`FR-ARCH-04`).
+- **Onboarding auth wired.** The HealthKit primer "Connect" now actually requests
+  authorization and switches the provider to `.healthKit` (was a no-op that left
+  the app on demo data).
+- **Idempotency hardened.** `IngestionCoordinator`'s window-replace now deletes the
+  union of the requested window and the inserted rows' span, so a boundary sample
+  just outside the window is not re-inserted each sync. Fixes a pre-existing
+  `reSyncIsIdempotent` failure with no data dropped.
+- **Verification.** `xcodebuild` (iOS Sim) BUILD SUCCEEDED; LiviqaTests **78/78
+  green**; a baseline git-stash run confirmed Step A introduced zero new
+  regressions (the only two reds were pre-existing and are now fixed). Real-device
+  sanity items flagged to Claus: SpO₂/body-fat %-scaling and the VO₂max unit
+  string, which compile but want a glance against live values.
+
 ## 2026-06-03 — TestFlight prep: live-data Release + App Store gaps (PR-30)
 
 - **Goal:** first TestFlight under the Data for Good team (`PS258XSNL8`), feeding

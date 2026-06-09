@@ -8,31 +8,33 @@ struct ConsentLedgerView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
-                // ── Header note ──
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "link.circle")
-                        .font(.lato(14))
-                        .foregroundStyle(LiviqaTheme.moss)
-                    Text("Every consent decision is independently logged and cannot be edited, deleted, or backdated.")
-                        .font(.caption)
-                        .lineSpacing(2)
-                        .foregroundStyle(LiviqaTheme.ink2)
-                }
-                .padding(12)
-                .background(LiviqaTheme.moss2)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss3, lineWidth: 1))
-                .padding(.bottom, 8)
+                // ── Reassurance (does the trust work in one sentence) ──
+                Text("Every access to your data is recorded here. ")
+                    .font(.lato(13.5)).foregroundStyle(LiviqaTheme.ink2)
+                + Text("Nobody can edit this — not even us.")
+                    .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.moss)
 
-                // ── Events or empty state ──
+                // ── Plain-language timeline (Design v2 · Alternative A) ──
                 if appState.walletEvents.isEmpty {
-                    emptyState
+                    emptyState.padding(.top, 14)
                 } else {
-                    VStack(spacing: 10) {
-                        ForEach(appState.walletEvents) { event in
-                            eventCard(event)
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(appState.walletEvents.enumerated()), id: \.element.id) { idx, event in
+                            timelineEvent(event, isLast: idx == appState.walletEvents.count - 1)
                         }
                     }
+                    .padding(.top, 16)
+
+                    // Proof on demand — the machinery waits under here.
+                    Button { } label: {
+                        HStack(spacing: 6) {
+                            Text("Technical details").font(.lato(13.5, .bold))
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(LiviqaTheme.ink2)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
                 }
             }
             .padding(.horizontal, 20)
@@ -68,45 +70,71 @@ struct ConsentLedgerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Event card
+    // MARK: - Timeline event (plain language + ✓ verified)
 
-    private func eventCard(_ event: WalletEvent) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-
-            // Icon in circle
-            ZStack {
+    private func timelineEvent(_ event: WalletEvent, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Rail: pin + connecting line
+            VStack(spacing: 0) {
                 Circle()
-                    .fill(iconBackground(event))
-                    .frame(width: 32, height: 32)
-                Image(systemName: iconName(event))
-                    .font(.lato(13))
-                    .foregroundStyle(iconForeground(event))
+                    .fill(pinColor(event))
+                    .frame(width: 12, height: 12)
+                    .overlay(Circle().stroke(LiviqaTheme.paper, lineWidth: 2))
+                if !isLast {
+                    Rectangle().fill(LiviqaTheme.line).frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
             }
+            .frame(width: 12)
 
-            // Middle: actor + label
-            VStack(alignment: .leading, spacing: 3) {
-                Text(event.actorName)
-                    .font(.footnote.weight(.medium))
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(sentence(event))
+                    .font(.lato(14.5, .bold)).lineSpacing(1)
                     .foregroundStyle(LiviqaTheme.ink)
-                Text(eventLabel(event))
-                    .font(.caption)
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 7) {
+                    Text(relativeDate(event.occurredAt))
+                        .font(.liviqaMono(10.5)).foregroundStyle(LiviqaTheme.ink3)
+                    HStack(spacing: 3) {
+                        Image(systemName: "checkmark.seal.fill").font(.system(size: 9))
+                        Text("verified").font(.liviqaMono(10))
+                    }
+                    .foregroundStyle(LiviqaTheme.moss)
+                }
             }
+            .padding(.bottom, isLast ? 0 : 18)
 
-            Spacer(minLength: 4)
-
-            // Timestamp
-            Text(relativeDate(event.occurredAt))
-                .font(.caption)
-                .foregroundStyle(LiviqaTheme.ink4)
-                .multilineTextAlignment(.trailing)
+            Spacer(minLength: 0)
         }
-        .padding(12)
-        .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 0.5))
-        .shadow(color: LiviqaTheme.cardShadow, radius: 6, y: 2)
+    }
+
+    private func pinColor(_ event: WalletEvent) -> Color {
+        switch event.eventType {
+        case .consentGranted: return LiviqaTheme.moss
+        case .consentRevoked: return LiviqaTheme.clay
+        case .accessRequest:  return event.decision == .denied ? LiviqaTheme.rust : LiviqaTheme.moss
+        case .dataAccessed:   return LiviqaTheme.ink4
+        }
+    }
+
+    /// Turn an event into a sentence a non-technical person reads at a glance.
+    private func sentence(_ event: WalletEvent) -> String {
+        let who = event.actorName
+        let scope = event.scopeKeys.prefix(2).joined(separator: " & ")
+        let scopePhrase = scope.isEmpty ? "your data" : "your \(scope)"
+        switch event.eventType {
+        case .consentGranted:
+            return scope.isEmpty ? "You granted \(who) access." : "You shared \(scope) with \(who)."
+        case .consentRevoked:
+            return "You paused \(who)'s access."
+        case .accessRequest:
+            return event.decision == .denied ? "You refused \(who)'s request."
+                 : event.decision == .pending ? "\(who) requested access — awaiting your decision."
+                 : "You approved \(who)'s request."
+        case .dataAccessed:
+            return "\(who) viewed \(scopePhrase)."
+        }
     }
 
     // MARK: - Icon helpers
@@ -131,7 +159,7 @@ struct ConsentLedgerView: View {
         case .consentRevoked:
             return LiviqaTheme.rust
         case .accessRequest:
-            return event.decision == .denied ? LiviqaTheme.rust : LiviqaTheme.amber
+            return event.decision == .denied ? LiviqaTheme.rust : LiviqaTheme.clay
         case .dataAccessed:
             return LiviqaTheme.ink3
         }
@@ -144,7 +172,7 @@ struct ConsentLedgerView: View {
         case .consentRevoked:
             return LiviqaTheme.rust2
         case .accessRequest:
-            return event.decision == .denied ? LiviqaTheme.rust2 : LiviqaTheme.amber2
+            return event.decision == .denied ? LiviqaTheme.rust2 : LiviqaTheme.clay2
         case .dataAccessed:
             return LiviqaTheme.line2
         }

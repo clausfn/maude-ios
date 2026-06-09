@@ -21,16 +21,28 @@ struct WeekInContextView: View {
 
     struct SelectedCell: Equatable { let day: Int; let metric: Int }
 
-    /// Theme-aware fill for a correlation level (the model's own `.color` is
-    /// light-mode-only hex; remap to dynamic tokens so Midnight reads correctly).
+    /// Two-state heatmap fill (Design v2): moss = in your range, clay = worth
+    /// noticing. Not a saturated ramp — the patient surface has exactly two
+    /// meanings, and a column that lights up clay IS a cluster (pre-attentive).
     private func fill(_ level: CorrelationLevel) -> Color {
         switch level {
         case .noData:  return LiviqaTheme.gridEmpty
-        case .low:     return LiviqaTheme.moss3
-        case .medium:  return LiviqaTheme.moss.opacity(0.5)
-        case .high:    return LiviqaTheme.moss
-        case .outlier: return LiviqaTheme.amber
+        case .low:     return LiviqaTheme.moss2     // in range
+        case .medium:  return LiviqaTheme.moss3     // in range (firmer)
+        case .high:    return LiviqaTheme.clay2     // mild
+        case .outlier: return LiviqaTheme.clay      // worth noticing
         }
+    }
+
+    /// The cluster column — the day with the most "worth noticing" signals.
+    /// A lit column is the whole point of the heatmap; we ring it and name it.
+    private var clusterDay: Int? {
+        var best: (idx: Int, score: Int)? = nil
+        for (i, day) in week.days.enumerated() {
+            let score = day.values.reduce(0) { $0 + ($1 == .outlier ? 2 : $1 == .high ? 1 : 0) }
+            if score > 0, best == nil || score > best!.score { best = (i, score) }
+        }
+        return best?.idx
     }
 
     var body: some View {
@@ -122,7 +134,8 @@ struct WeekInContextView: View {
                     Text(day.dayLabel)
                         .font(.liviqaKicker(9))
                         .tracking(0.5)
-                        .foregroundStyle(selected?.day == dayIndex ? LiviqaTheme.ink : LiviqaTheme.ink3)
+                        .foregroundStyle(dayIndex == clusterDay ? LiviqaTheme.clayText
+                                         : (selected?.day == dayIndex ? LiviqaTheme.ink : LiviqaTheme.ink3))
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -151,7 +164,8 @@ struct WeekInContextView: View {
                                     selected = SelectedCell(day: dayIndex, metric: rowIndex)
                                 }
                             } label: {
-                                GridCell(color: fill(level), selected: isSel)
+                                GridCell(color: fill(level), selected: isSel,
+                                         cluster: dayIndex == clusterDay)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("\(label), \(day.dayLabel): \(level.accessibilityLabel)")
@@ -197,8 +211,8 @@ struct WeekInContextView: View {
                     Spacer()
                     StatusPill(text: level.accessibilityLabel.capitalized,
                                dot: fill(level),
-                               bg: level == .outlier ? LiviqaTheme.amber2 : LiviqaTheme.moss2,
-                               fg: level == .outlier ? LiviqaTheme.amber : LiviqaTheme.moss)
+                               bg: level == .outlier ? LiviqaTheme.clay2 : LiviqaTheme.moss2,
+                               fg: level == .outlier ? LiviqaTheme.clay : LiviqaTheme.moss)
                 }
                 Text(readout(metric: sel.metric, level: level, day: dayName))
                     .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
@@ -225,11 +239,11 @@ struct WeekInContextView: View {
     // MARK: - Legend
 
     private var gridLegend: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
+            LegendSwatch(color: fill(.low),     label: "In range")
+            LegendSwatch(color: fill(.high),    label: "Mild")
+            LegendSwatch(color: fill(.outlier), label: "Worth noticing")
             LegendSwatch(color: fill(.noData),  label: "No data")
-            LegendSwatch(color: fill(.low),     label: "Normal")
-            LegendSwatch(color: fill(.high),    label: "Elevated")
-            LegendSwatch(color: fill(.outlier), label: "Outlier")
             Spacer()
         }
     }
@@ -251,10 +265,10 @@ struct WeekInContextView: View {
                 Text(week.patternStrength)
                     .font(.liviqaKicker(9))
                     .tracking(0.5)
-                    .foregroundStyle(LiviqaTheme.amber)
+                    .foregroundStyle(LiviqaTheme.clay)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(LiviqaTheme.amber2)
+                    .background(LiviqaTheme.clay2)
                     .clipShape(Capsule())
             }
 
@@ -296,7 +310,7 @@ struct WeekInContextView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "info.circle")
                 .font(.caption)
-                .foregroundStyle(LiviqaTheme.amber)
+                .foregroundStyle(LiviqaTheme.clay)
                 .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -316,11 +330,11 @@ struct WeekInContextView: View {
             }
         }
         .padding(12)
-        .background(LiviqaTheme.amber2)
+        .background(LiviqaTheme.clay2)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(LiviqaTheme.amber.opacity(0.5), lineWidth: 0.5)
+                .stroke(LiviqaTheme.clay.opacity(0.5), lineWidth: 0.5)
         )
     }
 
@@ -375,6 +389,7 @@ struct WeekInContextView: View {
 private struct GridCell: View {
     let color: Color
     var selected: Bool = false
+    var cluster: Bool = false   // part of the lit cluster column
 
     var body: some View {
         RoundedRectangle(cornerRadius: 6)
@@ -384,7 +399,9 @@ private struct GridCell: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .inset(by: -2)
-                    .stroke(selected ? LiviqaTheme.ink : .clear, lineWidth: 2)
+                    .stroke(selected ? LiviqaTheme.ink
+                            : (cluster ? LiviqaTheme.clay.opacity(0.55) : .clear),
+                            lineWidth: selected ? 2 : 1.5)
             )
     }
 }

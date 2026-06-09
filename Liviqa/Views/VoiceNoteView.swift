@@ -284,8 +284,8 @@ struct VoiceNoteView: View {
                     .tracking(0.4)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(LiviqaTheme.amber2)
-                    .foregroundStyle(LiviqaTheme.amber)
+                    .background(LiviqaTheme.clay2)
+                    .foregroundStyle(LiviqaTheme.clay)
                     .clipShape(Capsule())
             }
             Text(transcription)

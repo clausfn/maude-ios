@@ -72,6 +72,22 @@ enum LiviqaTheme {
     static let rust    = Color.dyn(0xA33A2A, 0xDB6A54)
     static let rust2   = Color.dyn(0xF2DCD7, 0xDB6A54, 1, 0.18)
 
+    // Clay — the single patient "worth noticing" attention tone (Design System v2,
+    // signals.css, tuned candidate 4). Deliberately NOT amber: clay says "worth a
+    // look", never "alarm" — right for an app pitched below the medical-device line.
+    // The patient two-state logic is moss = in-range · clay = worth noticing.
+    static let clay     = Color.dyn(0xBD7A33, 0xD9A765)            // the attention tone
+    static let clay2    = Color.dyn(0xEFE8DB, 0xD9A765, 1, 0.16)   // calm tint fill
+    static let clay3    = Color.dyn(0xE0D4BC, 0xD9A765, 1, 0.34)   // border tint
+    static let clayText = Color.dyn(0x6B461B, 0xD9A765)            // AA on paper
+    static let clayRev  = Color.dyn(0xD9A765, 0xD9A765)            // clay on ink/dark
+
+    // Confidence ramp — qualifies every insight (the evidence/trust mechanism).
+    // high = gated (passes r/p) · emerging = directional · learning = baseline building.
+    static let confHigh     = moss
+    static let confEmerging = clay
+    static let confLearning = ink4
+
     // Hooks (Oura pass)
     static let gridEmpty     = Color.dyn(0xEAE5DB, 0xFFFFFF, 1, 0.06)   // correlation "no data"
     static let heroGlow      = Color.dyn(0x3D7A5A, 0x5CB389, 0.18, 0.30) // radial halo
@@ -85,6 +101,10 @@ enum LiviqaTheme {
     static let invertLine = Color.dyn(0xFFFFFF, 0x0E1A2B, 0.12, 0.12)
 
     enum Radius { static let card: CGFloat = 20; static let hero: CGFloat = 26; static let vitals: CGFloat = 24 }
+
+    /// Letter-spacing from the design type scale. Apply with `.tracking(_:)`.
+    /// H1 −0.5 · H2 −0.2 · kicker +1.5 (mono, uppercase) · wordmark −0.4.
+    enum Tracking { static let h1: CGFloat = -0.5; static let h2: CGFloat = -0.2; static let kicker: CGFloat = 1.5; static let wordmark: CGFloat = -0.4 }
 }
 
 // MARK: - Font helpers — brand type (Lato + IBM Plex Mono, bundled OFL fonts)
@@ -104,4 +124,12 @@ extension Font {
         }
         return .custom(face, size: size)
     }
+
+    // Semantic type scale (Design System v2 typography.css). Lato for headline/
+    // body; mono (liviqaKicker/liviqaMono) for kickers, numbers, timestamps.
+    // Apply tracking at the call site via `.tracking(LiviqaTheme.Tracking.*)`.
+    static var liviqaH1: Font { lato(32, .heavy) }         // screen headline — 800
+    static var liviqaH2: Font { lato(20, .bold) }          // section / card title — 700
+    static var liviqaBody: Font { lato(15, .regular) }     // body — 15 / 1.4
+    static var liviqaCaption: Font { lato(12, .regular) }  // caption — 12 / 1.4
 }

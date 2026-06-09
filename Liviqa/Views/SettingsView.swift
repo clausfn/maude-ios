@@ -8,8 +8,10 @@ struct SettingsView: View {
     @State private var showDeleteConfirmStep: Int = 0   // 0=idle 1=warn 2=confirm 3=done
     @State private var showExportDone = false
 
-    // Runtime display options (drive the locked design tokens at the root)
-    @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.midnight.rawValue
+    // Runtime display options (drive the locked design tokens at the root).
+    // Default MUST match LiviqaApp's default (Paper) or the picker shows the wrong
+    // selection on a fresh install.
+    @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.paper.rawValue
     @AppStorage("liviqaReduceMotion") private var reduceMotion = false
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
 
@@ -118,7 +120,7 @@ struct SettingsView: View {
                 Divider().padding(.leading, 56)
                 connectedSourceRow(
                     icon: "doc.fill",
-                    color: LiviqaTheme.amber,
+                    color: LiviqaTheme.clay,
                     label: "Health Vault",
                     status: "3 files",
                     statusColor: LiviqaTheme.ink3
@@ -348,10 +350,10 @@ struct SettingsView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundStyle(LiviqaTheme.amber)
+                        .foregroundStyle(LiviqaTheme.clay)
                     Text("IMPORTANT NOTICE")
                         .font(.liviqaKicker(9))
-                        .foregroundStyle(LiviqaTheme.amber)
+                        .foregroundStyle(LiviqaTheme.clay)
                         .kerning(1)
                 }
 
@@ -364,9 +366,9 @@ struct SettingsView: View {
                     .foregroundStyle(LiviqaTheme.ink2)
             }
             .padding(14)
-            .background(LiviqaTheme.amber2)
+            .background(LiviqaTheme.clay2)
             .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.amber.opacity(0.3), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.clay.opacity(0.3), lineWidth: 1))
 
             // Links
             VStack(spacing: 1) {

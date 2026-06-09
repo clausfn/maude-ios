@@ -1,6 +1,12 @@
-// TodayView.swift — Daily summary feed · v05 2026-05-22
-// v05: onCalibrate closure wired to NudgeCard calibration prompts → ProfileSheet
-// Design ref: Liviqa_App_UI_Aperture_v01_20260521.html (Today frame)
+// TodayView.swift — Home (Design System v2 · C-hybrid) · 2026-06-09
+// Recreated from the locked design prototype (liviqa-design-system · Home C):
+// AppBar → date kicker → greeting → ONE "we noticed something" insight hero
+// (clay-bordered) → a four-chip signal row vs the user's OWN normal → the
+// "Not averages. Yours." line. Home leads with a single insight by design;
+// the full nudge feed belongs in Insights (5-tab IA, pending).
+//
+// NOTE: hero copy + signal values are presentation seeds for now (as the prior
+// hero was) — wiring them to live nudges/HealthSamples is the next step.
 import SwiftUI
 
 struct TodayView: View {
@@ -8,96 +14,72 @@ struct TodayView: View {
     var displayName: String?
     /// FR-ARCH-05: true when the feed is built from synthetic demo data.
     var isDemoData: Bool = false
+    /// Live Home signal values (real HealthKit). nil ⇒ show the demo seeds.
+    var signals: TodaySignals? = nil
     var onOpen: (Nudge) -> Void
     var onCalibrate: ((ProfileSheet.Section?) -> Void)? = nil
 
-    // Formatted day + date kicker: "Thu · 22 May"
-    private var datekicker: String {
-        let df = DateFormatter()
-        df.dateFormat = "EEE · d MMM"
+    // "Thu · 22 May"
+    private var dateKicker: String {
+        let df = DateFormatter(); df.dateFormat = "EEE · d MMM"
         return df.string(from: Date())
     }
 
     private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12:  return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<21: return "Good evening"
-        default:      return "Good night"
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12:  return "Morning"
+        case 12..<17: return "Afternoon"
+        case 17..<21: return "Evening"
+        default:      return "Late"
         }
+    }
+
+    private var greetingLine: String {
+        if let n = displayName, !n.isEmpty { return "\(greeting), \(n)" }
+        return greeting
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
-                // ── App bar (FR-ARCH-05 demo-data chip in the status slot) ──
                 LiviqaAppBar(
                     title: "Liviqa",
                     showMark: true,
                     chipLabel: isDemoData ? "Demo data" : nil
                 )
 
-                // ── Greeting ──
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(datekicker.uppercased())
-                        .font(.liviqaKicker(11))
-                        .tracking(1.6)
+                VStack(alignment: .leading, spacing: 0) {
+
+                    Text(dateKicker.uppercased())
+                        .font(.liviqaKicker(11)).tracking(1.4)
                         .foregroundStyle(LiviqaTheme.ink3)
 
-                    Group {
-                        if let name = displayName, !name.isEmpty {
-                            Text("\(greeting),\n\(name)")
-                        } else {
-                            Text(greeting)
-                        }
-                    }
-                    .font(.lato(30, .black))
-                    .kerning(-0.7)
-                    .lineSpacing(1)
-                    .foregroundStyle(LiviqaTheme.ink)
-                }
-                .padding(.top, 14)
-                .padding(.bottom, 4)
-                .padding(.horizontal, 20)
+                    Text(greetingLine)
+                        .font(.lato(26, .black)).kerning(-0.6)
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .padding(.top, 4)
 
-                // ── Glucose hero (radial) ──
-                glucoseHero
-                    .padding(.top, 18)
-                    .padding(.horizontal, 20)
+                    insightHero
+                        .padding(.top, 14)
 
-                // ── Vitals (mini rings) ──
-                vitalsCard
-                    .padding(.top, 14)
-                    .padding(.horizontal, 20)
+                    Text("Your signals · vs your normal".uppercased())
+                        .font(.liviqaKicker(9)).tracking(1)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .padding(.top, 18)
+                        .padding(.bottom, 9)
 
-                // ── Lifestyle context card ──
-                lifestylePatternCard
-                    .padding(.horizontal, 20)
-                    .padding(.top, 18)
+                    signalRow
 
-                // ── Nudge section ──
-                LiviqaSectionHeader(
-                    label: "Today's nudges",
-                    trailing: "\(nudges.count) new"
-                )
-                .padding(.horizontal, 20)
-
-                VStack(spacing: 10) {
-                    ForEach(nudges) { nudge in
-                        Button {
-                            onOpen(nudge)
-                        } label: {
-                            NudgeCard(nudge: nudge) { anchor in
-                                onCalibrate?(anchor)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    Text("Not averages. Yours.".uppercased())
+                        .font(.liviqaKicker(11)).tracking(0.6)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 20)
+                        .padding(.bottom, 28)
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 24)
+                .padding(.top, 12)
             }
         }
         #if os(iOS)
@@ -105,145 +87,89 @@ struct TodayView: View {
         #endif
     }
 
-    // MARK: — Glucose hero (radial)
+    // MARK: — The single insight hero ("we noticed something")
 
-    /// Demo 24h CGM trace (mmol/L); last value = NOW (6.2). Presentation seed.
-    private static let glucoseDay: [Double] =
-        [5.4,5.1,4.9,5.0,5.3,6.8,7.9,7.2,6.4,6.0,7.5,8.6,7.8,6.9,6.2,5.8,6.5,7.3,8.1,7.0,6.3,5.9,6.1,6.2]
-
-    private var glucoseHero: some View {
-        VStack(spacing: 14) {
-            ZStack {
-                Circle().fill(LiviqaTheme.heroGlow).blur(radius: 44).frame(width: 200, height: 200)
-                RingView(progress: 0.68, size: 212, lineWidth: 16,
-                         a11yLabel: "Time in range 68 percent. In range, steady.")
-                VStack(spacing: 6) {
-                    Text("GLUCOSE · NOW").font(.liviqaKicker(10)).tracking(1.4)
-                        .foregroundStyle(LiviqaTheme.amber)
-                    HStack(alignment: .lastTextBaseline, spacing: 4) {
-                        Text("6.2").font(.liviqaMono(40)).foregroundStyle(LiviqaTheme.ink)
-                        Text("mmol/L").font(.liviqaKicker(11)).foregroundStyle(LiviqaTheme.ink3)
-                    }
-                    StatusPill(text: "In range · → Steady", dot: LiviqaTheme.moss)
+    private var insightHero: some View {
+        Button {
+            if let n = nudges.first { onOpen(n) }
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
+                    Circle().fill(LiviqaTheme.clay).frame(width: 7, height: 7)
+                    Text("We noticed something".uppercased())
+                        .font(.liviqaKicker(10)).tracking(1.2)
+                        .foregroundStyle(LiviqaTheme.clayText)
                 }
-            }
-            Text("You've spent 68% of today in your target range.")
-                .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
-                .multilineTextAlignment(.center)
 
-            GlucoseCurveView(values: Self.glucoseDay)
+                Text(heroHeadline)
+                    .font(.lato(19, .black)).kerning(-0.4)
+                    .lineSpacing(2)
+                    .multilineTextAlignment(.leading)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .padding(.top, 10)
 
-            HStack(spacing: 0) {
-                heroStat("TIME IN RANGE", "68%", "+3 pts", LiviqaTheme.moss)
-                Divider().frame(height: 30).overlay(LiviqaTheme.line)
-                heroStat("GMI", "6.4%", "≈ HbA1c", LiviqaTheme.ink3)
-                Divider().frame(height: 30).overlay(LiviqaTheme.line)
-                heroStat("24H AVG", "7.1", "mmol/L", LiviqaTheme.ink3)
-            }
-        }
-        .padding(18)
-        .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.hero))
-        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.hero).stroke(LiviqaTheme.line, lineWidth: 1))
-        .shadow(color: LiviqaTheme.cardShadow, radius: 14, y: 8)
-    }
+                Text(heroSub)
+                    .font(.lato(13)).lineSpacing(2)
+                    .multilineTextAlignment(.leading)
+                    .foregroundStyle(LiviqaTheme.clayText)
+                    .padding(.top, 7)
 
-    private func heroStat(_ kicker: String, _ value: String, _ sub: String, _ subColor: Color) -> some View {
-        VStack(spacing: 3) {
-            Text(kicker).font(.liviqaKicker(8)).tracking(0.8).foregroundStyle(LiviqaTheme.ink4)
-            Text(value).font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
-            Text(sub).font(.liviqaKicker(8)).foregroundStyle(subColor)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: — Vitals (mini rings)
-
-    private var vitalsCard: some View {
-        HStack(spacing: 8) {
-            MiniRing(progress: 0.78, value: "7h 02", label: "Sleep", delta: "▼ −28 min", deltaTone: .bad, warn: true)
-            MiniRing(progress: 0.55, value: "42 ms", label: "HRV",   delta: "▼ −8 ms",   deltaTone: .bad, warn: true)
-            MiniRing(progress: 0.68, value: "5.6k",  label: "Steps", delta: "68% of goal", deltaTone: .neutral)
-        }
-        .padding(16)
-        .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.vitals))
-        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.vitals).stroke(LiviqaTheme.line, lineWidth: 1))
-        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 4)
-    }
-
-    // MARK: — Lifestyle pattern card
-
-    private var lifestylePatternCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-
-            HStack {
-                Text("WEEK IN CONTEXT")
-                    .font(.liviqaKicker(9))
-                    .tracking(1)
-                    .foregroundStyle(LiviqaTheme.amber)
-                Spacer()
-                Text("STRONG")
-                    .font(.liviqaKicker(9))
-                    .tracking(0.6)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(LiviqaTheme.amber2)
-                    .foregroundStyle(LiviqaTheme.amber)
-                    .clipShape(Capsule())
-            }
-
-            Text("High meeting load + late dinner → HRV dip")
-                .font(.lato(14, .bold))
-                .kerning(-0.2)
+                HStack(spacing: 6) {
+                    Text("See the evidence").font(.lato(13, .bold))
+                    Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold))
+                }
                 .foregroundStyle(LiviqaTheme.ink)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(LiviqaTheme.line2)
-                    Capsule()
-                        .fill(LiviqaTheme.amber)
-                        .frame(width: geo.size.width * 0.74)
-                }
+                .padding(.top, 11)
             }
-            .frame(height: 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(15)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.clay3, lineWidth: 1))
+            .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+        }
+        .buttonStyle(.plain)
+    }
 
-            Text("Wednesday's back-to-back meetings and a meal after 21:00 track with a 15% lower HRV the following morning in your data. This pattern showed up on 3 of the last 4 high-load days.")
-                .font(.lato(13))
-                .lineSpacing(2)
-                .foregroundStyle(LiviqaTheme.ink2)
+    // Live when real data is connected (drive from the user's own top nudge);
+    // the polished demo seeds otherwise.
+    private var heroHeadline: String {
+        if !isDemoData, let n = nudges.first { return n.evidence?.headline ?? n.body }
+        return "Late dinners are costing you sleep."
+    }
+    private var heroSub: String {
+        if !isDemoData, let n = nudges.first { return n.evidence?.lever ?? "Tap to see the evidence." }
+        return "Calmest when dinner's before 20:30."
+    }
 
-            HStack(spacing: 6) {
-                Image(systemName: "info.circle")
-                    .font(.caption2)
-                    .foregroundStyle(LiviqaTheme.ink4)
-                Text("A pattern in your own data — not a medical finding.")
-                    .font(.caption)
-                    .foregroundStyle(LiviqaTheme.ink4)
+    // MARK: — Signal row (your value vs your own normal)
+
+    private var signalRow: some View {
+        HStack(spacing: 8) {
+            signalChip("Sleep", signals?.sleep ?? "6h52", clay: false)
+            signalChip("In range", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true)
+            signalChip("HRV", signals?.hrv ?? "48", clay: false)
+            signalChip("RHR", signals?.rhr ?? "58", clay: false)
+        }
+    }
+
+    private func signalChip(_ label: String, _ value: String, clay: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(.liviqaKicker(8)).tracking(0.5)
+                .foregroundStyle(LiviqaTheme.ink3)
+            HStack(spacing: 5) {
+                Circle().fill(clay ? LiviqaTheme.clay : LiviqaTheme.moss).frame(width: 6, height: 6)
+                Text(value)
+                    .font(.lato(15, .heavy))
+                    .foregroundStyle(clay ? LiviqaTheme.clayText : LiviqaTheme.ink)
             }
-
-            HStack(spacing: 6) {
-                ForEach(["Calendar", "Spending", "HRV"], id: \.self) { source in
-                    Text(source)
-                        .font(.liviqaKicker(8))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(LiviqaTheme.line2)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .clipShape(Capsule())
-                }
-                Spacer()
-                NavigationLink(destination: WeekInContextView()) {
-                    Text("View full week →")
-                        .font(.caption)
-                        .foregroundStyle(LiviqaTheme.moss)
-                }
-            }   // HStack
-        }       // VStack
-        .padding(14)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
         .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
-        .shadow(color: LiviqaTheme.cardShadow, radius: 6, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
     }
 }

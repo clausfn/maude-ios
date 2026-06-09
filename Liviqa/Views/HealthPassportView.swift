@@ -8,6 +8,7 @@ struct HealthPassportView: View {
     @State private var showDataSources   = false
     @State private var showProfile       = false
     @State private var profileAnchor: ProfileSheet.Section? = nil
+    @State private var selectedMetric: BaselineMetric? = nil
 
     var body: some View {
         ScrollView {
@@ -112,7 +113,11 @@ struct HealthPassportView: View {
                                 label: "Average sleep",
                                 value: "7h 05",
                                 delta: "▲ 18 min vs last month",
-                                deltaColor: LiviqaTheme.moss
+                                deltaColor: LiviqaTheme.moss,
+                                baseline: BaselineMetric(
+                                    name: "Sleep", short: "Sleep", value: 7.1, unit: "h",
+                                    normalLow: 6.6, normalHigh: 7.8,
+                                    warm: "Right in your range — and steadier than your last 30 days. Nice.")
                             )
                             Divider()
                                 .background(LiviqaTheme.line2)
@@ -121,13 +126,23 @@ struct HealthPassportView: View {
                                 label: "Resting HRV",
                                 value: "42 ms",
                                 delta: "▼ 8 ms vs last month",
-                                deltaColor: LiviqaTheme.rust
+                                deltaColor: LiviqaTheme.rust,
+                                baseline: BaselineMetric(
+                                    name: "Heart-rate variability", short: "HRV", value: 42, unit: "ms",
+                                    normalLow: 38, normalHigh: 54,
+                                    warm: "A calm day for you — recovery's been trending up across the week.")
                             )
                         }
                         .background(LiviqaTheme.paper2)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
                         .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+                        .sheet(item: $selectedMetric) { m in
+                            MetricBaselineView(metric: m)
+                            #if os(iOS)
+                                .presentationDragIndicator(.visible)
+                            #endif
+                        }
 
                         // ── PRIVACY RECORD ──
                         LiviqaSectionHeader(label: "Privacy record")
@@ -287,10 +302,10 @@ struct HealthPassportView: View {
                     Text(week.patternStrength)
                         .font(.liviqaKicker(9))
                         .tracking(0.5)
-                        .foregroundStyle(LiviqaTheme.amber)
+                        .foregroundStyle(LiviqaTheme.clay)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(LiviqaTheme.amber2)
+                        .background(LiviqaTheme.clay2)
                         .clipShape(Capsule())
                 }
                 Text(week.patternNote)
@@ -359,7 +374,7 @@ struct HealthPassportView: View {
     private var timeInRangeTile: some View {
         let tir = appState.passportStats.glucoseTimeInRange
         let valueColor: Color = tir >= 80 ? LiviqaTheme.moss
-                              : tir >= 60 ? LiviqaTheme.amber
+                              : tir >= 60 ? LiviqaTheme.clay
                               : LiviqaTheme.rust
 
         return VStack(alignment: .leading, spacing: 6) {
@@ -426,28 +441,41 @@ struct HealthPassportView: View {
     // MARK: - Wellness summary row
 
     private func summaryRow(icon: String, label: String, value: String,
-                            delta: String, deltaColor: Color) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.lato(14))
-                .foregroundStyle(LiviqaTheme.ink3)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.lato(12.5))
+                            delta: String, deltaColor: Color,
+                            baseline: BaselineMetric? = nil) -> some View {
+        Button {
+            if let baseline { selectedMetric = baseline }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.lato(14))
                     .foregroundStyle(LiviqaTheme.ink3)
-                Text(delta)
-                    .font(.lato(11.5))
-                    .foregroundStyle(deltaColor)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                    Text(delta)
+                        .font(.lato(11.5))
+                        .foregroundStyle(deltaColor)
+                }
+                Spacer()
+                Text(value)
+                    .font(.liviqaMono(18))
+                    .monospacedDigit()
+                    .foregroundStyle(LiviqaTheme.ink)
+                if baseline != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(LiviqaTheme.ink4)
+                }
             }
-            Spacer()
-            Text(value)
-                .font(.liviqaMono(18))
-                .monospacedDigit()
-                .foregroundStyle(LiviqaTheme.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .buttonStyle(.plain)
+        .disabled(baseline == nil)
     }
 }
 

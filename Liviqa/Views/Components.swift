@@ -32,6 +32,11 @@ struct LiviqaAppBar: View {
     var title: String               // nil → show mark+wordmark; else show plain title
     var showMark: Bool = false      // true on Today screen only
     var chipLabel: String? = nil    // nil = no chip; only pass on onboarding/Settings
+    /// Root tab screens show the profile avatar (since they hide the system nav
+    /// bar). Pushed detail screens pass `false` (they have a back affordance).
+    var showsAvatar: Bool = true
+
+    @Environment(AppState.self) private var appState: AppState?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -65,11 +70,51 @@ struct LiviqaAppBar: View {
                 .overlay(Capsule().stroke(LiviqaTheme.moss3, lineWidth: 1))
                 .foregroundStyle(LiviqaTheme.moss)
             }
+
+            if showsAvatar, let appState {
+                Button {
+                    appState.showProfileSheet = true
+                } label: {
+                    ZStack {
+                        Circle().fill(LiviqaTheme.invertBG).frame(width: 32, height: 32)
+                        Text(LiviqaAppBar.initials(appState.profile?.displayName))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(LiviqaTheme.invertFG)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("avatarButton")
+                .accessibilityLabel("Profile and settings")
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
         .padding(.bottom, 4)
     }
+
+    static func initials(_ name: String?) -> String {
+        let n = name ?? "C"
+        let parts = n.split(separator: " ")
+        if parts.count >= 2 { return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased() }
+        return String(n.prefix(2)).uppercased()
+    }
+}
+
+// MARK: - Detail-screen modifier (hides the floating tab bar while pushed)
+
+private struct LiviqaDetailScreen: ViewModifier {
+    @Environment(AppState.self) private var appState: AppState?
+    func body(content: Content) -> some View {
+        content
+            .onAppear { appState?.detailDepth += 1 }
+            .onDisappear { if let a = appState { a.detailDepth = max(0, a.detailDepth - 1) } }
+    }
+}
+
+extension View {
+    /// Mark a pushed/full-screen detail so MainTabView hides the floating tab bar
+    /// (so it can't overlap the content — e.g. a chat composer or a video call).
+    func liviqaDetail() -> some View { modifier(LiviqaDetailScreen()) }
 }
 
 // MARK: - Section header
@@ -103,7 +148,7 @@ struct LiviqaSectionHeader: View {
 extension NudgeAccent {
     var accentColor: Color {
         switch self {
-        case .glucose: return LiviqaTheme.amber
+        case .glucose: return LiviqaTheme.clay
         case .sleep:   return LiviqaTheme.moss
         case .cardiac: return LiviqaTheme.ink3
         case .travel:  return LiviqaTheme.rust
@@ -171,7 +216,7 @@ struct NudgeCard: View {
                     HStack(spacing: 6) {
                         Image(systemName: "slider.horizontal.3")
                             .font(.lato(11))
-                            .foregroundStyle(LiviqaTheme.amber)
+                            .foregroundStyle(LiviqaTheme.clay)
                         Text(prompt)
                             .font(.lato(12))
                             .foregroundStyle(LiviqaTheme.ink3)
@@ -238,7 +283,7 @@ struct MetricRingCard: View {
     private let strokeWidth: CGFloat = 7.5
 
     var ringColor: Color {
-        ring.warn ? LiviqaTheme.amber : LiviqaTheme.moss
+        ring.warn ? LiviqaTheme.clay : LiviqaTheme.moss
     }
 
     var body: some View {

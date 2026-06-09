@@ -4,6 +4,172 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-52 — TestFlight 1.0(10.11–10.12) — beta-feedback UI fixes + Midnight contrast sweep (2026-06-09)
+- **fix(ui) [beta feedback]:** read the 4 TestFlight `betaFeedbackScreenshotSubmissions`
+  via the ASC API and fixed each (tester on Midnight/dark theme):
+  - **DfG Tokens (`TokenWalletView`):** the cost pills + In-app/Charity toggle used
+    `LiviqaTheme.ink` (a TEXT colour, light in Midnight) as a *background* with white
+    text → white-on-cream, unreadable. Swapped to `invertBG`/`invertFG`. Balance card
+    now shows the **DfG logo** (`dfg-logo`/`dfg-logo-negative`), not the Liviqa mark.
+  - **`ConsultView` secure shell:** `fill(ink)` + white text → fixed always-dark
+    video stage (`#0C1520`); avatar tint to a light overlay.
+  - **`AreaTrendChart` (TIR graphic):** gradient area fill boosted 0.45/0.06 → 0.55/0.10
+    so it reads on dark (the "graphic does not work" report was an older build w/o fill).
+- **fix(ui) [NFR-UI contrast]:** swept ALL views for the Midnight trap — `ink`/`paper`
+  used as a surface, hardcoded white surfaces, flipped-text. Zero offenders remain;
+  verified Midnight Home renders clean.
+- **fix(settings):** theme-picker `@AppStorage` default was `.midnight` while the app
+  defaults to `.paper` → picker showed the wrong selection on fresh install. Aligned to
+  `.paper`. Stale "video off" comment in `MessagesView` corrected (video is on).
+- **build(release):** 10.10 → **10.11** (feedback) → **10.12** (settings/contrast), via
+  the new `scripts/archive_upload_isolated.sh` (headless build through an isolated
+  keychain — sidesteps the locked login keychain that hung codesign; restores the
+  search list on exit, no login-keychain changes, no lost passwords).
+
+### PR-51 — Console GoTrue login + onboarding-reinstate + live Home data (2026-06-09)
+- **feat(console) [sandbox.liviqa.app]:** real GoTrue login replacing the rejected
+  `dev-*` bearer tokens — role buttons authenticate per seeded account (link-by-email),
+  no `DEV_AUTH`, no dev token in the bundle. Reset the 4 role passwords via the GoTrue
+  admin API. In-app persona switcher removed (role from the account); Sign out → /login.
+- **feat(ios) [start flow]:** onboarding-version gate replays the consent/start flow once
+  (it had stopped appearing because the `hasSeen*` flags persisted) + re-prompts HealthKit.
+- **feat(ios) [own data]:** Home signal chips + insight hero now driven by live HealthKit
+  (`TodaySignalsDeriver`); Data Sources gained Connect-Health-&-sync + Import-a-file.
+- **infra:** self-hosted Jitsi white-labelled to "Liviqa" (watermark off, runtime patch).
+
+### PR-50 — TestFlight build 1.0(10.9) — Design System v2 screen build-out (2026-06-09)
+- **feat(ui) [NFR-UI-*]:** built the remaining v2 screens from the locked design
+  explorations (`_liviqa_design_reference/.../explorations/`), reusing the v2 token
+  layer — no brand/logo/palette changes (iterate-on-locked rule):
+  - **Correlation moment** (`NudgeDetailView`) → Alternative C: plain declarative
+    sentence → one confirm chart → always-on evidence metadata (N·baseline·r·p) →
+    named lever → "see the data" depth tier. **Still-learning state** (refuse to
+    assert below the gate r≥0.4/p≤0.05/N≥need) implemented — the trust mechanism.
+  - **Evidence components** (`EvidenceComponents.swift`): `ConfidenceChip`
+    (gated/emerging/learning), `EvidenceMetadataRow`, `LeverCallout`,
+    `SingleConfirmBar`, `BaselineProgressBar`, `NavBackHeader`, `FlowRow`.
+  - **Baseline** → the **Aperture-arc gauge** (`ApertureArcGauge` + `MetricBaselineView`):
+    open ring, moss arc = your normal band, today's dot on it, **never a 0–100
+    percentile**; reachable from the passport wellness rows. Clay when it drifts.
+  - **Week** (`WeekInContextView`) → two-state heatmap (moss in-range / clay worth-
+    noticing) with the lit **cluster column** highlighted + named.
+  - **Journal** → tap-first **quick-capture** grid (mood/meal/symptom/voice/upload)
+    + context suggestions + mood sheet; every entry marked "🔒 on device" (the v1
+    emotional-load fix: lead with actions, not a blank prompt).
+  - **Consent history** (`ConsentLedgerView`) → Alternative A plain-language
+    timeline with pins + "✓ verified" + "Technical details ›".
+  - **Privacy** (`InAppPrivacyView`) → "circle of trust": nothing shared by default,
+    per-recipient grant cards, **one-tap pause with an immediate receipt** (shows
+    its work, not a spinner). Legal/MDR prose moved below the fold.
+- **feat(model):** additive `NudgeEvidence` on `Nudge` (confidence, N, baseline,
+  r, p, lever, chart, still-learning) — populated on demo nudges to exercise all
+  three confidence states. Non-breaking (defaults nil).
+- **chore(reg) [FR-REG-03]:** genericised the nudge share copy (no condition /
+  recipient hard-coding). Kept current tab IA (Today·Trends·Wallet·Care·Journal) —
+  the 5-tab rename stays HELD for Claus (and Care is needed for video). No new
+  insulin/AFib nudge copy (RQ-01 still open).
+- **build(release):** `CURRENT_PROJECT_VERSION` 10.8 → **10.9**. Today screen
+  verified on the simulator (Paper ground, Home-C hero); all screens compile clean
+  (sim build SUCCEEDED). Ships video (PR-49) + this build-out together.
+
+### PR-49 — TestFlight build 1.0(10.8) — sovereign video consult ON (2026-06-09)
+- **feat(consult) [NFR-SEC-07 SATISFIED]:** live video for the Care/consult flow,
+  on a **self-hosted EU Jitsi** (Scaleway fr-par; instance `liviqa-jitsi`, public
+  `163.172.173.186` → `163-172-173-186.sslip.io`, docker-jitsi-meet stable-9646,
+  Let's Encrypt/ZeroSSL TLS, `ENABLE_AUTH=0`/`ENABLE_GUESTS=1`, `JVB_ADVERTISE_IPS`
+  set). Verified live: web 200 over valid TLS, prosody ws + BOSH 200, arbitrary
+  rooms serve. This closes the NFR-SEC-07 control that barred a US-parented video
+  provider on the PII path — no `meet.jit.si`, EU-sovereign self-host instead.
+  (Sovereignty rule consciously waived for Jitsi-the-OSS this session; we still
+  self-hosted in-EU rather than using a US public instance.)
+- **feat(consult):** `Config.videoConsultEnabled = true`; `Config.jitsiDomain` →
+  new `jitsiSovereignDomain`. `Info.plist` gained `NSCameraUsageDescription` +
+  `NSMicrophoneUsageDescription`. `ConsultView` `WKWebView` grants getUserMedia
+  (WKUIDelegate `requestMediaCapturePermissionFor` → `.grant`) and pins
+  `#config.disableDeepLinking=true&prejoinPageEnabled=false` so the call stays
+  in-app. Deterministic room `liviqa-consult-<id>` unchanged.
+- **feat(console):** B2B console `VITE_JITSI_DOMAIN` repointed meet.jit.si → the
+  sovereign host; rebuilt + redeployed to `sandbox.liviqa.app` (rclone sync + Edge
+  purge). Citizen + clinician now land in the same room on the same EU server.
+- **build(release):** `CURRENT_PROJECT_VERSION` 10.7 → **10.8**; archived + uploaded
+  headlessly (API key `656L9P8JY3`, issuer `830c96d2…`). Upload UUID
+  `a76b4e78-7853-44d2-baf8-72dd4de4ec0e`. Compiles clean (sim build SUCCEEDED).
+- **Hardening (open):** move behind `meet.liviqa.app` (A record), lock SG to
+  80/443/4443/UDP-10000, decide recording storage/retention before prod recording.
+
+### PR-48 — TestFlight build 1.0(10.5) — HealthKit-connect pilot (2026-06-09)
+- **build(release):** `CURRENT_PROJECT_VERSION` 10.4 → **10.5**; archived + uploaded
+  to TestFlight **headlessly** via `scripts/archive_upload.sh` + the App Store
+  Connect API key (`656L9P8JY3`) — `xcodebuild -allowProvisioningUpdates` minted
+  the Apple **Distribution** cert + App Store profile under the DfG account
+  (PS258XSNL8), bundle `dev.liviqa.app`. `Config/ExportOptions.plist` team confirmed
+  PS258XSNL8. Upload UUID `e7732e90-7101-422d-8a82-1ae01ae57fd1`.
+- **Ships:** PR-46 full HealthKit capture + Connect→authorize wiring + PR-47 Paper/
+  clay. Release config = `sovereignProd` (api.liviqa.app, health 200), `authEnabled
+  = false` (demo sign-in), video gated off.
+- **Tester scope:** connect HealthKit → real on-device data renders (the pilot
+  goal). **Backend derived-share upload needs auth** (`authEnabled`/GoTrue JWT —
+  ClickUp Sprint-0 P0); demo mode has no sovereign session, so the push is a no-op.
+  A follow-up build flips auth once GoTrue is verified end-to-end.
+- Verified: ARCHIVE/EXPORT/UPLOAD all succeeded; build processing in App Store Connect.
+
+### PR-47 — Design System v2 foundation: Paper default + clay attention tone (2026-06-09)
+- **feat(theme):** added the Design System v2 signal tokens to `Liviqa/Theme.swift` —
+  `clay`/`clay2`/`clay3`/`clayText`/`clayRev` (the single patient "worth noticing"
+  attention tone, `#BD7A33`), the confidence ramp (`confHigh`/`confEmerging`/
+  `confLearning`), the semantic type scale (`liviqaH1/H2/Body/Caption`) and
+  `LiviqaTheme.Tracking`. Base palette already matched the design's `colors.css`
+  (same `Liviqa_Design_Tokens_v01` source); Lato + IBM Plex Mono already bundled.
+- **feat(theme) [NFR-UI-CLAY-01 / FR-REG-02]:** swept the patient view layer from
+  `LiviqaTheme.amber` → `LiviqaTheme.clay` (`amber2`→`clay2`) across
+  `Liviqa/Views/*.swift`. Rationale: amber reads as a warning light; the app is
+  pitched below the medical-device line with a never-diagnostic voice, so the
+  attention tone must NOT be an alarm. Two-state patient logic: moss = in-range,
+  clay = worth-noticing. (Amber token retained for engine/console use.) This is a
+  regulatory-relevant choice — clay avoids threshold/alarm framing (FR-REG-02).
+- **feat(theme) [NFR-UI-THEME-01]:** default theme flipped Midnight → **Paper**
+  (`LiviqaApp.themeModeRaw`), the design ground. Midnight still selectable in
+  Settings; dynamic tokens flip the whole app via the single root scheme.
+- Source: `claude.ai/design` handoff bundle (`_liviqa_design_reference/`), chat
+  intent + locked screen directions (Correlation C, Home C, Baseline arc, Week
+  heatmap, Consent A, Privacy one-tap, Journal quick-capture, 5-tab IA).
+- Verified: `xcodebuild` (iOS Sim) BUILD SUCCEEDED; LiviqaTests 78/78 green;
+  Today screen screenshotted in Paper + Midnight — glucose arc now moss→clay.
+
+### PR-46 — Full HealthKit capture (Step A) + auth wiring + ingestion fixes (2026-06-09)
+- **feat(ingestion) [FR-ING-01]:** expanded the HealthKit read set from the 7-type
+  MVP set to the full capture set — added insulin delivery, AFib burden, blood
+  pressure (sys/dia correlation), body composition (mass/fat%/lean/BMI), and the
+  extended heart/respiratory panel (heart rate, walking HR, HR-recovery,
+  respiratory rate, SpO₂, VO₂max). New value types + readers in
+  `HealthSamples.swift` / `HealthKitService.swift`; arbitration extended
+  (`SourceArbiter`); persisted into the existing `@Model` entities + idempotent
+  replace helpers (`IngestionCoordinator`). Still **read-only** — share/write set
+  stays empty (FR-ARCH-04). Identifiers bound via `if let` so unsupported types
+  are skipped, not compile errors.
+- **fix(onboarding) [FR-ING-01/02]:** the HealthKit primer "Connect" now actually
+  requests read authorization + switches off demo data (`AppState.dataProviderKind
+  = .healthKit` + `refreshFromHealth()`); skip stays on demo (never an error state).
+  Previously the button only set the seen-flag → live ingestion never triggered.
+- **fix(ingestion) [FR-ING-09, T-MAP-02]:** re-sync idempotency — the window-replace
+  delete now covers the union of the requested window and the inserted rows' span,
+  so a daily/boundary sample whose timestamp falls just outside the window is no
+  longer re-inserted on every sync (was: 48 glucose rows where 42 expected). Fixes
+  a pre-existing `reSyncIsIdempotent` failure. No data dropped.
+- **fix(test):** `NudgeEngineTests` fixture gave the baseline HRV zero variance
+  (constant 55) — always in-band by design (see `baselineBands`), so the low day
+  never fired the recovery nudge. Gave the baseline realistic variance. Pre-existing
+  failure, now green.
+- **test(healthkit):** `readSetIsMvpReadSet` → `readSetIsFullCaptureSet` — asserts
+  the MVP types + the new capture types are present and the set is ≥20.
+- Regulatory posture unchanged at the data layer: **insulin stays dose-blind**
+  (`FR-REG-04`, InsulinDose data-source only, no surface), **AFib stays
+  display-only** (`OD-11`/D9), new readings are `provenance = .real`, tier
+  good/estimate (never clinical). Rendering/nudging of the new signals = Step B.
+- Verified: `xcodebuild` (iOS Sim) BUILD SUCCEEDED; LiviqaTests **78/78 green**
+  (2 pre-existing failures fixed); baseline-stash confirmed Step A added zero new
+  regressions.
+
 ### PR-45 — Demo-first TestFlight build for UI testing (auth gated) + 1.0(10.4) (2026-06-04)
 - **feat(config):** `Config.authEnabled` (default **false**). While false the auth
   screen hides the live Apple + email sign-in and shows a single **"Enter Liviqa"**

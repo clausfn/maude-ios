@@ -19,7 +19,7 @@ struct RingView: View {
     var progress: Double                 // 0...1 (resting = this value)
     var size: CGFloat = 212
     var lineWidth: CGFloat = 16
-    var colors: [Color] = [LiviqaTheme.moss, LiviqaTheme.amber]
+    var colors: [Color] = [LiviqaTheme.moss, LiviqaTheme.clay]
     var glow: Color = LiviqaTheme.heroGlow
     var a11yLabel: String? = nil
 
@@ -61,7 +61,7 @@ struct MiniRing: View {
     var size: CGFloat = 74
 
     private var colors: [Color] {
-        warn ? [LiviqaTheme.amber, LiviqaTheme.moss] : [LiviqaTheme.moss, LiviqaTheme.mossRev]
+        warn ? [LiviqaTheme.clay, LiviqaTheme.moss] : [LiviqaTheme.moss, LiviqaTheme.mossRev]
     }
 
     var body: some View {
@@ -150,11 +150,11 @@ struct GlucoseCurveView: View {
                 // gradient area under the line
                 if values.count > 1 {
                     areaPath(w, h).fill(LinearGradient(
-                        colors: [LiviqaTheme.amber.opacity(0.28), LiviqaTheme.amber.opacity(0.0)],
+                        colors: [LiviqaTheme.clay.opacity(0.28), LiviqaTheme.clay.opacity(0.0)],
                         startPoint: .top, endPoint: .bottom))
-                    linePath(w, h).stroke(LiviqaTheme.amber, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    linePath(w, h).stroke(LiviqaTheme.clay, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                     // NOW dot
-                    Circle().fill(LiviqaTheme.amber)
+                    Circle().fill(LiviqaTheme.clay)
                         .frame(width: 8, height: 8)
                         .overlay(Circle().stroke(LiviqaTheme.paper2, lineWidth: 2))
                         .position(x: x(values.count - 1, w), y: y(values.last!, h))
@@ -229,7 +229,7 @@ struct AreaTrendChart: View {
                 }
                 if values.count > 1 {
                     area(w, h).fill(LinearGradient(
-                        colors: [tint.opacity(0.45), tint.opacity(0.06)],
+                        colors: [tint.opacity(0.55), tint.opacity(0.10)],
                         startPoint: .top, endPoint: .bottom))
                     line(w, h).trimmedStroke(t: t, color: tint)
                     Circle().fill(tint).frame(width: 8, height: 8)

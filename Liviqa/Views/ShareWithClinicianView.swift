@@ -155,7 +155,7 @@ struct ShareWithClinicianView: View {
             // MDR note
             HStack(alignment: .top, spacing: 10) {
                 Rectangle()
-                    .fill(LiviqaTheme.amber.opacity(0.5))
+                    .fill(LiviqaTheme.clay.opacity(0.5))
                     .frame(width: 1)
                     .padding(.vertical, 2)
                 Text("These are personal patterns, not clinical reports. Your care team should use their own tools for clinical assessment.")
@@ -163,11 +163,11 @@ struct ShareWithClinicianView: View {
                     .foregroundStyle(LiviqaTheme.ink2)
             }
             .padding(12)
-            .background(LiviqaTheme.amber2)
+            .background(LiviqaTheme.clay2)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(LiviqaTheme.amber.opacity(0.3), lineWidth: 0.5)
+                    .stroke(LiviqaTheme.clay.opacity(0.3), lineWidth: 0.5)
             )
 
             nextButton(label: "Next", disabled: !anySelected) { step = 2 }
@@ -371,7 +371,7 @@ struct ShareWithClinicianView: View {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.circle")
                     .font(.lato(14))
-                    .foregroundStyle(LiviqaTheme.amber)
+                    .foregroundStyle(LiviqaTheme.clay)
                     .padding(.top, 1)
                 Text("Derived summaries only — no raw samples leave your device. You can revoke access in your Wallet at any time.")
                     .font(.caption)

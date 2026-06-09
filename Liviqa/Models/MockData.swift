@@ -37,6 +37,34 @@ enum NudgeAccent {
 
 // MARK: - Nudge
 
+/// Evidence behind a nudge — the always-on trust mechanism (Design System v2).
+/// The gate (Welltory-style refusal to over-assert): r ≥ 0.4, p ≤ 0.05, N ≥ need.
+/// Below the gate we DON'T claim a pattern — we show the still-learning state.
+struct NudgeEvidence: Hashable {
+    enum Confidence: Hashable { case gated, emerging, learning }
+
+    var confidence: Confidence
+    var n: Int                  // sample size (e.g. 42)
+    var nUnit: String           // "nights", "rides", "days"…
+    var baselineDays: Int       // personal baseline window (e.g. 90)
+    var r: Double?              // Pearson r (nil while learning)
+    var p: String?             // e.g. "<0.01" — string preserves the "<"
+    var lever: String?         // the one controllable lever, named in plain language
+
+    // Plain-sentence + one-chart hero (Alternative C). All optional so a nudge
+    // without a quantified chart still renders the sentence + evidence row.
+    var headline: String?       // the declarative sentence (overrides body in the hero)
+    var chartLabel: String?     // e.g. "OF YOUR RESTLESS NIGHTS"
+    var chartPercent: Double?  // 0…1 → the single confirm bar
+    var chartCaption: String?  // the quiet line under the bar
+
+    // Still-learning (confidence == .learning)
+    var baselineNeeded: Int?    // nights/days needed before the gate opens (e.g. 30)
+    var learningNote: String?   // "Keep wearing it to sleep. ~19 nights to go."
+
+    var isGated: Bool { confidence != .learning }
+}
+
 struct Nudge: Identifiable, Hashable {
     let id = UUID()
     let time: String
@@ -53,11 +81,14 @@ struct Nudge: Identifiable, Hashable {
     var calibrationPrompt: String?
     /// Deep-link anchor for the calibration prompt — which ProfileSheet section to open.
     var calibrationAnchor: ProfileSheet.Section?
+    /// Always-on evidence metadata (Design v2). nil ⇒ legacy nudge (no evidence row).
+    var evidence: NudgeEvidence?
 
     init(time: String, tag: String, body: String, accent: NudgeAccent,
          primaryAction: String, secondaryActions: [String], reasoning: String?,
          dataPoints: [String] = [], dismissed: Bool = false,
-         calibrationPrompt: String? = nil, calibrationAnchor: ProfileSheet.Section? = nil) {
+         calibrationPrompt: String? = nil, calibrationAnchor: ProfileSheet.Section? = nil,
+         evidence: NudgeEvidence? = nil) {
         self.time               = time
         self.tag                = tag
         self.body               = body
@@ -69,6 +100,7 @@ struct Nudge: Identifiable, Hashable {
         self.dismissed          = dismissed
         self.calibrationPrompt  = calibrationPrompt
         self.calibrationAnchor  = calibrationAnchor
+        self.evidence           = evidence
     }
 
     static func == (lhs: Nudge, rhs: Nudge) -> Bool { lhs.id == rhs.id }
@@ -91,6 +123,25 @@ enum MockData {
     // MARK: Nudges
 
     static let todayNudges: [Nudge] = [
+        // The correlation moment (Design v2 · Alternative C) — gated/high. This is
+        // the screen the Home hero opens; it must comprehend → trust → name the lever.
+        .init(
+            time: "07:02",
+            tag: "Sleep · meals",
+            body: "Late dinners track with restless sleep in your own data.",
+            accent: .sleep,
+            primaryAction: "Remind me to wind down at 20:30",
+            secondaryActions: ["Note in journal", "Later"],
+            reasoning: "Across your last 42 logged nights, meal timing and sleep disruption move together — later dinners, more restless nights. The relationship passes the gate (r ≥ 0.4, p ≤ 0.05) against your 90-day baseline.",
+            evidence: NudgeEvidence(
+                confidence: .gated, n: 42, nUnit: "nights", baselineDays: 90,
+                r: 0.62, p: "<0.01",
+                lever: "Eat earlier and, in your data, the pattern eases. Dinner before 20:30 is the lever.",
+                headline: "78% of your restless nights followed a meal after 20:30.",
+                chartLabel: "Of your restless nights", chartPercent: 0.78,
+                chartCaption: "…came after a late meal. Only 22% followed an early one."
+            )
+        ),
         .init(
             time: "07:14",
             tag: "Glucose · cycling",
@@ -99,16 +150,30 @@ enum MockData {
             primaryAction: "Open",
             secondaryActions: ["Note in journal", "Later"],
             reasoning: "Your CGM trace from Wednesday 16:42–18:05 shows a steeper decline than your last six rides at similar intensity. Pattern detection flagged the delta as outside your personal baseline.",
-            dataPoints: ["Wed 16:42 → 18:05", "−35% vs 6-ride avg", "5.8 mmol/L low"]
+            dataPoints: ["Wed 16:42 → 18:05", "−35% vs 6-ride avg", "5.8 mmol/L low"],
+            evidence: NudgeEvidence(
+                confidence: .emerging, n: 6, nUnit: "rides", baselineDays: 90,
+                r: 0.48, p: nil,
+                lever: nil,
+                headline: "Your glucose drops faster after your hardest rides."
+            )
         ),
+        // Still-learning — the refusal to over-assert. Below the gate we say so plainly.
         .init(
             time: "12:30",
             tag: "Sleep · caffeine",
-            body: "Sleep fragmented four nights running. Caffeine after 2pm correlates with this in your own data.",
+            body: "There's a hint that afternoon caffeine and lighter sleep move together — but it isn't strong enough to show you yet. We won't assert a pattern we can't stand behind.",
             accent: .sleep,
-            primaryAction: "Show pattern",
+            primaryAction: "",
             secondaryActions: ["Note in journal"],
-            reasoning: nil
+            reasoning: nil,
+            evidence: NudgeEvidence(
+                confidence: .learning, n: 11, nUnit: "nights", baselineDays: 90,
+                r: nil, p: nil, lever: nil,
+                headline: "We're still learning your sleep baseline.",
+                baselineNeeded: 30,
+                learningNote: "Keep wearing it to sleep. We'll surface this the moment it's real — about 19 nights from now."
+            )
         ),
         // OD-11 / RQ-13 [REGULATORY DECISION]: the cardiac/rhythm (AF) nudge is the concentrated
         // device-classification exposure (risk file H-10), flagged by both MDR and FDA. This interim

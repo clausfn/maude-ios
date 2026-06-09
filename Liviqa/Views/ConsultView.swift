@@ -23,13 +23,21 @@ struct ConsultView: View {
     }
 
     private var roomURL: URL? {
-        guard let domain = Config.jitsiDomain, !domain.isEmpty else { return nil }
-        return URL(string: "https://\(domain)/\(consult.roomName)")
+        guard Config.videoConsultEnabled,
+              let domain = Config.jitsiDomain, !domain.isEmpty else { return nil }
+        // Config overrides via URL hash keep the call inside the webview:
+        //  · disableDeepLinking — never bounce out to the native Jitsi app
+        //  · prejoinPageEnabled=false — join straight in (no extra tap)
+        //  · startWithVideoMuted=false — camera on, this is a consult
+        let frag = "#config.disableDeepLinking=true" +
+                   "&config.prejoinPageEnabled=false" +
+                   "&config.startWithVideoMuted=false"
+        return URL(string: "https://\(domain)/\(consult.roomName)\(frag)")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            LiviqaAppBar(title: "Consultation", showMark: false)
+            LiviqaAppBar(title: "Consultation", showMark: false, showsAvatar: false)
                 .padding(.horizontal, 16)
 
             ScrollView {
@@ -51,6 +59,7 @@ struct ConsultView: View {
         .task {
             _ = try? await appState.careConnect?.joinConsult(id: consult.id)
         }
+        .liviqaDetail()
     }
 
     // MARK: - Video stage
@@ -69,10 +78,12 @@ struct ConsultView: View {
 
     private var secureShell: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.ink)
+            // Always-dark video stage (a call surface) — never the theme `ink`,
+            // which is light in Midnight and would make the white text vanish.
+            RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x0C1520))
             VStack(spacing: 10) {
                 ZStack {
-                    Circle().fill(LiviqaTheme.ink2).frame(width: 76, height: 76)
+                    Circle().fill(Color.white.opacity(0.12)).frame(width: 76, height: 76)
                     Text(String(consult.recipientName.prefix(2)).uppercased())
                         .font(.system(size: 26, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
@@ -156,6 +167,8 @@ struct ConsultView: View {
 private struct ConsultWebView: UIViewRepresentable {
     let url: URL
 
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -163,9 +176,24 @@ private struct ConsultWebView: UIViewRepresentable {
         let web = WKWebView(frame: .zero, configuration: config)
         web.isOpaque = false
         web.scrollView.isScrollEnabled = false
+        web.uiDelegate = context.coordinator        // grants getUserMedia (camera/mic)
         web.load(URLRequest(url: url))
         return web
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    // WKWebView denies camera/mic by default; the citizen already opted into this
+    // consult and owns the call, so grant capture here. The OS still shows the
+    // one-time system camera/mic permission prompt (Info.plist usage strings).
+    final class Coordinator: NSObject, WKUIDelegate {
+        @available(iOS 15.0, *)
+        func webView(_ webView: WKWebView,
+                     requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                     initiatedByFrame frame: WKFrameInfo,
+                     type: WKMediaCaptureType,
+                     decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            decisionHandler(.grant)
+        }
+    }
 }

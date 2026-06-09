@@ -2,6 +2,51 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-46/47 — full HealthKit capture + Design System v2; controls hold (2026-06-09)
+
+Step A widens ingestion to capture insulin, AFib burden, blood pressure, body
+composition, and the full heart/respiratory panel. This is a **data-layer**
+change — the new signals are read, arbitrated, and persisted, but **not rendered,
+interpreted, or turned into a nudge** here (rendering = Step B). The top hazards
+are directly engaged and the existing controls hold:
+
+- **RK-GLU-01 (acting on glucose/insulin for dosing):** insulin delivery is now
+  read from HealthKit (`insulinDelivery` → `InsulinDose`), but stays a **data
+  source only — no insulin/dosing surface** (`FR-REG-04`). No UI/output path,
+  no dose printed, no dosing verb. The glucose×insulin *observation* nudge is held
+  to Step B and remains gated by the `FR-NDG-06` guard (a designated control) and
+  the RQ-01 "describe vs advise" decision (Claus/counsel). Control: **holds.**
+- **RK-CARD-01 (AFib read as diagnosis):** AFib burden is now read
+  (`atrialFibrillationBurden` → `AFibBurden`), but the cardiac lane is unchanged —
+  **display-only, route-to-cardiologist, no interpretation/alarm/trend** (`D9`/
+  `OD-11`/`FR-REG-03`; `T-NDG-02/03`). The new read adds no rendering. Control: **holds.**
+- **RK-PROV-01:** every new reading is `provenance = .real`, tier `good`/`estimate`
+  — never `clinical`; the schema gate is untouched, the provenance-never-renders
+  guard is unchanged. Control: **holds.**
+- **Read-only structural (FR-ARCH-04):** the share/write set is still **empty** —
+  the wider read set adds no write capability (`T-HK-RO-01`; updated
+  `readSetIsFullCaptureSet`). The app still cannot mutate the user's health record.
+- **New wellness/watch data (BP, body-comp, SpO₂, VO₂max):** no clinical
+  interpretation rendered; these land in the wellness/watch lanes when surfaced
+  (Step B). No new clinical hazard at the data layer.
+- **RK-DATA-DUP-01 (NEW, low — duplicate/inflated metrics mislead the user):**
+  a re-sync could re-insert boundary samples outside the delete window, inflating
+  a metric (e.g. glucose 48 rows where 42). **Mitigated:** the window-replace now
+  deletes the union of the requested window and the inserted rows' span, so re-sync
+  converges. Verified by `reSyncIsIdempotent` (`T-MAP-02`, now green). Note: real
+  HealthKit reads are already window-clipped by the query predicate; this hardened
+  the mock/edge path and the contract.
+
+**Design System v2 — clay as an anti-alarm control (PR-47):**
+- **RK-ALARM-01 (attention colour read as a medical warning):** the patient app's
+  attention tone moved from saturated **amber** (a warning-light reflex, trained by
+  dashboards/traffic) to a desaturated **clay** (`#BD7A33`) that says "worth a
+  look", not "something's wrong". This is a deliberate de-risking choice that
+  supports the never-diagnostic voice and `FR-REG-02` (no threshold/alarm framing):
+  colour must signal *state* (moss = in-range, clay = notice), never an alarm.
+  Colour is never the only signal (label + position + metadata), preserving the
+  colour-blind-safe rule. No new clinical claim; this is a presentation control.
+
 ## PR-28 — auth provider change (Ory → self-hosted Supabase GoTrue); sovereignty held (2026-06-03)
 
 - **RK-SEC-RESIDENCY-02 (auth on US-parented infra, NFR-SEC-07):** NOT regressed.

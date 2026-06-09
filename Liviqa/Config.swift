@@ -23,14 +23,19 @@ enum Config {
     /// deterministic room the console uses. `nil` ⇒ no live media (secure shell).
     /// NFR-SEC-07: must never point at a US-parented provider on the PII path.
     ///
-    /// TODO(NFR-SEC-07): set this to the real EU-sovereign Jitsi/Whereby domain
-    /// (self-hosted) before any production/TestFlight build with live consults.
-    /// Locked default is `nil` (secure shell). LOCAL QA only may opt into the demo
-    /// domain by launching with env `LIVIQA_JITSI_DEMO=1` — never a prod default.
+    /// Live value points at the self-hosted Jitsi on Scaleway (fr-par, EU). It is
+    /// reachable over a valid public TLS cert and accepts guests (the citizen and
+    /// their clinician join the same deterministic room — no account wall).
+    /// LOCAL QA may override to the public demo domain with env `LIVIQA_JITSI_DEMO=1`.
     static var jitsiDomain: String? {
         if ProcessInfo.processInfo.environment["LIVIQA_JITSI_DEMO"] == "1" { return jitsiDemoDomain }
-        return nil
+        return jitsiSovereignDomain
     }
+
+    /// Self-hosted, EU-sovereign Jitsi (Scaleway fr-par). Hardening follow-up:
+    /// move behind `meet.liviqa.app` (A record → this host) for a clean URL; the
+    /// sslip.io host is a valid, TLS-terminated stand-in until then.
+    static let jitsiSovereignDomain = "163-172-173-186.sslip.io"
 
     /// LOCAL-PARITY ONLY. `meet.jit.si` is US-operated — it must NEVER be used as a
     /// production default (NFR-SEC-07). Use it only for local dev to exercise the
@@ -74,12 +79,12 @@ enum Config {
     /// TestFlight UI testers never hit a broken sign-in. Flip to `true` once the
     /// GoTrue ↔ backend secret is verified (and Apple provider enabled).
     /// See docs/Auth_Deploy_Handoff_v01.md.
-    static let authEnabled = false
+    static let authEnabled = true
 
-    /// v1 TestFlight ships WITHOUT the live video consult — no EU-sovereign Jitsi
-    /// yet (NFR-SEC-07; `meet.jit.si` is demo-only) and no camera/mic entitlements.
-    /// Secure messaging stays available. Flip on once a sovereign Jitsi is wired.
-    static let videoConsultEnabled = false
+    /// Live video consult. Enabled now that a self-hosted EU-sovereign Jitsi is
+    /// wired (`jitsiSovereignDomain`, Scaleway fr-par) and camera/mic usage strings
+    /// are in Info.plist. Secure messaging stays available regardless.
+    static let videoConsultEnabled = true
 
     /// Local sovereign backend for development (embedded Postgres; seed bearer
     /// token; no Supabase). Backend: `http://localhost:3001`, citizen seed `dev-citizen-claus`.

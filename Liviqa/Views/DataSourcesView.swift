@@ -3,6 +3,9 @@ import SwiftUI
 
 struct DataSourcesView: View {
     @Environment(AppState.self) private var appState
+    @State private var showImporter = false
+    @State private var connecting = false
+    @State private var importedNote: String? = nil
 
     private var groupedSources: [(SourceCategory, [DataSourceConnection])] {
         let categories = SourceCategory.allCases
@@ -20,17 +23,21 @@ struct DataSourcesView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle")
                         .font(.lato(14))
-                        .foregroundStyle(LiviqaTheme.amber)
+                        .foregroundStyle(LiviqaTheme.clay)
                     Text("All sources are processed on this device. Patterns are extracted locally — raw data is never sent anywhere.")
                         .font(.caption)
                         .lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink2)
                 }
                 .padding(12)
-                .background(LiviqaTheme.amber2)
+                .background(LiviqaTheme.clay2)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.amber.opacity(0.5), lineWidth: 0.5))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.clay.opacity(0.5), lineWidth: 0.5))
                 .padding(.bottom, 8)
+
+                // ── Bring your own data ──
+                bringYourDataCard
+                    .padding(.bottom, 4)
 
                 // ── Category groups ──
                 ForEach(groupedSources, id: \.0) { category, sources in
@@ -82,7 +89,78 @@ struct DataSourcesView: View {
         .navigationTitle("Data Sources")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showImporter) {
+            DocumentPickerView { name, _ in
+                importedNote = "Imported “\(name)” — stored on this device."
+            }
+        }
         #endif
+    }
+
+    // MARK: - Bring your own data (connect + import + sync)
+
+    private var bringYourDataCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("YOUR DATA, YOUR WAY")
+                .font(.liviqaKicker(10)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text("Connect Apple Health to sync your own readings, or import a file (CGM export, labs, InBody). Everything is processed on this device.")
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                Task {
+                    connecting = true
+                    appState.dataProviderKind = .healthKit
+                    await appState.refreshFromHealth()
+                    connecting = false
+                    importedNote = appState.todaySignals == nil
+                        ? "Connected. As your Health data fills in, your own numbers replace the demo."
+                        : "Synced — your Home now shows your own data."
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if connecting { ProgressView().tint(.white) }
+                    else { Image(systemName: "heart.fill").font(.system(size: 14)) }
+                    Text(connecting ? "Syncing…" : "Connect Apple Health & sync now")
+                        .font(.lato(14, .bold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 13)
+                .background(LiviqaTheme.moss)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .disabled(connecting)
+
+            Button { showImporter = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.up.doc").font(.system(size: 14, weight: .medium))
+                    Text("Import a data file").font(.lato(14, .bold))
+                }
+                .foregroundStyle(LiviqaTheme.ink)
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .background(LiviqaTheme.paper)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            if let note = importedNote {
+                HStack(spacing: 7) {
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(LiviqaTheme.moss)
+                    Text(note).font(.lato(12)).foregroundStyle(LiviqaTheme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
     }
 
     // MARK: - Source row

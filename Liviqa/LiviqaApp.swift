@@ -12,8 +12,17 @@ struct LiviqaApp: App {
     @AppStorage("hasSeenHealthKitPrimer")    private var hasSeenHealthKitPrimer    = false
     @AppStorage("hasSeenDfGOnboarding")      private var hasSeenDfGOnboarding      = false
 
+    // Onboarding-version gate. The consent + start flow is skipped once its
+    // `hasSeen*` flags are set, so an existing install never sees it again — which
+    // is why it "stopped starting up". Bumping `currentOnboardingVersion` replays
+    // the whole start flow ONCE for everyone (and re-prompts HealthKit connect).
+    @AppStorage("onboardingVersion") private var seenOnboardingVersion = 0
+    static let currentOnboardingVersion = 1
+
     // Runtime theme (Midnight default) — flips every LiviqaTheme.* token at the root.
-    @AppStorage("liviqaThemeMode") private var themeModeRaw = LiviqaTheme.Mode.midnight.rawValue
+    // Default to Paper — the Design System v2 ground (warm paper, ink, moss/clay).
+    // Users can still switch to Midnight in Settings; the dynamic tokens flip the app.
+    @AppStorage("liviqaThemeMode") private var themeModeRaw = LiviqaTheme.Mode.paper.rawValue
     private var themeMode: LiviqaTheme.Mode { LiviqaTheme.Mode(rawValue: themeModeRaw) ?? .midnight }
 
     var body: some Scene {
@@ -52,18 +61,27 @@ struct LiviqaApp: App {
                 }
             }
             .environment(appState)
-            .preferredColorScheme(themeMode.colorScheme)   // Midnight (dark) by default
-            #if DEBUG
+            .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default
             .task {
+                #if DEBUG
                 // Snapshot/UI-test hook: jump straight into demo Today (skips onboarding+auth).
                 if ProcessInfo.processInfo.arguments.contains("-uiTestAutoDemo") {
                     hasSeenPrivacyDeclaration = true
                     hasSeenHealthKitPrimer = true
                     hasSeenDfGOnboarding = true
+                    seenOnboardingVersion = Self.currentOnboardingVersion
                     if appState.session == nil { appState.signInDemo() }
+                    return
+                }
+                #endif
+                // Reinstate the consent + start flow once after an onboarding revision.
+                if seenOnboardingVersion < Self.currentOnboardingVersion {
+                    hasSeenPrivacyDeclaration = false
+                    hasSeenHealthKitPrimer    = false
+                    hasSeenDfGOnboarding      = false
+                    seenOnboardingVersion     = Self.currentOnboardingVersion
                 }
             }
-            #endif
         }
     }
 }
