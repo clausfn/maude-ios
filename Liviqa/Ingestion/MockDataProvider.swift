@@ -57,10 +57,17 @@ public struct MockDataProvider: HealthDataProvider {
                     source: source, tier: .good, provenance: .simulated))
             }
 
+            // Staged sleep (deep / core / rem) summing to the night's total, so the
+            // sleep-stages visualisation has real structure to render.
             let sleepHours = max(4.5, jitter(&rng, base: 7.2, spread: 1.1))
-            samples.sleep.append(SleepReading(
-                date: day, stage: .asleepUnspecified, hours: round(sleepHours * 10) / 10,
-                source: source, tier: .estimate, provenance: .simulated))
+            let deep = sleepHours * (0.16 + jitter(&rng, base: 0.02, spread: 0.04))
+            let rem  = sleepHours * (0.21 + jitter(&rng, base: 0.02, spread: 0.04))
+            let core = max(0.1, sleepHours - deep - rem)
+            for (stage, hrs) in [(SleepStage.deep, deep), (.core, core), (.rem, rem)] {
+                samples.sleep.append(SleepReading(
+                    date: day, stage: stage, hours: round(hrs * 10) / 10,
+                    source: source, tier: .estimate, provenance: .simulated))
+            }
 
             // ~Every third day, a workout.
             if offset % 3 == 0 {

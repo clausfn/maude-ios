@@ -11,9 +11,23 @@ public struct TodaySignals: Sendable, Equatable {
     public var rhr: String        // "58"
     public var inRangeIsClay: Bool
 
-    public init(sleep: String, inRange: String, hrv: String, rhr: String, inRangeIsClay: Bool) {
+    // Last-7-day micro-trends for the Home chip sparklines (oldest→today, one
+    // value per day that HAS data — no fabricated zeros). Empty ⇒ no sparkline.
+    public var sleepWeek: [Double]
+    public var inRangeWeek: [Double]
+    public var hrvWeek: [Double]
+    public var rhrWeek: [Double]
+    /// Today's glucose readings (mmol/L, chronological) for the CGM-style day curve.
+    public var glucoseToday: [Double]
+
+    public init(sleep: String, inRange: String, hrv: String, rhr: String, inRangeIsClay: Bool,
+                sleepWeek: [Double] = [], inRangeWeek: [Double] = [],
+                hrvWeek: [Double] = [], rhrWeek: [Double] = [], glucoseToday: [Double] = []) {
         self.sleep = sleep; self.inRange = inRange; self.hrv = hrv; self.rhr = rhr
         self.inRangeIsClay = inRangeIsClay
+        self.sleepWeek = sleepWeek; self.inRangeWeek = inRangeWeek
+        self.hrvWeek = hrvWeek; self.rhrWeek = rhrWeek
+        self.glucoseToday = glucoseToday
     }
 }
 
@@ -36,7 +50,65 @@ public enum TodaySignalsDeriver {
 
         return TodaySignals(
             sleep: sleep, inRange: inRange, hrv: hrv, rhr: rhr,
-            inRangeIsClay: !s.glucose.isEmpty && tir < 70)
+            inRangeIsClay: !s.glucose.isEmpty && tir < 70,
+            sleepWeek: sleepWeekSeries(s),
+            inRangeWeek: tirWeekSeries(s, lo: tirLowMmol, hi: tirHighMmol),
+            hrvWeek: dailyWeekSeries(s.hrv),
+            rhrWeek: dailyWeekSeries(s.restingHR),
+            glucoseToday: glucoseTodaySeries(s))
+    }
+
+    /// Today's glucose readings (mmol/L) in chronological order; [] if <2 today.
+    private static func glucoseTodaySeries(_ s: HealthSamples) -> [Double] {
+        let today = cal.startOfDay(for: Date())
+        let todays = s.glucose
+            .filter { cal.isDate($0.ts, inSameDayAs: today) }
+            .sorted { $0.ts < $1.ts }
+            .map { $0.mmol }
+        return todays.count >= 2 ? todays : []
+    }
+
+    // MARK: 7-day micro-trend series (oldest→today; one value per day WITH data).
+
+    private static let cal = Calendar(identifier: .gregorian)
+    private static func recentDays(_ count: Int = 7) -> [Date] {
+        let today = cal.startOfDay(for: Date())
+        return (0..<count).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+    }
+
+    /// Daily-mean metric (HRV, resting HR) → last-7-day series, days with data only.
+    private static func dailyWeekSeries(_ metrics: [DailyMetric]) -> [Double] {
+        guard !metrics.isEmpty else { return [] }
+        var byDay: [Date: Double] = [:]
+        for m in metrics { byDay[cal.startOfDay(for: m.date)] = m.value }   // already daily
+        let series = recentDays().compactMap { byDay[$0] }
+        return series.count >= 2 ? series : []
+    }
+
+    /// Per-day total asleep hours over the last 7 days, days with data only.
+    private static func sleepWeekSeries(_ s: HealthSamples) -> [Double] {
+        guard !s.sleep.isEmpty else { return [] }
+        var byDay: [Date: Double] = [:]
+        for seg in s.sleep { byDay[cal.startOfDay(for: seg.date), default: 0] += seg.hours }
+        let series = recentDays().compactMap { byDay[$0] }
+        return series.count >= 2 ? series : []
+    }
+
+    /// Per-day time-in-range % over the last 7 days, days with glucose only.
+    private static func tirWeekSeries(_ s: HealthSamples, lo: Double, hi: Double) -> [Double] {
+        guard !s.glucose.isEmpty else { return [] }
+        let low = min(lo, hi), high = max(lo, hi)
+        var total: [Date: Int] = [:], inR: [Date: Int] = [:]
+        for g in s.glucose {
+            let d = cal.startOfDay(for: g.ts)
+            total[d, default: 0] += 1
+            if g.mmol >= low && g.mmol <= high { inR[d, default: 0] += 1 }
+        }
+        let series = recentDays().compactMap { d -> Double? in
+            guard let t = total[d], t > 0 else { return nil }
+            return Double(inR[d] ?? 0) / Double(t) * 100
+        }
+        return series.count >= 2 ? series : []
     }
 
     /// Most recent value in a daily series.

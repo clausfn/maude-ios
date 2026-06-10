@@ -5,6 +5,9 @@
 // FR-ING-07). HealthKit's empty write set is enforced in the concrete
 // HealthKitService (PR-4); this protocol simply offers no write surface.
 import Foundation
+#if canImport(HealthKit)
+import HealthKit
+#endif
 
 public enum DataProviderKind: String, Sendable, CaseIterable {
     case healthKit   // real on-device Apple Health (PR-4)
@@ -38,6 +41,17 @@ public protocol HealthDataProvider: Sendable {
 /// Selects the active provider. `.healthKit` resolves to `HealthKitService`
 /// where the SDK exists, falling back to the mock on platforms without it.
 public enum HealthProviderFactory {
+    /// True when this build can read real on-device health data (HealthKit SDK
+    /// present AND the platform has Health available). False on platforms/
+    /// toolchains without HealthKit, so callers fall back to the demo provider.
+    public static var isRealHealthDataAvailable: Bool {
+        #if canImport(HealthKit)
+        return HKHealthStore.isHealthDataAvailable()
+        #else
+        return false
+        #endif
+    }
+
     public static func make(_ kind: DataProviderKind) -> any HealthDataProvider {
         switch kind {
         case .mock:  return MockDataProvider()

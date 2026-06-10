@@ -1,7 +1,7 @@
 // JournalModels.swift — Journal entries and embedded metric snapshots.
 import Foundation
 
-struct MetricSnapshot: Codable {
+struct MetricSnapshot: Codable, Equatable {
     var glucoseMgdl: Double?
     var hrvMs: Double?
     var sleepHours: Double?
@@ -22,7 +22,7 @@ struct MetricSnapshot: Codable {
     )
 }
 
-struct JournalEntry: Identifiable, Codable {
+struct JournalEntry: Identifiable, Codable, Equatable {
     let id: UUID
     var userId: UUID?
     var body: String

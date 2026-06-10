@@ -4,6 +4,95 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-65 — Wallet follow-on UCs: expiry/renewal UX + UC-24a/b receipts (2026-06-10)
+- **feat(wallet):** short-validity/renewal UX — the Privacy "Your credential" row shows
+  "Valid until <date> · tap to renew" (persisted `citizenCredentialValidUntil`); the credential
+  sheet carries a moss validity line ("short validity by design — renew any time").
+- **feat(UC-24a):** grant Share Receipts now carry a REAL on-device existence proof
+  ("Data history on record: N days · computed on device") — eligibility pre-screening without
+  moving data.
+- **feat(UC-24b):** per-journal-entry **ePRO provenance receipt** (checkmark-seal action on entry
+  cards; prefers a study grant) — attests "recorded on device under an active grant", never the
+  content (ALCOA+). DEBUG `LIVIQA_DEMO_EPRO=1`. Sim-verified vs local backend (real Partisia QR).
+- 114 tests ✅.
+
+### PR-64 — UC-A: Liviqa Citizen credential issuance into My DfG (2026-06-10)
+- **feat(wallet):** "Your credential" row on Privacy → issues the citizen's own **Liviqa Citizen**
+  sign-in credential (pseudonymous: role + member id + date) via `POST /issuance/citizen-credential`
+  on the sovereign backend → REAL Partisia-sandbox offer rendered as QR + same-device deep link
+  (`ShareReceiptSheet` gains a `.citizenCredential` kind). `SovereignSharing.issueCitizenCredential`,
+  `AppState.issueCitizenCredential`. DEBUG `LIVIQA_DEMO_CITIZEN_CRED=1`.
+- Verified live on Sim against localhost:3001 (partisia mode): real `haip-vci://` QR. 114 tests ✅.
+
+### PR-63 — iGrant.io wallet + 2×2 identity-wallet grid (2026-06-10)
+- **feat(auth):** added `IDProvider.iGrant` (iGrant.io EUDI Data Wallet, teal; SD-JWT selective disclosure
+  + consent receipt). Sign-in now offers four identity wallets in a 2×2 grid: AltID · e-Boks ID ·
+  iGrant.io · DfG Wallet. Verified on-device. Build ✅, 114 tests ✅.
+
+### PR-62 — AltID + e-Boks ID identity-wallet login (simulated eIDAS 2.0) (2026-06-10)
+- **feat(auth):** `IDProviderLoginView` — reusable simulated identity-wallet sign-in. `IDProvider.altID`
+  (Denmark's official EUDI / eIDAS 2.0 wallet — EUDI blue; unlock → selective disclosure with
+  zero-knowledge proof, e.g. "Over 18" without revealing date of birth → verify → EUDI ref) and `.eBoks`
+  (e-Boks ID wallet — burgundy; proof-of-age, "you decide when/where"). Three sign-in identity options now:
+  AltID · e-Boks ID · DfG Wallet. Brand-coloured authority grounds; descriptive, no "simulated" labels;
+  text wordmarks (not official logos). `Config.nationalIDLoginEnabled`; `AppState.signInWithProvider`.
+- Verified: AltID/e-Boks steps screenshot-clean; AuthView shows all 3 options; live verify auto-run
+  mirrors the DfG flow. Build ✅, 114 tests ✅.
+
+### PR-61 — DfG Wallet login flow (eIDAS 2.0 + Partisia, simulated) (2026-06-10)
+- **feat(auth):** `DfGWalletLoginView` — in-app, high-fidelity simulation of the DfG Wallet identity
+  use cases for demos/pilots (no live Partisia backend): unlock → selective disclosure (prove facts,
+  hide name/DOB/address) → Partisia verification (MPC signature + CE-ledger anchoring) → "Verified with
+  Partisia" + CE ref → into Liviqa. DfG-branded navy authority ground; descriptive, no "simulated" labels.
+- **feat(auth):** "Continue with DfG Wallet" on `AuthView` (`Config.dfgWalletLoginEnabled`);
+  `AppState.signInWithDfGWallet`; Settings shows a "Verified with Partisia · CE ref" badge.
+- Verified live (tap-through auto-ran verification, generated CE ref). Build ✅, 114 tests ✅. Care tab restored (10.21).
+
+### PR-60 — Real data across all surfaces + sleep made real (production integrity) (2026-06-10)
+- **feat(sleep):** `SleepDeriver` — last-night Deep/Light/REM breakdown + asleep total + nightly week
+  from on-device HealthKit; mock sleep enriched into stages; `AppState.sleepSummary`. Sleep detail shows
+  real stages/headline/trend (demo fallback). +5 `SleepDeriverTests`.
+- **feat(integrity):** all pillar detail screens + Insights now show the user's REAL derived values and
+  week series (`TodaySignals` + `correlationWeek`); the illustrative delta is hidden whenever the value
+  is real; glucose "Today" curve uses today's real readings (`TodaySignals.glucoseToday`).
+- **feat(arch):** app-level one-time `refreshFromHealth` in `MainTabView` (every tab has data regardless
+  of entry tab) + `isRefreshing` reentrancy guard.
+- **test:** suite 106 → 114 green. 5-tab smoke clean.
+
+### PR-59 — Data-visualization overhaul (Oura/Whoop caliber, brand-locked) (2026-06-10)
+- **feat(viz):** `AreaTrendChart` upgraded — smoothed Catmull-Rom curves, left y-axis scale (max/mean/min,
+  unit-aware), the personal **"your normal" band** (mean ±1σ of the user's OWN data — descriptive, not a
+  clinical range) with a dashed mean line, subtle data-point dots. Lifts Insights (TIR + Recovery/HRV),
+  all pillar detail screens, and nudge evidence at once. Units wired (% / ms / bpm / h).
+- **feat(viz):** `MiniSparkline` — 7-day micro-trend under each Home signal chip. `TodaySignals` gains
+  real per-day series (`sleepWeek/inRangeWeek/hrvWeek/rhrWeek`), derived in `TodaySignalsDeriver` (one
+  value per day WITH data, ≥2-point rule, no fabricated zeros; demo week in demo mode, no spark when
+  real-but-missing).
+- **feat(viz):** `GlucoseCurveView` rebuilt (smoothed, y-axis with personal target high/low, NOW dot)
+  and surfaced as a CGM-style "Today" curve inside the moss target band on the glucose detail; sleep
+  detail now shows stages + weekly trend. All descriptive-only / brand-locked.
+- **test:** +3 week-series cases (`DeriverRobustnessTests`). Suite 106 → 109 green.
+
+### PR-58 — Go-live readiness (Wave 1–5): real HealthKit default + ship polish (2026-06-10)
+- **feat(ingestion):** real on-device HealthKit is now the DEFAULT provider on a Health-capable
+  platform (`AppState.resolveProviderKind` + `HealthProviderFactory.isRealHealthDataAvailable`);
+  Simulator / no-Health / `-uiTestAutoDemo` / `LIVIQA_DATA=mock` fall back to demo. `usingRealData`
+  drives the "Demo data" flag accurately (true only after a non-empty HealthKit fetch).
+- **fix(integrity):** with real data the nudge feed trusts the engine even when empty — never shows
+  `MockData` seeds unlabelled as the user's own (no-AI-tell). Build bump 1.0 (10.18 → 10.19).
+- **a11y:** Dynamic Type confirmed working (clamped tab bar + Home chips so chrome doesn't wrap at
+  accessibility sizes); `AreaTrendChart` accessibilityValue summary; "Back"/"Send message" labels;
+  care thread loading state.
+- **feat(journal):** private journal now persists across relaunch — `JournalStore` (JSON in App
+  Support, `.completeFileProtection`, on-device only; injectable URL for tests); `JournalView` loads
+  saved entries / auto-saves on change. MVP gap closed.
+- **fix(crash-safety):** audited derivation+render path for sparse/empty real data (no `Int(NaN)` traps,
+  guarded divisions, gated force-unwraps); the new real-data default is crash-safe.
+- **test:** `ProviderResolutionTests` (6) + `DeriverRobustnessTests` (5) + `JournalStoreTests` (4).
+  Suite 91 → 106 green. Release config compiles.
+- **docs:** `GOLIVE_CHECKLIST.md` (human Apple steps), `docs/APP_PRIVACY_NOTES.md`, `HANDOFF_TO_BACKEND.md`,
+  `SESSION_iOS_GOLIVE.md`. Frozen backend contract untouched; Share-Receipt wallet preserved.
+
 ### PR-57 — Fix "can't see the message" in care threads (beta feedback) (2026-06-10)
 - **fix(ui):** `MessageThreadView` — explicit composer text colour (never follows the
   system label colour, so typed text stays visible in any appearance); reliable

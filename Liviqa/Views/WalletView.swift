@@ -10,6 +10,10 @@ struct WalletView: View {
     // CE confirmation toast (shared ledger pattern)
     @State private var toast: LiviqaToastData?
 
+    // Share Receipt issuance (UC-21): the offer drives the QR sheet.
+    @State private var receiptOffer: WalletReceiptOffer?
+    @State private var issuingReceipt: UUID?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -56,6 +60,14 @@ struct WalletView: View {
                         }
                         .padding(.top, 6)
 
+                    // ── Your credential (UC-A — Liviqa Citizen into My DfG wallet) ──
+                    // Sandbox-only rail: hidden on the production backend (per Kim).
+                    if Config.walletIssuanceEnabled {
+                        LiviqaSectionHeader(label: "Your credential")
+
+                        citizenCredentialRow
+                    }
+
                     // ── DfG Tokens ──
                     LiviqaSectionHeader(label: "DfG Tokens")
 
@@ -98,6 +110,32 @@ struct WalletView: View {
             if appState.grants.isEmpty {
                 await appState.loadWallet()
             }
+            #if DEBUG
+            // Deterministic screenshot of the citizen-credential flow (UC-A).
+            if ProcessInfo.processInfo.environment["LIVIQA_DEMO_CITIZEN_CRED"] == "1", receiptOffer == nil {
+                if let url = await appState.issueCitizenCredential() {
+                    receiptOffer = WalletReceiptOffer(url: url, recipientName: "you",
+                                                      kind: .citizenCredential,
+                                                      validUntil: appState.citizenCredentialValidUntil)
+                }
+            }
+            // Deterministic screenshot of the receipt flow (LIVIQA_DEMO_RECEIPT=1):
+            // a real offer for the first active grant, else a representative one.
+            if ProcessInfo.processInfo.environment["LIVIQA_DEMO_RECEIPT"] == "1", receiptOffer == nil {
+                await appState.loadWallet()   // override demo mock grants with real backend grants
+                if let g = appState.grants.first(where: { $0.isActive }),
+                   let url = await appState.issueShareReceipt(for: g, verified: "Time in range ≥ 70% · last 90 days") {
+                    receiptOffer = WalletReceiptOffer(url: url, recipientName: g.recipientName)
+                } else if let sample = URL(string: "haip-vci://?credential_offer_uri=https%3A%2F%2Fissuer-server.sandbox.demo1.partisia.com%2Fissuance%2Foid4vci%2Fcredential-offer%2Fdemo") {
+                    receiptOffer = WalletReceiptOffer(url: sample, recipientName: appState.grants.first?.recipientName ?? "Pharma Partner")
+                }
+            }
+            #endif
+        }
+        .sheet(item: $receiptOffer) { off in
+            ShareReceiptSheet(offer: off)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .liviqaToast($toast)
     }
@@ -240,6 +278,39 @@ struct WalletView: View {
                 .foregroundStyle(LiviqaTheme.rust)
             }
             .padding(.top, 10)
+
+            // Issue a provenance receipt of this share into the My DfG wallet (UC-21).
+            if Config.dfgReceiptEnabled && grant.isActive {
+                Button {
+                    Task {
+                        issuingReceipt = grant.id
+                        // UC-24a: the receipt carries an EXISTENCE proof computed on
+                        // device (eligibility pre-screening) — never the data itself.
+                        let proof = "Data history on record: \(appState.passportStats.daysTracked) days · computed on device"
+                        if let url = await appState.issueShareReceipt(for: grant, verified: proof) {
+                            receiptOffer = WalletReceiptOffer(url: url, recipientName: grant.recipientName)
+                        }
+                        issuingReceipt = nil
+                    }
+                } label: {
+                    HStack(spacing: 7) {
+                        if issuingReceipt == grant.id {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Image(systemName: "wallet.pass").font(.lato(12, .medium))
+                        }
+                        Text("Add receipt to My DfG wallet")
+                            .font(.lato(12.5, .bold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .background(LiviqaTheme.moss2)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 10)
+            }
         }
         .padding(15)
         .background(LiviqaTheme.paper2)
@@ -256,6 +327,71 @@ struct WalletView: View {
     }
 
     // MARK: - Token wallet entry
+
+    /// UC-A — issue the citizen's own "Liviqa Citizen" credential into My DfG.
+    /// Pseudonymous (role + member id + date); the offer renders as QR + deep link.
+    @State private var issuingCitizenCred = false
+
+    /// Renewal/expiry UX: show the short-validity window of the last issuance.
+    private var citizenCredSubtitle: String {
+        if let until = appState.citizenCredentialValidUntil {
+            if until > Date() {
+                return "Valid until \(until.formatted(date: .abbreviated, time: .omitted)) · tap to renew any time"
+            }
+            return "Expired \(until.formatted(date: .abbreviated, time: .omitted)) — renew to keep signing in"
+        }
+        return "Sign in with your My DfG wallet — role and member ID only, never health data"
+    }
+    var citizenCredentialRow: some View {
+        Button {
+            Task { @MainActor in
+                issuingCitizenCred = true
+                defer { issuingCitizenCred = false }
+                if let url = await appState.issueCitizenCredential() {
+                    receiptOffer = WalletReceiptOffer(url: url, recipientName: "you",
+                                                      kind: .citizenCredential,
+                                                      validUntil: appState.citizenCredentialValidUntil)
+                }
+            }
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(LiviqaTheme.invertBG)
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "person.text.rectangle")
+                        .font(.lato(15))
+                        .foregroundStyle(LiviqaTheme.invertFG)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Liviqa Citizen credential")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text(citizenCredSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .lineLimit(2)
+                }
+                Spacer()
+                if issuingCitizenCred {
+                    ProgressView().controlSize(.small).tint(LiviqaTheme.moss)
+                } else {
+                    Text("Issue")
+                        .font(.lato(12.5, .bold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(LiviqaTheme.moss2)
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(14)
+            .background(LiviqaTheme.paper2)
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(issuingCitizenCred)
+    }
 
     var tokenEntryRow: some View {
         NavigationLink(destination: TokenWalletView()) {

@@ -10,7 +10,9 @@ struct WeekInContextView: View {
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil
 
-    private let week = MockData.correlationWeek
+    /// Correlation heatmap — real on-device grid once Health is connected
+    /// (AppState derives it in refreshFromHealth), the demo grid otherwise.
+    private var week: CorrelationWeek { appState.correlationWeek }
 
     private let metricLabels = [
         "GLUCOSE", "SLEEP", "HRV", "EXERCISE",
@@ -21,6 +23,15 @@ struct WeekInContextView: View {
     private static let tirWeek: [Double] = [71, 74, 69, 78, 80, 76, 84]
     /// Weekly HRV (ms), oldest → today — the recovery / stress axis (presentation seed).
     private static let hrvWeek: [Double] = [48, 45, 39, 41, 44, 50, 52]
+
+    // Real derived series/values when Health is connected, else the seeds above.
+    private var sig: TodaySignals? { appState.todaySignals }
+    private var tirValues: [Double] { (sig?.inRangeWeek.isEmpty == false) ? sig!.inRangeWeek : Self.tirWeek }
+    private var hrvValues: [Double] { (sig?.hrvWeek.isEmpty == false) ? sig!.hrvWeek : Self.hrvWeek }
+    private var hasRealTIR: Bool { (sig?.inRange ?? "—") != "—" }
+    private var hasRealHRV: Bool { (sig?.hrv ?? "—") != "—" }
+    private var tirHeadline: String { hasRealTIR ? sig!.inRange : "84%" }
+    private var hrvHeadline: String { hasRealHRV ? sig!.hrv + " ms" : "52 ms" }
 
     struct SelectedCell: Equatable { let day: Int; let metric: Int }
 
@@ -113,12 +124,12 @@ struct WeekInContextView: View {
                     .foregroundStyle(LiviqaTheme.ink3)
                 Spacer()
                 HStack(spacing: 6) {
-                    Text("84%").font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
-                    StatusPill(text: "▲ 8 pts", dot: nil)
+                    Text(tirHeadline).font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
+                    if !hasRealTIR { StatusPill(text: "▲ 8 pts", dot: nil) }
                 }
             }
-            AreaTrendChart(values: Self.tirWeek, tint: LiviqaTheme.moss,
-                           xTicks: week.days.map { $0.dayLabel })
+            AreaTrendChart(values: tirValues, tint: LiviqaTheme.moss,
+                           xTicks: week.days.map { $0.dayLabel }, unit: "%")
         }
         .padding(14)
         .background(LiviqaTheme.paper2)
@@ -140,12 +151,12 @@ struct WeekInContextView: View {
                 }
                 Spacer()
                 HStack(spacing: 6) {
-                    Text("52 ms").font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
-                    StatusPill(text: "▲ 4 ms", dot: nil)
+                    Text(hrvHeadline).font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
+                    if !hasRealHRV { StatusPill(text: "▲ 4 ms", dot: nil) }
                 }
             }
-            AreaTrendChart(values: Self.hrvWeek, tint: LiviqaTheme.moss,
-                           xTicks: week.days.map { $0.dayLabel })
+            AreaTrendChart(values: hrvValues, tint: LiviqaTheme.moss,
+                           xTicks: week.days.map { $0.dayLabel }, unit: " ms")
             Text("In your data, your HRV ran lower mid-week — the days with higher meeting load and later meals. A pattern in your own data, not a medical finding.")
                 .font(.lato(12.5)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)

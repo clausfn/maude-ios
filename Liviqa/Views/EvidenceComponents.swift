@@ -213,6 +213,7 @@ struct NavBackHeader<Trailing: View>: View {
                     .overlay(Circle().stroke(LiviqaTheme.line, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Back")
             Spacer()
             trailing()
         }

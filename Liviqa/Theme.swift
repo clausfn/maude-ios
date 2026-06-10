@@ -94,6 +94,9 @@ enum LiviqaTheme {
     static let homeIndicator = Color.dyn(0x0E1A2B, 0xF7F5F1, 0.26, 0.34)
     static let cardShadow    = Color.dyn(0x0E1A2B, 0x000000, 0.06, 0.40)
 
+    // Fixed DfG navy (constant in both themes) — e.g. the DfG logo tile.
+    static let dfgNavy = Color(red: 0x0E/255, green: 0x1A/255, blue: 0x2B/255)
+
     // Invert surface (dark chip/button/summary on light; warm-light on dark)
     static let invertBG   = Color.dyn(0x0E1A2B, 0xECE7DC)
     static let invertFG   = Color.dyn(0xFCFAF5, 0x0E1A2B)

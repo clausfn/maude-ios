@@ -4,16 +4,17 @@
 // Design ref: Liviqa_App_UI_Aperture_v01_20260521.html (tab bar)
 import SwiftUI
 
-// v2 information architecture (Design System v2): a calm, consumer-first 5-tab IA.
-// Care (clinician messaging/consult) moved OFF the primary bar — reachable from the
-// profile sheet — so the everyday app no longer reads as a clinical tool.
+// Information architecture: Home · Insights · Care · Journal · Privacy · Settings.
+// Care (clinician messaging + video consult) is a first-class tab so it's directly
+// discoverable; it's also still reachable from the profile sheet.
 enum LiviqaTab: String, CaseIterable {
-    case home, insights, journal, privacy, settings
+    case home, insights, care, journal, privacy, settings
 
     var title: String {
         switch self {
         case .home:     return "Home"
         case .insights: return "Insights"
+        case .care:     return "Care"
         case .journal:  return "Journal"
         case .privacy:  return "Privacy"
         case .settings: return "Settings"
@@ -24,6 +25,7 @@ enum LiviqaTab: String, CaseIterable {
         switch self {
         case .home:     return "circle"
         case .insights: return "chart.line.uptrend.xyaxis"
+        case .care:     return "bubble.left.and.bubble.right"
         case .journal:  return "doc.text"
         case .privacy:  return "lock.shield"
         case .settings: return "gearshape"
@@ -34,6 +36,7 @@ enum LiviqaTab: String, CaseIterable {
         switch self {
         case .home:     return "circle.fill"
         case .insights: return "chart.line.uptrend.xyaxis"
+        case .care:     return "bubble.left.and.bubble.right.fill"
         case .journal:  return "doc.text.fill"
         case .privacy:  return "lock.shield.fill"
         case .settings: return "gearshape.fill"
@@ -55,10 +58,20 @@ struct MainTabView: View {
     @State private var nudgeProfileAnchor: ProfileSheet.Section? = nil
     @State private var joiningConsult: ConsultSummary? = nil   // accepted an incoming call
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
+    @State private var didInitialRefresh = false
     #if DEBUG
     @State private var debugOpenChat = false
     @State private var debugOpenThread = false
     #endif
+
+    /// The connect-Apple-Health hint, plus a DEBUG-only force flag so the banner
+    /// can be screenshot-verified on the Simulator (where the provider is `.mock`).
+    private var showConnectHintResolved: Bool {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["LIVIQA_FORCE_HINT"] == "1" { return true }
+        #endif
+        return appState.showConnectHealthHint
+    }
 
     private func hideNavBar<V: View>(_ v: V) -> some View {
         #if os(iOS)
@@ -85,7 +98,9 @@ struct MainTabView: View {
                             onCalibrate: { anchor in
                                 nudgeProfileAnchor = anchor
                                 appState.showProfileSheet = true
-                            }
+                            },
+                            showConnectHint: showConnectHintResolved,
+                            onOpenSettings: { tab = .settings }
                         ))
                         .task { await appState.refreshFromHealth() }
                         .navigationDestination(item: $selectedNudge) { nudge in
@@ -94,6 +109,8 @@ struct MainTabView: View {
                     }
                 case .insights:
                     NavigationStack { hideNavBar(WeekInContextView()) }
+                case .care:
+                    NavigationStack { MessagesView() }
                 case .journal:
                     JournalView()
                 case .privacy:
@@ -155,6 +172,14 @@ struct MainTabView: View {
             NavigationStack { ConsultView(consult: consult) }
         }
         .task {
+            // App-level one-time ingest so every tab (not just Home) has the user's
+            // real derived data — Home also refreshes on appear for freshness.
+            if !didInitialRefresh {
+                didInitialRefresh = true
+                await appState.refreshFromHealth()
+            }
+        }
+        .task {
             // Poll for an incoming instant call (no push infra yet).
             while !Task.isCancelled {
                 await appState.pollIncomingCall()
@@ -176,6 +201,8 @@ struct MainTabView: View {
                         Text(item.title)
                             .font(.lato(10, tab == item ? .bold : .regular))
                             .tracking(0.2)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                         // Active moss dot
                         Circle()
                             .fill(tab == item ? LiviqaTheme.moss : Color.clear)
@@ -195,6 +222,9 @@ struct MainTabView: View {
                 .fill(LiviqaTheme.line)
                 .frame(height: 0.5)
         }
+        // Fixed bottom chrome: let it grow a little for legibility, but cap so the
+        // five labels never wrap ("Settings" → "Setting s"). Content above scales freely.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
 }

@@ -18,6 +18,12 @@ struct TodayView: View {
     var signals: TodaySignals? = nil
     var onOpen: (Nudge) -> Void
     var onCalibrate: ((ProfileSheet.Section?) -> Void)? = nil
+    /// Real device that tried HealthKit but has no readings → show the connect hint.
+    var showConnectHint: Bool = false
+    /// Switch to the Settings tab (where Apple Health is connected).
+    var onOpenSettings: (() -> Void)? = nil
+
+    @State private var connectHintDismissed = false
 
     // "Thu · 22 May"
     private var dateKicker: String {
@@ -71,6 +77,12 @@ struct TodayView: View {
                         .foregroundStyle(LiviqaTheme.ink)
                         .padding(.top, 4)
 
+                    // Real device, no Health data yet → gentle, dismissible cue.
+                    if showConnectHint, !connectHintDismissed {
+                        connectHealthHint
+                            .padding(.top, 14)
+                    }
+
                     // Calm, affirming lead (not an alert) — the everyday day-good state.
                     calmHero
                         .padding(.top, 14)
@@ -107,6 +119,37 @@ struct TodayView: View {
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    // MARK: — Connect-Apple-Health hint (real device, no data yet)
+
+    private var connectHealthHint: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "heart.text.square")
+                .font(.lato(15)).foregroundStyle(LiviqaTheme.moss)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Showing sample data")
+                    .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                Button { onOpenSettings?() } label: {
+                    Text("Connect Apple Health in Settings to see your own →")
+                        .font(.lato(12.5)).foregroundStyle(LiviqaTheme.moss)
+                        .multilineTextAlignment(.leading)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 4)
+            Button { connectHintDismissed = true } label: {
+                Image(systemName: "xmark").font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(LiviqaTheme.ink4)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.moss2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
     }
 
     // MARK: — Calm affirming lead (the all-clear day must feel good, not empty)
@@ -204,22 +247,30 @@ struct TodayView: View {
     private var signalRow: some View {
         HStack(spacing: 8) {
             NavigationLink(value: WellnessPillar.sleep) {
-                signalChip("Sleep", "moon.fill", signals?.sleep ?? "6h52", clay: false)
+                signalChip("Sleep", "moon.fill", signals?.sleep ?? "6h52", clay: false, spark: spark(\.sleepWeek, .sleep))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
-                signalChip("Glucose", "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true)
+                signalChip("Glucose", "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true, spark: spark(\.inRangeWeek, .glucose))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.recovery) {
-                signalChip("Recovery", "waveform.path.ecg", signals?.hrv ?? "48", clay: false)
+                signalChip("Recovery", "waveform.path.ecg", signals?.hrv ?? "48", clay: false, spark: spark(\.hrvWeek, .recovery))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.heart) {
-                signalChip("Heart", "heart.fill", signals?.rhr ?? "58", clay: false)
+                signalChip("Heart", "heart.fill", signals?.rhr ?? "58", clay: false, spark: spark(\.rhrWeek, .heart))
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
     }
 
-    private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool) -> some View {
+    /// Sparkline source: real per-day week when connected (empty ⇒ no spark, honest),
+    /// the pillar's demo week when showing seeds.
+    private func spark(_ keyPath: KeyPath<TodaySignals, [Double]>, _ pillar: WellnessPillar) -> [Double] {
+        if let s = signals { return s[keyPath: keyPath] }
+        return pillar.week
+    }
+
+    private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool,
+                            spark: [Double] = []) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -228,15 +279,25 @@ struct TodayView: View {
                 Text(label.uppercased())
                     .font(.liviqaKicker(8)).tracking(0.4)
                     .foregroundStyle(LiviqaTheme.ink3)
+                    .lineLimit(1).minimumScaleFactor(0.8)
             }
             HStack(spacing: 5) {
                 Circle().fill(clay ? LiviqaTheme.clay : LiviqaTheme.moss).frame(width: 6, height: 6)
                 Text(value)
                     .font(.lato(15, .heavy))
                     .foregroundStyle(clay ? LiviqaTheme.clayText : LiviqaTheme.ink)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            // 7-day micro-trend (only when there's real/seed data to show).
+            if spark.count > 1 {
+                MiniSparkline(values: spark, tint: clay ? LiviqaTheme.clay : LiviqaTheme.moss, height: 18)
+                    .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // The four chips share a fixed row; cap their growth so labels/values stay
+        // on one line at large text sizes (content elsewhere scales freely).
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .padding(.horizontal, 9)
         .padding(.vertical, 10)
         .background(LiviqaTheme.paper2)

@@ -204,6 +204,15 @@ struct SettingsView: View {
                 Text("Device-stored only · never uploaded")
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink4)
+                if appState.walletVerified {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal.fill").font(.system(size: 9))
+                        Text("Verified with Partisia" + (appState.walletVerificationRef.map { " · \($0)" } ?? ""))
+                            .font(.liviqaKicker(8.5)).tracking(0.3)
+                    }
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .padding(.top, 1)
+                }
             }
             Spacer()
         }

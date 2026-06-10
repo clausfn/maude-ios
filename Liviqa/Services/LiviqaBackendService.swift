@@ -48,6 +48,17 @@ protocol SovereignSharing: Sendable {
     /// Push (or supersede) the derived, scoped share for a grant
     /// (`PUT /shares/{grantId}`). Body produced by DerivedShareBuilder.
     func pushDerivedShare(grantId: String, _ request: DerivedShareRequest) async throws
+
+    /// Issue a Liviqa Share Receipt (UC-21) for an active grant into the citizen's
+    /// My DfG wallet. Provenance-only; returns the wallet offer URL (haip-vci deep
+    /// link) to render as a QR / open on-device. `verified` is the on-device
+    /// threshold proof (optional — a safe default is used server-side).
+    func issueShareReceipt(for grant: WalletGrant, verified: String?) async throws -> URL
+
+    /// Issue the citizen's own "Liviqa Citizen" sign-in credential (UC-A) into
+    /// their My DfG wallet. Pseudonymous: role + member id + issue date only.
+    /// `validUntil` reflects the SHORT-VALIDITY policy (revocation stand-in).
+    func issueCitizenCredential() async throws -> (url: URL, validUntil: Date?)
 }
 
 // MARK: - Service
@@ -255,6 +266,29 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         _ = try await put("/shares/\(grantId)", body: request, as: IdDTO.self)
     }
 
+    func issueShareReceipt(for grant: WalletGrant, verified: String? = nil) async throws -> URL {
+        guard let backendID = backendID(for: grant.id) else {
+            throw SupabaseError.serverError("Reload your wallet, then try again.")
+        }
+        let resp = try await post("/issuance/sessions",
+                                  body: IssueReceiptBody(grantId: backendID, verified: verified),
+                                  as: OfferDTO.self)
+        guard let url = URL(string: resp.offerUri) else {
+            throw SupabaseError.serverError("The issuer returned an invalid offer.")
+        }
+        return url
+    }
+
+    func issueCitizenCredential() async throws -> (url: URL, validUntil: Date?) {
+        let resp = try await post("/issuance/citizen-credential",
+                                  body: EmptyBody(),
+                                  as: OfferDTO.self)
+        guard let url = URL(string: resp.offerUri) else {
+            throw SupabaseError.serverError("The issuer returned an invalid offer.")
+        }
+        return (url, BackendMapping.parseDate(resp.validUntil))
+    }
+
     // MARK: - CareConnect (citizen care-team surface)
 
     func fetchNotifications() async throws -> [CitizenNotification] {
@@ -447,6 +481,8 @@ private struct CreateGrantDTO: Encodable {
 }
 
 private struct IdDTO: Decodable { let id: String }
+private struct IssueReceiptBody: Encodable { let grantId: String; let verified: String? }
+private struct OfferDTO: Decodable { let offerUri: String; let validUntil: String? }
 private struct RevokedDTO: Decodable { let revoked: Bool }
 private struct EmptyBody: Encodable {}
 private struct EmptyDecodable: Decodable {}

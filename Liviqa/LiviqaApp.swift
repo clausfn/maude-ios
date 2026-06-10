@@ -6,6 +6,10 @@ import SwiftUI
 @main
 struct LiviqaApp: App {
     @State private var appState = AppState()
+    #if DEBUG
+    @State private var debugWallet = false
+    @State private var debugIDP: IDProvider? = nil
+    #endif
 
     // One-time flags — persist across launches
     @AppStorage("hasSeenPrivacyDeclaration") private var hasSeenPrivacyDeclaration = false
@@ -61,9 +65,30 @@ struct LiviqaApp: App {
                 }
             }
             .environment(appState)
+            #if DEBUG
+            .fullScreenCover(isPresented: $debugWallet) {
+                DfGWalletLoginView(onComplete: { _ in debugWallet = false },
+                                   onCancel: { debugWallet = false })
+            }
+            .fullScreenCover(item: $debugIDP) { p in
+                IDProviderLoginView(provider: p, onComplete: { debugIDP = nil }, onCancel: { debugIDP = nil })
+            }
+            #endif
             .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default
             .task {
                 #if DEBUG
+                // Snapshot hook: open the DfG Wallet login flow directly.
+                if ProcessInfo.processInfo.environment["LIVIQA_OPEN_WALLET"] == "1" {
+                    hasSeenPrivacyDeclaration = true
+                    debugWallet = true
+                    return
+                }
+                switch ProcessInfo.processInfo.environment["LIVIQA_OPEN_IDP"] {
+                case "altid":  hasSeenPrivacyDeclaration = true; debugIDP = .altID; return
+                case "eboks":  hasSeenPrivacyDeclaration = true; debugIDP = .eBoks; return
+                case "igrant": hasSeenPrivacyDeclaration = true; debugIDP = .iGrant; return
+                default: break
+                }
                 // Snapshot/UI-test hook: jump straight into demo Today (skips onboarding+auth).
                 if ProcessInfo.processInfo.arguments.contains("-uiTestAutoDemo") {
                     hasSeenPrivacyDeclaration = true

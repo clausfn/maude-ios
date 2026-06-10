@@ -10,6 +10,8 @@ struct AuthView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var appleCoordinator = AppleSignInCoordinator()
+    @State private var showWalletLogin = false
+    @State private var activeIDP: IDProvider? = nil
 
     var body: some View {
         ZStack {
@@ -37,6 +39,10 @@ struct AuthView: View {
                 VStack(spacing: 11) {
                     if Config.authEnabled {
                         appleButton
+
+                        if Config.dfgWalletLoginEnabled || Config.nationalIDLoginEnabled {
+                            walletGrid
+                        }
 
                         if showEmailForm {
                             emailForm
@@ -73,17 +79,17 @@ struct AuthView: View {
                 Spacer()
 
                 // ── Sovereignty footer ──
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 9))
+                VStack(spacing: 7) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 15))
                         .foregroundStyle(LiviqaTheme.moss)
-                    Text("Your data stays on your device. Nothing leaves without your consent.")
-                        .font(.liviqaKicker(9.5)).tracking(0.3)
+                    Text("Your data stays on your device.\nNothing leaves without your consent.")
+                        .font(.lato(11.5)).lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink3)
+                        .multilineTextAlignment(.center)
                 }
-                .multilineTextAlignment(.center)
                 .padding(.horizontal, 36)
-                .padding(.bottom, 30)
+                .padding(.bottom, 32)
             }
         }
     }
@@ -104,6 +110,69 @@ struct AuthView: View {
             .foregroundStyle(LiviqaTheme.invertFG)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+    }
+
+    // Identity-wallet sign-in: AltID · e-Boks ID · iGrant.io · DfG — a 2×2 grid of
+    // logo-forward wallet tiles (eIDAS 2.0 interoperability). Official AltID + e-Boks
+    // marks; DfG aperture mark; iGrant teal swatch.
+    private var walletGrid: some View {
+        VStack(spacing: 9) {
+            Text("OR USE AN IDENTITY WALLET")
+                .font(.liviqaKicker(9)).tracking(1.4).foregroundStyle(LiviqaTheme.ink4)
+                .padding(.top, 2)
+            HStack(spacing: 9) {
+                walletCell(logo: "altid-logo", swatch: nil, name: "AltID") { activeIDP = .altID }
+                walletCell(logo: "eboks-logo", swatch: nil, name: "e‑Boks ID") { activeIDP = .eBoks }
+            }
+            HStack(spacing: 9) {
+                walletCell(logo: "igrant-logo", swatch: nil, name: "iGrant.io") { activeIDP = .iGrant }
+                walletCell(logo: "dfg-logo-negative", tileColor: LiviqaTheme.dfgNavy, swatch: nil, name: "DfG Wallet") { showWalletLogin = true }
+            }
+        }
+        .fullScreenCover(item: $activeIDP) { p in
+            IDProviderLoginView(
+                provider: p,
+                onComplete: { activeIDP = nil; appState.signInWithProvider(p.name) },
+                onCancel: { activeIDP = nil }
+            )
+        }
+        .fullScreenCover(isPresented: $showWalletLogin) {
+            DfGWalletLoginView(
+                onComplete: { ref in showWalletLogin = false; appState.signInWithDfGWallet(verificationRef: ref) },
+                onCancel: { showWalletLogin = false }
+            )
+        }
+    }
+
+    private func walletCell(logo: String?, tileColor: Color? = nil, swatch: Color?, name: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if let logo {
+                    if let tileColor {
+                        // Bare (transparent) logo → put it on its own coloured tile so it
+                        // stays visible on any theme (e.g. the white DfG aperture on navy).
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 7).fill(tileColor)
+                            Image(logo).resizable().scaledToFit().frame(width: 26, height: 26)
+                        }
+                        .frame(width: 32, height: 32)
+                    } else {
+                        Image(logo).resizable().scaledToFit().frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                    }
+                } else if let swatch {
+                    RoundedRectangle(cornerRadius: 7).fill(swatch).frame(width: 32, height: 32)
+                }
+                Text(name).font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private func secondaryButton(_ title: String, icon: String, _ action: @escaping () -> Void) -> some View {

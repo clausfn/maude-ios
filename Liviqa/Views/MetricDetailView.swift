@@ -39,6 +39,22 @@ enum WellnessPillar: String, Hashable, CaseIterable {
         case .heart:    return [60, 59, 61, 58, 57, 58, 55]
         }
     }
+    /// Unit appended to chart y-axis labels.
+    var unit: String {
+        switch self {
+        case .sleep: return "h"; case .glucose: return "%"
+        case .recovery: return " ms"; case .heart: return " bpm"
+        }
+    }
+    /// Intraday curve (glucose only) — mmol/L sampled across the day (00→24).
+    var dayCurve: [Double]? {
+        switch self {
+        case .glucose:
+            return [5.4, 5.1, 4.9, 5.0, 5.3, 6.9, 8.1, 6.6, 5.9, 6.2, 8.4, 9.3,
+                    7.0, 6.1, 5.8, 7.7, 8.9, 7.1, 6.0, 5.6, 6.4, 7.0, 6.0, 5.4]
+        default: return nil
+        }
+    }
     var observation: String {
         switch self {
         case .sleep:    return "In your data, the nights after a meal before 20:30 ran a little longer. A pattern in your own data, not a medical finding."
@@ -70,18 +86,23 @@ struct MetricDetailView: View {
                             .foregroundStyle(LiviqaTheme.ink3)
                     }
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(pillar.bigValue).font(.lato(34, .black)).kerning(-0.8)
+                        Text(displayBigValue).font(.lato(34, .black)).kerning(-0.8)
                             .foregroundStyle(LiviqaTheme.ink)
-                        StatusPill(text: pillar.delta, dot: nil)
+                        // Only show the illustrative delta alongside illustrative values —
+                        // never a fabricated change next to the user's real number.
+                        if !hasRealValue { StatusPill(text: pillar.delta, dot: nil) }
                     }
                 }
 
-                // Sleep gets a stages timeline; others a week trend.
+                // Glucose leads with today's curve (CGM-style); sleep adds a stages
+                // breakdown; every pillar shows its week trend.
+                if let day = glucoseDay {
+                    dayCurveCard(day)
+                }
                 if pillar == .sleep {
                     sleepStagesCard
-                } else {
-                    trendCard
                 }
+                trendCard
 
                 // Descriptive observation
                 Text(pillar.observation)
@@ -97,10 +118,51 @@ struct MetricDetailView: View {
         #endif
     }
 
+    /// Glucose intraday curve: today's real readings when present; the demo curve
+    /// only when we're not already showing a real value (never demo-over-real).
+    private var glucoseDay: [Double]? {
+        guard pillar == .glucose else { return nil }
+        if let sig, !sig.glucoseToday.isEmpty { return sig.glucoseToday }
+        return hasRealValue ? nil : pillar.dayCurve
+    }
+
+    private func dayCurveCard(_ day: [Double]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Today").font(.liviqaKicker(9.5)).tracking(0.8).foregroundStyle(LiviqaTheme.ink3)
+                Spacer()
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2).fill(LiviqaTheme.moss.opacity(0.4)).frame(width: 14, height: 9)
+                    Text("YOUR RANGE").font(.liviqaKicker(8)).tracking(0.6).foregroundStyle(LiviqaTheme.ink4)
+                }
+            }
+            GlucoseCurveView(values: day)
+        }
+        .padding(14).background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 0.5))
+    }
+
+    /// Week series — real per-day series when available, else the pillar demo.
+    private var weekValues: [Double] {
+        if let s = liveSleep, !s.nightlyHoursWeek.isEmpty { return s.nightlyHoursWeek }
+        if let sig {
+            let real: [Double]
+            switch pillar {
+            case .glucose:  real = sig.inRangeWeek
+            case .recovery: real = sig.hrvWeek
+            case .heart:    real = sig.rhrWeek
+            case .sleep:    real = sig.sleepWeek
+            }
+            if !real.isEmpty { return real }
+        }
+        return pillar.week
+    }
+
     private var trendCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("This week").font(.liviqaKicker(9.5)).tracking(0.8).foregroundStyle(LiviqaTheme.ink3)
-            AreaTrendChart(values: pillar.week, tint: LiviqaTheme.moss, xTicks: dayLabels)
+            AreaTrendChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
         }
         .padding(14).background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -110,11 +172,41 @@ struct MetricDetailView: View {
     // MARK: - Sleep stages (descriptive timeline, like a hypnogram summary)
 
     private struct Stage { let name: String; let mins: Int; let color: Color }
+
+    /// Real last-night sleep (from on-device HealthKit) when present, else nil.
+    private var liveSleep: SleepSummary? { pillar == .sleep ? appState.sleepSummary : nil }
+    private var sig: TodaySignals? { appState.todaySignals }
+
+    /// Real, on-device headline value for this pillar — nil when we only have demo seeds.
+    private var realValue: String? {
+        if let s = liveSleep { let h = s.asleepMinutes / 60, m = s.asleepMinutes % 60; return "\(h)h \(String(format: "%02d", m))" }
+        guard let sig else { return nil }
+        switch pillar {
+        case .glucose:  return sig.inRange == "—" ? nil : sig.inRange
+        case .recovery: return sig.hrv == "—" ? nil : sig.hrv + " ms"
+        case .heart:    return sig.rhr == "—" ? nil : sig.rhr + " bpm"
+        case .sleep:    return nil   // handled by liveSleep above
+        }
+    }
+    private var hasRealValue: Bool { realValue != nil }
+    /// Headline value — real when available, else the illustrative pillar value.
+    private var displayBigValue: String { realValue ?? pillar.bigValue }
+
     private var stages: [Stage] {
-        [ Stage(name: "Deep",  mins: 85,  color: LiviqaTheme.moss),
-          Stage(name: "Light", mins: 241, color: LiviqaTheme.moss3),
-          Stage(name: "REM",   mins: 110, color: LiviqaTheme.amber),
-          Stage(name: "Awake", mins: 60,  color: LiviqaTheme.line2) ]
+        if let s = liveSleep, s.hasStageDetail {
+            // Real stages (Deep / Light / REM). Awake is not retained at ingestion.
+            return [ Stage(name: "Deep",  mins: s.deepMin, color: LiviqaTheme.moss),
+                     Stage(name: "Light", mins: s.coreMin, color: LiviqaTheme.moss3),
+                     Stage(name: "REM",   mins: s.remMin,  color: LiviqaTheme.amber) ]
+        }
+        return [ Stage(name: "Deep",  mins: 85,  color: LiviqaTheme.moss),
+                 Stage(name: "Light", mins: 241, color: LiviqaTheme.moss3),
+                 Stage(name: "REM",   mins: 110, color: LiviqaTheme.amber),
+                 Stage(name: "Awake", mins: 60,  color: LiviqaTheme.line2) ]
+    }
+
+    private var asleepText: String {
+        liveSleep.map { "\($0.asleepHoursText) asleep" } ?? "7h 16m of 8h 16m"
     }
 
     private var sleepStagesCard: some View {
@@ -123,7 +215,7 @@ struct MetricDetailView: View {
             HStack {
                 Text("TIME ASLEEP").font(.liviqaKicker(9.5)).tracking(0.8).foregroundStyle(LiviqaTheme.ink3)
                 Spacer()
-                Text("7h 16m of 8h 16m").font(.liviqaMono(12)).foregroundStyle(LiviqaTheme.ink3)
+                Text(asleepText).font(.liviqaMono(12)).foregroundStyle(LiviqaTheme.ink3)
             }
             // stacked proportion bar
             GeometryReader { geo in

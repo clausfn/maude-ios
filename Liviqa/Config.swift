@@ -93,6 +93,36 @@ enum Config {
     /// `~/Desktop/Liviqa_DfG_Wallet_Demo_Prep_v01_20260609.md`). The shipped app is
     /// unaffected while this is `false`.
     static let dfgWalletEnabled = false
+
+    /// DfG Wallet *login* flow (eIDAS 2.0 + Partisia verification) on the sign-in
+    /// screen. This is the in-app, high-fidelity simulation of the wallet use cases
+    /// (identity presentation → MPC signature check → CE-ledger anchoring) for demos
+    /// and pilots — it does not require the live Partisia backend. ON for the pitch.
+    static let dfgWalletLoginEnabled = true
+
+    /// National eID / login-provider sign-in (MitID, e-Boks ID) — simulated, in-app
+    /// high-fidelity flows for demos and pilots. No live IDP integration. ON for the pitch.
+    static let nationalIDLoginEnabled = true
+
+    /// Wallet credential issuance (Liviqa Citizen row, journal ePRO receipts).
+    /// The issuance rails live in the SANDBOX only (per Partisia/Kim, 2026-06-09:
+    /// production credentials are parked) — so hide the affordances when running
+    /// against the production backend, where the routes intentionally don't exist.
+    static var walletIssuanceEnabled: Bool {
+        if case .sovereign(let baseURL, _, _) = backend, baseURL.host == "api.liviqa.app" { return false }
+        return true
+    }
+
+    /// Show a small "Simulation · not yet integrated" label on the wallet login
+    /// flows (AltID / e-Boks ID / iGrant.io / DfG) — they are presentation-only and
+    /// do not yet talk to a real wallet/verifier. ON for honest testing; flip to
+    /// false for a polished investor demo.
+    static let showSimulationLabels = true
+
+    /// Liviqa Share Receipt issuance (UC-21) — the citizen mints a provenance
+    /// receipt of a share into their My DfG wallet. ON: the issuance rail is proven
+    /// on the real Partisia sandbox. Flip to false to hide the action.
+    static let dfgReceiptEnabled = true
     /// Universal link / scheme that opens the My DfG wallet with a request.
     /// e.g. "https://wallet.dataforgoodfoundation.org/present" (TBC by Partisia).
     static let dfgWalletRequestBase = "https://wallet.dataforgoodfoundation.org/present"

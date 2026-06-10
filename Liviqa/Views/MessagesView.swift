@@ -222,6 +222,7 @@ struct MessageThreadView: View {
     @State private var draft = ""
     @State private var sending = false
     @State private var error: String?
+    @State private var loadingThread = true
     @FocusState private var composerFocused: Bool
 
     private func scrollToLatest(_ proxy: ScrollViewProxy, animated: Bool = true) {
@@ -241,6 +242,11 @@ struct MessageThreadView: View {
                         if let error {
                             Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)
                                 .padding(.vertical, 8)
+                        }
+                        if loadingThread && messages.isEmpty && error == nil {
+                            HStack { Spacer(); ProgressView().tint(LiviqaTheme.moss); Spacer() }
+                                .padding(.vertical, 28)
+                                .accessibilityLabel("Loading messages")
                         }
                         ForEach(messages) { m in bubble(m).id(m.id) }
                     }
@@ -305,6 +311,7 @@ struct MessageThreadView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canSend || sending)
+            .accessibilityLabel("Send message")
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
         .background(LiviqaTheme.paper)
@@ -314,6 +321,7 @@ struct MessageThreadView: View {
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     private func load() async {
+        defer { loadingThread = false }
         guard let care = appState.careConnect else {
             // Demo mode (no live backend): show a seeded conversation.
             messages = MockData.demoMessages(for: recipientId)

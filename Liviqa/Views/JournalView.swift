@@ -35,9 +35,18 @@ enum TimelineItem: Identifiable {
 // MARK: - Main View
 
 struct JournalView: View {
+    // UC-24b (ePRO integrity): a per-entry provenance receipt — "recorded on
+    // device under an active grant" — issued into the citizen's My DfG wallet.
+    // Optional env so previews without AppState still work.
+    @Environment(AppState.self) private var appState: AppState?
+    @State private var provenanceOffer: WalletReceiptOffer?
+    @State private var issuingProvenance: UUID?
 
-    // Demo data — replace with AppState when wired
-    @State private var journalEntries: [JournalEntry] = {
+    // Persisted on device (file-protected). Loads saved entries, else the starting
+    // demo set on a fresh install. Any add/edit/delete is auto-saved (onChange).
+    @State private var journalEntries: [JournalEntry] = JournalStore.load() ?? JournalView.demoSeed
+
+    private static let demoSeed: [JournalEntry] = {
         var e1 = JournalEntry(
             body: "Woke up with a 6.2 fasting. Evening walk yesterday clearly helped — second night in a row inside range by morning.",
             tags: ["Glucose"])
@@ -137,6 +146,22 @@ struct JournalView: View {
             fab
                 .padding(.trailing, 20)
                 .padding(.bottom, 28)
+        }
+        // Auto-persist every add/edit/delete to the device-local, file-protected store.
+        .onChange(of: journalEntries) { _, new in JournalStore.save(new) }
+        #if DEBUG
+        // Deterministic screenshot of the ePRO provenance receipt (UC-24b).
+        .task {
+            if ProcessInfo.processInfo.environment["LIVIQA_DEMO_EPRO"] == "1", provenanceOffer == nil,
+               let first = journalEntries.first {
+                issueProvenanceReceipt(for: first)
+            }
+        }
+        #endif
+        .sheet(item: $provenanceOffer) { off in
+            ShareReceiptSheet(offer: off)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showMoodSheet) {
             moodSheet
@@ -578,6 +603,24 @@ struct JournalView: View {
                     Text("on device").font(.liviqaKicker(8.5)).tracking(0.3)
                 }
                 .foregroundStyle(LiviqaTheme.moss)
+                // UC-24b: per-entry provenance receipt (ePRO integrity, ALCOA+) —
+                // attests "recorded on device under grant" — never the content.
+                if Config.walletIssuanceEnabled, appState?.sovereign != nil, appState?.grants.first(where: { $0.isActive }) != nil {
+                    Button {
+                        issueProvenanceReceipt(for: entry)
+                    } label: {
+                        if issuingProvenance == entry.id {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Image(systemName: "checkmark.seal")
+                                .font(.system(size: 11))
+                                .foregroundStyle(LiviqaTheme.ink4)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 6)
+                    .accessibilityLabel("Issue provenance receipt for this entry")
+                }
             }
             .padding(.bottom, 8)
 
@@ -603,6 +646,32 @@ struct JournalView: View {
                 .padding(.vertical, 6)
         }
         .shadow(color: LiviqaTheme.cardShadow, radius: 4, y: 2)
+    }
+
+    /// UC-24b — issue an ePRO-integrity receipt for one journal entry into the
+    /// My DfG wallet: attests process and release (recorded on device, under an
+    /// active grant, at a time) — NEVER the entry's content. Prefers a study/
+    /// research grant when one exists (the sponsor is the edge verifier).
+    private func issueProvenanceReceipt(for entry: JournalEntry) {
+        guard let appState else { return }
+        let grant = appState.grants.first(where: { $0.isActive && $0.recipientName.localizedCaseInsensitiveContains("stud") })
+            ?? appState.grants.first(where: { $0.isActive && $0.recipientName.localizedCaseInsensitiveContains("research") })
+            ?? appState.grants.first(where: { $0.isActive })
+        guard let grant else { return }
+        Task { @MainActor in
+            issuingProvenance = entry.id
+            defer { issuingProvenance = nil }
+            // Refresh grants from the backend first so the issuance addresses a
+            // REAL grant id (demo seeds aren't backend-mapped).
+            await appState.loadWallet()
+            let target = appState.grants.first(where: { $0.isActive && $0.recipientName.localizedCaseInsensitiveContains("stud") })
+                ?? appState.grants.first(where: { $0.isActive }) ?? grant
+            let stamp = entry.createdAt.formatted(date: .abbreviated, time: .shortened)
+            let proof = "ePRO entry recorded on device · \(stamp)"
+            if let url = await appState.issueShareReceipt(for: target, verified: proof) {
+                provenanceOffer = WalletReceiptOffer(url: url, recipientName: target.recipientName)
+            }
+        }
     }
 
     private func metricRow(_ m: MetricSnapshot) -> some View {
