@@ -4,6 +4,23 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-75 — Real-data alignment + transparency-first nudge presentation (2026-06-11)
+- **feat(seeds):** demo stream re-seeded to the founder's REAL mined levels (HealthKit export,
+  7.1M records): RHR ~72 (workout-day bump ~76), HRV ~27 (poor-night dip ~22), sleep 7.4 h typical
+  with Deep 12% / REM 20% (the 2025 regime; short nights ~5.9 kept). Console (LV001) and app now
+  tell the SAME person's story.
+- **feat(nudges):** new presentation — the insight sentence LEADS (full ink, 15.5pt); a "Why
+  this?" expander opens the numbers behind it IN the card: evidence text, mono data-point chips,
+  and the provenance line "Computed on this device · your data, your baseline · shown, not
+  judged." Mirrors the console's evidence→meaning structure in the citizen's voice.
+- **feat(model):** `EngineNudge` gains optional `evidence`/`points` (defaults keep all emits
+  valid); card adapter passes them through, with an honest provenance default otherwise.
+- Sim build ✅ · 119 tests in 26 suites ✅ · home screenshot shows real-level signals (7h09 / 28 / 75).
+  ("Why this?" expansion verified by build+tests; tap-through pending next manual QA pass.)
+
+_Requirements touched:_ FR-NDG (presentation only — allow-list untouched), FR-PROV-01.
+_Risk:_ none new; transparency surface reduces misread-as-advice risk.
+
 ### PR-74 — Dual-recording workout dedup: counted once, insights from both (2026-06-11, CN feature request)
 - **feat(ingestion, FR-PROV-02):** `WorkoutDeduplicator` clusters same-type workouts whose times
   overlap ≥60% of the shorter recording (the founder's real case: bike computer → Strava + Apple

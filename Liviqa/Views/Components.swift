@@ -181,6 +181,11 @@ struct NudgeCard: View {
     var compact = false
     /// Called when the user taps the calibration prompt — pass a ProfileSheet.Section to deep-link.
     var onCalibrate: ((ProfileSheet.Section?) -> Void)? = nil
+    /// Transparency-first presentation (2026-06-11): the insight sentence
+    /// LEADS, and "Why this?" expands the numbers behind it in-card — the same
+    /// evidence-then-meaning structure the clinician console uses, in the
+    /// citizen's voice. No more burying the why two taps away.
+    @State private var showWhy = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -201,12 +206,51 @@ struct NudgeCard: View {
                 Spacer()
             }
 
-            // Body
+            // The insight leads — full ink, reads as a sentence said to you.
             Text(nudge.body)
-                .font(.lato(14.5))
-                .foregroundStyle(LiviqaTheme.ink2)
+                .font(.lato(15.5))
+                .foregroundStyle(LiviqaTheme.ink)
                 .lineSpacing(2.5)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // "Why this?" — the numbers behind the sentence, in the card.
+            if !compact, nudge.reasoning != nil || !nudge.dataPoints.isEmpty {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { showWhy.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showWhy ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("Why this?")
+                            .font(.lato(12, .bold))
+                    }
+                    .foregroundStyle(nudge.accent.accentColor)
+                }
+                .buttonStyle(.plain)
+
+                if showWhy {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let reasoning = nudge.reasoning {
+                            Text(reasoning)
+                                .font(.lato(12.5))
+                                .foregroundStyle(LiviqaTheme.ink2)
+                                .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if !nudge.dataPoints.isEmpty {
+                            FlowChips(items: nudge.dataPoints)
+                        }
+                        Text("Computed on this device · your data, your baseline · shown, not judged.")
+                            .font(.liviqaKicker(9.5))
+                            .tracking(0.6)
+                            .foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(LiviqaTheme.paper2)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
 
             // Actions (full cards only)
             if !compact, !nudge.primaryAction.isEmpty {
@@ -422,5 +466,25 @@ struct WalletSwitch: View {
             )
             .padding(2)
             .onTapGesture { on.toggle() }
+    }
+}
+
+/// Small mono chips for the evidence points inside a nudge's "Why this?".
+struct FlowChips: View {
+    let items: [String]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(items, id: \.self) { item in
+                Text(item)
+                    .font(.liviqaKicker(10))
+                    .tracking(0.4)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(LiviqaTheme.paper)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(LiviqaTheme.line, lineWidth: 0.5))
+            }
+        }
     }
 }

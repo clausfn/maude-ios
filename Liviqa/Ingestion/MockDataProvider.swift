@@ -51,11 +51,11 @@ public struct MockDataProvider: HealthDataProvider {
 
             // RHR 52–68 for the founder persona; +3–5 bpm the morning after a
             // hard session (normal training response), small weekly drift.
-            let rhrBase = 57.0 + (prevDayWorkout ? 4.0 : 0.0)
-            samples.restingHR.append(daily(day, .restingHR, min(68, max(52, jitter(&rng, base: rhrBase, spread: 4))), tier: .good))
+            let rhrBase = 72.0 + (prevDayWorkout ? 4.0 : 0.0)
+            samples.restingHR.append(daily(day, .restingHR, min(82, max(64, jitter(&rng, base: rhrBase, spread: 4))), tier: .good))
             // HRV 25–55 ms (persona range) — lower after a poor night.
-            let hrvBase = prevNightPoor ? 33.0 : 42.0
-            samples.hrv.append(daily(day, .hrvSDNN, min(55, max(25, jitter(&rng, base: hrvBase, spread: 9))), tier: .good))
+            let hrvBase = prevNightPoor ? 22.0 : 28.0
+            samples.hrv.append(daily(day, .hrvSDNN, min(38, max(17, jitter(&rng, base: hrvBase, spread: 6))), tier: .good))
             // Steps 4–12k with a weekday/weekend rhythm (longer weekend walks).
             let stepBase = weekend ? 9800.0 : 7400.0
             samples.steps.append(daily(day, .steps, min(12_000, max(4000, jitter(&rng, base: stepBase, spread: 2200))).rounded(), tier: .estimate))
@@ -90,11 +90,11 @@ public struct MockDataProvider: HealthDataProvider {
             // for the next-day glucose story above).
             let poorNight = jitter(&rng, base: 0, spread: 1) > 0.62
             let sleepHours = poorNight ? max(5.0, jitter(&rng, base: 5.9, spread: 0.6))
-                                       : max(6.4, jitter(&rng, base: 7.3, spread: 0.7))
+                                       : max(6.5, jitter(&rng, base: 7.4, spread: 0.7))
             prevNightPoor = poorNight
             // Realistic stage ratios: Deep 10–20%, REM ~18–25%.
-            let deep = sleepHours * (0.14 + jitter(&rng, base: 0.02, spread: 0.03))
-            let rem  = sleepHours * (0.21 + jitter(&rng, base: 0.02, spread: 0.04))
+            let deep = sleepHours * (0.12 + jitter(&rng, base: 0.01, spread: 0.02))
+            let rem  = sleepHours * (0.20 + jitter(&rng, base: 0.01, spread: 0.03))
             let core = max(0.1, sleepHours - deep - rem)
             for (stage, hrs) in [(SleepStage.deep, deep), (.core, core), (.rem, rem)] {
                 samples.sleep.append(SleepReading(

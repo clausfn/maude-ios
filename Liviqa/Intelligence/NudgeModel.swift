@@ -71,11 +71,18 @@ public struct EngineNudge: Sendable, Identifiable, Equatable {
     public let title: String
     public let body: String
     public let priority: Int
+    /// The numbers behind the sentence — shown in the card's "Why this?"
+    /// expansion (transparency-first presentation, 2026-06-11). Optional so
+    /// every existing emit stays valid.
+    public let evidence: String?
+    public let points: [String]
 
     public init(id: UUID = UUID(), category: NudgeCategory, lane: RegulatoryLane,
-                title: String, body: String, priority: Int) {
+                title: String, body: String, priority: Int,
+                evidence: String? = nil, points: [String] = []) {
         self.id = id; self.category = category; self.lane = lane
         self.title = title; self.body = body; self.priority = priority
+        self.evidence = evidence; self.points = points
     }
 }
 

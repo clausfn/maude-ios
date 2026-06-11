@@ -38,8 +38,8 @@ extension Nudge {
             accent: NudgeAccent(lane: n.lane, category: n.category),
             primaryAction: primary,
             secondaryActions: ["Note in journal", "Later"],
-            reasoning: nil,
-            dataPoints: []
+            reasoning: n.evidence ?? "Computed on this device from your consented data, against your own baseline — not a clinical range.",
+            dataPoints: n.points
         )
     }
 }
