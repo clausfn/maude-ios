@@ -4,6 +4,20 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-79 — Brand v2: A4 Navy + Bright Fern (2026-06-12, CN sign-off via design handoff)
+- **BRAND CHANGE, signed off explicitly:** palette navy #112744 (ink), paper #F8F5EC / card
+  #FFFCF4, fern #31780E light / #4EB818 dark (replaces moss), seal #BF2D24 / #CD4830 (replaces
+  rust); dark surfaces grounded on the brand navy. Type: Schibsted Grotesk (UI), Spline Sans
+  Mono (kickers/numerics), Instrument Serif bundled for headline use; Lato/IBM Plex kept as
+  fallback assets. Mark: IRIS replaces aperture (app icon 1024, LiviqaMark/Reversed imagesets —
+  asset-embedded, never redrawn). lato()/liviqaKicker helper names retained so 300+ call sites
+  re-themed without churn.
+- Console rebranded same day (tokens, marks, favicons, hex sweep — commit in console repo);
+  website next. Source: claude.ai/design handoff bundle (A4 direction, accessibility-resolved
+  tokens: fern-on-light 5.04:1, bright fern on navy 5.86:1).
+- Sim build ✅ · 126 tests ✅ · dark-mode home verified on-device colours.
+_Risk:_ visual only; no behaviour change. Presenter PDFs (Folkemødet) show v1 — flagged.
+
 ### PR-78 — Localization foundation + terminology governance (2026-06-11)
 - **feat(l10n):** `Liviqa/Localizable.xcstrings` (Apple String Catalog, en source) added;
   `da` registered in knownRegions; `LOCALIZATION_PREFERS_STRING_CATALOGS = YES`. Xcode now

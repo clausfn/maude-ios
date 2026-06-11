@@ -45,12 +45,12 @@ enum LiviqaTheme {
     }
 
     // Backgrounds
-    static let paper   = Color.dyn(0xF7F5F1, 0x0B1320)   // app canvas (never pure white)
-    static let paper2  = Color.dyn(0xFCFAF5, 0x14202E)   // card fill
+    static let paper   = Color.dyn(0xF8F5EC, 0x0B1B30)   // app canvas (never pure white)
+    static let paper2  = Color.dyn(0xFFFCF4, 0x112744)   // card fill
 
     // Text / icons
-    static let ink     = Color.dyn(0x0E1A2B, 0xF5F2EA)
-    static let ink2    = Color.dyn(0x1F2D42, 0xCCD5E0)
+    static let ink     = Color.dyn(0x112744, 0xF8F5EC)
+    static let ink2    = Color.dyn(0x24375A, 0xCCD5E0)
     static let ink3    = Color.dyn(0x54627A, 0x8A98AD)   // captions, kickers
     static let ink4    = Color.dyn(0x8896AA, 0x5C6B80)
 
@@ -59,18 +59,18 @@ enum LiviqaTheme {
     static let line2   = Color.dyn(0xEAE5DB, 0xFFFFFF, 1, 0.055)
 
     // Moss — citizen · consent · active grant (the one accent)
-    static let moss    = Color.dyn(0x3D7A5A, 0x5CB389)
-    static let moss2   = Color.dyn(0xE5EFE8, 0x5CB389, 1, 0.16)
-    static let moss3   = Color.dyn(0xC7DCCD, 0x5CB389, 1, 0.34)
-    static let mossRev = Color.dyn(0x5BAE86, 0x5CB389)
+    static let moss    = Color.dyn(0x31780E, 0x4EB818)   // fern (brand v2)
+    static let moss2   = Color.dyn(0xE7F0DF, 0x4EB818, 1, 0.16)
+    static let moss3   = Color.dyn(0xBFD8AB, 0x4EB818, 1, 0.34)
+    static let mossRev = Color.dyn(0x4EB818, 0x4EB818)   // bright fern
 
     // Amber — engine / middle layer (sparing)
     static let amber   = Color.dyn(0xC47D11, 0xE2A847)
     static let amber2  = Color.dyn(0xF5E9D2, 0xE2A847, 1, 0.16)
 
     // Rust — refusals / boundary events
-    static let rust    = Color.dyn(0xA33A2A, 0xDB6A54)
-    static let rust2   = Color.dyn(0xF2DCD7, 0xDB6A54, 1, 0.18)
+    static let rust    = Color.dyn(0xBF2D24, 0xCD4830)   // seal (brand v2)
+    static let rust2   = Color.dyn(0xF3DDD7, 0xCD4830, 1, 0.18)
 
     // Clay — the single patient "worth noticing" attention tone (Design System v2,
     // signals.css, tuned candidate 4). Deliberately NOT amber: clay says "worth a
@@ -114,16 +114,16 @@ enum LiviqaTheme {
 
 extension Font {
     /// Mono kicker — uppercase, spaced. IBM Plex Mono Medium.
-    static func liviqaKicker(_ size: CGFloat = 10) -> Font { .custom("IBMPlexMono-Medium", size: size) }
+    static func liviqaKicker(_ size: CGFloat = 10) -> Font { .custom("SplineSansMono-Medium", size: size) }
     /// Mono number — tabular. IBM Plex Mono Medium.
     static func liviqaMono(_ size: CGFloat = 14) -> Font { .custom("IBMPlexMono-Medium", size: size) }
     /// Lato (headlines/body). weight maps to Regular/Bold/Black faces.
     static func lato(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         let face: String
         switch weight {
-        case .black, .heavy:   face = "Lato-Black"
-        case .bold, .semibold: face = "Lato-Bold"
-        default:               face = "Lato-Regular"
+        case .black, .heavy:   face = "SchibstedGrotesk-Black"
+        case .bold, .semibold: face = "SchibstedGrotesk-Bold"
+        default:               face = "SchibstedGrotesk-Regular"
         }
         return .custom(face, size: size)
     }

@@ -26,6 +26,12 @@
 		<string>Lato-Black.ttf</string>
 		<string>IBMPlexMono-Regular.ttf</string>
 		<string>IBMPlexMono-Medium.ttf</string>
+		<string>SchibstedGrotesk-Regular.ttf</string>
+		<string>SchibstedGrotesk-Bold.ttf</string>
+		<string>SchibstedGrotesk-Black.ttf</string>
+		<string>SplineSansMono-Regular.ttf</string>
+		<string>SplineSansMono-Medium.ttf</string>
+		<string>InstrumentSerif-Regular.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>
