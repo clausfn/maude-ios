@@ -300,6 +300,14 @@ final class AppState {
             if usingRealData || !engineNudges.isEmpty {
                 nudges = engineNudges.map { Nudge(engine: $0) }
             }
+            // FR-PAT-01: long-horizon pattern findings (same detectors and
+            // thresholds as the clinician console — one engine, any citizen).
+            // Demo input until the summarisation pipeline computes PatternInput
+            // from real device history (FR-PAT-02).
+            if !usingRealData {
+                let findings = PatternEngine.run(.lv001)
+                nudges.append(contentsOf: findings.map { Nudge(finding: $0) })
+            }
             // FR-PAS-05 / DM-05: refresh the derived half of the Passport from
             // the same on-device samples (the count half comes from app state).
             passportStats = PassportStats.compose(

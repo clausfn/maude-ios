@@ -4,6 +4,25 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-76 — PatternEngine: long-horizon detectors on the citizen side (2026-06-11)
+- **feat(intelligence, FR-PAT-01):** `PatternEngine` — the citizen-side twin of the console's
+  generic detector engine (same detectors, same thresholds, same chart-note discipline; ids
+  D-ARR-01, D-ERA-01, D-WCG-01, D-SLP-01, D-GAP-01, D-EXP-01, D-TRD-01, D-BENCH-01, D-DRIFT-01).
+  Pure functions over `PatternInput` aggregates; values COMPUTED into wording, never authored;
+  threshold gating (e.g. AFib stays quiet <3 months after an episode; white-coat needs ≥10 mmHg).
+  One engine, any citizen — 10k-user deployments run the same functions over per-citizen inputs.
+- **feat(feed):** in demo mode the LV001 findings (real mined aggregates, mirrors the console's
+  LV001_INPUT) render as pattern cards in the nudge feed via the new transparency presentation —
+  citizen sentence leads, "Why this?" opens the chart-note title + fact + detector id. Real-data
+  path awaits the on-device summarisation pipeline (FR-PAT-02, backlog).
+- Tests T-PAT-01..04 (months computed, active-phase quiet, threshold gating, seed coverage).
+  123 tests in 27 suites ✅. Sim build + home screenshot ✅ (pattern cards live in the feed below
+  the engine nudges; tab-level screenshot pending manual QA).
+- Audit: method/thresholds per detector in the console repo `docs/pattern-register/` (shared ids).
+
+_Requirements touched:_ FR-PAT-01 (new), FR-NDG (presentation reuse).
+_Risk:_ display-only findings; no new interpretive lane.
+
 ### PR-75 — Real-data alignment + transparency-first nudge presentation (2026-06-11)
 - **feat(seeds):** demo stream re-seeded to the founder's REAL mined levels (HealthKit export,
   7.1M records): RHR ~72 (workout-day bump ~76), HRV ~27 (poor-night dip ~22), sleep 7.4 h typical
