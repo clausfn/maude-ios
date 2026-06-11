@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.paper.rawValue
     @AppStorage("liviqaReduceMotion") private var reduceMotion = false
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
+    @AppStorage("liviqa.appLanguage") private var appLanguage = "system"
 
     // Navigation destinations
     @State private var showDataSources    = false
@@ -68,6 +69,41 @@ struct SettingsView: View {
                         Text("Paper").tag(LiviqaTheme.Mode.paper.rawValue)
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                // Language — the real iOS per-app-language rail (AppleLanguages
+                // override; applies on next launch). Honest per-language status:
+                // English complete; the rest have approved terminology in
+                // Weblate with full interface translation to follow.
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Language")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Spacer()
+                        Picker("Language", selection: $appLanguage) {
+                            Text("System").tag("system")
+                            Text("English").tag("en")
+                            Text("Dansk · in review").tag("da")
+                            Text("Norsk · in review").tag("nb")
+                            Text("Svenska · in review").tag("sv")
+                            Text("Español · in review").tag("es")
+                            Text("Português · in review").tag("pt")
+                        }
+                        .tint(LiviqaTheme.ink2)
+                    }
+                    Text(appLanguage == "system"
+                         ? "Follows your iPhone language."
+                         : "Applies at next launch. English is complete; other languages ship as their translations clear review.")
+                        .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                }
+                .onChange(of: appLanguage) { _, lang in
+                    if lang == "system" {
+                        UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+                    } else {
+                        UserDefaults.standard.set([lang], forKey: "AppleLanguages")
+                    }
                 }
 
                 Divider().overlay(LiviqaTheme.line2)

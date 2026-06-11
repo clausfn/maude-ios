@@ -4,6 +4,13 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-80 — Language selector (2026-06-12, CN request)
+- **feat(l10n):** Settings ▸ Display gains a Language picker — System default + en/da/nb/sv/es/pt
+  via the real iOS rail (AppleLanguages override, applies next launch; all six registered as
+  project localizations). Honest status per language: English complete, others "in review"
+  (terminology approved in Weblate; interface translation follows). Console got the matching
+  top-bar selector the same hour. 126 tests ✅.
+
 ### PR-79 — Brand v2: A4 Navy + Bright Fern (2026-06-12, CN sign-off via design handoff)
 - **BRAND CHANGE, signed off explicitly:** palette navy #112744 (ink), paper #F8F5EC / card
   #FFFCF4, fern #31780E light / #4EB818 dark (replaces moss), seal #BF2D24 / #CD4830 (replaces
