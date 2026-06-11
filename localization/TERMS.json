@@ -1,25 +1,288 @@
 {
-  "version": "v01 · 2026-06-11",
+  "version": "v02 · 2026-06-11",
   "owner": "Claus Nielsen — every da term below is a PROPOSAL until marked approved",
-  "note": "Canonical glossary for all Liviqa surfaces (iOS app, B2B console). The console repo carries a copy at docs/TERMS.json — this file is canonical. Enforced mechanically by TerminologyTests (iOS) and ci-guards [no-advice-voice] (console); enforced interactively by Weblate's glossary once deployed.",
+  "note": "Canonical glossary for all Liviqa surfaces (iOS app, B2B console). The console repo carries a copy at docs/TERMS.json — this file is canonical. Enforced mechanically by TerminologyTests (iOS) and ci-guards [no-advice-voice] (console); enforced interactively by Weblate (live at weblate.liviqa.app; glossary seeded for da, nb_NO, sv, es, pt — all proposals until approved there).",
   "locked": [
-    { "en": "nudge", "da": "indsigt", "da_status": "proposed", "note": "Never 'alert', 'warning' or 'notification' — a nudge informs, it never alarms." },
-    { "en": "time in range", "da": "tid i målområdet", "da_status": "proposed", "note": "Spell out on first use; TIR only after." },
-    { "en": "consent", "da": "samtykke", "da_status": "proposed", "note": "Never 'permission' in consent contexts — samtykke is the GDPR term." },
-    { "en": "share", "da": "deling", "da_status": "proposed", "note": "A share is granted by the citizen; recipients never 'get access', they 'receive a share'." },
-    { "en": "revoke", "da": "tilbagekald", "da_status": "proposed", "note": "One tap, immediate, citizen's alone." },
-    { "en": "citizen", "da": "borger", "da_status": "proposed", "note": "The citizen app NEVER says 'patient'. Clinician-side surfaces may." },
-    { "en": "care team", "da": "behandlerteam", "da_status": "proposed" },
-    { "en": "shown, not judged", "da": "vist, ikke vurderet", "da_status": "proposed", "note": "The display-only promise — keep the exact phrase." },
-    { "en": "supplements · citizen-recorded", "da": "kosttilskud · egne registreringer", "da_status": "proposed", "note": "Prescription medication lives in Fælles Medicinkort, never in Liviqa." },
-    { "en": "your usual pattern", "da": "dit sædvanlige mønster", "da_status": "proposed", "note": "Personal baseline language — never population norms in citizen copy." }
+    {
+      "en": "nudge",
+      "note": "Never 'alert', 'warning' or 'notification' — a nudge informs, it never alarms.",
+      "translations": {
+        "da": {
+          "term": "indsigt",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "innsikt",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "insikt",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "observación",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "observação",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "time in range",
+      "note": "Spell out on first use; TIR only after.",
+      "translations": {
+        "da": {
+          "term": "tid i målområdet",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "tid i målområdet",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "tid inom målområdet",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "tiempo en rango",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "tempo no intervalo alvo",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "consent",
+      "note": "Never 'permission' in consent contexts — samtykke is the GDPR term.",
+      "translations": {
+        "da": {
+          "term": "samtykke",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "samtykke",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "samtycke",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "consentimiento",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "consentimento",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "share",
+      "note": "A share is granted by the citizen; recipients never 'get access', they 'receive a share'.",
+      "translations": {
+        "da": {
+          "term": "deling",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "deling",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "delning",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "acceso compartido",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "partilha",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "revoke",
+      "note": "One tap, immediate, citizen's alone.",
+      "translations": {
+        "da": {
+          "term": "tilbagekald",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "tilbakekall",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "återkalla",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "revocar",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "revogar",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "citizen",
+      "note": "The citizen app NEVER says 'patient'. Clinician-side surfaces may.",
+      "translations": {
+        "da": {
+          "term": "borger",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "innbygger",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "medborgare",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "ciudadano",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "cidadão",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "care team",
+      "translations": {
+        "da": {
+          "term": "behandlerteam",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "behandlingsteam",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "vårdteam",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "equipo asistencial",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "equipa de cuidados",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "shown, not judged",
+      "note": "The display-only promise — keep the exact phrase.",
+      "translations": {
+        "da": {
+          "term": "vist, ikke vurderet",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "vist, ikke vurdert",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "visat, inte bedömt",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "mostrado, no juzgado",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "mostrado, não julgado",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "supplements · citizen-recorded",
+      "note": "Prescription medication lives in Fælles Medicinkort, never in Liviqa.",
+      "translations": {
+        "da": {
+          "term": "kosttilskud · egne registreringer",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "kosttilskudd · egne registreringer",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "kosttillskott · egna registreringar",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "suplementos · registrados por el ciudadano",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "suplementos · registados pelo cidadão",
+          "status": "proposed"
+        }
+      }
+    },
+    {
+      "en": "your usual pattern",
+      "note": "Personal baseline language — never population norms in citizen copy.",
+      "translations": {
+        "da": {
+          "term": "dit sædvanlige mønster",
+          "status": "proposed"
+        },
+        "nb_NO": {
+          "term": "ditt vanlige mønster",
+          "status": "proposed"
+        },
+        "sv": {
+          "term": "ditt vanliga mönster",
+          "status": "proposed"
+        },
+        "es": {
+          "term": "tu patrón habitual",
+          "status": "proposed"
+        },
+        "pt": {
+          "term": "o seu padrão habitual",
+          "status": "proposed"
+        }
+      }
+    }
   ],
   "neverTranslate": [
-    "Liviqa", "Data for Good", "My DfG wallet", "DfG Passport", "DfG Professional",
-    "Health Vault", "Fælles Medicinkort", "sundhed.dk", "Sundhedsplatformen", "MitID", "HealthKit"
+    "Liviqa",
+    "Data for Good",
+    "My DfG wallet",
+    "DfG Passport",
+    "DfG Professional",
+    "Health Vault",
+    "Fælles Medicinkort",
+    "sundhed.dk",
+    "Sundhedsplatformen",
+    "MitID",
+    "HealthKit"
   ],
   "forbiddenVoice": {
     "note": "Advice-voice is banned in all citizen-facing copy (FR-NDG allow-list: levers say 'could help' / 'may help', never instructions). 'you should know' as an idiom is allowed.",
-    "patterns": ["we recommend", "you must ", "you need to ", "you should (?!know)"]
+    "patterns": [
+      "we recommend",
+      "you must ",
+      "you need to ",
+      "you should (?!know)"
+    ]
   }
 }

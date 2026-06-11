@@ -26,8 +26,12 @@ struct TerminologyTests {
         #expect(locked != nil && locked!.count >= 8)
         #expect((t["neverTranslate"] as? [String])?.contains("Liviqa") == true)
         for entry in locked ?? [] {
-            #expect(entry["en"] is String && entry["da"] is String)
-            #expect(["proposed", "approved"].contains(entry["da_status"] as? String ?? ""))
+            #expect(entry["en"] is String)
+            let translations = entry["translations"] as? [String: [String: String]]
+            #expect(translations?["da"]?["term"] != nil)
+            for (_, tr) in translations ?? [:] {
+                #expect(["proposed", "approved"].contains(tr["status"] ?? ""))
+            }
         }
     }
 
