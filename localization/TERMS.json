@@ -1,6 +1,6 @@
 {
-  "version": "v02 · 2026-06-11",
-  "owner": "Claus Nielsen — every da term below is a PROPOSAL until marked approved",
+  "version": "v03 · 2026-06-12",
+  "owner": "Claus Nielsen — all language terms APPROVED 2026-06-12 (CN: \"accept all language versions for now\")",
   "note": "Canonical glossary for all Liviqa surfaces (iOS app, B2B console). The console repo carries a copy at docs/TERMS.json — this file is canonical. Enforced mechanically by TerminologyTests (iOS) and ci-guards [no-advice-voice] (console); enforced interactively by Weblate (live at weblate.liviqa.app; glossary seeded for da, nb_NO, sv, es, pt — all proposals until approved there).",
   "locked": [
     {
@@ -9,23 +9,23 @@
       "translations": {
         "da": {
           "term": "indsigt",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "innsikt",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "insikt",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "observación",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "observação",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -35,23 +35,23 @@
       "translations": {
         "da": {
           "term": "tid i målområdet",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "tid i målområdet",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "tid inom målområdet",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "tiempo en rango",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "tempo no intervalo alvo",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -61,23 +61,23 @@
       "translations": {
         "da": {
           "term": "samtykke",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "samtykke",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "samtycke",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "consentimiento",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "consentimento",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -87,23 +87,23 @@
       "translations": {
         "da": {
           "term": "deling",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "deling",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "delning",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "acceso compartido",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "partilha",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -113,23 +113,23 @@
       "translations": {
         "da": {
           "term": "tilbagekald",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "tilbakekall",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "återkalla",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "revocar",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "revogar",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -139,23 +139,23 @@
       "translations": {
         "da": {
           "term": "borger",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "innbygger",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "medborgare",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "ciudadano",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "cidadão",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -164,23 +164,23 @@
       "translations": {
         "da": {
           "term": "behandlerteam",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "behandlingsteam",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "vårdteam",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "equipo asistencial",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "equipa de cuidados",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -190,23 +190,23 @@
       "translations": {
         "da": {
           "term": "vist, ikke vurderet",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "vist, ikke vurdert",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "visat, inte bedömt",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "mostrado, no juzgado",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "mostrado, não julgado",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -216,23 +216,23 @@
       "translations": {
         "da": {
           "term": "kosttilskud · egne registreringer",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "kosttilskudd · egne registreringer",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "kosttillskott · egna registreringar",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "suplementos · registrados por el ciudadano",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "suplementos · registados pelo cidadão",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     },
@@ -242,23 +242,23 @@
       "translations": {
         "da": {
           "term": "dit sædvanlige mønster",
-          "status": "proposed"
+          "status": "approved"
         },
         "nb_NO": {
           "term": "ditt vanlige mønster",
-          "status": "proposed"
+          "status": "approved"
         },
         "sv": {
           "term": "ditt vanliga mönster",
-          "status": "proposed"
+          "status": "approved"
         },
         "es": {
           "term": "tu patrón habitual",
-          "status": "proposed"
+          "status": "approved"
         },
         "pt": {
           "term": "o seu padrão habitual",
-          "status": "proposed"
+          "status": "approved"
         }
       }
     }
