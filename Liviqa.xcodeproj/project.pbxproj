@@ -220,6 +220,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				da,
 				Base,
 			);
 			mainGroup = 48AFF1FC2FBE5BDB00CFECA5;
@@ -311,6 +312,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 10.33;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Liviqa/Info.plist;
@@ -346,6 +348,7 @@
 				CODE_SIGN_ENTITLEMENTS = Liviqa/Liviqa.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 10.33;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Liviqa/Info.plist;

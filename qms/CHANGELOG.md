@@ -4,6 +4,25 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-78 — Localization foundation + terminology governance (2026-06-11)
+- **feat(l10n):** `Liviqa/Localizable.xcstrings` (Apple String Catalog, en source) added;
+  `da` registered in knownRegions; `LOCALIZATION_PREFERS_STRING_CATALOGS = YES`. Xcode now
+  populates the catalog from code literals at build; Danish translation = export → translate →
+  import, zero code changes.
+- **feat(terms):** `localization/TERMS.json` — the CANONICAL glossary (Claus owns it; every
+  Danish term is `proposed` until he flips it to `approved`). Locked vocabulary (nudge/indsigt,
+  samtykke, borger-never-patient in citizen app, "shown, not judged", supplement/FMK boundary),
+  never-translate brand list, and the banned advice-voice patterns. Console carries a copy at
+  docs/TERMS.json + a [no-advice-voice] ci-guard reading it.
+- **test:** TerminologyTests (T-TERM-01..03): glossary parses, no advice-voice in citizen-facing
+  string literals (Views + Intelligence; patterns from the glossary), catalog present.
+  126 tests in 28 suites ✅.
+- Plan of record: Weblate (self-hosted, sandbox) layered on these files when Danish work starts —
+  git stays the source of truth; Weblate's glossary gets seeded from TERMS.json.
+
+_Requirements touched:_ FR-NDG (voice enforcement now mechanical), QMS terminology control.
+_Risk:_ none — guards only constrain; no behaviour change.
+
 ### PR-77 — Health Vault browser, Open Banking picker, Screen Time connect (2026-06-11, CN feedback)
 - **feat(vault):** Health Vault opens a FILE-LEVEL browser — 7 folders / 17 files (labs, clinical
   letters, meds, food photos, finance, consents, device exports — names consistent with LV001's

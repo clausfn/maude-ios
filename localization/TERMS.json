@@ -1,0 +1,25 @@
+{
+  "version": "v01 · 2026-06-11",
+  "owner": "Claus Nielsen — every da term below is a PROPOSAL until marked approved",
+  "note": "Canonical glossary for all Liviqa surfaces (iOS app, B2B console). The console repo carries a copy at docs/TERMS.json — this file is canonical. Enforced mechanically by TerminologyTests (iOS) and ci-guards [no-advice-voice] (console); enforced interactively by Weblate's glossary once deployed.",
+  "locked": [
+    { "en": "nudge", "da": "indsigt", "da_status": "proposed", "note": "Never 'alert', 'warning' or 'notification' — a nudge informs, it never alarms." },
+    { "en": "time in range", "da": "tid i målområdet", "da_status": "proposed", "note": "Spell out on first use; TIR only after." },
+    { "en": "consent", "da": "samtykke", "da_status": "proposed", "note": "Never 'permission' in consent contexts — samtykke is the GDPR term." },
+    { "en": "share", "da": "deling", "da_status": "proposed", "note": "A share is granted by the citizen; recipients never 'get access', they 'receive a share'." },
+    { "en": "revoke", "da": "tilbagekald", "da_status": "proposed", "note": "One tap, immediate, citizen's alone." },
+    { "en": "citizen", "da": "borger", "da_status": "proposed", "note": "The citizen app NEVER says 'patient'. Clinician-side surfaces may." },
+    { "en": "care team", "da": "behandlerteam", "da_status": "proposed" },
+    { "en": "shown, not judged", "da": "vist, ikke vurderet", "da_status": "proposed", "note": "The display-only promise — keep the exact phrase." },
+    { "en": "supplements · citizen-recorded", "da": "kosttilskud · egne registreringer", "da_status": "proposed", "note": "Prescription medication lives in Fælles Medicinkort, never in Liviqa." },
+    { "en": "your usual pattern", "da": "dit sædvanlige mønster", "da_status": "proposed", "note": "Personal baseline language — never population norms in citizen copy." }
+  ],
+  "neverTranslate": [
+    "Liviqa", "Data for Good", "My DfG wallet", "DfG Passport", "DfG Professional",
+    "Health Vault", "Fælles Medicinkort", "sundhed.dk", "Sundhedsplatformen", "MitID", "HealthKit"
+  ],
+  "forbiddenVoice": {
+    "note": "Advice-voice is banned in all citizen-facing copy (FR-NDG allow-list: levers say 'could help' / 'may help', never instructions). 'you should know' as an idiom is allowed.",
+    "patterns": ["we recommend", "you must ", "you need to ", "you should (?!know)"]
+  }
+}
