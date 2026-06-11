@@ -85,17 +85,17 @@ struct SettingsView: View {
                         Picker("Language", selection: $appLanguage) {
                             Text("System").tag("system")
                             Text("English").tag("en")
-                            Text("Dansk · in review").tag("da")
-                            Text("Norsk · in review").tag("nb")
-                            Text("Svenska · in review").tag("sv")
-                            Text("Español · in review").tag("es")
-                            Text("Português · in review").tag("pt")
+                            Text("Dansk").tag("da")
+                            Text("Norsk").tag("nb")
+                            Text("Svenska").tag("sv")
+                            Text("Español").tag("es")
+                            Text("Português").tag("pt")
                         }
                         .tint(LiviqaTheme.ink2)
                     }
                     Text(appLanguage == "system"
                          ? "Follows your iPhone language."
-                         : "Applies at next launch. English is complete; other languages ship as their translations clear review.")
+                         : "Applies at next launch. Terminology approved in all six languages; interface translation rolling out.")
                         .font(.caption).foregroundStyle(LiviqaTheme.ink4)
                 }
                 .onChange(of: appLanguage) { _, lang in
