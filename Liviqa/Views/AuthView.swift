@@ -118,7 +118,7 @@ struct AuthView: View {
 
     // Identity-wallet sign-in: AltID · e-Boks ID · iGrant.io · DfG — a 2×2 grid of
     // logo-forward wallet tiles (eIDAS 2.0 interoperability). Official AltID + e-Boks
-    // marks; DfG aperture mark; iGrant teal swatch.
+    // marks; DfG mark; iGrant teal swatch.
     private var walletGrid: some View {
         VStack(spacing: 9) {
             Text("OR USE AN IDENTITY WALLET")
@@ -157,7 +157,7 @@ struct AuthView: View {
                 if let logo {
                     if let tileColor {
                         // Bare (transparent) logo → put it on its own coloured tile so it
-                        // stays visible on any theme (e.g. the white DfG aperture on navy).
+                        // stays visible on any theme (e.g. the white DfG symbol on navy).
                         ZStack {
                             RoundedRectangle(cornerRadius: 7).fill(tileColor)
                             Image(logo).resizable().scaledToFit().frame(width: 26, height: 26)

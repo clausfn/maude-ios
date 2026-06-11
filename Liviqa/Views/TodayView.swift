@@ -33,10 +33,10 @@ struct TodayView: View {
 
     private var greeting: String {
         switch Calendar.current.component(.hour, from: Date()) {
-        case 5..<12:  return "Morning"
-        case 12..<17: return "Afternoon"
-        case 17..<21: return "Evening"
-        default:      return "Late"
+        case 5..<12:  return String(localized: "Morning")
+        case 12..<17: return String(localized: "Afternoon")
+        case 17..<21: return String(localized: "Evening")
+        default:      return String(localized: "Late")
         }
     }
 

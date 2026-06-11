@@ -12,12 +12,12 @@ enum LiviqaTab: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .home:     return "Home"
-        case .insights: return "Insights"
-        case .care:     return "Care"
-        case .journal:  return "Journal"
-        case .privacy:  return "Privacy"
-        case .settings: return "Settings"
+        case .home:     return String(localized: "Home")
+        case .insights: return String(localized: "Insights")
+        case .care:     return String(localized: "Care")
+        case .journal:  return String(localized: "Journal")
+        case .privacy:  return String(localized: "Privacy")
+        case .settings: return String(localized: "Settings")
         }
     }
 

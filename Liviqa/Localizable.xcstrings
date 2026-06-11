@@ -1,7 +1,3510 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-
+  "sourceLanguage": "en",
+  "strings": {
+    "": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        }
+      }
+    },
+    "  ·  %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "  ·  %@"
+          }
+        }
+      }
+    },
+    " · ": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · "
+          }
+        }
+      }
+    },
+    "…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "…"
+          }
+        }
+      }
+    },
+    "·": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        }
+      }
+    },
+    "· %lld min": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· %lld min"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ asked to record this call. Only you can allow it — and you can stop any time.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ har bedt om at optage denne samtale. Kun du kan tillade det — og du kan stoppe når som helst."
+          }
+        }
+      }
+    },
+    "%@ can no longer see anything. It happened the instant you tapped — and it's on your record.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kan ikke længere se noget. Det skete i samme øjeblik, du trykkede — og det står i din log."
+          }
+        }
+      }
+    },
+    "%@ is ready to talk": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ er klar til at tale"
+          }
+        }
+      }
+    },
+    "%@ sees your request and confirms. You can add it to your calendar.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ser din forespørgsel og bekræfter. Du kan lægge den i din kalender."
+          }
+        }
+      }
+    },
+    "%@ will confirm your %@ · %@ consultation. We'll notify you here.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ bekræfter din konsultation %2$@ · %3$@. Vi giver dig besked her."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ will confirm your %2$@ · %3$@ consultation. We'll notify you here."
+          }
+        }
+      }
+    },
+    "%@, %@: %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@: %3$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@, %2$@: %3$@"
+          }
+        }
+      }
+    },
+    "%@%@ can see only the summary you've consented to share — not your raw data, which stays on your device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@%2$@ kan kun se det sammendrag, du har givet samtykke til at dele — ikke dine rådata, som bliver på din enhed."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@%2$@ can see only the summary you've consented to share — not your raw data, which stays on your device."
+          }
+        }
+      }
+    },
+    "%lld": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "%lld / %lld": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld / %2$lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld active": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld aktive"
+          }
+        }
+      }
+    },
+    "%lld decisions on record": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld beslutninger i loggen"
+          }
+        }
+      }
+    },
+    "%lld files": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld filer"
+          }
+        }
+      }
+    },
+    "%lld min": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      }
+    },
+    "%lld recipient%@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld modtager%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld recipient%2$@"
+          }
+        }
+      }
+    },
+    "%lld set": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld angivet"
+          }
+        }
+      }
+    },
+    "%lld tokens · earn, spend, or donate": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tokens · optjen, brug eller donér"
+          }
+        }
+      }
+    },
+    "%lld%%": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%%"
+          }
+        }
+      }
+    },
+    "%lldh %@m  ·  %lld%%": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lldh %2$@m  ·  %3$lld%%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lldh %2$@m  ·  %3$lld%%"
+          }
+        }
+      }
+    },
+    "+%lld": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld"
+          }
+        }
+      }
+    },
+    "◆": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "◆"
+          }
+        }
+      }
+    },
+    "●": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "●"
+          }
+        }
+      }
+    },
+    "A few things you should know": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Et par ting, du bør vide"
+          }
+        }
+      }
+    },
+    "A receipt that proves you shared with %@ — the result only, never your raw data. Revocable, and recorded on your consent evidence.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En kvittering, der beviser, at du delte med %@ — kun resultatet, aldrig dine rådata. Kan tilbagekaldes og står på dit samtykkebevis."
+          }
+        }
+      }
+    },
+    "About Data for Good Foundation": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Om Data for Good Foundation"
+          }
+        }
+      }
+    },
+    "About you": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Om dig"
+          }
+        }
+      }
+    },
+    "ABOUT YOUR DATA": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OM DINE DATA"
+          }
+        }
+      }
+    },
+    "Accept": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acceptér"
+          }
+        }
+      }
+    },
+    "Active": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv"
+          }
+        }
+      }
+    },
+    "Active · %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv · %@"
+          }
+        }
+      }
+    },
+    "Add care team member": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilføj medlem af behandlerteam"
+          }
+        }
+      }
+    },
+    "Add condition": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilføj diagnose"
+          }
+        }
+      }
+    },
+    "Add document": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilføj dokument"
+          }
+        }
+      }
+    },
+    "Add goal": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilføj mål"
+          }
+        }
+      }
+    },
+    "Add medication": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilføj medicin"
+          }
+        }
+      }
+    },
+    "Add receipt to My DfG wallet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Læg kvittering i My DfG wallet"
+          }
+        }
+      }
+    },
+    "Add to my calendar": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Læg i min kalender"
+          }
+        }
+      }
+    },
+    "Add to My DfG wallet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Læg i My DfG wallet"
+          }
+        }
+      }
+    },
+    "Added to your calendar": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lagt i din kalender"
+          }
+        }
+      }
+    },
+    "Afternoon": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eftermiddag"
+          }
+        }
+      }
+    },
+    "All data processing happens on this device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al databehandling sker på denne enhed."
+          }
+        }
+      }
+    },
+    "All local data deleted.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle lokale data er slettet."
+          }
+        }
+      }
+    },
+    "All nudges are generated on this device. Your patterns never leave to produce them.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle indsigter dannes på denne enhed. Dine mønstre forlader den aldrig for at skabe dem."
+          }
+        }
+      }
+    },
+    "All processing happens on this device. You decide whether and where to back up your Liviqa data. The default is on-device only — nothing leaves unless you choose it.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al behandling sker på denne enhed. Du bestemmer, om og hvor du sikkerhedskopierer dine Liviqa-data. Standarden er kun på enheden — intet forlader den, medmindre du vælger det."
+          }
+        }
+      }
+    },
+    "All sharing changes are independently logged and cannot be altered.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle ændringer i deling logges uafhængigt og kan ikke ændres."
+          }
+        }
+      }
+    },
+    "All sources are processed on this device. Patterns are extracted locally — raw data is never sent anywhere.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle kilder behandles på denne enhed. Mønstre udledes lokalt — rådata sendes aldrig nogen steder hen."
+          }
+        }
+      }
+    },
+    "Allow recording": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillad optagelse"
+          }
+        }
+      }
+    },
+    "An independent body that works for you — not for institutions.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Et uafhængigt organ, der arbejder for dig — ikke for institutioner."
+          }
+        }
+      }
+    },
+    "Anonymous compute only — your device answers queries, your data never moves. ": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun anonym beregning — din enhed besvarer forespørgsler, dine data flytter sig aldrig. "
+          }
+        }
+      }
+    },
+    "App names, websites and content are never accessed. The daily total stays on this device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appnavne, websteder og indhold tilgås aldrig. Dagstotalen bliver på denne enhed."
+          }
+        }
+      }
+    },
+    "Apple Health access is read-only. Liviqa cannot write to or modify your health records.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adgangen til Apple Sundhed er skrivebeskyttet. Liviqa kan ikke skrive til eller ændre dine helbredsoplysninger."
+          }
+        }
+      }
+    },
+    "Applies at next launch. Terminology approved in all six languages; interface translation rolling out.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gælder fra næste start. Terminologien er godkendt på alle seks sprog; oversættelsen af appen ruller ud."
+          }
+        }
+      }
+    },
+    "Ask about your data…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spørg til dine data…"
+          }
+        }
+      }
+    },
+    "Ask about your own data": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spørg til dine egne data"
+          }
+        }
+      }
+    },
+    "Ask the assistant": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spørg assistenten"
+          }
+        }
+      }
+    },
+    "Ask the assistant about this": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spørg assistenten om dette"
+          }
+        }
+      }
+    },
+    "Ask the assistant about your data": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spørg assistenten om dine data"
+          }
+        }
+      }
+    },
+    "Assistant": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistent"
+          }
+        }
+      }
+    },
+    "Awaiting reply": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afventer svar"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilbage"
+          }
+        }
+      }
+    },
+    "BACKUP & STORAGE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SIKKERHEDSKOPI & LAGRING"
+          }
+        }
+      }
+    },
+    "Based on what your data showed": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baseret på det, dine data viste"
+          }
+        }
+      }
+    },
+    "Before we begin": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Før vi begynder"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annullér"
+          }
+        }
+      }
+    },
+    "CAPTURE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OPTAG"
+          }
+        }
+      }
+    },
+    "Care": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behandling"
+          }
+        }
+      }
+    },
+    "CE REF": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CE-REF"
+          }
+        }
+      }
+    },
+    "Check-in · %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tjek-ind · %@"
+          }
+        }
+      }
+    },
+    "Choose what to share": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vælg, hvad du vil dele"
+          }
+        }
+      }
+    },
+    "CHOOSE YOUR BANK": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VÆLG DIN BANK"
+          }
+        }
+      }
+    },
+    "Computed on this device · your data, your baseline · shown, not judged.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beregnet på denne enhed · dine data, din baseline · vist, ikke vurderet."
+          }
+        }
+      }
+    },
+    "Connect a bank": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbind en bank"
+          }
+        }
+      }
+    },
+    "Connect Apple Health": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbind Apple Sundhed"
+          }
+        }
+      }
+    },
+    "Connect Apple Health & sync now": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbind Apple Sundhed & synk nu"
+          }
+        }
+      }
+    },
+    "Connect Apple Health in Settings to see your own →": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbind Apple Sundhed i Indstillinger for at se dine egne →"
+          }
+        }
+      }
+    },
+    "Connect Apple Health to sync your own readings, or import a file (CGM export, labs, InBody). Everything is processed on this device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbind Apple Sundhed for at synkronisere dine egne målinger, eller importér en fil (CGM-eksport, laboratoriesvar, InBody). Alt behandles på denne enhed."
+          }
+        }
+      }
+    },
+    "Connect Screen Time": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbind Skærmtid"
+          }
+        }
+      }
+    },
+    "Connected": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbundet"
+          }
+        }
+      }
+    },
+    "Connecting to %@…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forbinder til %@…"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsæt"
+          }
+        }
+      }
+    },
+    "Continue with Apple": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsæt med Apple"
+          }
+        }
+      }
+    },
+    "Continue with your DfG wallet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsæt med din DfG wallet"
+          }
+        }
+      }
+    },
+    "Continue without an account": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsæt uden konto"
+          }
+        }
+      }
+    },
+    "Dansk": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dansk"
+          }
+        }
+      }
+    },
+    "DATA FOR GOOD FOUNDATION": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DATA FOR GOOD FOUNDATION"
+          }
+        }
+      }
+    },
+    "Data for Good Foundation is a non-commercial, purpose-locked body that represents you in the data economy. It does not hold your health data — it holds the verified record of who requested it, what you decided, and when. That record answers to you, not to institutions or requesters.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data for Good Foundation er et ikke-kommercielt, formålslåst organ, der repræsenterer dig i dataøkonomien. Det opbevarer ikke dine sundhedsdata — det opbevarer den verificerede log over, hvem der bad om dem, hvad du besluttede, og hvornår. Den log står til ansvar over for dig, ikke over for institutioner eller forespørgere."
+          }
+        }
+      }
+    },
+    "Data Sources": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datakilder"
+          }
+        }
+      }
+    },
+    "Decline": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afvis"
+          }
+        }
+      }
+    },
+    "Delete all my data": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slet alle mine data"
+          }
+        }
+      }
+    },
+    "Delete permanently": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slet permanent"
+          }
+        }
+      }
+    },
+    "Demo data chip": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demodata-mærke"
+          }
+        }
+      }
+    },
+    "Derived summaries only — no raw samples leave your device. You can revoke access in your Wallet at any time.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun afledte sammendrag — ingen rå målinger forlader din enhed. Du kan tilbagekalde adgangen i din wallet når som helst."
+          }
+        }
+      }
+    },
+    "Device-stored only · never uploaded": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun på enheden · uploades aldrig"
+          }
+        }
+      }
+    },
+    "DfG": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DfG"
+          }
+        }
+      }
+    },
+    "DfG Tokens": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DfG-tokens"
+          }
+        }
+      }
+    },
+    "DfG Wallet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DfG Wallet"
+          }
+        }
+      }
+    },
+    "Diagnosed": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnosticeret"
+          }
+        }
+      }
+    },
+    "Diet approach": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kosttilgang"
+          }
+        }
+      }
+    },
+    "Discuss in the assistant": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drøft i assistenten"
+          }
+        }
+      }
+    },
+    "Dismiss": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afvis"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Færdig"
+          }
+        }
+      }
+    },
+    "Download full disclosure report": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hent fuld oplysningsrapport"
+          }
+        }
+      }
+    },
+    "e.g. Cycling 4× / week, 60–90 min": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fx Cykling 4× / uge, 60–90 min"
+          }
+        }
+      }
+    },
+    "e.g. Low-carbohydrate, Mediterranean, no restriction": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fx Lavkulhydrat, middelhavskost, ingen begrænsning"
+          }
+        }
+      }
+    },
+    "Each time you grant or withdraw access, that decision is written to an independent record. It cannot be edited, deleted, or backdated — by anyone, including Liviqa.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hver gang du giver eller trækker adgang tilbage, skrives beslutningen til en uafhængig log. Den kan ikke redigeres, slettes eller tilbagedateres — af nogen, heller ikke Liviqa."
+          }
+        }
+      }
+    },
+    "eIDAS 2.0 · secured by Partisia": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "eIDAS 2.0 · sikret af Partisia"
+          }
+        }
+      }
+    },
+    "Email": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-mail"
+          }
+        }
+      }
+    },
+    "English": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        }
+      }
+    },
+    "Enter Liviqa": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gå ind i Liviqa"
+          }
+        }
+      }
+    },
+    "Español": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Español"
+          }
+        }
+      }
+    },
+    "Evening": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aften"
+          }
+        }
+      }
+    },
+    "Every access to your data is recorded here. ": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hver adgang til dine data registreres her. "
+          }
+        }
+      }
+    },
+    "Every decision.\nPermanently recorded.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hver beslutning.\nPermanent registreret."
+          }
+        }
+      }
+    },
+    "Every time anyone requests your health data, a neutral record is created. Not by Liviqa. Not by the requester. By a foundation that answers to you — and represents your interests in the data economy.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hver gang nogen beder om dine sundhedsdata, oprettes en neutral log. Ikke af Liviqa. Ikke af forespørgeren. Af en fond, der står til ansvar over for dig — og varetager dine interesser i dataøkonomien."
+          }
+        }
+      }
+    },
+    "Export all my Liviqa data": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksportér alle mine Liviqa-data"
+          }
+        }
+      }
+    },
+    "Export ready in Files": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eksport klar i Filer"
+          }
+        }
+      }
+    },
+    "Final confirmation. This action is irreversible.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidste bekræftelse. Handlingen kan ikke fortrydes."
+          }
+        }
+      }
+    },
+    "Follows your iPhone language.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Følger din iPhones sprog."
+          }
+        }
+      }
+    },
+    "From": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fra"
+          }
+        }
+      }
+    },
+    "Get started": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kom i gang"
+          }
+        }
+      }
+    },
+    "GLUCOSE · TIME IN RANGE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GLUKOSE · TID I MÅLOMRÅDET"
+          }
+        }
+      }
+    },
+    "Glucose & activity, shared as aggregates only.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glukose & aktivitet, delt udelukkende som aggregater."
+          }
+        }
+      }
+    },
+    "Glucose over the day, in millimoles per litre": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glukose over dagen, i millimol pr. liter"
+          }
+        }
+      }
+    },
+    "Goal": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mål"
+          }
+        }
+      }
+    },
+    "Got it": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forstået"
+          }
+        }
+      }
+    },
+    "Health Passport": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sundhedspas"
+          }
+        }
+      }
+    },
+    "Health Vault": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health Vault"
+          }
+        }
+      }
+    },
+    "Hide the data": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skjul data"
+          }
+        }
+      }
+    },
+    "Home": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hjem"
+          }
+        }
+      }
+    },
+    "How are you feeling today?": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvordan har du det i dag?"
+          }
+        }
+      }
+    },
+    "How far back?": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvor langt tilbage?"
+          }
+        }
+      }
+    },
+    "How's your energy?": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvordan er din energi?"
+          }
+        }
+      }
+    },
+    "If a requester claims they were given access you never approved, the record will show otherwise. If you change your mind and withdraw consent, that withdrawal is also on record.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvis en forespørger hævder at have fået adgang, du aldrig har godkendt, vil loggen vise det modsatte. Ombestemmer du dig og tilbagekalder dit samtykke, står tilbagekaldelsen også i loggen."
+          }
+        }
+      }
+    },
+    "Import a data file": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importér en datafil"
+          }
+        }
+      }
+    },
+    "IMPORTANT": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VIGTIGT"
+          }
+        }
+      }
+    },
+    "IMPORTANT NOTICE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VIGTIG MEDDELELSE"
+          }
+        }
+      }
+    },
+    "In your data, your HRV ran lower mid-week — the days with higher meeting load and later meals. A pattern in your own data, not a medical finding.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I dine data lå din HRV lavere midt på ugen — de dage med flere møder og senere måltider. Et mønster i dine egne data, ikke et medicinsk fund."
+          }
+        }
+      }
+    },
+    "INCOMING VIDEO CONSULTATION": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "INDGÅENDE VIDEOKONSULTATION"
+          }
+        }
+      }
+    },
+    "Insights": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indsigter"
+          }
+        }
+      }
+    },
+    "Issue": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Udsted"
+          }
+        }
+      }
+    },
+    "Issue provenance receipt for this entry": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Udsted proveniens-kvittering for denne post"
+          }
+        }
+      }
+    },
+    "Join": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deltag"
+          }
+        }
+      }
+    },
+    "Joining shares this secure call. Your data stays on your device — your clinician sees only what you've consented to. Recording stays off unless you allow it in the call.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Når du deltager, deles dette sikre opkald. Dine data bliver på din enhed — din kliniker ser kun det, du har givet samtykke til. Optagelse er slået fra, medmindre du tillader den i opkaldet."
+          }
+        }
+      }
+    },
+    "Journal": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dagbog"
+          }
+        }
+      }
+    },
+    "Kept %@ for counting · merged %@%@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beholdt %1$@ til optælling · sammenlagt %2$@%3$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Kept %1$@ for counting · merged %2$@%3$@"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprog"
+          }
+        }
+      }
+    },
+    "last 30 days": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "seneste 30 dage"
+          }
+        }
+      }
+    },
+    "Late": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sen aften"
+          }
+        }
+      }
+    },
+    "Leave consultation": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forlad konsultation"
+          }
+        }
+      }
+    },
+    "Linked to today's metrics and stored on this device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knyttet til dagens målinger og gemt på denne enhed."
+          }
+        }
+      }
+    },
+    "Liviqa": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa"
+          }
+        }
+      }
+    },
+    "Liviqa Citizen credential": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa Citizen-legitimation"
+          }
+        }
+      }
+    },
+    "Liviqa extracts patterns from your data — it never reads individual transactions, message content, or event details. The numbers that drive your nudges stay on this device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa udleder mønstre af dine data — den læser aldrig enkelttransaktioner, beskedindhold eller aftaledetaljer. Tallene bag dine indsigter bliver på denne enhed."
+          }
+        }
+      }
+    },
+    "Liviqa is a personal wellness application, not a medical device. It does not diagnose, treat, monitor, or manage any medical condition. Patterns are generated from your own data for your own awareness. Always consult a qualified healthcare professional before changing your care, medication, or treatment.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa er en personlig wellness-app, ikke medicinsk udstyr. Den diagnosticerer, behandler, overvåger eller håndterer ikke nogen medicinsk tilstand. Mønstre dannes af dine egne data til din egen opmærksomhed. Tal altid med en kvalificeret sundhedsperson, før du ændrer din behandling eller medicin."
+          }
+        }
+      }
+    },
+    "Liviqa is a personal wellness application. It is not a medical device, and it does not diagnose, treat, monitor, or manage any medical condition.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa er en personlig wellness-app. Den er ikke medicinsk udstyr og diagnosticerer, behandler, overvåger eller håndterer ikke nogen medicinsk tilstand."
+          }
+        }
+      }
+    },
+    "Liviqa is requesting": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa anmoder om"
+          }
+        }
+      }
+    },
+    "Liviqa reads only what it needs.\nNothing leaves your device without your consent.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa læser kun det nødvendige.\nIntet forlader din enhed uden dit samtykke."
+          }
+        }
+      }
+    },
+    "Liviqa uses this to personalise your nudges. Stays on device.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liviqa bruger dette til at gøre dine indsigter personlige. Bliver på enheden."
+          }
+        }
+      }
+    },
+    "Loading messages": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henter beskeder"
+          }
+        }
+      }
+    },
+    "Loading your care directory…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henter dit behandleroverblik…"
+          }
+        }
+      }
+    },
+    "Locked until the live production test": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låst indtil den endelige produktionstest"
+          }
+        }
+      }
+    },
+    "Log what's working": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notér, hvad der virker"
+          }
+        }
+      }
+    },
+    "Manage →": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Administrér →"
+          }
+        }
+      }
+    },
+    "Manage scope": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Administrér omfang"
+          }
+        }
+      }
+    },
+    "Message your care team…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv til dit behandlerteam…"
+          }
+        }
+      }
+    },
+    "Messages": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beskeder"
+          }
+        }
+      }
+    },
+    "Midnight": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Midnat"
+          }
+        }
+      }
+    },
+    "Money and health move together. Stress often shows in spending before it shows in symptoms — late-evening purchases track short sleep; quiet grocery weeks track low-energy weeks. Liviqa reads daily totals and category patterns only — never single transactions, never merchant names.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Penge og helbred følges ad. Stress viser sig ofte i forbruget, før det viser sig i symptomer — sene aftenkøb følger korte nætter; stille indkøbsuger følger uger med lav energi. Liviqa læser kun dagstotaler og kategorimønstre — aldrig enkelttransaktioner, aldrig butiksnavne."
+          }
+        }
+      }
+    },
+    "More private than health data — treated that way": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mere privat end sundhedsdata — og behandlet sådan"
+          }
+        }
+      }
+    },
+    "Morning": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morgen"
+          }
+        }
+      }
+    },
+    "No active grants": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen aktive delinger"
+          }
+        }
+      }
+    },
+    "No active sharing": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen aktiv deling"
+          }
+        }
+      }
+    },
+    "No consultation scheduled. Your care team books these with you.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen konsultation planlagt. Dit behandlerteam booker dem sammen med dig."
+          }
+        }
+      }
+    },
+    "No decisions on record yet.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen beslutninger i loggen endnu."
+          }
+        }
+      }
+    },
+    "No nudges during these hours": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen indsigter i disse timer"
+          }
+        }
+      }
+    },
+    "No one, including Liviqa, can alter this record.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen, heller ikke Liviqa, kan ændre denne log."
+          }
+        }
+      }
+    },
+    "Nobody can edit this — not even us.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen kan redigere dette — heller ikke os."
+          }
+        }
+      }
+    },
+    "Norsk": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Norsk"
+          }
+        }
+      }
+    },
+    "Not in your wallet yet? Get your Liviqa Citizen credential": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ikke i din wallet endnu? Få din Liviqa Citizen-legitimation"
+          }
+        }
+      }
+    },
+    "Note saved": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note gemt"
+          }
+        }
+      }
+    },
+    "Nothing here yet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intet her endnu"
+          }
+        }
+      }
+    },
+    "Nothing is shared by default.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intet deles som standard."
+          }
+        }
+      }
+    },
+    "Nudge Settings": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indsigtsindstillinger"
+          }
+        }
+      }
+    },
+    "Nudges are first-person observations generated from your own data. They are not medical advice. Always consult a qualified healthcare professional before making changes to your care or medication.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indsigter er observationer i første person dannet af dine egne data. De er ikke medicinsk rådgivning. Tal altid med en kvalificeret sundhedsperson, før du ændrer din behandling eller medicin."
+          }
+        }
+      }
+    },
+    "Nudges are observations from your own data. They are not alerts, medical warnings, or diagnostic tools.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indsigter er observationer fra dine egne data. De er ikke alarmer, medicinske advarsler eller diagnostiske værktøjer."
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "On · earns DfG tokens": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Til · optjener DfG-tokens"
+          }
+        }
+      }
+    },
+    "on device": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "på enheden"
+          }
+        }
+      }
+    },
+    "One number per day — total screen time. Long evenings on the phone often pair with later nights and shorter sleep; the pattern helps explain your mornings.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ét tal om dagen — samlet skærmtid. Lange aftener på telefonen følges ofte med senere nætter og kortere søvn; mønstret hjælper med at forklare dine morgener."
+          }
+        }
+      }
+    },
+    "One tap. You can add a note after — or not.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ét tryk. Du kan tilføje en note bagefter — eller lade være."
+          }
+        }
+      }
+    },
+    "Only this insight and its summary — never your raw data, which stays on your device. You choose the recipient and the window, and you can withdraw any time.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun denne indsigt og dens sammendrag — aldrig dine rådata, som bliver på din enhed. Du vælger modtageren og tidsrummet, og du kan tilbagekalde når som helst."
+          }
+        }
+      }
+    },
+    "Only you can allow recording. You can withdraw at any time; it's logged either way.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun du kan tillade optagelse. Du kan trække tilladelsen tilbage når som helst; det logges uanset hvad."
+          }
+        }
+      }
+    },
+    "Open Banking (PSD2): read-only access through your bank's official API, authorised with MitID, revocable at your bank at any time.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Banking (PSD2): skrivebeskyttet adgang gennem din banks officielle API, godkendt med MitID, kan til enhver tid tilbagekaldes i din bank."
+          }
+        }
+      }
+    },
+    "Open in My DfG wallet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Åbn i My DfG wallet"
+          }
+        }
+      }
+    },
+    "OR USE AN IDENTITY WALLET": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OR USE AN IDENTITY WALLET"
+          }
+        }
+      }
+    },
+    "Paper": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Papir"
+          }
+        }
+      }
+    },
+    "Partisia is verifying…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partisia verificerer…"
+          }
+        }
+      }
+    },
+    "Password": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adgangskode"
+          }
+        }
+      }
+    },
+    "PATTERN": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MØNSTER"
+          }
+        }
+      }
+    },
+    "PATTERN DETECTED": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MØNSTER FUNDET"
+          }
+        }
+      }
+    },
+    "Pause sharing": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sæt deling på pause"
+          }
+        }
+      }
+    },
+    "Paused": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På pause"
+          }
+        }
+      }
+    },
+    "Paused. Nothing is shared.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "På pause. Intet deles."
+          }
+        }
+      }
+    },
+    "Pick a time that suits you": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vælg et tidspunkt, der passer dig"
+          }
+        }
+      }
+    },
+    "Pick a time with %@ — add it to your calendar": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vælg et tidspunkt med %@ — læg det i din kalender"
+          }
+        }
+      }
+    },
+    "Plan a consultation": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planlæg en konsultation"
+          }
+        }
+      }
+    },
+    "Português": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Português"
+          }
+        }
+      }
+    },
+    "Present your credential": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fremvis din legitimation"
+          }
+        }
+      }
+    },
+    "preview": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "forhåndsvisning"
+          }
+        }
+      }
+    },
+    "Privacy": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privatliv"
+          }
+        }
+      }
+    },
+    "Privacy Record": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privatlivslog"
+          }
+        }
+      }
+    },
+    "Privacy, consent & app settings": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privatliv, samtykke & appindstillinger"
+          }
+        }
+      }
+    },
+    "Profile and settings": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil og indstillinger"
+          }
+        }
+      }
+    },
+    "Proposed time · %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foreslået tidspunkt · %@"
+          }
+        }
+      }
+    },
+    "Prove who you are": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bevis, hvem du er"
+          }
+        }
+      }
+    },
+    "Provenance only · no raw samples leave your phone": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kun proveniens · ingen rå målinger forlader din telefon"
+          }
+        }
+      }
+    },
+    "Questions? privacy@liviqa.com": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spørgsmål? privacy@liviqa.com"
+          }
+        }
+      }
+    },
+    "Quiet hours": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stilletimer"
+          }
+        }
+      }
+    },
+    "Read our full data practices →": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Læs vores fulde datapraksis →"
+          }
+        }
+      }
+    },
+    "Ready to share": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klar til deling"
+          }
+        }
+      }
+    },
+    "Recorded twice — counted once": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optaget to gange — talt én gang"
+          }
+        }
+      }
+    },
+    "Recording is off": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optagelse er slået fra"
+          }
+        }
+      }
+    },
+    "Recording on — you allowed it": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optagelse til — du tillod den"
+          }
+        }
+      }
+    },
+    "RECOVERY · STRESS (HRV)": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RESTITUTION · STRESS (HRV)"
+          }
+        }
+      }
+    },
+    "Reduce motion": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reducér bevægelse"
+          }
+        }
+      }
+    },
+    "Request sent.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forespørgsel sendt."
+          }
+        }
+      }
+    },
+    "Request this time": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmod om dette tidspunkt"
+          }
+        }
+      }
+    },
+    "RESEARCH CONTRIBUTIONS": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FORSKNINGSBIDRAG"
+          }
+        }
+      }
+    },
+    "Resume sharing": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genoptag deling"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gem"
+          }
+        }
+      }
+    },
+    "SAVE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GEM"
+          }
+        }
+      }
+    },
+    "Saved to journal": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemt i dagbogen"
+          }
+        }
+      }
+    },
+    "Scan with your My DfG wallet — or open it on this phone. The offer expires in a few minutes.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan med din My DfG wallet — eller åbn den på denne telefon. Tilbuddet udløber om få minutter."
+          }
+        }
+      }
+    },
+    "Screen Time": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skærmtid"
+          }
+        }
+      }
+    },
+    "Secure consultation · live video activates when your clinic's EU video room is configured.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sikker konsultation · live-video aktiveres, når din kliniks EU-videorum er sat op."
+          }
+        }
+      }
+    },
+    "See the data behind this": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se dataene bag dette"
+          }
+        }
+      }
+    },
+    "See the evidence": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se evidensen"
+          }
+        }
+      }
+    },
+    "See your 90-day baseline ›": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se din 90-dages baseline ›"
+          }
+        }
+      }
+    },
+    "Select the patterns you want your care team to see. Nothing is sent until you confirm.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vælg de mønstre, dit behandlerteam må se. Intet sendes, før du bekræfter."
+          }
+        }
+      }
+    },
+    "Send message": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send besked"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indstillinger"
+          }
+        }
+      }
+    },
+    "Share flow coming soon": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delingsflow på vej"
+          }
+        }
+      }
+    },
+    "Share this pattern with someone you trust?": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vil du dele dette mønster med en, du stoler på?"
+          }
+        }
+      }
+    },
+    "Share via wallet": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Del via wallet"
+          }
+        }
+      }
+    },
+    "Share with care team →": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Del med behandlerteam →"
+          }
+        }
+      }
+    },
+    "Shared with %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delt med %@"
+          }
+        }
+      }
+    },
+    "Sharing runs for 48 hours, then access ends automatically. You can withdraw sooner in your Wallet.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delingen kører i 48 timer, hvorefter adgangen automatisk ophører. Du kan tilbagekalde tidligere i din wallet."
+          }
+        }
+      }
+    },
+    "Show the “Demo data” marker on Today": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vis “Demodata”-mærket på I dag"
+          }
+        }
+      }
+    },
+    "Showing sample data": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viser eksempeldata"
+          }
+        }
+      }
+    },
+    "Sign in": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log ind"
+          }
+        }
+      }
+    },
+    "Sign in to Liviqa with the identity you control — nothing is revealed without your say-so.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log ind i Liviqa med den identitet, du selv kontrollerer — intet afsløres uden dit ja."
+          }
+        }
+      }
+    },
+    "Sign out": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log ud"
+          }
+        }
+      }
+    },
+    "SIMULATION · NOT YET INTEGRATED": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SIMULATION · NOT YET INTEGRATED"
+          }
+        }
+      }
+    },
+    "Skip for now — connect later in Settings": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spring over — forbind senere i Indstillinger"
+          }
+        }
+      }
+    },
+    "Skip ring draw-in and chart animations": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spring ring-animationer og diagrambevægelser over"
+          }
+        }
+      }
+    },
+    "Stop recording": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop optagelse"
+          }
+        }
+      }
+    },
+    "SUGGESTED NOW": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FORESLÅET NU"
+          }
+        }
+      }
+    },
+    "Svenska": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svenska"
+          }
+        }
+      }
+    },
+    "Syncing…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synkroniserer…"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        }
+      }
+    },
+    "Tap any square to read that day's signal.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryk på et felt for at læse dagens signal."
+          }
+        }
+      }
+    },
+    "Tap to connect": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryk for at forbinde"
+          }
+        }
+      }
+    },
+    "Tap to record": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tryk for at optage"
+          }
+        }
+      }
+    },
+    "Technical details": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tekniske detaljer"
+          }
+        }
+      }
+    },
+    "TEST ENVIRONMENT · PARTISIA SANDBOX": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TEST ENVIRONMENT · PARTISIA SANDBOX"
+          }
+        }
+      }
+    },
+    "The continuous relationship (the overlay timeline and scatter) lives in your full history — this split is the part you can act on.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den løbende sammenhæng (tidslinjen og punktdiagrammet) ligger i din fulde historik — denne opdeling er den del, du kan handle på."
+          }
+        }
+      }
+    },
+    "THE DETAILS": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DETALJERNE"
+          }
+        }
+      }
+    },
+    "The rest of Liviqa works without enabling the assistant. You can turn it off anytime, which deletes the conversation.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resten af Liviqa virker uden assistenten. Du kan slå den fra når som helst, hvilket sletter samtalen."
+          }
+        }
+      }
+    },
+    "Theme": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tema"
+          }
+        }
+      }
+    },
+    "These are personal patterns, not clinical reports. Your care team should use their own tools for clinical assessment.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dette er personlige mønstre, ikke kliniske rapporter. Dit behandlerteam bør bruge egne værktøjer til klinisk vurdering."
+          }
+        }
+      }
+    },
+    "These principles apply to the entire app, always.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disse principper gælder for hele appen, altid."
+          }
+        }
+      }
+    },
+    "These values come from your care plan. Liviqa uses them to calibrate what's inside vs outside your personal range.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disse værdier kommer fra din behandlingsplan. Liviqa bruger dem til at kalibrere, hvad der er inden for og uden for dit personlige område."
+          }
+        }
+      }
+    },
+    "This file is stored encrypted on your device. Previews open once the production environment is live.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filen er krypteret på din enhed. Forhåndsvisning åbner, når produktionsmiljøet er live."
+          }
+        }
+      }
+    },
+    "This is a pattern in your own data — not a medical finding. Worth discussing with your care team if it repeats.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dette er et mønster i dine egne data — ikke et medicinsk fund. Værd at tage op med dit behandlerteam, hvis det gentager sig."
+          }
+        }
+      }
+    },
+    "This week": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denne uge"
+          }
+        }
+      }
+    },
+    "This will permanently delete all local Liviqa data, including your health records, vault files, journal entries, and nudge history. It cannot be undone.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dette sletter permanent alle lokale Liviqa-data, herunder dine helbredsoplysninger, filer i Health Vault, dagbogsnotater og indsigtshistorik. Det kan ikke fortrydes."
+          }
+        }
+      }
+    },
+    "TIME ASLEEP": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TID I SØVN"
+          }
+        }
+      }
+    },
+    "TIME IN RANGE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TID I MÅLOMRÅDET"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I dag"
+          }
+        }
+      }
+    },
+    "TOKEN BALANCE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TOKENSALDO"
+          }
+        }
+      }
+    },
+    "tokens": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tokens"
+          }
+        }
+      }
+    },
+    "Training pattern": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Træningsmønster"
+          }
+        }
+      }
+    },
+    "TRANSCRIPTION": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRANSSKRIPTION"
+          }
+        }
+      }
+    },
+    "Trend chart": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tendensdiagram"
+          }
+        }
+      }
+    },
+    "Turn off & delete chat": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slå fra & slet chat"
+          }
+        }
+      }
+    },
+    "Two trackers logged the same session. Liviqa counts it once so minutes and energy are never doubled — and keeps the best of both recordings for insights.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To enheder loggede samme træning. Liviqa tæller den én gang, så minutter og energi aldrig fordobles — og beholder det bedste fra begge optagelser til indsigterne."
+          }
+        }
+      }
+    },
+    "Understood": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forstået"
+          }
+        }
+      }
+    },
+    "Until": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indtil"
+          }
+        }
+      }
+    },
+    "Used to contextualise patterns — e.g. glucose drops after cycling at this intensity.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruges til at sætte mønstre i kontekst — fx at glukose falder efter cykling ved denne intensitet."
+          }
+        }
+      }
+    },
+    "Used to pre-fill consent recipients. Role matters more than a person's name — people change, roles persist.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruges til at forudfylde samtykkemodtagere. Rollen betyder mere end navnet — personer skifter, roller består."
+          }
+        }
+      }
+    },
+    "Valid until %@ — short validity by design. Renew any time from this screen.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gyldig til %@ — kort gyldighed med vilje. Forny når som helst fra denne skærm."
+          }
+        }
+      }
+    },
+    "verified": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verificeret"
+          }
+        }
+      }
+    },
+    "Verified with Partisia": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificeret med Partisia"
+          }
+        }
+      }
+    },
+    "Verifying…": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificerer…"
+          }
+        }
+      }
+    },
+    "Version 1.0": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version 1.0"
+          }
+        }
+      }
+    },
+    "Video consultation · %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videokonsultation · %@"
+          }
+        }
+      }
+    },
+    "View full log →": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se fuld log →"
+          }
+        }
+      }
+    },
+    "View log →": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se log →"
+          }
+        }
+      }
+    },
+    "View scope": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se omfang"
+          }
+        }
+      }
+    },
+    "Voice note": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Talenote"
+          }
+        }
+      }
+    },
+    "What do you most want to understand or improve? (1–3 goals)": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvad vil du helst forstå eller forbedre? (1–3 mål)"
+          }
+        }
+      }
+    },
+    "What is the Data for Good Foundation?": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvad er Data for Good Foundation?"
+          }
+        }
+      }
+    },
+    "WHO CAN SEE YOUR DATA · %lld ACTIVE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HVEM KAN SE DINE DATA · %lld AKTIVE"
+          }
+        }
+      }
+    },
+    "Why this?": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hvorfor dette?"
+          }
+        }
+      }
+    },
+    "Withdraw": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilbagekald"
+          }
+        }
+      }
+    },
+    "Withdrawing stops future sharing immediately. Completed analyses are not affected. Every change is logged.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilbagekaldelse stopper fremtidig deling med det samme. Afsluttede analyser påvirkes ikke. Hver ændring logges."
+          }
+        }
+      }
+    },
+    "Withdrawn": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tilbagekaldt"
+          }
+        }
+      }
+    },
+    "Write entry": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skriv notat"
+          }
+        }
+      }
+    },
+    "Year": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "År"
+          }
+        }
+      }
+    },
+    "Yes, delete everything": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ja, slet alt"
+          }
+        }
+      }
+    },
+    "You can't be quietly overridden. Every access request is logged. Every refusal is logged. You can inspect the full record at any time.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du kan ikke tilsidesættes i det stille. Hver adgangsforespørgsel logges. Hvert afslag logges. Du kan til enhver tid se hele loggen."
+          }
+        }
+      }
+    },
+    "You earn tokens when your device contributes to anonymised research queries. Your health data never leaves this phone.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du optjener tokens, når din enhed bidrager til anonymiserede forskningsforespørgsler. Dine sundhedsdata forlader aldrig denne telefon."
+          }
+        }
+      }
+    },
+    "You haven't shared data with anyone. This is the default.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du har ikke delt data med nogen. Det er standarden."
+          }
+        }
+      }
+    },
+    "YOU'LL SHARE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DU DELER"
+          }
+        }
+      }
+    },
+    "Your care team": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dit behandlerteam"
+          }
+        }
+      }
+    },
+    "Your care team can view your patterns for 48 hours. This sharing is logged in your privacy record.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dit behandlerteam kan se dine mønstre i 48 timer. Delingen registreres i din privatlivslog."
+          }
+        }
+      }
+    },
+    "Your care team, on your terms": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dit behandlerteam, på dine vilkår"
+          }
+        }
+      }
+    },
+    "Your consent decisions are independently logged and cannot be edited by anyone — including Liviqa.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine samtykkebeslutninger logges uafhængigt og kan ikke redigeres af nogen — heller ikke Liviqa."
+          }
+        }
+      }
+    },
+    "Your data belongs to you. Liviqa has no access to your raw records.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine data tilhører dig. Liviqa har ingen adgang til dine rå optegnelser."
+          }
+        }
+      }
+    },
+    "Your data lives where you choose.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine data bor der, hvor du vælger."
+          }
+        }
+      }
+    },
+    "Your data stays on this phone. You decide every exception, one by one.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine data bliver på denne telefon. Du bestemmer hver undtagelse, én ad gangen."
+          }
+        }
+      }
+    },
+    "Your data stays on your device.\nNothing leaves without your consent.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine data bliver på din enhed.\nIntet forlader den uden dit samtykke."
+          }
+        }
+      }
+    },
+    "YOUR DATA, YOUR WAY": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DINE DATA, PÅ DIN MÅDE"
+          }
+        }
+      }
+    },
+    "Your documents, on this device, encrypted. File previews open after the live production test — until then the vault shows files, not contents.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine dokumenter, på denne enhed, krypteret. Forhåndsvisning åbner efter den endelige produktionstest — indtil da viser Health Vault filer, ikke indhold."
+          }
+        }
+      }
+    },
+    "Your financial patterns stay in your Health Vault on this phone, beside your other documents. Encrypted, never part of any clinician share, never sent anywhere. Disconnect and erase them in one tap, any time.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine økonomiske mønstre bliver i din Health Vault på denne telefon, side om side med dine andre dokumenter. Krypteret, aldrig en del af nogen deling med klinikere, aldrig sendt nogen steder hen. Afbryd og slet dem med ét tryk, når som helst."
+          }
+        }
+      }
+    },
+    "Your first grant or refusal will appear here.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din første tilladelse eller dit første afslag vises her."
+          }
+        }
+      }
+    },
+    "Your identity is confirmed and your consent is anchored on the immutable CE ledger.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din identitet er bekræftet, og dit samtykke er forankret i den uforanderlige CE-hovedbog."
+          }
+        }
+      }
+    },
+    "Your identity is confirmed. Only the facts you approved were shared with Liviqa.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din identitet er bekræftet. Kun de oplysninger, du godkendte, blev delt med Liviqa."
+          }
+        }
+      }
+    },
+    "Your Liviqa Citizen credential": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din Liviqa Citizen-legitimation"
+          }
+        }
+      }
+    },
+    "Your name, date of birth and address are never revealed to Liviqa — only the facts above are proven.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dit navn, din fødselsdato og din adresse afsløres aldrig for Liviqa — kun oplysningerne ovenfor bevises."
+          }
+        }
+      }
+    },
+    "your normal %@–%@ %@": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dit normale %1$@–%2$@ %3$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "your normal %1$@–%2$@ %3$@"
+          }
+        }
+      }
+    },
+    "Your own data, understood.\nNot averages — yours.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine egne data, forstået.\nIkke gennemsnit — dine."
+          }
+        }
+      }
+    },
+    "YOUR PRIVACY RECORD": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DIN PRIVATLIVSLOG"
+          }
+        }
+      }
+    },
+    "YOUR RANGE": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DIT OMRÅDE"
+          }
+        }
+      }
+    },
+    "Your recipient": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din modtager"
+          }
+        }
+      }
+    },
+    "Your rights under GDPR Articles 15–22 apply in full. Full legal text at liviqa.app/privacy": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine rettigheder efter GDPR artikel 15–22 gælder fuldt ud. Den fulde juridiske tekst findes på liviqa.app/privacy"
+          }
+        }
+      }
+    },
+    "Your sharing settings are backed by an independent privacy record. Liviqa can read it — only you can change it.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dine delingsindstillinger hviler på en uafhængig privatlivslog. Liviqa kan læse den — kun du kan ændre den."
+          }
+        }
+      }
+    },
+    "Your sign-in and participation credential — role and member ID only, pseudonymous by design. No name, no health data. Issuance is recorded in your Privacy Record.": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din legitimation til login og deltagelse — kun rolle og medlems-ID, pseudonym fra grunden. Intet navn, ingen sundhedsdata. Udstedelsen registreres i din privatlivslog."
+          }
+        }
+      }
+    },
+    "Your sovereign identity": {
+      "localizations": {
+        "da": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din suveræne identitet"
+          }
+        }
+      }
+    }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

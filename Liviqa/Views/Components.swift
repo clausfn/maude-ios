@@ -3,7 +3,7 @@
 import SwiftUI
 
 // MARK: - Aperture mark
-// Embeds the LOCKED aperture-mark asset — never redraw the mark in code (brand
+// Embeds the LOCKED iris-mark asset (brand v2) — never redraw the mark in code (brand
 // kit §1; code redraws caused prior drift). Same source SVGs as liviqa.app.
 
 struct LiviqaApertureMark: View {

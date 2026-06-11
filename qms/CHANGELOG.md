@@ -4,6 +4,18 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-81 — Danish interface, first full pass (2026-06-12)
+- **feat(l10n):** all 337 catalog strings + 6 permission strings translated to Danish (TERMS v03
+  glossary enforced: indsigt/samtykke/deling/tilbagekald/behandlerteam/Behandling; brands and
+  format specifiers untouched). Tab titles + greeting converted to `String(localized:)`.
+  Sim-verified in da: tabs Hjem/Indsigter/Behandling/Dagbog/Privatliv/Indstillinger, greeting
+  "Sen aften", dates "FRE. · 12 JUN.", buttons ("Se evidensen →").
+- **Known limit (FR-L10N-02, backlog):** intelligence-layer output (nudge bodies, Today signal
+  kickers, deriver sentences) is generated text, not literals — needs String(localized:)
+  templates in the derivers. Static chrome is fully Danish.
+- nb/sv/es/pt: same pipeline, pending authoring (FR-L10N-03: push catalog to Weblate component).
+  126 tests ✅.
+
 ### PR-80 — Language selector (2026-06-12, CN request)
 - **feat(l10n):** Settings ▸ Display gains a Language picker — System default + en/da/nb/sv/es/pt
   via the real iOS rail (AppleLanguages override, applies next launch; all six registered as

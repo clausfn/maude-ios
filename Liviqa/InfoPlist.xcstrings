@@ -1,0 +1,114 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liviqa"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Liviqa"
+          }
+        }
+      }
+    },
+    "NSCalendarsWriteOnlyAccessUsageDescription" : {
+      "comment" : "Privacy - Calendars Write Only Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liviqa lægger en konsultation, du planlægger, ind i din egen kalender med en påmindelse. Den læser aldrig dine eksisterende aftaler."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Liviqa adds a consultation you plan to your own calendar, with a reminder. It never reads your existing events."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liviqa bruger kun dit kamera under en videokonsultation, du selv starter med din egen kliniker eller coach, over en EU-suveræn forbindelse. Det bruges aldrig ellers."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Liviqa uses your camera only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise."
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription" : {
+      "comment" : "Privacy - Health Share Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liviqa læser dine sundhedsdata på enheden for at vise dine tendenser og personlige indsigter i et klart sprog. Dine sundhedsdata bliver på denne enhed og uploades aldrig."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Liviqa reads your Health data on-device to show your trends and personal, plain-language nudges. Your health data stays on this device and is never uploaded."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription" : {
+      "comment" : "Privacy - Health Update Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liviqa har kun læseadgang og skriver aldrig til Apple Sundhed. Den læser kun dine data på enheden for at vise dine tendenser og personlige indsigter; intet skrives tilbage."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Liviqa is read-only and never writes to Apple Health. It only reads your data on-device to show your trends and personal nudges; nothing is written back."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Privacy - Microphone Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liviqa bruger kun din mikrofon under en videokonsultation, du selv starter med din egen kliniker eller coach, over en EU-suveræn forbindelse. Den bruges aldrig ellers."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Liviqa uses your microphone only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.2"
+}
