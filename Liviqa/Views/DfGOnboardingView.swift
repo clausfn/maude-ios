@@ -66,22 +66,26 @@ private struct Page1View: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
 
-                    // DfG logo
+                    // DfG logo — inverted white, CENTERED on the full navy canvas
+                    // (CN beta feedback 2026-06-11: white logo, centered, bigger header).
                     HStack {
-                        Image("dfg-logo")
+                        Spacer()
+                        Image("dfg-logo-negative")
                             .resizable()
                             .scaledToFit()
-                            .frame(height: 72)
+                            .frame(height: 92)
                         Spacer()
                     }
-                    .padding(.top, 32)
+                    .padding(.top, 36)
 
-                    // Kicker
+                    // Kicker — centered, larger
                     Text("DATA FOR GOOD FOUNDATION")
-                        .font(.liviqaKicker(10))
-                        .tracking(2)
+                        .font(.liviqaKicker(13))
+                        .tracking(2.4)
                         .foregroundStyle(LiviqaTheme.ink4)
-                        .padding(.top, 24)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 22)
 
                     // Headline
                     Text("An independent body that works for you — not for institutions.")

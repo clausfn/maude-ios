@@ -57,7 +57,10 @@ public extension HealthSamples {
             steps:        SourceArbiter.arbitrate(steps,        key: dailyKey),
             activeEnergy: SourceArbiter.arbitrate(activeEnergy, key: dailyKey),
             sleep:        SourceArbiter.arbitrate(sleep)        { "\($0.stage.rawValue)@\(day($0.date))" },
-            workouts:     SourceArbiter.arbitrate(workouts)     { $0.start.timeIntervalSince1970 },
+            // Dual-recording sessions (bike computer + watch) start seconds
+            // apart, so exact-start keying misses them — FR-PROV-02 clusters by
+            // time overlap instead: counted once, enriched from both.
+            workouts:     WorkoutDeduplicator.dedupe(workouts).workouts,
             // Full-HealthKit streams: same §2.3 rule per logical slot.
             heartExtras:     SourceArbiter.arbitrate(heartExtras, key: dailyKey),
             insulin:         SourceArbiter.arbitrate(insulin)        { "\($0.kind.rawValue)@\($0.ts.timeIntervalSince1970)" },
@@ -65,5 +68,14 @@ public extension HealthSamples {
             afib:            SourceArbiter.arbitrate(afib)           { $0.ts.timeIntervalSince1970 },
             bodyComposition: SourceArbiter.arbitrate(bodyComposition) { day($0.ts) }
         )
+    }
+}
+
+public extension HealthSamples {
+    /// The merge report behind `arbitrated()`'s workout stream — what got
+    /// recorded twice and folded into one (FR-PROV-02). Recomputed on demand;
+    /// the UI uses this to TELL the citizen rather than silently fixing.
+    func workoutMergeReport() -> [WorkoutMerge] {
+        WorkoutDeduplicator.dedupe(workouts).merges
     }
 }

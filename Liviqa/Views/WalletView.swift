@@ -235,8 +235,9 @@ struct WalletView: View {
                     .clipShape(Capsule())
             }
 
-            // Scope chips
-            let chips = grant.scopeKeys
+            // Scope chips — grouped + deduped ("Glucose", "Activity"…), never a
+            // wall of raw metric keys (FB AFf8FjC1: "this view of consent is broken").
+            let chips = Self.scopeGroups(grant.scopeKeys)
             if !chips.isEmpty {
                 FlexHStack(items: chips) { chip in
                     Text(chip)
@@ -247,6 +248,8 @@ struct WalletView: View {
                         .padding(.vertical, 3)
                         .background(LiviqaTheme.paper)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .lineLimit(1)
+                        .fixedSize()
                         .overlay(RoundedRectangle(cornerRadius: 6).stroke(LiviqaTheme.line2))
                 }
                 .padding(.top, 9)
@@ -317,6 +320,30 @@ struct WalletView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 0.5))
         .shadow(color: LiviqaTheme.cardShadow, radius: 6, y: 2)
+    }
+
+    /// Collapse fine metric keys into the consent GROUPS the citizen actually
+    /// granted (mirrors the backend scope vocabulary), deduped, stable order.
+    static func scopeGroups(_ keys: [String]) -> [String] {
+        func group(_ k: String) -> String {
+            let key = k.lowercased()
+            if ["tir", "mean_g", "gmi", "cv", "bolus", "basal"].contains(key) || key.contains("glucose") || key.contains("carb") { return "Glucose" }
+            if key.contains("step") || key.contains("active") || key.contains("exercise") || key.contains("workout") || key.contains("training") || key.contains("vo2") { return "Activity" }
+            if key.contains("sleep") { return "Sleep" }
+            if key.contains("hrv") || key.contains("recovery") || key.contains("readiness") || key.contains("stress") { return "Recovery" }
+            if key.contains("rhr") || key.contains("bp_") || key == "bp" || key.contains("afib") || key.contains("ecg") || key.contains("heart") || key == "hr" { return "Heart" }
+            if key.contains("lab") { return "Labs" }
+            if key.contains("med") { return "Medication" }
+            if key.contains("journal") || key.contains("note") { return "Journal" }
+            if key.contains("weight") || key.contains("bmi") || key.contains("body") { return "Body" }
+            return key.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+        var seen = Set<String>(); var out: [String] = []
+        for k in keys {
+            let g = group(k)
+            if seen.insert(g).inserted { out.append(g) }
+        }
+        return out
     }
 
     private func grantSince(_ grant: WalletGrant) -> String {
@@ -580,13 +607,41 @@ struct FlexHStack<Item: Hashable, Content: View>: View {
     }
 
     var body: some View {
-        // Simple wrapping: use a lazy approach with fixed widths
-        // For demo purposes, a simple HStack with wrapping is fine
-        HStack(spacing: spacing) {
+        FlowLayout(spacing: spacing, rowSpacing: rowSpacing) {
             ForEach(items, id: \.self) { item in
                 content(item)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A real wrapping layout: chips keep their natural size and flow onto new
+/// rows — never compressed into vertical letter-stacks (FB AFf8FjC1).
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+    var rowSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxW = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        for sub in subviews {
+            let sz = sub.sizeThatFits(.unspecified)
+            if x > 0, x + sz.width > maxW { x = 0; y += rowH + rowSpacing; rowH = 0 }
+            x += sz.width + spacing
+            rowH = max(rowH, sz.height)
+        }
+        return CGSize(width: maxW.isFinite ? maxW : x, height: y + rowH)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowH: CGFloat = 0
+        for sub in subviews {
+            let sz = sub.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + sz.width > bounds.maxX { x = bounds.minX; y += rowH + rowSpacing; rowH = 0 }
+            sub.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(sz))
+            x += sz.width + spacing
+            rowH = max(rowH, sz.height)
+        }
     }
 }

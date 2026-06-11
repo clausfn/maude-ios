@@ -4,6 +4,118 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-74 — Dual-recording workout dedup: counted once, insights from both (2026-06-11, CN feature request)
+- **feat(ingestion, FR-PROV-02):** `WorkoutDeduplicator` clusters same-type workouts whose times
+  overlap ≥60% of the shorter recording (the founder's real case: bike computer → Strava + Apple
+  Watch logging one ride, starts ~40 s apart). One PRIMARY per session feeds all counting (tier >
+  payload richness > duration); the primary is **enriched** with fields it lacks from duplicates
+  (watch energy onto computer distance) — merged, never blended. Wired into
+  `HealthSamples.arbitrated()` (exact-start keying missed real duals); merge report via
+  `workoutMergeReport()` → `AppState.workoutMerges`.
+- **feat(ui):** Data sources shows a **"Recorded twice — counted once"** disclosure card (moss)
+  listing each merge: kept source, merged sources, gained fields. Inform, don't silently fix.
+- **feat(demo):** MockDataProvider seeds the most recent ride as a dual recording so the card demos.
+- Tests T-DED-01..05 (`WorkoutDedupTests`) + arbitration suite ✅. Sim build ✅.
+
+_Requirements touched:_ FR-PROV-02 (new), FR-PROV-01.
+_Risk:_ reduces over-counting hazard (double-counted activity inflating training-load signals).
+
+### PR-73 — DfG onboarding lockup (2026-06-11, CN beta feedback 03:32)
+- **fix(onboarding):** the DfG screen opens on the full navy canvas with the **inverted white
+  logo, centred, 92pt** and the "DATA FOR GOOD FOUNDATION" kicker centred + enlarged (13pt,
+  wider tracking). Snapshot hook `LIVIQA_SHOW_DFG_ONBOARDING=1`. Sim-verified. 114 tests ✅.
+
+### PR-72 — Overnight batch: booking-request draft, Messages re-entry, test alignment (2026-06-11)
+- **feat(care, DRAFT):** clinician-proposed consultation slots appear as **"Proposed time"** cards
+  with inline **Accept / Decline** (`ScheduledConsult.status`, `respondToProposal`) — the citizen
+  half of the Telecare-North-style request flow (FB-AOIWoD6l; final design pending CN material).
+- **feat(care):** quiet **Messages** row restores the secure-messaging entry (care-team list stays
+  off the front page per CN); unread badge in clay.
+- **fix(test):** T-ING-02 glucose band 3.0–15.0 (a TIR 50–75% persona legitimately reaches the
+  ATTD >13.9 band; the old ≤12 cap enforced clinically false seeds).
+- E2E verified vs local + public sandbox (request → counter → accept → scheduled); sim screenshot
+  of the proposal card. 114 tests ✅.
+
+### PR-71 — Data screens: root-caused implausibility + per-metric clinical charts (2026-06-11)
+- **Phase 0 root-cause table:**
+  | Screen | Source | Why wrong/empty | Class |
+  |---|---|---|---|
+  | Insights TIR (flat, 100%) | demo seeds → TodaySignalsDeriver | glucose generator `6.2±1.8 floor 3.6` could never leave 3.9–10 → TIR 100%; 6 pts/day, no meals | Seed plausibility |
+  | Home glucose chip 100% | same | same | Seed |
+  | Metric details (4 pillars) | AreaTrendChart for all | one generic line for four data shapes | Convention |
+  | Real-device empties | TodaySignalsDeriver | derive() needs ≥1 signal else demo seeds + truthful demo badge; ChartPlaceholder for hints | OK — honest by design (documented) |
+- **fix(seeds):** founder-persona CGM day curve — hourly points, baseline ~6.3 mmol/L, MEAL
+  EXCURSIONS 07:30/12:30/19:00 (ATTD bands; lands TIR 50–75%, mean 8–10) · RHR 52–68 with
+  +4 bpm morning-after-workout · HRV 25–55 ms, lower after poor sleep · steps 4–12k with
+  weekend rhythm · ~2 short nights/week which WORSEN next-day glucose (+1.1 mmol/L shift,
+  amplified excursions) — cross-metric coherence matches the nudge stories. Verified: TIR 71%.
+- **feat(charts):** `DailyBarsChart` (discrete days = bars, never interpolated lines; optional
+  dashed goal line) — sleep + TIR weeks use it (TIR carries the 70% consensus target rule);
+  RHR/HRV stay on AreaTrendChart whose personal mean±1σ band + tight y-domain already satisfy
+  the baseline-deviation convention (conventions cited in code).
+- Screenshots: before/after Insights (100% flat → 71% varied), glucose detail (day curve with
+  meal excursions + weekly bars + 70% line), heart (baseline band), sleep (stages 16/60/24% +
+  duration bars). 114 tests ✅. Out of scope (no such screens exist yet): BP, weight, AFib-burden,
+  steps detail — flagged for when those surfaces are built.
+
+### PR-70 — Video call: no name prompt, alias as identity (2026-06-11, CN beta feedback)
+- **fix(consult):** the call never asks for a name — the citizen joins as their pseudonymous
+  alias (**LV001**) automatically (`userInfo.displayName` on the room URL; `/me` now returns
+  `alias`; demo session carries it too). Real names never enter the video layer; the console
+  side stays "Care team". 114 tests ✅.
+
+### PR-69 — Consent view fixed + beta-feedback register (2026-06-11, FB AFf8FjC1)
+- **fix(privacy):** grant-card scope chips were crushed into vertical letter-shreds — the
+  FlexHStack was a stub (plain HStack). Now a real `FlowLayout` (Layout protocol) + chips collapse
+  to deduped consent GROUPS ("Glucose", "Activity", "Recovery"…) with lineLimit(1)+fixedSize.
+  Sim-verified. 114 tests ✅.
+- **docs(qms):** `qms/BETA_FEEDBACK.md` — all 10 TestFlight submissions fetched via the ASC API,
+  triaged with status (3 fixed, 4 superseded, 1 narrative, booking-request workflow PROPOSED
+  pending CN's Telecare North material).
+
+### PR-68 — Consultation cleanup from live device testing (2026-06-11, CN beta feedback)
+- **fix(consult):** Jitsi call is now titled **"Liviqa video call"** (no raw room id) and the
+  citizen toolbar is reduced to **mic · camera · hang up** — chat/polls/invite/moderator and the
+  Jitsi welcome screen are gone (`config.subject`, `toolbarButtons`, `disablePolls`,
+  `disableInviteFunctions` on the room URL).
+- **fix(care):** Care tab shows **Plan + In progress + Scheduled (grouped by day, calendar-style)**
+  only — the "Your care team" list is removed per CN. Scheduled cards show time + clinic.
+- **fix(data):** care-surface calls (consults, notifications, messages, appointments) ride the
+  sandbox rail on prod builds (same DB/login) — TestFlight now gets the 4h stale-call window, the
+  scheduled list, and access notifications without touching the frozen prod container.
+- **feat(notify):** starting a consult auto-sends a care-team message ("I am starting a secure
+  video consultation…") so the citizen is notified IN-APP the moment a call begins (push remains
+  backlog; console shows a "citizen notified in-app" chip). Verified live on the sandbox.
+- 114 tests ✅. Known-open: mic-mute behaviour to re-verify on device with the cleaned toolbar
+  (suspected speaker/mic feedback from two devices in one room during the test).
+
+### PR-67 — Care tab: scheduled consultations, no stale calls (2026-06-11)
+- **feat(care):** new **"Scheduled"** section on the Care tab — upcoming consultations from the
+  backend (`GET /appointments`): "Video consultation · <clinician> · <date/time> · Tomorrow/in N
+  days". Honest empty state: *"No consultation scheduled. Your care team books these with you."*
+  Old/cancelled appointments never surface (server-filtered). `ScheduledConsult` model,
+  `CareConnect.fetchScheduledConsults`, `AppState.scheduledConsults` (loaded in refreshCareInbox).
+- Incoming-call ring untouched. The stale "ready to talk" pile is fixed server-side (4h freshness
+  window on active consults). Sim-verified vs local backend: populated + empty-state screenshots.
+  114 tests ✅.
+
+### PR-66 — DfG wallet login: real OID4VP rail + Liviqa Citizen credential check (2026-06-11)
+- **feat(auth):** the first-screen DfG Wallet flow now (a) frames the present step as
+  **presenting the Liviqa Citizen credential** from the My DfG wallet (sign-in IS the proof the
+  credential is stored), (b) offers **"Get your Liviqa Citizen credential"** inline (real Partisia
+  issuance via the UC-A rail; sandbox backends only, `Config.walletIssuanceEnabled`), and
+  (c) drives the **REAL `/auth/wallet/start` → poll `/auth/wallet/result` rail** when a sovereign
+  backend is reachable — the verified ref derives from the backend's pseudonymous subject. Graceful
+  fallback to the timed walkthrough when no backend (TestFlight prod unaffected). DEBUG hooks:
+  `LIVIQA_OPEN_DFG=1`; `LIVIQA_WALLET_STEP=verifying` now runs the live verification.
+- Sim-verified vs local backend: present step (credential rows + issue link) and verified step
+  with a REAL subject-derived CE ref (UUID-tail, not the sim's hex). 114 tests ✅.
+- **feat(config):** wallet rails now WORK on TestFlight — on prod builds they are ROUTED to the
+  sandbox container (`Config.walletRailBaseURL`; same DB + JWT secret as prod, so the same login
+  works) instead of hidden. Verified: prod GoTrue token (citizen account) → sandbox
+  `/issuance/citizen-credential` → 201, real Partisia offer. Prod backend itself untouched
+  (Kim's rule: credential rails stay sandbox-side).
+
 ### PR-65 — Wallet follow-on UCs: expiry/renewal UX + UC-24a/b receipts (2026-06-10)
 - **feat(wallet):** short-validity/renewal UX — the Privacy "Your credential" row shows
   "Valid until <date> · tap to renew" (persisted `citizenCredentialValidUntil`); the credential

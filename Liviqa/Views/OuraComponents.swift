@@ -309,6 +309,69 @@ struct MiniSparkline: View {
 // On-brand: moss band, caller-chosen line tint (moss in-range / clay worth-noticing),
 // IBM Plex Mono for numbers. Existing call sites get the upgrade for free.
 
+/// Daily BARS for discrete-day series (sleep hours, TIR %, steps): clinical
+/// convention — days are discrete observations, so bars, never an interpolated
+/// line (which invents data between days). Optional goal line (e.g. 70% TIR
+/// consensus target) drawn as a dashed rule with a right-edge label.
+struct DailyBarsChart: View {
+    var values: [Double]
+    var tint: Color = LiviqaTheme.moss
+    var height: CGFloat = 120
+    var xTicks: [String] = []
+    var unit: String = ""
+    var goal: Double? = nil
+    var goalLabel: String? = nil
+
+    private var lo: Double { min(values.min() ?? 0, goal ?? .infinity) }
+    private var hi: Double { max(values.max() ?? 1, goal ?? 0) }
+    private var span: Double { max(hi - lo, 0.0001) }
+    // Pad 12% above, and floor bars at a tight (not zero) baseline so the
+    // differences between days stay readable (deviation is the signal).
+    private var floorV: Double { lo - span * 0.25 }
+    private var ceilV: Double { hi + span * 0.12 }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            GeometryReader { geo in
+                let W = geo.size.width, H = geo.size.height
+                let n = max(values.count, 1)
+                let slot = W / CGFloat(n)
+                let bw = min(slot * 0.55, 26)
+                ZStack(alignment: .topLeading) {
+                    ForEach(Array(values.enumerated()), id: \.offset) { i, v in
+                        let h = H * CGFloat((v - floorV) / (ceilV - floorV))
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(tint.opacity(i == values.count - 1 ? 0.95 : 0.55))
+                            .frame(width: bw, height: max(h, 3))
+                            .position(x: slot * (CGFloat(i) + 0.5), y: H - max(h, 3) / 2)
+                    }
+                    if let g = goal {
+                        let gy = H * (1 - CGFloat((g - floorV) / (ceilV - floorV)))
+                        Path { p in p.move(to: CGPoint(x: 0, y: gy)); p.addLine(to: CGPoint(x: W, y: gy)) }
+                            .stroke(LiviqaTheme.ink4, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        if let lbl = goalLabel {
+                            Text(lbl)
+                                .font(.liviqaKicker(8)).tracking(0.4)
+                                .foregroundStyle(LiviqaTheme.ink4)
+                                .position(x: W - 34, y: max(gy - 9, 7))
+                        }
+                    }
+                }
+            }
+            .frame(height: height)
+            if !xTicks.isEmpty {
+                HStack {
+                    ForEach(Array(xTicks.enumerated()), id: \.offset) { _, t in
+                        Text(t).font(.liviqaKicker(8.5)).tracking(0.4)
+                            .foregroundStyle(LiviqaTheme.ink4)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct AreaTrendChart: View {
     var values: [Double]
     var tint: Color = LiviqaTheme.moss

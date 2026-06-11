@@ -63,6 +63,10 @@ final class AppState {
     /// Live Home "signals vs your normal" chips, derived from real HealthKit
     /// samples. nil ⇒ no real data yet → Home shows the demo seeds.
     var todaySignals: TodaySignals? = nil
+    /// Dual-recording merges from the last fetch (FR-PROV-02) — sessions that
+    /// arrived from two trackers and were counted once. Shown in Data sources.
+    var workoutMerges: [WorkoutMerge] = []
+
     /// Last-night sleep-stage breakdown + nightly trend, derived from samples.
     /// Drives the real sleep visualisation (falls back to demo when nil).
     var sleepSummary: SleepSummary? = nil
@@ -121,6 +125,8 @@ final class AppState {
     var careThreads: [CareThread] = []
     var activeConsults: [ConsultSummary] = []
     var careNotifications: [CitizenNotification] = []
+    /// Upcoming scheduled consultations (citizen video surface).
+    var scheduledConsults: [ScheduledConsult] = []
 
     // Incoming-call ring — a clinician started an instant consult; we surface it as
     // an in-app incoming call with a consent flow. Poll-based (no push infra yet).
@@ -161,9 +167,11 @@ final class AppState {
         async let t = try? await care.fetchThreads()
         async let c = try? await care.fetchActiveConsults()
         async let n = try? await care.fetchNotifications()
+        async let sc = try? await care.fetchScheduledConsults()
         careThreads = await t ?? careThreads
         activeConsults = await c ?? activeConsults
         careNotifications = await n ?? careNotifications
+        scheduledConsults = await sc ?? scheduledConsults
     }
 
     // MARK: - Auth actions
@@ -200,7 +208,7 @@ final class AppState {
             userId: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             email: nil
         )
-        profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date())
+        profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date(), alias: "LV001")
         grants = MockData.walletGrants
         walletEvents = MockData.walletEvents
         careThreads = MockData.demoCareThreads
@@ -271,7 +279,11 @@ final class AppState {
             try await provider.requestReadAuthorization()
             // §2.3: arbitrate sources (highest tier wins, lower fills gaps) before
             // anything persists or feeds the engine.
-            let samples = try await provider.fetchSamples(from: start, to: end).arbitrated()
+            let raw = try await provider.fetchSamples(from: start, to: end)
+            let samples = raw.arbitrated()
+            // FR-PROV-02: when two trackers recorded the same session, say so —
+            // counted once, insights kept from both. Disclosure beats silence.
+            workoutMerges = raw.workoutMergeReport()
             // Real data = a HealthKit fetch that actually returned readings. An
             // empty fetch (e.g. Simulator, or a device with no Health history)
             // keeps the demo seeds and the "Demo data" label.

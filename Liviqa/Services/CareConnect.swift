@@ -53,11 +53,35 @@ public struct CareMessage: Identifiable, Equatable, Sendable {
 /// Citizen-side care-team capabilities on the sovereign backend. Every method is
 /// Ory-authenticated and server-side consent-gated; a revoked/expired grant
 /// yields a 403 the UI renders as "unavailable".
+/// An upcoming SCHEDULED consultation — "when will my nurse call". Old calls
+/// never surface here (they're audit material, not a landing view).
+public struct ScheduledConsult: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let at: Date
+    public let kind: String            // consultation | check-in
+    /// scheduled · proposed:citizen (awaiting the clinician) · proposed:recipient
+    /// (awaiting YOU — accept/decline). Draft request flow, 2026-06-11.
+    public let status: String
+    public let recipientName: String
+    public let recipientOrg: String?
+    public init(id: String, at: Date, kind: String, status: String = "scheduled",
+                recipientName: String, recipientOrg: String?) {
+        self.id = id; self.at = at; self.kind = kind; self.status = status
+        self.recipientName = recipientName; self.recipientOrg = recipientOrg
+    }
+}
+
 public protocol CareConnect: Sendable {
     func fetchNotifications() async throws -> [CitizenNotification]
 
     // Video consult
     func fetchActiveConsults() async throws -> [ConsultSummary]
+    /// Upcoming scheduled consultations (soonest first). Server-side filtered:
+    /// scheduled + future only.
+    func fetchScheduledConsults() async throws -> [ScheduledConsult]
+    /// Answer a clinician-proposed slot (draft request flow).
+    @discardableResult
+    func respondToProposal(id: String, accept: Bool) async throws -> Bool
     /// Mark the citizen as joined; returns the deterministic Jitsi room name.
     @discardableResult
     func joinConsult(id: String) async throws -> String

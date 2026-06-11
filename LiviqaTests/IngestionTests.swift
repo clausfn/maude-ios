@@ -33,10 +33,12 @@ struct IngestionTests {
     }
 
     // T-ING-02 — glucose is canonical mmol/L in a plausible band (OD-07).
+    // Band 3.0–15.0: a TIR 50–75% LADA persona legitimately produces readings in
+    // the ATTD 'very high' band (>13.9) — capping at 12 made the seeds clinically false.
     @Test func mockGlucoseIsCanonicalMmol() async throws {
         let (from, to) = week()
         let s = try await MockDataProvider().fetchSamples(from: from, to: to)
-        #expect(s.glucose.allSatisfy { $0.mmol >= 3.0 && $0.mmol <= 12.0 })
+        #expect(s.glucose.allSatisfy { $0.mmol >= 3.0 && $0.mmol <= 15.0 })
     }
 
     // T-ING-03 — deterministic: same seed ⇒ identical first glucose value.

@@ -22,6 +22,13 @@ struct ConsultView: View {
         _recordingConsent = State(initialValue: consult.recordingConsent)
     }
 
+    /// In-call display name: the pseudonymous alias (LV001) — never typed,
+    /// never the real name. Jitsi stops asking for a name entirely.
+    private var callName: String {
+        let raw = appState.profile?.alias ?? appState.profile?.displayName ?? "Citizen"
+        return raw.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "Citizen"
+    }
+
     private var roomURL: URL? {
         guard Config.videoConsultEnabled,
               let domain = Config.jitsiDomain, !domain.isEmpty else { return nil }
@@ -29,9 +36,17 @@ struct ConsultView: View {
         //  · disableDeepLinking — never bounce out to the native Jitsi app
         //  · prejoinPageEnabled=false — join straight in (no extra tap)
         //  · startWithVideoMuted=false — camera on, this is a consult
+        // Strip everything a citizen doesn't need: no chat/polls/invite/moderator,
+        // no raw room-id title — just "Liviqa video call" + mic, camera, hang up.
         let frag = "#config.disableDeepLinking=true" +
                    "&config.prejoinPageEnabled=false" +
-                   "&config.startWithVideoMuted=false"
+                   "&config.startWithVideoMuted=false" +
+                   "&config.subject=%22Liviqa%20video%20call%22" +
+                   "&config.hideConferenceTimer=false" +
+                   "&config.disableInviteFunctions=true" +
+                   "&config.disablePolls=true" +
+                   "&config.toolbarButtons=%5B%22microphone%22,%22camera%22,%22hangup%22%5D" +
+                   "&userInfo.displayName=%22\(callName)%22"
         return URL(string: "https://\(domain)/\(consult.roomName)\(frag)")
     }
 

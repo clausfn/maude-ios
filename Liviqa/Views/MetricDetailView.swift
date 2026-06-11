@@ -162,7 +162,21 @@ struct MetricDetailView: View {
     private var trendCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("This week").font(.liviqaKicker(9.5)).tracking(0.8).foregroundStyle(LiviqaTheme.ink3)
-            AreaTrendChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
+            // Per-metric convention (clinical, not generic):
+            // · Sleep + TIR: discrete days → BARS (interpolating between days
+            //   invents data); TIR carries the 70% consensus target rule (ATTD).
+            // · RHR + HRV: deviation from the PERSONAL baseline is the signal →
+            //   trend line inside the mean ±1σ band, tight y-domain (never from
+            //   zero); single days de-emphasized — AreaTrendChart does exactly this.
+            switch pillar {
+            case .sleep:
+                DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
+            case .glucose:
+                DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit,
+                               goal: 70, goalLabel: "70% TARGET")
+            case .recovery, .heart:
+                AreaTrendChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
+            }
         }
         .padding(14).background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))

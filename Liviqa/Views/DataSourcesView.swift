@@ -35,6 +35,12 @@ struct DataSourcesView: View {
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.clay.opacity(0.5), lineWidth: 0.5))
                 .padding(.bottom, 8)
 
+                // ── Dual-recording disclosure (FR-PROV-02) ──
+                if !appState.workoutMerges.isEmpty {
+                    mergeDisclosureCard
+                        .padding(.bottom, 8)
+                }
+
                 // ── Bring your own data ──
                 bringYourDataCard
                     .padding(.bottom, 4)
@@ -238,5 +244,42 @@ struct DataSourcesView: View {
     NavigationStack {
         DataSourcesView()
             .environment(AppState())
+    }
+}
+
+// FR-PROV-02 — tell the citizen, don't silently fix. One physical session
+// recorded by two trackers is counted ONCE; the richer fields of each
+// recording are kept (the watch's energy, the bike computer's distance).
+extension DataSourcesView {
+    var mergeDisclosureCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.triangle.merge")
+                    .font(.lato(15))
+                    .foregroundStyle(LiviqaTheme.moss)
+                Text("Recorded twice — counted once")
+                    .font(.lato(14, .bold))
+                    .foregroundStyle(LiviqaTheme.ink)
+            }
+            ForEach(Array(appState.workoutMerges.prefix(3).enumerated()), id: \.offset) { _, m in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(m.type) · \(m.start.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.lato(13))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text("Kept \(m.kept) for counting · merged \(m.merged.joined(separator: ", "))\(m.enrichedFields.isEmpty ? "" : " · gained \(m.enrichedFields.joined(separator: ", "))")")
+                        .font(.lato(12))
+                        .foregroundStyle(LiviqaTheme.ink2)
+                }
+            }
+            Text("Two trackers logged the same session. Liviqa counts it once so minutes and energy are never doubled — and keeps the best of both recordings for insights.")
+                .font(.caption)
+                .lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.moss2)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss.opacity(0.4), lineWidth: 0.5))
     }
 }

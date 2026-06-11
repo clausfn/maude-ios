@@ -19,6 +19,13 @@ struct DfGWalletLoginView: View {
     var onComplete: (String) -> Void
     var onCancel: () -> Void = {}
 
+    /// Optional so previews without AppState still render.
+    @Environment(AppState.self) private var appState: AppState?
+    /// UC-A on the first screen: issue the Liviqa Citizen credential from here
+    /// if it isn't in the wallet yet (sandbox backends only).
+    @State private var credentialOffer: WalletReceiptOffer?
+    @State private var issuingCred = false
+
     enum Step { case unlock, present, verifying, verified }
     @State private var step: Step
     @State private var checkSignature: Bool
@@ -76,6 +83,20 @@ struct DfGWalletLoginView: View {
             .padding(.bottom, 24)
         }
         .preferredColorScheme(.dark)
+        #if DEBUG
+        // Snapshot hook: when jumped straight to 'verifying', actually run the
+        // verification so the REAL rail (when reachable) produces the ref.
+        .task {
+            if ProcessInfo.processInfo.environment["LIVIQA_WALLET_STEP"] == "verifying", step == .verifying, ref.isEmpty {
+                runVerification()
+            }
+        }
+        #endif
+        .sheet(item: $credentialOffer) { off in
+            ShareReceiptSheet(offer: off)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: header / footer
@@ -151,14 +172,38 @@ struct DfGWalletLoginView: View {
         VStack(spacing: 16) {
             VStack(spacing: 6) {
                 Text("Liviqa is requesting").font(.liviqaKicker(10)).tracking(1).foregroundStyle(sub)
-                Text("Prove who you are").font(.lato(22, .black)).foregroundStyle(cream)
+                Text("Present your credential").font(.lato(22, .black)).foregroundStyle(cream)
             }
-            // What's shared
+            // The credential the wallet will present (OID4VP) — sign-in IS the
+            // proof that the Liviqa Citizen credential is stored in the wallet.
             card {
-                rowHeader("YOU'LL SHARE", color: green)
+                rowHeader("FROM YOUR MY DFG WALLET", color: green)
+                discloseRow("Liviqa Citizen credential", "Role + member ID — pseudonymous by design", on: true)
                 discloseRow("Verified person", "A real, KYC-checked individual", on: true)
-                discloseRow("Resident of the EU", "For lawful basis under eIDAS 2.0", on: true)
                 discloseRow("Consent to share health insights", "Derived, aggregated — never raw data", on: true)
+                if Config.walletIssuanceEnabled, appState?.sovereign != nil {
+                    Button {
+                        Task { @MainActor in
+                            issuingCred = true
+                            defer { issuingCred = false }
+                            if let url = await appState?.issueCitizenCredential() {
+                                credentialOffer = WalletReceiptOffer(url: url, recipientName: "you",
+                                                                     kind: .citizenCredential,
+                                                                     validUntil: appState?.citizenCredentialValidUntil)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 7) {
+                            if issuingCred { ProgressView().controlSize(.mini).tint(sub) }
+                            else { Image(systemName: "plus.circle").font(.system(size: 12)) }
+                            Text("Not in your wallet yet? Get your Liviqa Citizen credential")
+                                .font(.lato(11.5, .bold))
+                        }
+                        .foregroundStyle(green)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(issuingCred)
+                }
             }
             // What stays private
             card {
@@ -194,8 +239,8 @@ struct DfGWalletLoginView: View {
             ProgressView().controlSize(.large).tint(green)
             Text("Partisia is verifying…").font(.lato(18, .bold)).foregroundStyle(cream)
             VStack(alignment: .leading, spacing: 12) {
-                progressRow("Checking credential signature (MPC)", done: checkSignature)
-                progressRow("Anchoring consent on the CE ledger", done: anchorLedger)
+                progressRow("Requesting your Liviqa Citizen credential (OID4VP)", done: checkSignature)
+                progressRow("Verifying the presentation · anchoring consent (CE)", done: anchorLedger)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16).background(navy2).clipShape(RoundedRectangle(cornerRadius: 14))
@@ -277,6 +322,18 @@ struct DfGWalletLoginView: View {
 
     private func runVerification() {
         Task { @MainActor in
+            // REAL rail first: the public OID4VP-as-login endpoints on the
+            // sovereign backend (sandbox). Falls back to the timed walkthrough
+            // when no backend is reachable, so demos never stall.
+            if let realRef = await Self.verifyAgainstBackend(onRequested: {
+                withAnimation { checkSignature = true }
+            }) {
+                withAnimation { anchorLedger = true }
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                ref = realRef
+                advance(to: .verified)
+                return
+            }
             try? await Task.sleep(nanoseconds: 900_000_000)
             withAnimation { checkSignature = true }
             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -285,6 +342,38 @@ struct DfGWalletLoginView: View {
             ref = Self.makeRef()
             advance(to: .verified)
         }
+    }
+
+    /// Drive the REAL wallet-login rail: POST /auth/wallet/start (citizen) →
+    /// poll GET /auth/wallet/result/:id until verified. Returns a ledger-style
+    /// ref derived from the verified pseudonymous subject, or nil on any failure.
+    static func verifyAgainstBackend(onRequested: @MainActor @escaping () -> Void) async -> String? {
+        guard case .sovereign(let mainBase, _, _) = Config.backend else { return nil }
+        let base = Config.walletRailBaseURL ?? mainBase
+        struct StartDTO: Decodable { let sessionId: String }
+        struct ResultDTO: Decodable { let verified: Bool; let subject: String? }
+        do {
+            var req = URLRequest(url: base.appendingPathComponent("auth/wallet/start"), timeoutInterval: 6)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = Data(#"{"credential":"citizen"}"#.utf8)
+            let (d, r) = try await URLSession.shared.data(for: req)
+            guard (r as? HTTPURLResponse)?.statusCode == 201 else { return nil }
+            let start = try JSONDecoder().decode(StartDTO.self, from: d)
+            await onRequested()
+            for _ in 0..<6 {
+                try await Task.sleep(nanoseconds: 1_500_000_000)
+                let url = base.appendingPathComponent("auth/wallet/result/\(start.sessionId)")
+                let (rd, rr) = try await URLSession.shared.data(from: url)
+                guard (rr as? HTTPURLResponse)?.statusCode == 200 else { continue }
+                let res = try JSONDecoder().decode(ResultDTO.self, from: rd)
+                if res.verified {
+                    let tail = (res.subject ?? start.sessionId).suffix(10)
+                    return "0x\(tail)…"
+                }
+            }
+        } catch { return nil }
+        return nil
     }
 
     static func makeRef() -> String {

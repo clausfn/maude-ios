@@ -13,6 +13,9 @@ struct UserProfile: Codable {
     var displayName: String?
     var avatarURL: String?
     var createdAt: Date?
+    /// Pseudonymous alias (e.g. "LV001") — what recipients see; used as the
+    /// in-call display name so video never asks for (or shows) a real name.
+    var alias: String?
 
     enum CodingKeys: String, CodingKey {
         case id

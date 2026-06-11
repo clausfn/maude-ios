@@ -89,6 +89,15 @@ struct LiviqaApp: App {
                 case "igrant": hasSeenPrivacyDeclaration = true; debugIDP = .iGrant; return
                 default: break
                 }
+                // Snapshot hook: show the DfG onboarding screen (signed-in, gates set).
+                if ProcessInfo.processInfo.environment["LIVIQA_SHOW_DFG_ONBOARDING"] == "1" {
+                    hasSeenPrivacyDeclaration = true
+                    hasSeenHealthKitPrimer = true
+                    hasSeenDfGOnboarding = false
+                    seenOnboardingVersion = Self.currentOnboardingVersion
+                    if appState.session == nil { appState.signInDemo() }
+                    return
+                }
                 // Snapshot/UI-test hook: jump straight into demo Today (skips onboarding+auth).
                 if ProcessInfo.processInfo.arguments.contains("-uiTestAutoDemo") {
                     hasSeenPrivacyDeclaration = true

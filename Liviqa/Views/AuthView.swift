@@ -11,6 +11,10 @@ struct AuthView: View {
     @State private var password = ""
     @State private var appleCoordinator = AppleSignInCoordinator()
     @State private var showWalletLogin = false
+    #if DEBUG
+    /// Screenshot hook: open the DfG wallet flow immediately (LIVIQA_OPEN_DFG=1).
+    private var autoOpenDfG: Bool { ProcessInfo.processInfo.environment["LIVIQA_OPEN_DFG"] == "1" }
+    #endif
     @State private var activeIDP: IDProvider? = nil
 
     var body: some View {
@@ -136,6 +140,9 @@ struct AuthView: View {
                 onCancel: { activeIDP = nil }
             )
         }
+        #if DEBUG
+        .task { if autoOpenDfG { try? await Task.sleep(nanoseconds: 400_000_000); showWalletLogin = true } }
+        #endif
         .fullScreenCover(isPresented: $showWalletLogin) {
             DfGWalletLoginView(
                 onComplete: { ref in showWalletLogin = false; appState.signInWithDfGWallet(verificationRef: ref) },

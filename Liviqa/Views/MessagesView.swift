@@ -25,7 +25,8 @@ struct MessagesView: View {
                         emptyStateCard("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
                     } else {
                         consultsSection
-                        threadsSection
+                        scheduledSection
+                        messagesEntry
                     }
                 }
                 .padding(.horizontal, 16)
@@ -73,6 +74,119 @@ struct MessagesView: View {
         loading = false
     }
 
+    // MARK: - Scheduled consultations (upcoming only — old calls never listed)
+
+    @ViewBuilder private var scheduledSection: some View {
+        if Config.videoConsultEnabled, appState.careConnect != nil {
+            VStack(alignment: .leading, spacing: 8) {
+                LiviqaSectionHeader(label: "Scheduled")
+                if appState.scheduledConsults.isEmpty {
+                    Text("No consultation scheduled. Your care team books these with you.")
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .padding(.vertical, 2)
+                } else {
+                    // Calendar feel: one quiet day header per date, soonest first.
+                    ForEach(scheduledByDay, id: \.0) { day, items in
+                        Text(day.uppercased())
+                            .font(.liviqaKicker(10))
+                            .tracking(1.2)
+                            .foregroundStyle(LiviqaTheme.moss)
+                            .padding(.top, 4)
+                        ForEach(items) { sc in
+                            scheduledCard(sc)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Scheduled consults grouped by day label, preserving time order.
+    private var scheduledByDay: [(String, [ScheduledConsult])] {
+        var order: [String] = []
+        var groups: [String: [ScheduledConsult]] = [:]
+        for sc in appState.scheduledConsults.sorted(by: { $0.at < $1.at }) {
+            let label = relativeDay(sc.at) == "Today" ? "Today"
+                      : relativeDay(sc.at) == "Tomorrow" ? "Tomorrow"
+                      : sc.at.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
+            if groups[label] == nil { order.append(label) }
+            groups[label, default: []].append(sc)
+        }
+        return order.map { ($0, groups[$0] ?? []) }
+    }
+
+    private func scheduledCard(_ sc: ScheduledConsult) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(LiviqaTheme.moss2)
+                    .frame(width: 36, height: 36)
+                Image(systemName: sc.kind == "check-in" ? "checkmark.bubble" : "video")
+                    .font(.lato(14))
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sc.status == "proposed:recipient"
+                     ? "Proposed time · \(sc.recipientName)"
+                     : sc.kind == "check-in" ? "Check-in · \(sc.recipientName)" : "Video consultation · \(sc.recipientName)")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(LiviqaTheme.ink)
+                Text(sc.at.formatted(date: .omitted, time: .shortened) + (sc.recipientOrg.map { " · \($0)" } ?? ""))
+                    .font(.caption)
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            Spacer()
+            if sc.status == "proposed:recipient" {
+                // Awaiting YOUR answer (draft request flow): accept or decline inline.
+                HStack(spacing: 6) {
+                    Button {
+                        Task { @MainActor in
+                            _ = try? await appState.careConnect?.respondToProposal(id: sc.id, accept: true)
+                            await appState.refreshCareInbox()
+                        }
+                    } label: {
+                        Text("Accept").font(.lato(11.5, .bold))
+                            .foregroundStyle(LiviqaTheme.invertFG)
+                            .padding(.horizontal, 11).padding(.vertical, 6)
+                            .background(Capsule().fill(LiviqaTheme.moss))
+                    }.buttonStyle(.plain)
+                    Button {
+                        Task { @MainActor in
+                            _ = try? await appState.careConnect?.respondToProposal(id: sc.id, accept: false)
+                            await appState.refreshCareInbox()
+                        }
+                    } label: {
+                        Text("Decline").font(.lato(11.5, .bold))
+                            .foregroundStyle(LiviqaTheme.ink3)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .overlay(Capsule().stroke(LiviqaTheme.line2))
+                    }.buttonStyle(.plain)
+                }
+            } else if sc.status == "proposed:citizen" {
+                Text("Awaiting reply")
+                    .font(.lato(10.5, .bold))
+                    .foregroundStyle(LiviqaTheme.clay)
+            } else {
+                Text(relativeDay(sc.at))
+                    .font(.lato(11, .bold))
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+        }
+        .padding(12)
+        .background(LiviqaTheme.paper2)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(
+            sc.status == "proposed:recipient" ? LiviqaTheme.moss3 : LiviqaTheme.line2, lineWidth: 0.5))
+    }
+
+    private func relativeDay(_ d: Date) -> String {
+        if Calendar.current.isDateInToday(d) { return "Today" }
+        if Calendar.current.isDateInTomorrow(d) { return "Tomorrow" }
+        let days = Calendar.current.dateComponents([.day], from: Date(), to: d).day ?? 0
+        return "in \(max(days, 1)) days"
+    }
+
     // MARK: - Active consults
 
     @ViewBuilder private var consultsSection: some View {
@@ -118,6 +232,57 @@ struct MessagesView: View {
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.moss2))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
+    }
+
+    // MARK: - Messages entry (quiet — the care-team list left the front page
+    // per CN 2026-06-11; secure messaging keeps one discreet door)
+
+    private var unreadCount: Int { appState.careThreads.reduce(0) { $0 + $1.unread } }
+
+    @ViewBuilder private var messagesEntry: some View {
+        if appState.careConnect != nil, !appState.careThreads.isEmpty {
+            NavigationLink {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        LiviqaAppBar(title: "Messages", showMark: false)
+                        VStack(alignment: .leading, spacing: 0) { threadsSection }
+                            .padding(.horizontal, 16)
+                    }
+                }
+                .background(LiviqaTheme.paper)
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LiviqaTheme.paper2)
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "envelope")
+                            .font(.lato(14))
+                            .foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    Text("Messages")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Spacer()
+                    if unreadCount > 0 {
+                        Text("\(unreadCount)")
+                            .font(.lato(11, .bold))
+                            .foregroundStyle(LiviqaTheme.invertFG)
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(Capsule().fill(LiviqaTheme.clay))
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(LiviqaTheme.line)
+                }
+                .padding(12)
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 0.5))
+                .padding(.top, 10)
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Threads

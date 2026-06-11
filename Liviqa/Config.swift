@@ -104,13 +104,21 @@ enum Config {
     /// high-fidelity flows for demos and pilots. No live IDP integration. ON for the pitch.
     static let nationalIDLoginEnabled = true
 
-    /// Wallet credential issuance (Liviqa Citizen row, journal ePRO receipts).
-    /// The issuance rails live in the SANDBOX only (per Partisia/Kim, 2026-06-09:
-    /// production credentials are parked) — so hide the affordances when running
-    /// against the production backend, where the routes intentionally don't exist.
-    static var walletIssuanceEnabled: Bool {
-        if case .sovereign(let baseURL, _, _) = backend, baseURL.host == "api.liviqa.app" { return false }
-        return true
+    /// Wallet credential rails (Liviqa Citizen issuance, receipts, OID4VP login).
+    /// They live in the SANDBOX only (per Partisia/Kim, 2026-06-09: production
+    /// credentials are parked). The sandbox backend shares prod's database and
+    /// JWT secret, so on production builds the wallet rails are ROUTED to the
+    /// sandbox container instead of being hidden — same accounts, same grants,
+    /// same ledger; only the credential calls take the sandbox path.
+    static let walletIssuanceEnabled = true
+
+    /// Base URL for the wallet rails when the main backend doesn't carry them
+    /// (prod). nil ⇒ use the main backend (local/staging already have the rails).
+    static var walletRailBaseURL: URL? {
+        if case .sovereign(let baseURL, _, _) = backend, baseURL.host == "api.liviqa.app" {
+            return URL(string: "https://liviqa70f58a68-liviqa-backend-sandbox.functions.fnc.fr-par.scw.cloud")!
+        }
+        return nil
     }
 
     /// Show a small "Simulation · not yet integrated" label on the wallet login

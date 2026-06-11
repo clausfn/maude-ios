@@ -85,6 +85,10 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     private var grantBackendIDs: [UUID: String] = [:]
     private let mapLock = NSLock()
 
+    /// Wallet rails (issuance/receipts) live on the sandbox container when the
+    /// main backend is prod (same DB + JWT secret — see Config.walletRailBaseURL).
+    private var walletRailURL: URL { Config.walletRailBaseURL ?? baseURL }
+
     init(baseURL: URL, devToken: String? = nil, auth: SupabaseAuthClient? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.auth = auth
@@ -155,11 +159,14 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         return UserProfile(id: BackendMapping.stableUUID(a.id),
                            displayName: a.displayName,
                            avatarURL: nil,
-                           createdAt: nil)
+                           createdAt: nil,
+                           alias: a.alias)
     }
 
     private func getMe() async throws -> AccountDTO {
-        try await get("/me", as: AccountDTO.self)
+        // Rides the care rail: the sandbox backend's /me carries the citizen
+        // alias (same DB + JWT as prod) — the alias keeps real names out of calls.
+        try await getCare("/me", as: AccountDTO.self)
     }
 
     // MARK: - Wallet grants  (GET/POST /grants, POST /grants/{id}/revoke)
@@ -270,9 +277,9 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         guard let backendID = backendID(for: grant.id) else {
             throw SupabaseError.serverError("Reload your wallet, then try again.")
         }
-        let resp = try await post("/issuance/sessions",
-                                  body: IssueReceiptBody(grantId: backendID, verified: verified),
-                                  as: OfferDTO.self)
+        let resp = try await postWalletRail("/issuance/sessions",
+                                            body: IssueReceiptBody(grantId: backendID, verified: verified),
+                                            as: OfferDTO.self)
         guard let url = URL(string: resp.offerUri) else {
             throw SupabaseError.serverError("The issuer returned an invalid offer.")
         }
@@ -280,9 +287,9 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     }
 
     func issueCitizenCredential() async throws -> (url: URL, validUntil: Date?) {
-        let resp = try await post("/issuance/citizen-credential",
-                                  body: EmptyBody(),
-                                  as: OfferDTO.self)
+        let resp = try await postWalletRail("/issuance/citizen-credential",
+                                            body: EmptyBody(),
+                                            as: OfferDTO.self)
         guard let url = URL(string: resp.offerUri) else {
             throw SupabaseError.serverError("The issuer returned an invalid offer.")
         }
@@ -292,15 +299,32 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     // MARK: - CareConnect (citizen care-team surface)
 
     func fetchNotifications() async throws -> [CitizenNotification] {
-        let resp = try await get("/notifications", as: NotificationsDTO.self)
+        let resp = try await getCare("/notifications", as: NotificationsDTO.self)
         return resp.items.map {
             CitizenNotification(id: $0.id, kind: Self.notifKind($0.type),
                                 text: $0.text, at: BackendMapping.parseDate($0.at))
         }
     }
 
+    func fetchScheduledConsults() async throws -> [ScheduledConsult] {
+        struct ApptDTO: Decodable { let id: String; let at: String; let kind: String; let status: String?; let recipientName: String; let recipientOrg: String? }
+        let dtos = try await getCare("/appointments", as: [ApptDTO].self)
+        return dtos.compactMap { d in
+            guard let at = BackendMapping.parseDate(d.at) else { return nil }
+            return ScheduledConsult(id: d.id, at: at, kind: d.kind, status: d.status ?? "scheduled",
+                                    recipientName: d.recipientName, recipientOrg: d.recipientOrg)
+        }
+    }
+
+    @discardableResult
+    func respondToProposal(id: String, accept: Bool) async throws -> Bool {
+        struct R: Decodable { let status: String }
+        let r = try await postCare("/appointments/\(id)/\(accept ? "accept" : "decline")", body: EmptyBody(), as: R.self)
+        return r.status == "scheduled"
+    }
+
     func fetchActiveConsults() async throws -> [ConsultSummary] {
-        let dtos = try await get("/consults/active", as: [ActiveConsultDTO].self)
+        let dtos = try await getCare("/consults/active", as: [ActiveConsultDTO].self)
         return dtos.map { d in
             ConsultSummary(
                 id: d.id,
@@ -315,19 +339,19 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
 
     @discardableResult
     func joinConsult(id: String) async throws -> String {
-        _ = try await post("/consults/\(id)/join", body: EmptyBody(), as: ConsultSessionDTO.self)
+        _ = try await postCare("/consults/\(id)/join", body: EmptyBody(), as: ConsultSessionDTO.self)
         return "liviqa-consult-\(id)"     // deterministic room (contract §video)
     }
 
     @discardableResult
     func setRecordingConsent(consultId: String, consent: Bool) async throws -> Bool {
-        let dto = try await post("/consults/\(consultId)/recording-consent",
+        let dto = try await postCare("/consults/\(consultId)/recording-consent",
                                  body: ConsentBody(consent: consent), as: ConsultSessionDTO.self)
         return dto.recordingConsent ?? consent
     }
 
     func fetchThreads() async throws -> [CareThread] {
-        let dtos = try await get("/threads", as: [ThreadDTO].self)
+        let dtos = try await getCare("/threads", as: [ThreadDTO].self)
         return dtos.map {
             CareThread(recipientId: $0.recipientId, recipientName: $0.recipientName,
                        recipientOrg: $0.recipientOrg, unread: $0.unread ?? 0,
@@ -384,12 +408,26 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     private func post<B: Encodable, T: Decodable>(_ path: String, body: B, as: T.Type) async throws -> T {
         try await send(path, method: "POST", bodyData: try Self.encoder.encode(body), as: T.self)
     }
+    /// POST on the wallet-rail base (sandbox container on prod builds — same DB
+    /// + JWT secret as prod, so the same bearer works; see Config.walletRailBaseURL).
+    private func postWalletRail<B: Encodable, T: Decodable>(_ path: String, body: B, as: T.Type) async throws -> T {
+        try await send(path, method: "POST", bodyData: try Self.encoder.encode(body), as: T.self, base: walletRailURL)
+    }
+    /// Care-surface calls ride the same rail: the sandbox backend carries the
+    /// newer consult behaviour (freshness window, scheduled list, access
+    /// notifications) against the SAME database and login as prod.
+    private func getCare<T: Decodable>(_ path: String, as: T.Type) async throws -> T {
+        try await send(path, method: "GET", bodyData: nil, as: T.self, base: walletRailURL)
+    }
+    private func postCare<B: Encodable, T: Decodable>(_ path: String, body: B, as: T.Type) async throws -> T {
+        try await send(path, method: "POST", bodyData: try Self.encoder.encode(body), as: T.self, base: walletRailURL)
+    }
     private func put<B: Encodable, T: Decodable>(_ path: String, body: B, as: T.Type) async throws -> T {
         try await send(path, method: "PUT", bodyData: try Self.encoder.encode(body), as: T.self)
     }
 
-    private func send<T: Decodable>(_ path: String, method: String, bodyData: Data?, as: T.Type) async throws -> T {
-        guard let url = URL(string: path, relativeTo: baseURL) else {
+    private func send<T: Decodable>(_ path: String, method: String, bodyData: Data?, as: T.Type, base: URL? = nil) async throws -> T {
+        guard let url = URL(string: path, relativeTo: base ?? baseURL) else {
             throw SupabaseError.serverError("Bad URL: \(path)")
         }
         var req = URLRequest(url: url)
@@ -434,6 +472,7 @@ private struct AccountDTO: Decodable {
     let email: String?
     let displayName: String?
     let org: String?
+    let alias: String?
 }
 
 private struct RecipientDTO: Decodable {
