@@ -4,6 +4,13 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-82 — Norwegian, Swedish, Spanish, Portuguese interfaces (2026-06-12)
+- **feat(l10n):** full catalog coverage in nb/sv/es/pt (345/345 strings each, authored against
+  the TERMS v03 glossary; brands/format specifiers untouched; pt is European Portuguese).
+  Same xliff pipeline as Danish. Console got matching chrome dictionaries for all four the same
+  night. Danish verified on-device; the other four verified at catalog level (identical rail).
+- 126 tests ✅.
+
 ### PR-81 — Danish interface, first full pass (2026-06-12)
 - **feat(l10n):** all 337 catalog strings + 6 permission strings translated to Danish (TERMS v03
   glossary enforced: indsigt/samtykke/deling/tilbagekald/behandlerteam/Behandling; brands and
