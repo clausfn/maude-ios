@@ -55,7 +55,7 @@ struct DataSourceConnection: Identifiable {
     let category: SourceCategory
     var isConnected: Bool
     var lastSync: Date?
-    let dataDescription: String   // what gets pulled — never say "personal data"
+    var dataDescription: String   // what gets pulled — never say "personal data"
     let privacyNote: String       // on-device processing note
 
     var iconColor: Color { Color(hex: iconColorHex) }

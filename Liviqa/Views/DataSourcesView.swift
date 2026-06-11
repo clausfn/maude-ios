@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct DataSourcesView: View {
+    @State private var showBankSheet = false
+    @State private var showScreenTimeSheet = false
+    @State private var showVault = false
     @Environment(AppState.self) private var appState
     @State private var showImporter = false
     @State private var connecting = false
@@ -57,6 +60,8 @@ struct DataSourcesView: View {
                                     .background(LiviqaTheme.line2)
                             }
                             sourceRow(source)
+                                .contentShape(Rectangle())
+                                .onTapGesture { open(source) }
                         }
                     }
                     .background(LiviqaTheme.paper2)
@@ -95,6 +100,13 @@ struct DataSourcesView: View {
         .navigationTitle("Data Sources")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showBankSheet) {
+            OpenBankingSheet { bank in connect(named: "Bank account · Open Banking", detail: "\(bank) · daily totals & categories") }
+        }
+        .sheet(isPresented: $showScreenTimeSheet) {
+            ScreenTimeSheet { connect(named: "Screen Time", detail: nil) }
+        }
+        .navigationDestination(isPresented: $showVault) { HealthVaultView() }
         .sheet(isPresented: $showImporter) {
             DocumentPickerView { name, _ in
                 importedNote = "Imported “\(name)” — stored on this device."
@@ -213,6 +225,24 @@ struct DataSourcesView: View {
         }
         .padding(.horizontal, 14)
         .frame(minHeight: 60)
+    }
+
+    // Route a source row: vault opens its browser; bank + screen time open
+    // their consent-first connect sheets; the rest stay informational.
+    private func open(_ source: DataSourceConnection) {
+        switch source.name {
+        case "Health Vault":                  showVault = true
+        case "Bank account · Open Banking":   showBankSheet = true
+        case "Screen Time":                   showScreenTimeSheet = true
+        default: break
+        }
+    }
+
+    private func connect(named name: String, detail: String?) {
+        guard let i = appState.connectedSources.firstIndex(where: { $0.name == name }) else { return }
+        appState.connectedSources[i].isConnected = true
+        appState.connectedSources[i].lastSync = Date()
+        if let detail { appState.connectedSources[i].dataDescription = detail }
     }
 
     // MARK: - Sync label

@@ -355,7 +355,7 @@ enum MockData {
             category: .health,
             isConnected: true,
             lastSync: Calendar.current.date(byAdding: .hour, value: -2, to: Date()),
-            dataDescription: "3 uploaded documents",
+            dataDescription: "17 documents in 7 folders",
             privacyNote: "Stored on device only. You manage uploads."
         ),
         .init(
@@ -369,7 +369,7 @@ enum MockData {
             privacyNote: "Event titles and attendees are never read."
         ),
         .init(
-            name: "Revolut / Open Banking",
+            name: "Bank account · Open Banking",
             icon: "creditcard.fill",
             iconColorHex: 0x1B2A4A,
             category: .financial,

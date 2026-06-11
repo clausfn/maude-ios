@@ -4,6 +4,23 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ## [Unreleased] — develop
 
+### PR-77 — Health Vault browser, Open Banking picker, Screen Time connect (2026-06-11, CN feedback)
+- **feat(vault):** Health Vault opens a FILE-LEVEL browser — 7 folders / 17 files (labs, clinical
+  letters, meds, food photos, finance, consents, device exports — names consistent with LV001's
+  record). Every file row carries a lock; tapping explains previews open after the live
+  production test. No contents rendered.
+- **feat(finance):** source row de-branded to "Bank account · Open Banking"; tap opens a
+  consent-first sheet: WHY money patterns explain health patterns (daily totals + categories
+  only, never transactions/merchants), the confidentiality promise (often more private than
+  health data → lives in the Health Vault on device, never in any clinician share, erase in one
+  tap), then a PSD2 bank picker (10 DK/EU banks — Revolut one of many). Picking a bank marks the
+  source connected.
+- **feat(device):** Screen Time connectable via its own one-number-per-day consent sheet.
+- `DataSourceConnection` gains mutable connection state. Sim build ✅ · 123 tests ✅.
+
+_Requirements touched:_ D-STORE, FR-PROV-01 (source transparency).
+_Risk:_ none new — vault renders names only; finance connect is simulated until PSD2 integration.
+
 ### PR-76 — PatternEngine: long-horizon detectors on the citizen side (2026-06-11)
 - **feat(intelligence, FR-PAT-01):** `PatternEngine` — the citizen-side twin of the console's
   generic detector engine (same detectors, same thresholds, same chart-note discipline; ids
