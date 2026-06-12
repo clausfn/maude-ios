@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-83 — String Catalog audit: untranslated/mixed-language sweep (2026-06-12)
+- **Audit**: catalog itself was 100% translated (345 keys × 5, zero stale) — the visible language mix came from strings that never entered the catalog: 17 view literals added after the last extraction, model/demo data rendered through String variables (MockData, VaultModels, WalletModels, LifestyleModels, HealthContext, HealthVaultView demo vault), the intelligence layer (NudgeEngine/NudgeModel/CorrelationDeriver compose nudges in English at runtime), and four bypass patterns: `.uppercased()` before Text, custom components taking `String` (secondaryButton, signalChip), `String` vars in Text, and a hardcoded `en_US_POSIX` weekday formatter.
+- **Fix**: 212 new keys × 5 languages (catalog now 557 keys, all `translated`); model/demo strings wrapped in `String(localized:)` at the source; intelligence-layer sentences localized with interpolated keys (`%@`/`%lld`); correlation-grid weekday letters now derived from the day's actual date via the current locale (da: M T O T F L S) instead of static English letters; CorrelationDeriver weekday name now uses `Locale.autoupdatingCurrent`; fixed one translated-but-identical da value (OR USE AN IDENTITY WALLET).
+- **Guardrails held**: brand-locked terms untouched (Liviqa, DfG, Apple Health/Watch, Health Vault, Sundhed.dk, Sundhedsplatformen, MitID, MyHealth@EU, FMK, drug names, Yourcoach.health, Rigshospitalet); glucose stays mmol/L; GMI headline untouched; provenance still never rendered.
+- **Verified**: simulator build green; Today + Auth screenshots clean in da and es (no English remnants).
+
 ## [Unreleased] — develop
 
 ### PR-82 — Norwegian, Swedish, Spanish, Portuguese interfaces (2026-06-12)

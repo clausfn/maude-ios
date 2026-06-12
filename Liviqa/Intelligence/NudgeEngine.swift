@@ -47,10 +47,8 @@ public struct NudgeEngine: Sendable {
         guard s.afibSignalPresent else { return [] }
         return [EngineNudge(
             category: .routeToClinician, lane: .displayOnly,
-            title: "Irregular heart-rhythm signal",
-            body: "Your device recorded an irregular heart-rhythm signal. "
-                + "Liviqa does not interpret heart rhythm — please share this "
-                + "recording with \(Specialty.cardiologist.phrase).",
+            title: String(localized: "Irregular heart-rhythm signal"),
+            body: String(localized: "Your device recorded an irregular heart-rhythm signal. Liviqa does not interpret heart rhythm — please share this recording with \(Specialty.cardiologist.phrase)."),
             priority: 100)]
     }
 
@@ -67,20 +65,18 @@ public struct NudgeEngine: Sendable {
         switch base.band(for: todayMean) {
         case .inBand:
             return [EngineNudge(category: .bandStatus, lane: .watch,
-                          title: "Glucose steady",
-                          body: "Your glucose today is sitting in your usual range.",
+                          title: String(localized: "Glucose steady"),
+                          body: String(localized: "Your glucose today is sitting in your usual range."),
                           priority: 55)]
         case .above:
             return [EngineNudge(category: .bandStatus, lane: .watch,
-                          title: "Glucose above your usual",
-                          body: "Your glucose today is running above your usual range. "
-                              + "A short walk after meals helps many people. "
-                              + "If this keeps up, it's worth raising with \(Specialty.gp.phrase).",
+                          title: String(localized: "Glucose above your usual"),
+                          body: String(localized: "Your glucose today is running above your usual range. A short walk after meals helps many people. If this keeps up, it's worth raising with \(Specialty.gp.phrase)."),
                           priority: 75)]
         case .below:
             return [EngineNudge(category: .bandStatus, lane: .watch,
-                          title: "Glucose below your usual",
-                          body: "Your glucose today is running below your usual range.",
+                          title: String(localized: "Glucose below your usual"),
+                          body: String(localized: "Your glucose today is running below your usual range."),
                           priority: 75)]
         }
     }
@@ -109,13 +105,12 @@ public struct NudgeEngine: Sendable {
         let pct = Int((((latest.drop - base.mean) / base.mean) * 100).rounded())
         guard pct >= 15 else { return [] }
 
-        let label = latest.type.lowercased()
+        let label = String(localized: String.LocalizationValue(latest.type.lowercased()))
+        let pctStr = "\(pct)%"
         return [EngineNudge(
             category: .bandStatus, lane: .watch,
-            title: "Glucose after your \(label)",
-            body: "Your glucose fell about \(pct)% more than usual after your latest \(label) "
-                + "session, compared with your recent \(label) sessions at similar effort. "
-                + "Worth a note in your journal.",
+            title: String(localized: "Glucose after your \(label)"),
+            body: String(localized: "Your glucose fell about \(pctStr) more than usual after your latest \(label) session, compared with your recent \(label) sessions at similar effort. Worth a note in your journal."),
             priority: 70)]
     }
 
@@ -140,13 +135,13 @@ public struct NudgeEngine: Sendable {
         switch base.band(for: latest) {
         case .below:
             return [EngineNudge(category: .behaviouralLever, lane: .wellness,
-                          title: "Recovery looks low",
-                          body: "Your heart-rate variability is below your usual. \(Lever.windDown.phrase)",
+                          title: String(localized: "Recovery looks low"),
+                          body: String(localized: "Your heart-rate variability is below your usual. \(Lever.windDown.phrase)"),
                           priority: 60)]
         case .above:
             return [EngineNudge(category: .verdict, lane: .wellness,
-                          title: "Recovery looking strong",
-                          body: "Your recovery signals are \(Verdict.onTrack.phrase).",
+                          title: String(localized: "Recovery looking strong"),
+                          body: String(localized: "Your recovery signals are \(Verdict.onTrack.phrase)."),
                           priority: 35)]
         case .inBand:
             return []
@@ -159,8 +154,8 @@ public struct NudgeEngine: Sendable {
         guard let (latest, base) = latestVsBaseline(nightly) else { return [] }
         if base.band(for: latest) == .below {
             return [EngineNudge(category: .behaviouralLever, lane: .wellness,
-                          title: "Short night",
-                          body: "Last night was shorter than your usual. \(Lever.earlierNight.phrase)",
+                          title: String(localized: "Short night"),
+                          body: String(localized: "Last night was shorter than your usual. \(Lever.earlierNight.phrase)"),
                           priority: 45)]
         }
         return []
@@ -172,8 +167,8 @@ public struct NudgeEngine: Sendable {
         guard let (latest, base) = latestVsBaseline(steps) else { return [] }
         if base.band(for: latest) == .below {
             return [EngineNudge(category: .behaviouralLever, lane: .wellness,
-                          title: "Quieter day for movement",
-                          body: "You're moving less than your usual today. \(Lever.move.phrase)",
+                          title: String(localized: "Quieter day for movement"),
+                          body: String(localized: "You're moving less than your usual today. \(Lever.move.phrase)"),
                           priority: 30)]
         }
         return []
@@ -184,8 +179,8 @@ public struct NudgeEngine: Sendable {
         guard let latest = s.restingHR.sorted(by: { $0.date < $1.date }).last else { return [] }
         let bpm = Int(latest.value.rounded())
         return [EngineNudge(category: .number, lane: .watch,
-                      title: "Resting heart rate",
-                      body: "Your most recent resting heart rate is \(bpm) bpm.",
+                      title: String(localized: "Resting heart rate"),
+                      body: String(localized: "Your most recent resting heart rate is \(bpm) bpm."),
                       priority: 20)]
     }
 

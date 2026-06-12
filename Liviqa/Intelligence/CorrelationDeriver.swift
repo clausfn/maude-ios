@@ -127,9 +127,9 @@ public enum CorrelationDeriver {
     }
 
     /// Source-list label (matches the model's capitalised names, HRV upper-cased).
-    private static func sourceLabel(_ l: String) -> String { l == "hrv" ? "HRV" : l.capitalized }
+    private static func sourceLabel(_ l: String) -> String { l == "hrv" ? "HRV" : String(localized: String.LocalizationValue(l.capitalized)) }
     /// Mid-sentence label (lower-case except the HRV acronym).
-    private static func noteLabel(_ l: String) -> String { l == "hrv" ? "HRV" : l }
+    private static func noteLabel(_ l: String) -> String { l == "hrv" ? "HRV" : String(localized: String.LocalizationValue(l)) }
 
     private static func pattern(topZ: Double, topDayIdx: Int, topSig: Int,
                                 days: [Date], sourcesHit: Set<Int>,
@@ -137,26 +137,24 @@ public enum CorrelationDeriver {
         let titled = sourcesHit.sorted().map { sourceLabel(signalLabels[$0]) }
         // Nothing reached the "high"/"outlier" band → a steady week.
         guard topSig >= 0, topZ >= 1.0, topDayIdx >= 0 else {
-            return ("Your week looked steady — nothing strayed far from your usual pattern.",
-                    [], "Steady")
+            return (String(localized: "Your week looked steady — nothing strayed far from your usual pattern."),
+                    [], String(localized: "Steady"))
         }
         let fmt = DateFormatter()
         fmt.calendar = calendar
-        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.locale = Locale.autoupdatingCurrent
         fmt.dateFormat = "EEEE"
         let weekday = fmt.string(from: days[topDayIdx])
         let top = noteLabel(signalLabels[topSig])
-        let strength = topZ >= 2.0 ? "Strong" : "Moderate"
+        let strength = topZ >= 2.0 ? String(localized: "Strong") : String(localized: "Moderate")
 
         let note: String
         if titled.count >= 2 {
             let others = titled.filter { $0.caseInsensitiveCompare(top) != .orderedSame }
             let joined = others.joined(separator: " and ")
-            note = "Your \(top) on \(weekday) stood out most from your usual this week, "
-                 + "alongside shifts in \(joined). Worth a look — it's your pattern to read."
+            note = String(localized: "Your \(top) on \(weekday) stood out most from your usual this week, alongside shifts in \(joined). Worth a look — it's your pattern to read.")
         } else {
-            note = "Your \(top) on \(weekday) stood out most from your usual this week. "
-                 + "Worth a look — it's your pattern to read."
+            note = String(localized: "Your \(top) on \(weekday) stood out most from your usual this week. Worth a look — it's your pattern to read.")
         }
         return (note, titled, strength)
     }

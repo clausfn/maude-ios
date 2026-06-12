@@ -12,20 +12,20 @@ enum BackupPreference: String, CaseIterable, Codable {
 
     var label: String {
         switch self {
-        case .onDevice:  return "On device only"
-        case .iCloud:    return "iCloud (encrypted)"
-        case .sovereign: return "Sovereign cloud"
+        case .onDevice:  return String(localized: "On device only")
+        case .iCloud:    return String(localized: "iCloud (encrypted)")
+        case .sovereign: return String(localized: "Sovereign cloud")
         }
     }
 
     var description: String {
         switch self {
         case .onDevice:
-            return "Your data never leaves this device. No backup — if you lose your phone, your history is gone."
+            return String(localized: "Your data never leaves this device. No backup — if you lose your phone, your history is gone.")
         case .iCloud:
-            return "Encrypted end-to-end backup in your personal iCloud. Only you can decrypt it."
+            return String(localized: "Encrypted end-to-end backup in your personal iCloud. Only you can decrypt it.")
         case .sovereign:
-            return "Stored in a GDPR-compliant European cloud data space. You choose the region and operator."
+            return String(localized: "Stored in a GDPR-compliant European cloud data space. You choose the region and operator.")
         }
     }
 
@@ -110,11 +110,11 @@ enum CorrelationLevel: Int, CaseIterable {
 
     var accessibilityLabel: String {
         switch self {
-        case .noData:  return "no data"
-        case .low:     return "low"
-        case .medium:  return "moderate"
-        case .high:    return "high"
-        case .outlier: return "outlier"
+        case .noData:  return String(localized: "no data")
+        case .low:     return String(localized: "low")
+        case .medium:  return String(localized: "moderate")
+        case .high:    return String(localized: "high")
+        case .outlier: return String(localized: "outlier")
         }
     }
 }
@@ -165,9 +165,9 @@ enum TokenTransactionType {
 
     var label: String {
         switch self {
-        case .earned:  return "Earned"
-        case .spent:   return "Used"
-        case .donated: return "Donated"
+        case .earned:  return String(localized: "Earned")
+        case .spent:   return String(localized: "Used")
+        case .donated: return String(localized: "Donated")
         }
     }
 }

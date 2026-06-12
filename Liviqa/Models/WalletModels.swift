@@ -36,11 +36,11 @@ enum RecipientType: String, Codable, CaseIterable {
 
     var label: String {
         switch self {
-        case .research:   return "Research"
-        case .clinical:   return "Clinical"
-        case .employer:   return "Employer"
-        case .insurance:  return "Insurance"
-        case .publicGood: return "Public Good"
+        case .research:   return String(localized: "Research")
+        case .clinical:   return String(localized: "Clinical")
+        case .employer:   return String(localized: "Employer")
+        case .insurance:  return String(localized: "Insurance")
+        case .publicGood: return String(localized: "Public Good")
         }
     }
 }

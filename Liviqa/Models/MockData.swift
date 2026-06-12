@@ -114,10 +114,10 @@ enum MockData {
     // MARK: Rings
 
     static let rings: [MetricRing] = [
-        .init(label: "Sleep",  value: "7h 02", progress: 0.62, warn: true,  subvalue: "−28 min"),
-        .init(label: "TIR",    value: "68%",   progress: 0.68, warn: false, subvalue: "+3 pts"),
+        .init(label: String(localized: "Sleep"),  value: "7h 02", progress: 0.62, warn: true,  subvalue: "−28 min"),
+        .init(label: "TIR",    value: "68%",   progress: 0.68, warn: false, subvalue: String(localized: "+3 pts")),
         .init(label: "HRV",    value: "42 ms", progress: 0.48, warn: true,  subvalue: "−8 ms"),
-        .init(label: "Steps",  value: "5.6k",  progress: 0.55, warn: false),
+        .init(label: String(localized: "Steps"),  value: "5.6k",  progress: 0.55, warn: false),
     ]
 
     // MARK: Nudges
@@ -127,52 +127,52 @@ enum MockData {
         // the screen the Home hero opens; it must comprehend → trust → name the lever.
         .init(
             time: "07:02",
-            tag: "Sleep · meals",
-            body: "Late dinners track with restless sleep in your own data.",
+            tag: String(localized: "Sleep · meals"),
+            body: String(localized: "Late dinners track with restless sleep in your own data."),
             accent: .sleep,
-            primaryAction: "Remind me to wind down at 20:30",
-            secondaryActions: ["Note in journal", "Later"],
-            reasoning: "Across your last 42 logged nights, meal timing and sleep disruption move together — later dinners, more restless nights. The relationship passes the gate (r ≥ 0.4, p ≤ 0.05) against your 90-day baseline.",
+            primaryAction: String(localized: "Remind me to wind down at 20:30"),
+            secondaryActions: [String(localized: "Note in journal"), String(localized: "Later")],
+            reasoning: String(localized: "Across your last 42 logged nights, meal timing and sleep disruption move together — later dinners, more restless nights. The relationship passes the gate (r ≥ 0.4, p ≤ 0.05) against your 90-day baseline."),
             evidence: NudgeEvidence(
-                confidence: .gated, n: 42, nUnit: "nights", baselineDays: 90,
+                confidence: .gated, n: 42, nUnit: String(localized: "nights"), baselineDays: 90,
                 r: 0.62, p: "<0.01",
-                lever: "Eat earlier and, in your data, the pattern eases. Dinner before 20:30 is the lever.",
-                headline: "78% of your restless nights followed a meal after 20:30.",
-                chartLabel: "Of your restless nights", chartPercent: 0.78,
-                chartCaption: "…came after a late meal. Only 22% followed an early one."
+                lever: String(localized: "Eat earlier and, in your data, the pattern eases. Dinner before 20:30 is the lever."),
+                headline: String(localized: "78% of your restless nights followed a meal after 20:30."),
+                chartLabel: String(localized: "Of your restless nights"), chartPercent: 0.78,
+                chartCaption: String(localized: "…came after a late meal. Only 22% followed an early one.")
             )
         ),
         .init(
             time: "07:14",
-            tag: "Glucose · cycling",
-            body: "Glucose dropped 35% more than usual after yesterday's ride, compared with your last six rides at similar intensity.",
+            tag: String(localized: "Glucose · cycling"),
+            body: String(localized: "Glucose dropped 35% more than usual after yesterday's ride, compared with your last six rides at similar intensity."),
             accent: .glucose,
-            primaryAction: "Open",
-            secondaryActions: ["Note in journal", "Later"],
-            reasoning: "Your CGM trace from Wednesday 16:42–18:05 shows a steeper decline than your last six rides at similar intensity. Pattern detection flagged the delta as outside your personal baseline.",
-            dataPoints: ["Wed 16:42 → 18:05", "−35% vs 6-ride avg", "5.8 mmol/L low"],
+            primaryAction: String(localized: "Open"),
+            secondaryActions: [String(localized: "Note in journal"), String(localized: "Later")],
+            reasoning: String(localized: "Your CGM trace from Wednesday 16:42–18:05 shows a steeper decline than your last six rides at similar intensity. Pattern detection flagged the delta as outside your personal baseline."),
+            dataPoints: [String(localized: "Wed 16:42 → 18:05"), String(localized: "−35% vs 6-ride avg"), String(localized: "5.8 mmol/L low")],
             evidence: NudgeEvidence(
-                confidence: .emerging, n: 6, nUnit: "rides", baselineDays: 90,
+                confidence: .emerging, n: 6, nUnit: String(localized: "rides"), baselineDays: 90,
                 r: 0.48, p: nil,
                 lever: nil,
-                headline: "Your glucose drops faster after your hardest rides."
+                headline: String(localized: "Your glucose drops faster after your hardest rides.")
             )
         ),
         // Still-learning — the refusal to over-assert. Below the gate we say so plainly.
         .init(
             time: "12:30",
-            tag: "Sleep · caffeine",
-            body: "There's a hint that afternoon caffeine and lighter sleep move together — but it isn't strong enough to show you yet. We won't assert a pattern we can't stand behind.",
+            tag: String(localized: "Sleep · caffeine"),
+            body: String(localized: "There's a hint that afternoon caffeine and lighter sleep move together — but it isn't strong enough to show you yet. We won't assert a pattern we can't stand behind."),
             accent: .sleep,
             primaryAction: "",
-            secondaryActions: ["Note in journal"],
+            secondaryActions: [String(localized: "Note in journal")],
             reasoning: nil,
             evidence: NudgeEvidence(
-                confidence: .learning, n: 11, nUnit: "nights", baselineDays: 90,
+                confidence: .learning, n: 11, nUnit: String(localized: "nights"), baselineDays: 90,
                 r: nil, p: nil, lever: nil,
-                headline: "We're still learning your sleep baseline.",
+                headline: String(localized: "We're still learning your sleep baseline."),
                 baselineNeeded: 30,
-                learningNote: "Keep wearing it to sleep. We'll surface this the moment it's real — about 19 nights from now."
+                learningNote: String(localized: "Keep wearing it to sleep. We'll surface this the moment it's real — about 19 nights from now.")
             )
         ),
         // OD-11 / RQ-13 [REGULATORY DECISION]: the cardiac/rhythm (AF) nudge is the concentrated
@@ -182,20 +182,20 @@ enum MockData {
         // do not ship a rhythm-monitoring topic until OD-11 is resolved.
         .init(
             time: "16:00",
-            tag: "Steady week",
-            body: "Your tracked metrics have stayed steady over the past six weeks.",
+            tag: String(localized: "Steady week"),
+            body: String(localized: "Your tracked metrics have stayed steady over the past six weeks."),
             accent: .cardiac,
-            primaryAction: "Note in journal",
-            secondaryActions: ["Dismiss"],
+            primaryAction: String(localized: "Note in journal"),
+            secondaryActions: [String(localized: "Dismiss")],
             reasoning: nil
         ),
         .init(
             time: "21:00",
-            tag: "Travel · prep",
-            body: "Travel week ahead. Last three trips dropped your activity 40%. Yourcoach.health can share your prep plan with your coach if you allow it.",
+            tag: String(localized: "Travel · prep"),
+            body: String(localized: "Travel week ahead. Last three trips dropped your activity 40%. Yourcoach.health can share your prep plan with your coach if you allow it."),
             accent: .travel,
-            primaryAction: "Share with coach",
-            secondaryActions: ["Plan privately"],
+            primaryAction: String(localized: "Share with coach"),
+            secondaryActions: [String(localized: "Plan privately")],
             reasoning: nil
         ),
     ]
@@ -206,7 +206,7 @@ enum MockData {
         .init(
             id: UUID(uuidString: "a1000000-0000-0000-0000-000000000001")!,
             userId: nil,
-            recipientName: "Diabetes Nurse · University Hospital",
+            recipientName: String(localized: "Diabetes Nurse · University Hospital"),
             recipientType: .clinical,
             scopeKeys: ["glucose", "activity"],
             isActive: true,
@@ -216,7 +216,7 @@ enum MockData {
         .init(
             id: UUID(uuidString: "a1000000-0000-0000-0000-000000000002")!,
             userId: nil,
-            recipientName: "Sports Coach · Yourcoach.health",
+            recipientName: String(localized: "Sports Coach · Yourcoach.health"),
             recipientType: .clinical,
             scopeKeys: ["hrv", "training_load"],
             isActive: true,
@@ -226,7 +226,7 @@ enum MockData {
         .init(
             id: UUID(uuidString: "a1000000-0000-0000-0000-000000000003")!,
             userId: nil,
-            recipientName: "Stress & absence study (DK/NO)",
+            recipientName: String(localized: "Stress & absence study (DK/NO)"),
             recipientType: .research,
             scopeKeys: ["hrv", "sleep", "calendar"],
             isActive: true,
@@ -236,7 +236,7 @@ enum MockData {
         .init(
             id: UUID(uuidString: "a1000000-0000-0000-0000-000000000004")!,
             userId: nil,
-            recipientName: "Risk Dept · Insurer A",
+            recipientName: String(localized: "Risk Dept · Insurer A"),
             recipientType: .insurance,
             scopeKeys: ["activity", "sleep"],
             isActive: false,
@@ -278,27 +278,27 @@ enum MockData {
             CorrelationDay(dayLabel: "S", dateOffset: 0,
                 values: [.medium, .high, .high, .medium, .low, .low, .high]),
         ],
-        patternNote: "Wednesday was a high-load day — three back-to-back meetings, elevated spending, and your HRV took a noticeable dip. Your glucose and sleep both recovered by Thursday once the pressure eased.",
-        patternSources: ["Calendar", "Spending", "HRV"],
-        patternStrength: "Strong"
+        patternNote: String(localized: "Wednesday was a high-load day — three back-to-back meetings, elevated spending, and your HRV took a noticeable dip. Your glucose and sleep both recovered by Thursday once the pressure eased."),
+        patternSources: [String(localized: "Calendar"), String(localized: "Spending"), "HRV"],
+        patternStrength: String(localized: "Strong")
     )
 
     // MARK: Care threads (demo mode — secure messaging surface)
 
     static let demoCareThreads: [CareThread] = [
         CareThread(recipientId: "care-nurse",
-                   recipientName: "Diabetes Nurse",
-                   recipientOrg: "University Hospital",
+                   recipientName: String(localized: "Diabetes Nurse"),
+                   recipientOrg: String(localized: "University Hospital"),
                    unread: 2,
                    lastMessageAt: nil),
         CareThread(recipientId: "care-coach",
-                   recipientName: "Sports Coach",
+                   recipientName: String(localized: "Sports Coach"),
                    recipientOrg: "Yourcoach.health",
                    unread: 0,
                    lastMessageAt: nil),
         CareThread(recipientId: "care-gp",
-                   recipientName: "General Practitioner",
-                   recipientOrg: "City Health Clinic",
+                   recipientName: String(localized: "General Practitioner"),
+                   recipientOrg: String(localized: "City Health Clinic"),
                    unread: 0,
                    lastMessageAt: nil),
     ]
@@ -311,25 +311,25 @@ enum MockData {
         case "care-nurse":
             return [
                 CareMessage(id: "n1", sender: .recipient,
-                            body: "Hi — I had a look at the time-in-range trend you shared. Nice improvement this week.",
+                            body: String(localized: "Hi — I had a look at the time-in-range trend you shared. Nice improvement this week."),
                             readAt: now, createdAt: ago(180)),
                 CareMessage(id: "n2", sender: .citizen,
-                            body: "Thanks. The evening walks seem to help the overnight numbers.",
+                            body: String(localized: "Thanks. The evening walks seem to help the overnight numbers."),
                             readAt: now, createdAt: ago(170)),
                 CareMessage(id: "n3", sender: .recipient,
-                            body: "Agreed. Let's keep the basal as-is and review again in two weeks.",
+                            body: String(localized: "Agreed. Let's keep the basal as-is and review again in two weeks."),
                             readAt: nil, createdAt: ago(20)),
             ]
         case "care-coach":
             return [
                 CareMessage(id: "c1", sender: .recipient,
-                            body: "Your HRV dipped after the late sessions — let's pull Thursday's intensity back a notch.",
+                            body: String(localized: "Your HRV dipped after the late sessions — let's pull Thursday's intensity back a notch."),
                             readAt: now, createdAt: ago(1440)),
             ]
         default:
             return [
                 CareMessage(id: "g1", sender: .recipient,
-                            body: "Everything looks stable. Message me here if anything changes.",
+                            body: String(localized: "Everything looks stable. Message me here if anything changes."),
                             readAt: now, createdAt: ago(2880)),
             ]
         }
@@ -345,8 +345,8 @@ enum MockData {
             category: .health,
             isConnected: true,
             lastSync: Date(),
-            dataDescription: "Heart rate, sleep, steps, glucose",
-            privacyNote: "Read-only. Never written back to Apple Health."
+            dataDescription: String(localized: "Heart rate, sleep, steps, glucose"),
+            privacyNote: String(localized: "Read-only. Never written back to Apple Health.")
         ),
         .init(
             name: "Health Vault",
@@ -355,38 +355,38 @@ enum MockData {
             category: .health,
             isConnected: true,
             lastSync: Calendar.current.date(byAdding: .hour, value: -2, to: Date()),
-            dataDescription: "17 documents in 7 folders",
-            privacyNote: "Stored on device only. You manage uploads."
+            dataDescription: String(localized: "17 documents in 7 folders"),
+            privacyNote: String(localized: "Stored on device only. You manage uploads.")
         ),
         .init(
-            name: "Calendar",
+            name: String(localized: "Calendar"),
             icon: "calendar",
             iconColorHex: 0xCC3333,
             category: .context,
             isConnected: true,
             lastSync: Date(),
-            dataDescription: "Meeting count and load — not content",
-            privacyNote: "Event titles and attendees are never read."
+            dataDescription: String(localized: "Meeting count and load — not content"),
+            privacyNote: String(localized: "Event titles and attendees are never read.")
         ),
         .init(
-            name: "Bank account · Open Banking",
+            name: String(localized: "Bank account · Open Banking"),
             icon: "creditcard.fill",
             iconColorHex: 0x1B2A4A,
             category: .financial,
             isConnected: false,
             lastSync: nil,
-            dataDescription: "Daily spend totals and category patterns",
-            privacyNote: "Transaction details and merchant names are never stored."
+            dataDescription: String(localized: "Daily spend totals and category patterns"),
+            privacyNote: String(localized: "Transaction details and merchant names are never stored.")
         ),
         .init(
-            name: "Screen Time",
+            name: String(localized: "Screen Time"),
             icon: "hourglass",
             iconColorHex: 0xC47D11,
             category: .device,
             isConnected: false,
             lastSync: nil,
-            dataDescription: "Total daily screen time only",
-            privacyNote: "App names and content are never accessed."
+            dataDescription: String(localized: "Total daily screen time only"),
+            privacyNote: String(localized: "App names and content are never accessed.")
         ),
         .init(
             name: "Sundhedsplatformen",
@@ -395,8 +395,8 @@ enum MockData {
             category: .health,
             isConnected: false,
             lastSync: nil,
-            dataDescription: "Danish health records — consultations and lab results",
-            privacyNote: "Connection requires your MitID. Data stays on device."
+            dataDescription: String(localized: "Danish health records — consultations and lab results"),
+            privacyNote: String(localized: "Connection requires your MitID. Data stays on device.")
         ),
     ]
 
@@ -405,37 +405,37 @@ enum MockData {
     static let tokenTransactions: [TokenTransaction] = [
         .init(
             date: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
-            description: "Stress & absence study · DK/NO",
+            description: String(localized: "Stress & absence study · DK/NO"),
             amount: 12,
             type: .earned
         ),
         .init(
             date: Calendar.current.date(byAdding: .day, value: -4, to: Date())!,
-            description: "Used: extended nudge history (90 days)",
+            description: String(localized: "Used: extended nudge history (90 days)"),
             amount: 5,
             type: .spent
         ),
         .init(
             date: Calendar.current.date(byAdding: .day, value: -8, to: Date())!,
-            description: "Copenhagen Heart Study — Rigshospitalet",
+            description: String(localized: "Copenhagen Heart Study — Rigshospitalet"),
             amount: 8,
             type: .earned
         ),
         .init(
             date: Calendar.current.date(byAdding: .day, value: -12, to: Date())!,
-            description: "Donated to DfG research fund",
+            description: String(localized: "Donated to DfG research fund"),
             amount: 20,
             type: .donated
         ),
         .init(
             date: Calendar.current.date(byAdding: .day, value: -21, to: Date())!,
-            description: "Monthly contribution — LADA longitudinal cohort",
+            description: String(localized: "Monthly contribution — LADA longitudinal cohort"),
             amount: 15,
             type: .earned
         ),
         .init(
             date: Calendar.current.date(byAdding: .day, value: -28, to: Date())!,
-            description: "Air quality & chronic illness study",
+            description: String(localized: "Air quality & chronic illness study"),
             amount: 7,
             type: .earned
         ),
@@ -448,7 +448,7 @@ enum MockData {
             id: UUID(uuidString: "b1000000-0000-0000-0000-000000000001")!,
             userId: nil,
             eventType: .accessRequest,
-            actorName: "Insurer A",
+            actorName: String(localized: "Insurer A"),
             scopeKeys: ["glucose", "activity", "sleep"],
             decision: .denied,
             occurredAt: Calendar.current.date(byAdding: .day, value: -3, to: Date())!
@@ -457,7 +457,7 @@ enum MockData {
             id: UUID(uuidString: "b1000000-0000-0000-0000-000000000002")!,
             userId: nil,
             eventType: .consentGranted,
-            actorName: "Diabetes Nurse · University Hospital",
+            actorName: String(localized: "Diabetes Nurse · University Hospital"),
             scopeKeys: ["glucose", "activity"],
             decision: .approved,
             occurredAt: Calendar.current.date(byAdding: .day, value: -5, to: Date())!

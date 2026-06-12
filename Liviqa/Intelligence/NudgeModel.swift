@@ -23,9 +23,9 @@ public enum Verdict: String, Sendable {
     case onTrack, mixed, needsAttention
     var phrase: String {
         switch self {
-        case .onTrack:        return "tracking close to your usual pattern"
-        case .mixed:          return "a mixed picture versus your usual pattern"
-        case .needsAttention: return "drifting from your usual pattern"
+        case .onTrack:        return String(localized: "tracking close to your usual pattern")
+        case .mixed:          return String(localized: "a mixed picture versus your usual pattern")
+        case .needsAttention: return String(localized: "drifting from your usual pattern")
         }
     }
 }
@@ -35,12 +35,12 @@ public enum Lever: String, Sendable {
     case windDown, earlierNight, move, getOutside, hydrate, breathe
     var phrase: String {
         switch self {
-        case .windDown:     return "A calmer wind-down tonight may help."
-        case .earlierNight: return "An earlier night could help you catch up."
-        case .move:         return "A short walk could be a good idea today."
-        case .getOutside:   return "Some daylight and fresh air could help."
-        case .hydrate:      return "Keeping your water topped up could help."
-        case .breathe:      return "A few minutes of slow breathing may help you settle."
+        case .windDown:     return String(localized: "A calmer wind-down tonight may help.")
+        case .earlierNight: return String(localized: "An earlier night could help you catch up.")
+        case .move:         return String(localized: "A short walk could be a good idea today.")
+        case .getOutside:   return String(localized: "Some daylight and fresh air could help.")
+        case .hydrate:      return String(localized: "Keeping your water topped up could help.")
+        case .breathe:      return String(localized: "A few minutes of slow breathing may help you settle.")
         }
     }
 }
@@ -49,8 +49,8 @@ public enum Specialty: String, Sendable {
     case cardiologist, gp
     var phrase: String {
         switch self {
-        case .cardiologist: return "your cardiologist"
-        case .gp:           return "your doctor"
+        case .cardiologist: return String(localized: "your cardiologist")
+        case .gp:           return String(localized: "your doctor")
         }
     }
 }

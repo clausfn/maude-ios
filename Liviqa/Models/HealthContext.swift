@@ -70,20 +70,20 @@ extension HealthContext {
     static let demo = HealthContext(
         conditions: [
             ConditionEntry(
-                name: "LADA / Type 1 Diabetes",
+                name: String(localized: "LADA / Type 1 Diabetes"),
                 diagnosedYear: 2015,
-                notes: "Confirmed GAD-65 antibodies. Basal-bolus insulin since 2022."
+                notes: String(localized: "Confirmed GAD-65 antibodies. Basal-bolus insulin since 2022.")
             ),
             ConditionEntry(
-                name: "Paroxysmal Atrial Fibrillation",
+                name: String(localized: "Paroxysmal Atrial Fibrillation"),
                 diagnosedYear: 2021,
-                notes: "DOAC. Self-detected on Apple Watch. LVEF 45%."
+                notes: String(localized: "DOAC. Self-detected on Apple Watch. LVEF 45%.")
             )
         ],
         medications: [
-            MedicationEntry(name: "Insulin Degludec (Tresiba)",  dose: "10 U",  frequency: "Once daily, evening"),
-            MedicationEntry(name: "Apixaban (Eliquis)",          dose: "5 mg",  frequency: "Twice daily"),
-            MedicationEntry(name: "Metoprolol",                  dose: "25 mg", frequency: "Once daily, morning")
+            MedicationEntry(name: "Insulin Degludec (Tresiba)",  dose: "10 U",  frequency: String(localized: "Once daily, evening")),
+            MedicationEntry(name: "Apixaban (Eliquis)",          dose: "5 mg",  frequency: String(localized: "Twice daily")),
+            MedicationEntry(name: "Metoprolol",                  dose: "25 mg", frequency: String(localized: "Once daily, morning"))
         ],
         targets: ClinicalTargets(
             glucoseRangeLow:  4.0,
@@ -93,16 +93,16 @@ extension HealthContext {
             restingHRCeiling: 100
         ),
         goals: [
-            GoalEntry(text: "Keep TIR above 80%"),
-            GoalEntry(text: "Reduce nocturnal lows"),
-            GoalEntry(text: "Run half marathon in October")
+            GoalEntry(text: String(localized: "Keep TIR above 80%")),
+            GoalEntry(text: String(localized: "Reduce nocturnal lows")),
+            GoalEntry(text: String(localized: "Run half marathon in October"))
         ],
         careTeam: [
-            CareTeamMember(role: "Diabetes Nurse",    organisation: "University Hospital",     name: nil),
-            CareTeamMember(role: "Cardiologist",      organisation: "Heart Centre",            name: nil),
-            CareTeamMember(role: "Sports Coach",      organisation: "Yourcoach.health",        name: nil)
+            CareTeamMember(role: String(localized: "Diabetes Nurse"),    organisation: String(localized: "University Hospital"),     name: nil),
+            CareTeamMember(role: String(localized: "Cardiologist"),      organisation: String(localized: "Heart Centre"),            name: nil),
+            CareTeamMember(role: String(localized: "Sports Coach"),      organisation: "Yourcoach.health",        name: nil)
         ],
-        dietApproach:    "Low-carbohydrate",
-        trainingPattern: "Cycling 4× / week, 60–90 min. Occasional running."
+        dietApproach:    String(localized: "Low-carbohydrate"),
+        trainingPattern: String(localized: "Cycling 4× / week, 60–90 min. Occasional running.")
     )
 }

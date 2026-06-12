@@ -10,6 +10,16 @@ enum VaultDocType: String, Codable, CaseIterable {
     case export     = "EHDS export"
     case other      = "Document"
 
+    var label: String {
+        switch self {
+        case .lab:        return String(localized: "Lab results")
+        case .medication: return String(localized: "Medication")
+        case .imaging:    return String(localized: "Imaging")
+        case .export:     return String(localized: "EHDS export")
+        case .other:      return String(localized: "Document")
+        }
+    }
+
     var icon: String {
         switch self {
         case .lab:        return "testtube.2"
@@ -60,28 +70,28 @@ struct VaultDocument: Identifiable {
 extension VaultDocument {
     static let demo: [VaultDocument] = [
         VaultDocument(
-            name: "Lab results — HbA1c panel",
+            name: String(localized: "Lab results — HbA1c panel"),
             type: .lab,
-            source: "Sundhed.dk export",
+            source: String(localized: "Sundhed.dk export"),
             sizeLabel: "84 KB",
             date: Date().addingTimeInterval(-86400 * 4)
         ),
         VaultDocument(
-            name: "FMK medication list",
+            name: String(localized: "FMK medication list"),
             type: .medication,
-            source: "Sundhed.dk export",
+            source: String(localized: "Sundhed.dk export"),
             sizeLabel: "32 KB",
             date: Date().addingTimeInterval(-86400 * 9)
         ),
         VaultDocument(
-            name: "Cardiology referral letter",
+            name: String(localized: "Cardiology referral letter"),
             type: .other,
-            source: "Manual upload",
+            source: String(localized: "Manual upload"),
             sizeLabel: "210 KB",
             date: Date().addingTimeInterval(-86400 * 14)
         ),
         VaultDocument(
-            name: "Patient summary — EHDS",
+            name: String(localized: "Patient summary — EHDS"),
             type: .export,
             source: "MyHealth@EU",
             sizeLabel: "56 KB",

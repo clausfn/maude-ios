@@ -296,9 +296,15 @@ extension DataSourcesView {
                     Text("\(m.type) · \(m.start.formatted(date: .abbreviated, time: .shortened))")
                         .font(.lato(13))
                         .foregroundStyle(LiviqaTheme.ink)
-                    Text("Kept \(m.kept) for counting · merged \(m.merged.joined(separator: ", "))\(m.enrichedFields.isEmpty ? "" : " · gained \(m.enrichedFields.joined(separator: ", "))")")
-                        .font(.lato(12))
-                        .foregroundStyle(LiviqaTheme.ink2)
+                    Group {
+                        if m.enrichedFields.isEmpty {
+                            Text("Kept \(m.kept) for counting · merged \(m.merged.joined(separator: ", "))")
+                        } else {
+                            Text("Kept \(m.kept) for counting · merged \(m.merged.joined(separator: ", ")) · gained \(m.enrichedFields.joined(separator: ", "))")
+                        }
+                    }
+                    .font(.lato(12))
+                    .foregroundStyle(LiviqaTheme.ink2)
                 }
             }
             Text("Two trackers logged the same session. Liviqa counts it once so minutes and energy are never doubled — and keeps the best of both recordings for insights.")

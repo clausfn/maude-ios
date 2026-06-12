@@ -30,36 +30,36 @@ struct VaultFolder: Identifiable {
 
 enum VaultSeed {
     static let folders: [VaultFolder] = [
-        VaultFolder(name: "01 · Lab results", files: [
-            VaultFile(name: "2026-02-09 HbA1c + lipid panel.pdf", kind: "doc.text.fill", date: "9 Feb 2026", size: "184 KB"),
-            VaultFile(name: "2025-08-06 Lab panel.pdf", kind: "doc.text.fill", date: "6 Aug 2025", size: "176 KB"),
-            VaultFile(name: "2025-02-02 Lab panel.pdf", kind: "doc.text.fill", date: "2 Feb 2025", size: "171 KB"),
+        VaultFolder(name: String(localized: "01 · Lab results"), files: [
+            VaultFile(name: String(localized: "2026-02-09 HbA1c + lipid panel.pdf"), kind: "doc.text.fill", date: "9 Feb 2026", size: "184 KB"),
+            VaultFile(name: String(localized: "2025-08-06 Lab panel.pdf"), kind: "doc.text.fill", date: "6 Aug 2025", size: "176 KB"),
+            VaultFile(name: String(localized: "2025-02-02 Lab panel.pdf"), kind: "doc.text.fill", date: "2 Feb 2025", size: "171 KB"),
         ]),
-        VaultFolder(name: "02 · Clinical letters", files: [
-            VaultFile(name: "2026-02-09 Annual review summary.pdf", kind: "doc.text.fill", date: "9 Feb 2026", size: "92 KB"),
-            VaultFile(name: "2025-11-12 Cardiology outpatient note.pdf", kind: "doc.text.fill", date: "12 Nov 2025", size: "88 KB"),
-            VaultFile(name: "2025-09-03 Imaging report — no findings.pdf", kind: "doc.text.fill", date: "3 Sep 2025", size: "85 KB"),
+        VaultFolder(name: String(localized: "02 · Clinical letters"), files: [
+            VaultFile(name: String(localized: "2026-02-09 Annual review summary.pdf"), kind: "doc.text.fill", date: "9 Feb 2026", size: "92 KB"),
+            VaultFile(name: String(localized: "2025-11-12 Cardiology outpatient note.pdf"), kind: "doc.text.fill", date: "12 Nov 2025", size: "88 KB"),
+            VaultFile(name: String(localized: "2025-09-03 Imaging report — no findings.pdf"), kind: "doc.text.fill", date: "3 Sep 2025", size: "85 KB"),
         ]),
-        VaultFolder(name: "03 · Medication & supplements", files: [
-            VaultFile(name: "Supplement list.pdf", kind: "pills.fill", date: "1 Jun 2026", size: "41 KB"),
-            VaultFile(name: "2025-04-22 GP medication review.pdf", kind: "doc.text.fill", date: "22 Apr 2025", size: "77 KB"),
+        VaultFolder(name: String(localized: "03 · Medication & supplements"), files: [
+            VaultFile(name: String(localized: "Supplement list.pdf"), kind: "pills.fill", date: "1 Jun 2026", size: "41 KB"),
+            VaultFile(name: String(localized: "2025-04-22 GP medication review.pdf"), kind: "doc.text.fill", date: "22 Apr 2025", size: "77 KB"),
         ]),
-        VaultFolder(name: "04 · Food photos", files: [
-            VaultFile(name: "2026-06-08 Lunch.jpg", kind: "photo.fill", date: "8 Jun 2026", size: "2.1 MB"),
-            VaultFile(name: "2026-06-05 Dinner.jpg", kind: "photo.fill", date: "5 Jun 2026", size: "1.9 MB"),
-            VaultFile(name: "2026-05-30 Breakfast.jpg", kind: "photo.fill", date: "30 May 2026", size: "1.7 MB"),
+        VaultFolder(name: String(localized: "04 · Food photos"), files: [
+            VaultFile(name: String(localized: "2026-06-08 Lunch.jpg"), kind: "photo.fill", date: "8 Jun 2026", size: "2.1 MB"),
+            VaultFile(name: String(localized: "2026-06-05 Dinner.jpg"), kind: "photo.fill", date: "5 Jun 2026", size: "1.9 MB"),
+            VaultFile(name: String(localized: "2026-05-30 Breakfast.jpg"), kind: "photo.fill", date: "30 May 2026", size: "1.7 MB"),
         ]),
-        VaultFolder(name: "05 · Finance", files: [
-            VaultFile(name: "2026-05 Spending categories.csv", kind: "tablecells.fill", date: "31 May 2026", size: "12 KB"),
-            VaultFile(name: "Open Banking consent.pdf", kind: "doc.text.fill", date: "11 Jun 2026", size: "54 KB"),
+        VaultFolder(name: String(localized: "05 · Finance"), files: [
+            VaultFile(name: String(localized: "2026-05 Spending categories.csv"), kind: "tablecells.fill", date: "31 May 2026", size: "12 KB"),
+            VaultFile(name: String(localized: "Open Banking consent.pdf"), kind: "doc.text.fill", date: "11 Jun 2026", size: "54 KB"),
         ]),
-        VaultFolder(name: "06 · Consents & insurance", files: [
-            VaultFile(name: "Research participation consent.pdf", kind: "checkmark.seal.fill", date: "2 Jun 2026", size: "63 KB"),
-            VaultFile(name: "Health insurance card.pdf", kind: "doc.text.fill", date: "14 Jan 2026", size: "38 KB"),
+        VaultFolder(name: String(localized: "06 · Consents & insurance"), files: [
+            VaultFile(name: String(localized: "Research participation consent.pdf"), kind: "checkmark.seal.fill", date: "2 Jun 2026", size: "63 KB"),
+            VaultFile(name: String(localized: "Health insurance card.pdf"), kind: "doc.text.fill", date: "14 Jan 2026", size: "38 KB"),
         ]),
-        VaultFolder(name: "07 · Device exports", files: [
-            VaultFile(name: "Apple Health export 2025-07-12.zip", kind: "archivebox.fill", date: "12 Jul 2025", size: "3.1 GB"),
-            VaultFile(name: "CGM export 2026-05.csv", kind: "tablecells.fill", date: "31 May 2026", size: "8.4 MB"),
+        VaultFolder(name: String(localized: "07 · Device exports"), files: [
+            VaultFile(name: String(localized: "Apple Health export 2025-07-12.zip"), kind: "archivebox.fill", date: "12 Jul 2025", size: "3.1 GB"),
+            VaultFile(name: String(localized: "CGM export 2026-05.csv"), kind: "tablecells.fill", date: "31 May 2026", size: "8.4 MB"),
         ]),
     ]
     static var fileCount: Int { folders.reduce(0) { $0 + $1.files.count } }

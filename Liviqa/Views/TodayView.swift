@@ -87,7 +87,7 @@ struct TodayView: View {
                     calmHero
                         .padding(.top, 14)
 
-                    Text("Your signals · vs your normal".uppercased())
+                    Text(String(localized: "Your signals · vs your normal").uppercased())
                         .font(.liviqaKicker(9)).tracking(1)
                         .foregroundStyle(LiviqaTheme.ink3)
                         .padding(.top, 18)
@@ -97,7 +97,7 @@ struct TodayView: View {
 
                     // Deviations are demoted below the calm state (not the hero).
                     if !nudges.isEmpty {
-                        Text("Worth a look".uppercased())
+                        Text(String(localized: "Worth a look").uppercased())
                             .font(.liviqaKicker(9)).tracking(1)
                             .foregroundStyle(LiviqaTheme.ink3)
                             .padding(.top, 20)
@@ -105,7 +105,7 @@ struct TodayView: View {
                         insightHero
                     }
 
-                    Text("Not averages. Yours.".uppercased())
+                    Text(String(localized: "Not averages. Yours.").uppercased())
                         .font(.liviqaKicker(11)).tracking(0.6)
                         .foregroundStyle(LiviqaTheme.ink3)
                         .frame(maxWidth: .infinity)
@@ -158,7 +158,7 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
-                Text("Today".uppercased())
+                Text(String(localized: "Today").uppercased())
                     .font(.liviqaKicker(10)).tracking(1.2)
                     .foregroundStyle(LiviqaTheme.moss)
             }
@@ -179,9 +179,9 @@ struct TodayView: View {
         .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
-    private var affirmHeadline: String { "You're having a steady week." }
+    private var affirmHeadline: String { String(localized: "You're having a steady week.") }
     private var affirmSub: String {
-        "Sleep, glucose and recovery are all tracking close to your own normal."
+        String(localized: "Sleep, glucose and recovery are all tracking close to your own normal.")
     }
 
     // MARK: — Deviation insight (demoted under the calm state)
@@ -193,7 +193,7 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     Circle().fill(LiviqaTheme.clay).frame(width: 7, height: 7)
-                    Text("In your data".uppercased())
+                    Text(String(localized: "In your data").uppercased())
                         .font(.liviqaKicker(10)).tracking(1.2)
                         .foregroundStyle(LiviqaTheme.clayText)
                 }
@@ -235,7 +235,7 @@ struct TodayView: View {
         return "Late dinners are costing you sleep."
     }
     private var heroSub: String {
-        if !isDemoData, let n = nudges.first { return n.evidence?.lever ?? "Tap to see the evidence." }
+        if !isDemoData, let n = nudges.first { return n.evidence?.lever ?? String(localized: "Tap to see the evidence.") }
         return "Calmest when dinner's before 20:30."
     }
 
@@ -247,16 +247,16 @@ struct TodayView: View {
     private var signalRow: some View {
         HStack(spacing: 8) {
             NavigationLink(value: WellnessPillar.sleep) {
-                signalChip("Sleep", "moon.fill", signals?.sleep ?? "6h52", clay: false, spark: spark(\.sleepWeek, .sleep))
+                signalChip(String(localized: "Sleep"), "moon.fill", signals?.sleep ?? "6h52", clay: false, spark: spark(\.sleepWeek, .sleep))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
-                signalChip("Glucose", "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true, spark: spark(\.inRangeWeek, .glucose))
+                signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true, spark: spark(\.inRangeWeek, .glucose))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.recovery) {
-                signalChip("Recovery", "waveform.path.ecg", signals?.hrv ?? "48", clay: false, spark: spark(\.hrvWeek, .recovery))
+                signalChip(String(localized: "Recovery"), "waveform.path.ecg", signals?.hrv ?? "48", clay: false, spark: spark(\.hrvWeek, .recovery))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.heart) {
-                signalChip("Heart", "heart.fill", signals?.rhr ?? "58", clay: false, spark: spark(\.rhrWeek, .heart))
+                signalChip(String(localized: "Heart"), "heart.fill", signals?.rhr ?? "58", clay: false, spark: spark(\.rhrWeek, .heart))
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }

@@ -129,7 +129,7 @@ struct WeekInContextView: View {
                 }
             }
             AreaTrendChart(values: tirValues, tint: LiviqaTheme.moss,
-                           xTicks: week.days.map { $0.dayLabel }, unit: "%")
+                           xTicks: week.days.map { $0.localizedDayLetter }, unit: "%")
         }
         .padding(14)
         .background(LiviqaTheme.paper2)
@@ -156,7 +156,7 @@ struct WeekInContextView: View {
                 }
             }
             AreaTrendChart(values: hrvValues, tint: LiviqaTheme.moss,
-                           xTicks: week.days.map { $0.dayLabel }, unit: " ms")
+                           xTicks: week.days.map { $0.localizedDayLetter }, unit: " ms")
             Text("In your data, your HRV ran lower mid-week — the days with higher meeting load and later meals. A pattern in your own data, not a medical finding.")
                 .font(.lato(12.5)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
@@ -190,7 +190,7 @@ struct WeekInContextView: View {
                     .frame(width: 74)
 
                 ForEach(Array(week.days.enumerated()), id: \.offset) { dayIndex, day in
-                    Text(day.dayLabel)
+                    Text(day.localizedDayLetter)
                         .font(.liviqaKicker(9))
                         .tracking(0.5)
                         .foregroundStyle(dayIndex == clusterDay ? LiviqaTheme.clayText
@@ -227,7 +227,7 @@ struct WeekInContextView: View {
                                          cluster: dayIndex == clusterDay)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("\(label), \(day.dayLabel): \(level.accessibilityLabel)")
+                            .accessibilityLabel("\(label), \(day.localizedDayName): \(level.accessibilityLabel)")
                         }
                     }
                 }
@@ -254,15 +254,14 @@ struct WeekInContextView: View {
 
     // MARK: - Grid readout
 
-    private var fullDayNames: [String] { ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] }
-
+    
     @ViewBuilder
     private var gridReadout: some View {
         if let sel = selected,
            sel.day < week.days.count,
            sel.metric < week.days[sel.day].values.count {
             let level = week.days[sel.day].values[sel.metric]
-            let dayName = sel.day < fullDayNames.count ? fullDayNames[sel.day] : week.days[sel.day].dayLabel
+            let dayName = week.days[sel.day].localizedDayName
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Text("\(dayName) · \(metricLabels[sel.metric].capitalized)")
@@ -536,4 +535,12 @@ private struct WeeklyMetricCard: View {
 
 #Preview {
     WeekInContextView()
+}
+
+// Locale-correct weekday labels derived from the day's actual date (dateOffset
+// back from today) — static English letters can't map across languages.
+private extension CorrelationDay {
+    var dayDate: Date { Calendar.current.date(byAdding: .day, value: -dateOffset, to: Date()) ?? Date() }
+    var localizedDayLetter: String { dayDate.formatted(.dateTime.weekday(.narrow)) }
+    var localizedDayName: String { dayDate.formatted(.dateTime.weekday(.wide)) }
 }

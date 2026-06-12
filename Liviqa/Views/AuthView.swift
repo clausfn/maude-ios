@@ -51,7 +51,7 @@ struct AuthView: View {
                         if showEmailForm {
                             emailForm
                         } else {
-                            secondaryButton("Continue with email", icon: "envelope") {
+                            secondaryButton(String(localized: "Continue with email"), icon: "envelope") {
                                 withAnimation(.easeInOut(duration: 0.2)) { showEmailForm = true }
                             }
                         }
