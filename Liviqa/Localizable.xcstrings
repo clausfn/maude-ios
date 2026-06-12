@@ -2394,31 +2394,31 @@
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eftermiddag"
+            "value": "Goddag"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tarde"
+            "value": "Buenas tardes"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ettermiddag"
+            "value": "God dag"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tarde"
+            "value": "Boa tarde"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eftermiddag"
+            "value": "God dag"
           }
         }
       }
@@ -5726,31 +5726,31 @@
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aften"
+            "value": "Godaften"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Noche"
+            "value": "Buenas noches"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kveld"
+            "value": "God kveld"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Noite"
+            "value": "Boa noite"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kväll"
+            "value": "God kväll"
           }
         }
       }
@@ -9064,31 +9064,31 @@
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Morgen"
+            "value": "Godmorgen"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mañana"
+            "value": "Buenos días"
           }
         },
         "nb": {
           "stringUnit": {
             "state": "translated",
-            "value": "Morgen"
+            "value": "God morgen"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Manhã"
+            "value": "Bom dia"
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Morgon"
+            "value": "God morgon"
           }
         }
       }
