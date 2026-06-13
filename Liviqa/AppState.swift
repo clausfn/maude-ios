@@ -212,6 +212,7 @@ final class AppState {
         grants = MockData.walletGrants
         walletEvents = MockData.walletEvents
         careThreads = MockData.demoCareThreads
+        applyLV001DatasetIfNeeded()   // show Claus's real goldmine data immediately
     }
 
     /// True when the session was established via the DfG Wallet (eIDAS 2.0 identity
@@ -272,6 +273,10 @@ final class AppState {
         guard !isRefreshing else { return }   // don't overlap (root + Home both trigger on launch)
         isRefreshing = true
         defer { isRefreshing = false; didAttemptHealthFetch = true }
+        // Always re-apply the LV001 goldmine after any fetch outcome (success, empty,
+        // or a HealthKit auth throw on the simulator) — runs last, after usingRealData
+        // is final, so a real device with the user's own data still wins.
+        defer { applyLV001DatasetIfNeeded() }
         let provider = HealthProviderFactory.make(dataProviderKind)
         let end = Date()
         let start = Calendar.current.date(byAdding: .day, value: -30, to: end) ?? end
@@ -325,6 +330,19 @@ final class AppState {
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }
+    }
+
+    /// LV001 persona on the prototype (no live HealthKit): show Claus's consented
+    /// goldmine dataset instead of demo seeds (FB-AN9QOlAh — "graphs not showing my
+    /// real data when logged in as Claus"). A real device with the user's own
+    /// HealthKit history (`usingRealData`) always wins — this only fills the demo.
+    @MainActor
+    func applyLV001DatasetIfNeeded() {
+        guard !usingRealData, profile?.alias == "LV001" else { return }
+        passportStats   = LV001Dataset.passportStats
+        correlationWeek = LV001Dataset.correlationWeek
+        rings           = LV001Dataset.rings
+        todaySignals    = LV001Dataset.todaySignals
     }
 
     @MainActor

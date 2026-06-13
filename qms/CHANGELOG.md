@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-87 — LV001 real-data demo: graphs show Claus's goldmine (2026-06-13, beta feedback FB-AN9QOlAh)
+- **feat(data):** new `LV001Dataset` (Ingestion) — `passportStats`, `rings`, `todaySignals` (+ weekly sparkline series), and the 7-day `correlationWeek`, composed from the consented goldmine export (glucose/HRV/RHR/steps/exercise daily aggregates + de-duplicated sleep). Real, trustworthy figures: TIR 88%, GMI ~6.8%, 3 499 days tracked, HRV median 27 ms, RHR 70, ~7.2 h sleep, 20 sources. Mirrors the `PatternSeed.lv001` idiom — values embedded as Swift, no raw JSON bundled, no timestamps/locations (location hard-rule respected).
+- **wire:** `AppState.applyLV001DatasetIfNeeded()` loads it when `profile.alias == "LV001"` and not on live HealthKit (`usingRealData`) — a real device with the user's own Health data still wins. Called from `signInDemo` and a `defer` in `refreshFromHealth` so it survives the simulator's HealthKit-auth throw. Fixes "graphs not showing my real data when logged in as Claus" — previously graphs were local-HealthKit-or-MockData only, with no account/upload path and `LV001Provider` an unwired stub.
+- **Verified (simulator):** Home chips Sleep 7h10 / Glucose 88% / Recovery 27 / Heart 70; "Your Week" TIR 88% with the real 86→100% weekly curve, HRV 27 ms; 7-day grid shows the LV001 pattern. Bump build 10.43.
+- **Still open (FB-AN9QOlAh part a):** "font is massive" — pending the specific screen.
+
 ## PR-85 — Care team on the citizen video call (2026-06-13, beta feedback FB-AIPKcW7v)
 - **fix(consult):** ConsultView gains an "In this call" card under the video — recipient role · organisation + a live presence dot — so the citizen can see who they're speaking with. Previously the call only carried a generic "Care team" Jitsi tile (FB-AIPKcW7v, build 10.39).
 - Reuses existing consult data (`recipientName` / `recipientOrg`) and the recording-card style; no new backend, no new FR. Two new labels ("In this call", "In the room") localized da/nb/sv/es/pt.
