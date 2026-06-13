@@ -58,6 +58,7 @@ struct ConsultView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     videoStage
+                    participantsCard
                     recordingCard
                     if let error {
                         Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)
@@ -113,6 +114,49 @@ struct ConsultView: View {
             .padding(.vertical, 28)
         }
         .frame(height: 320)
+    }
+
+    // MARK: - Who's in the call (care team)
+    // FB (build 10.39): "Care team not showing on citizen video call" — the call
+    // only carried a generic "Care team" tile. Surface who the citizen is actually
+    // speaking with: role · organisation, with a live presence dot. Role over name
+    // (roles persist, people change) — same principle as the care-team model.
+
+    private var participantsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("In this call")
+                .font(.liviqaKicker(10.5)).tracking(0.6)
+                .foregroundStyle(LiviqaTheme.ink3)
+
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle().fill(LiviqaTheme.moss2).frame(width: 36, height: 36)
+                    Text(String(consult.recipientName.prefix(2)).uppercased())
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(consult.recipientName)
+                        .font(.lato(14, .semibold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    if let org = consult.recipientOrg {
+                        Text(org)
+                            .font(.lato(12))
+                            .foregroundStyle(LiviqaTheme.ink3)
+                    }
+                }
+                Spacer()
+                HStack(spacing: 5) {
+                    Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
+                    Text("In the room")
+                        .font(.lato(11, .semibold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.paper2))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
     }
 
     // MARK: - Recording consent (citizen-owned)
