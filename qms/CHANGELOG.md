@@ -2,6 +2,16 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-85 — Care team on the citizen video call (2026-06-13, beta feedback FB-AIPKcW7v)
+- **fix(consult):** ConsultView gains an "In this call" card under the video — recipient role · organisation + a live presence dot — so the citizen can see who they're speaking with. Previously the call only carried a generic "Care team" Jitsi tile (FB-AIPKcW7v, build 10.39).
+- Reuses existing consult data (`recipientName` / `recipientOrg`) and the recording-card style; no new backend, no new FR. Two new labels ("In this call", "In the room") localized da/nb/sv/es/pt.
+- **Verified:** simulator build green. In-call screen is backend-gated (live consult), so visual confirmation is on-device on 10.42, not simulator. Bump build 10.42.
+
+## PR-84 — Onboarding DfG logo readable on light canvas (2026-06-13, beta feedback FB-AGtO8N6h)
+- **fix(brand):** `DfGOnboardingView` Page 1 sits on `LiviqaTheme.paper` (cream) but used the white/negative DfG mark → invisible. Locked logo rule is light bg → colour variant; swapped `dfg-logo-negative` → `dfg-logo`. Other negative-mark usages audited and left as-is (white-on-navy tiles / inverted token card are correct).
+- Addresses FB-AGtO8N6h #1 (build 10.40). #2 (consent toggles) and #3 (tooltip copy) tracked as PROPOSED in `qms/BETA_FEEDBACK.md`.
+- **Verified:** simulator build green; onboarding screenshot shows the colour mark on cream. Bump build 10.41.
+
 ## PR-83 — String Catalog audit: untranslated/mixed-language sweep (2026-06-12)
 - **Audit**: catalog itself was 100% translated (345 keys × 5, zero stale) — the visible language mix came from strings that never entered the catalog: 17 view literals added after the last extraction, model/demo data rendered through String variables (MockData, VaultModels, WalletModels, LifestyleModels, HealthContext, HealthVaultView demo vault), the intelligence layer (NudgeEngine/NudgeModel/CorrelationDeriver compose nudges in English at runtime), and four bypass patterns: `.uppercased()` before Text, custom components taking `String` (secondaryButton, signalChip), `String` vars in Text, and a hardcoded `en_US_POSIX` weekday formatter.
 - **Fix**: 212 new keys × 5 languages (catalog now 557 keys, all `translated`); model/demo strings wrapped in `String(localized:)` at the source; intelligence-layer sentences localized with interpolated keys (`%@`/`%lld`); correlation-grid weekday letters now derived from the day's actual date via the current locale (da: M T O T F L S) instead of static English letters; CorrelationDeriver weekday name now uses `Locale.autoupdatingCurrent`; fixed one translated-but-identical da value (OR USE AN IDENTITY WALLET).

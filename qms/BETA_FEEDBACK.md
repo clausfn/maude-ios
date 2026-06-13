@@ -1,17 +1,39 @@
 # TestFlight Beta Feedback Register
 
-_Source: App Store Connect betaFeedbackScreenshotSubmissions (fetched via ASC API). One row per
-submission; FB ids are the ASC submission id prefixes. Status: fixed / superseded / proposed / open._
+_Source: App Store Connect `betaFeedbackScreenshotSubmissions` (fetched via the ASC API key, app
+`dev.liviqa.app` / 6776228205). One row per submission; FB ids are the ASC submission-id prefixes.
+Status: fixed / partial / superseded / proposed / open. Last reconciled: 2026-06-13 (20 submissions)._
 
-| FB id | Date | Feedback (verbatim gist) | Diagnosis | Status |
-|---|---|---|---|---|
-| FB-AOIWoD6l | 06-10 | "Not how public hospitals work — either side requests a planned video consultation; other side accepts or proposes another slot (30 min slots)" | Booking needs a REQUEST → ACCEPT/COUNTER workflow, not direct booking. Telecare North / GP video-system best practice incoming from CN | **PROPOSED** — design next; awaiting CN's Telecare North material. Foundation laid: real backend Appointment booking shipped 06-11 |
-| FB-AIEzHyog | 06-09 | "Flow is wrong — inform/call user, then plan in calendar; clinician should be default moderator; multi-party for specialists; planned + instant flows" | Same workflow theme + moderator default | **PARTIAL** — instant flow now auto-notifies the citizen in-app (PR-68); planned flow = the request/accept workflow above; moderator default = console starts the room (is moderator) |
-| FB-ACOOcPPf | 06-09 | "Use case vs ŌURA? A bit restrictive" | Positioning question, not a defect — Liviqa's difference is consent/sharing/care, not ring metrics | **OPEN (narrative)** — for the pitch deck/onboarding copy, not code |
-| FB-AFf8FjC1 | 06-09 | "This view of consent is broken" | Privacy grant cards rendered raw metric keys through a stub FlexHStack (plain HStack) → chips crushed into vertical letter-shreds | **FIXED** (PR-69): real FlowLayout + grouped, deduped chips ("Glucose", "Activity"…) |
-| FB-AEZv4wJ8 | 06-09 | "Not working with the calendar" | Old (pre-redesign) journal calendar strip overlap; PlanConsult was local-only | **SUPERSEDED** — verify on 10.29; scheduling is now backend-real |
-| FB-ABpGIUrM | 06-09 | "Same" | Same area, same minute as above | **SUPERSEDED** (with AEZv4wJ8) |
-| FB-AJ8M7416 | 06-09 | "This will not work ;)" | Same scheduling area | **SUPERSEDED** — replaced by real booking + (proposed) request flow |
-| FB-AK0022Mv | 06-09 | "Can we hide the technical token?" | Consult pre-join showed the raw Jitsi room id ("Liviqa Consult Cmq 67 Ttke…") | **FIXED** (PR-68): call titled "Liviqa video call", room id never shown |
-| FB-AOUGIncO | 06-09 | "Confusing start on the mobile screen on video" | Jitsi welcome/prejoin noise + full toolbar | **FIXED** (PR-68): prejoin off, toolbar = mic/camera/hangup |
-| FB-AH-UhwJB | 06-09 | "My LV round icon is gone — how do I navigate here" | Old-build navigation (pre-v2 tabs) | **SUPERSEDED** — v2 app bar always shows the avatar; verify on 10.29 |
+| FB id | Date | Build | Feedback (verbatim gist) | Diagnosis | Status |
+|---|---|---|---|---|---|
+| FB-AN9QOlAh | 06-13 | 10.41 | "Font is massive and the graphs are not showing the new actual data set I told you to use with my latest upload — logging in as Claus" | Two issues: (a) text rendering oversized on at least one screen (Dynamic Type / fixed-size mismatch — needs the offending screen identified); (b) signed-in (Claus) account not loading the latest uploaded dataset — graphs show stale/seed data instead of the new upload | **OPEN** — newest, on today's build. Needs triage: confirm which screen has the oversized text + why the signed-in dataset isn't refreshing. Not a blind fix |
+| FB-AGtO8N6h | 06-13 | 10.40 | "1) Switch white DfG logo for multi-colour or all-blue. 2) Need the two discovery & can-be-contacted consent tick boxes. 3) Most explanation text needs rework (tooltip box?)" | (1) DfG onboarding mark was the white/negative variant on the cream `paper` canvas → invisible (breaks the locked logo rule: light bg → colour). (2)/(3) consent screen lacks the discovery + contactable toggles and the long copy needs progressive disclosure | **(1) FIXED** (PR-84, 10.41): onboarding uses the colour `dfg-logo` on light. **(2)(3) PROPOSED** — consent-screen toggles + tooltip pattern, design next |
+| FB-AIPKcW7v | 06-12 | 10.39 | "Care team not showing on citizen video call" | ConsultView only carried a generic "Care team" Jitsi tile — the citizen couldn't see who they were speaking with | **FIXED** (PR-85, 10.42): "In this call" card under the video — recipient role · organisation + live presence dot |
+| FB-AGtO8N6h-logo · FB-AMVqGNwA | 06-11 | 10.3 | "Use inverted white logo + center the logo and the DATA for GOOD header (maybe make the header bigger)" | Onboarding logo + kicker not centered; header small | **FIXED** — logo + "DATA FOR GOOD" header centered; on dark (Mac/Midnight) the white mark reads; on light it's now the colour mark (PR-84) |
+| FB-AOIWoD6l | 06-10 | 10.27 | "Not how public hospitals work — either side requests a planned video consultation; other side accepts or proposes another slot (30-min slots)" | Booking needs a REQUEST → ACCEPT/COUNTER workflow, not direct booking. Telecare North / GP video-system best practice incoming from CN | **PROPOSED** — design next; awaiting CN's Telecare North material. Foundation laid: real backend Appointment booking shipped 06-11 |
+| FB-AIEzHyog | 06-09 | 10.10 | "Flow is wrong — inform/call user, then plan in calendar; clinician should be default moderator; multi-party for specialists; planned + instant flows" | Same workflow theme + moderator default | **PARTIAL** — instant flow now auto-notifies the citizen in-app (PR-68); planned flow = the request/accept workflow above; moderator default = console starts the room (is moderator) |
+| FB-ACOOcPPf | 06-09 | 10.18 | "What is the use case vs ŌURA? A bit restrictive" | Positioning question, not a defect — Liviqa's difference is consent/sharing/care, not ring metrics. Also the assistant deflects cross-metric questions to canned answers | **OPEN (narrative + product)** — onboarding/pitch copy; assistant cross-metric capability is a separate product decision |
+| FB-AFf8FjC1 | 06-09 | 10.18 | "This view of consent is broken" | Privacy grant cards rendered raw metric keys through a stub FlexHStack (plain HStack) → chips crushed into vertical letter-shreds | **FIXED** (PR-69): real FlowLayout + grouped, deduped chips ("Glucose", "Activity"…) |
+| FB-AEZv4wJ8 | 06-09 | 10.16 | "Not working with the calendar" | Old (pre-redesign) journal calendar strip overlap; PlanConsult was local-only | **SUPERSEDED** — scheduling is now backend-real; verify on 10.42 |
+| FB-ABpGIUrM | 06-09 | 10.16 | "Same" | Same area, same minute as above | **SUPERSEDED** (with AEZv4wJ8) |
+| FB-AJ8M7416 | 06-09 | 10.16 | "This will not work ;)" | Same scheduling area | **SUPERSEDED** — replaced by real booking + (proposed) request flow |
+| FB-AK0022Mv | 06-09 | 10.15 | "Can we hide the technical token?" | Consult pre-join showed the raw Jitsi room id ("Liviqa Consult Cmq 67 Ttke…") | **FIXED** (PR-68): call titled "Liviqa video call", room id never shown |
+| FB-AOUGIncO | 06-09 | 10.10 | "Confusing start on the mobile screen on video" | Jitsi welcome/prejoin noise + full toolbar | **FIXED** (PR-68): prejoin off, toolbar = mic/camera/hangup |
+| FB-APgHLoge | 06-09 | 10.10 | "How do I navigate here? Where is the LV icon — whole navigation is not intuitive" | Old-build navigation (pre-v2 tabs) | **SUPERSEDED** — v2 tab bar + app-bar avatar; verify on 10.42 |
+| FB-AH-UhwJB | 06-09 | 10.10 | "My LV round icon is gone — how do I navigate here" | Old-build navigation (pre-v2 tabs) | **SUPERSEDED** (with APgHLoge) |
+| FB-AD-6ueLk | 06-09 | 10.10 | "Classic chat issue — can't see the message" | Old-build care-messaging message visibility | **SUPERSEDED** — v2 messaging surface; verify on 10.42 |
+| FB-AKqbKvLm | 06-09 | 10.10 | "Unreadable — and DfG tokens should be using the DfG logo" | Token-wallet cost badges were low-contrast (light text on light pill); token card lacked the DfG mark | **FIXED** — cost badges now use the inverted bg/fg pair (readable in both themes); DfG colour/negative mark on the token card; verify on 10.42 |
+| FB-ADZ4J5fm | 06-04 | 10.2 | "The graphic for Time in Range does not work" | Early Trends chart render issue | **SUPERSEDED** — v2 Trends (TIR line + 7-day context grid); verify on 10.42 |
+| FB-AJpKzCR8 | 06-04 | 10.2 | "Same" | Same TIR chart | **SUPERSEDED** (with ADZ4J5fm) |
+| FB-AA0v59K9 | 06-04 | 10.2 | "Check colour on buttons" | Pre-v2 button palette | **SUPERSEDED** — v2 palette (moss/clay) |
+
+## Open / actionable now
+
+1. **FB-AN9QOlAh (10.41)** — oversized font + signed-in account not loading the latest dataset. Triage: which screen, and why Claus's account shows stale graphs. *Newest, highest priority.*
+2. **FB-AGtO8N6h #2/#3 (10.40)** — consent screen: add discovery + can-be-contacted toggles; move heavy copy into tooltips. *Design.*
+3. **FB-AOIWoD6l / FB-AIEzHyog** — video-consultation request→accept/counter flow + moderator model. *Awaiting CN's Telecare North material.*
+4. **FB-ACOOcPPf** — assistant cross-metric capability (vs Ōura) + positioning copy. *Product decision.*
+
+## Verify-on-next-device-pass (believed fixed/superseded, not yet re-confirmed on 10.42)
+
+FB-AEZv4wJ8, FB-ABpGIUrM, FB-AJ8M7416, FB-APgHLoge, FB-AH-UhwJB, FB-AD-6ueLk, FB-AKqbKvLm, FB-ADZ4J5fm, FB-AJpKzCR8, FB-AA0v59K9.
