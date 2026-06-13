@@ -66,11 +66,13 @@ private struct Page1View: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
 
-                    // DfG logo — inverted white, CENTERED on the full navy canvas
-                    // (CN beta feedback 2026-06-11: white logo, centered, bigger header).
+                    // DfG logo — colour mark, CENTERED. The page canvas is light
+                    // (LiviqaTheme.paper), so the locked logo rule requires the
+                    // colour/positive variant; the white/negative mark was invisible
+                    // on cream (Brian beta feedback 2026-06-13, build 10.40).
                     HStack {
                         Spacer()
-                        Image("dfg-logo-negative")
+                        Image("dfg-logo")
                             .resizable()
                             .scaledToFit()
                             .frame(height: 92)
