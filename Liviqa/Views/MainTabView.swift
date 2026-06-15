@@ -59,6 +59,9 @@ struct MainTabView: View {
     @State private var joiningConsult: ConsultSummary? = nil   // accepted an incoming call
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @State private var didInitialRefresh = false
+    // Liquid Glass (A6): honour Reduce Transparency / Increase Contrast with an opaque fallback.
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     #if DEBUG
     @State private var debugOpenChat = false
     @State private var debugOpenThread = false
@@ -120,7 +123,7 @@ struct MainTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, appState.detailDepth == 0 ? 72 : 0)
+            .padding(.bottom, appState.detailDepth == 0 ? 96 : 0)
 
             if appState.detailDepth == 0 {
                 tabBar
@@ -188,6 +191,9 @@ struct MainTabView: View {
         }
     }
 
+    /// Reduce Transparency or Increase Contrast → opaque bar instead of glass.
+    private var useSolidBar: Bool { reduceTransparency || contrast == .increased }
+
     private var tabBar: some View {
         HStack {
             ForEach(LiviqaTab.allCases, id: \.self) { item in
@@ -214,16 +220,27 @@ struct MainTabView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.top, 10)
-        .padding(.bottom, 24)
-        .background(LiviqaTheme.paper)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(LiviqaTheme.line)
-                .frame(height: 0.5)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 6)
+        // Floating Liquid-Glass capsule (A6). Opaque LiviqaTheme.paper2 fallback when
+        // Reduce Transparency / Increase Contrast is on, so label contrast is preserved.
+        .background {
+            if useSolidBar {
+                Capsule().fill(LiviqaTheme.paper2)
+            } else {
+                Capsule().fill(.ultraThinMaterial)
+            }
         }
-        // Fixed bottom chrome: let it grow a little for legibility, but cap so the
-        // five labels never wrap ("Settings" → "Setting s"). Content above scales freely.
+        .overlay {
+            Capsule().strokeBorder(useSolidBar ? LiviqaTheme.ink3 : LiviqaTheme.line,
+                                   lineWidth: useSolidBar ? 1 : 0.5)
+        }
+        // Lift the capsule off the canvas (no shadow on the high-contrast solid bar).
+        .shadow(color: LiviqaTheme.cardShadow, radius: useSolidBar ? 0 : 12, y: useSolidBar ? 0 : 4)
+        // Detach from the screen edges so it reads as a floating surface.
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+        // Cap growth so the six labels never wrap ("Settings" → "Setting s").
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 

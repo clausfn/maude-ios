@@ -104,7 +104,9 @@ struct ShareReceiptSheet: View {
                 .padding(.bottom, 30)
             }
         }
-        .background(LiviqaTheme.paper)
+        // A6: Liquid-Glass receipt sheet (keeps the call sites' [.large] detent). The QR
+        // card keeps its own opaque white fill for scannability; only the surface is glass.
+        .liviqaSheetGlass()
     }
 
     @ViewBuilder private var qr: some View {

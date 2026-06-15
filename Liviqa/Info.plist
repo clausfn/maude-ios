@@ -21,17 +21,8 @@
 	<string>Liviqa is read-only and never writes to Apple Health. It only reads your data on-device to show your trends and personal nudges; nothing is written back.</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Lato-Regular.ttf</string>
-		<string>Lato-Bold.ttf</string>
-		<string>Lato-Black.ttf</string>
 		<string>IBMPlexMono-Regular.ttf</string>
 		<string>IBMPlexMono-Medium.ttf</string>
-		<string>SchibstedGrotesk-Regular.ttf</string>
-		<string>SchibstedGrotesk-Bold.ttf</string>
-		<string>SchibstedGrotesk-Black.ttf</string>
-		<string>SplineSansMono-Regular.ttf</string>
-		<string>SplineSansMono-Medium.ttf</string>
-		<string>InstrumentSerif-Regular.ttf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>

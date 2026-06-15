@@ -28,7 +28,8 @@ struct ChatView: View {
                 consentBody
             }
         }
-        .background(LiviqaTheme.paper.ignoresSafeArea())
+        // A6: full-height glass assistant sheet with a grabber (keeps room for the composer).
+        .liviqaSheet([.large])
         #if DEBUG
         .task {
             // Snapshot hook: auto-send one seed question (LIVIQA_CHAT_SEED).

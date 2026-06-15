@@ -132,6 +132,69 @@ extension View {
     func liviqaDetail() -> some View { modifier(LiviqaDetailScreen()) }
 }
 
+// MARK: - Sheet chrome (A6 Liquid Glass)
+
+/// Liquid-Glass sheet surface with an opaque fallback under Reduce Transparency /
+/// Increase Contrast, so text contrast over the sheet is always preserved.
+private struct LiviqaSheetBackground: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    var body: some View {
+        if reduceTransparency || contrast == .increased {
+            LiviqaTheme.paper                     // opaque, theme-dynamic (Paper/Midnight)
+        } else {
+            Rectangle().fill(.ultraThinMaterial)  // glass
+        }
+    }
+}
+
+/// Makes a sheet's own root background transparent so the glass shows through —
+/// but opaque (LiviqaTheme.paper) when Reduce Transparency / Increase Contrast is on.
+private struct LiviqaSheetSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @ViewBuilder func body(content: Content) -> some View {
+        if reduceTransparency || contrast == .increased {
+            content.background(LiviqaTheme.paper.ignoresSafeArea())
+        } else {
+            content   // transparent → the glass presentationBackground shows
+        }
+    }
+}
+
+extension View {
+    /// Transparent-or-opaque root background for content shown inside a liviqa sheet.
+    func liviqaSheetSurface() -> some View { modifier(LiviqaSheetSurface()) }
+
+    /// Full A6 bottom-sheet chrome — detents, grabber, and a Liquid-Glass background
+    /// (opaque fallback under Reduce Transparency / Increase Contrast). Apply on the
+    /// presented view's root when the call site sets no presentation chrome of its own.
+    func liviqaSheet(_ detents: Set<PresentationDetent> = [.medium, .large],
+                     grabber: Visibility = .visible) -> some View {
+        #if os(iOS)
+        return self
+            .liviqaSheetSurface()
+            .presentationDetents(detents)
+            .presentationDragIndicator(grabber)
+            .presentationBackground { LiviqaSheetBackground() }
+        #else
+        return self.liviqaSheetSurface()
+        #endif
+    }
+
+    /// Just the Liquid-Glass background + transparent surface, for sheets whose call
+    /// sites already declare their own detents/grabber (so we don't override them).
+    func liviqaSheetGlass() -> some View {
+        #if os(iOS)
+        return self
+            .liviqaSheetSurface()
+            .presentationBackground { LiviqaSheetBackground() }
+        #else
+        return self.liviqaSheetSurface()
+        #endif
+    }
+}
+
 // MARK: - Section header
 
 struct LiviqaSectionHeader: View {

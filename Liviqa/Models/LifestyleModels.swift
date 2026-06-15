@@ -100,11 +100,11 @@ enum CorrelationLevel: Int, CaseIterable {
 
     var color: Color {
         switch self {
-        case .noData:  return Color(hex: 0xEAE5DB)          // LiviqaTheme.line2
-        case .low:     return Color(hex: 0xC7DCCD)          // LiviqaTheme.moss3
-        case .medium:  return Color(hex: 0x3D7A5A).opacity(0.45)
-        case .high:    return Color(hex: 0x3D7A5A)          // LiviqaTheme.moss
-        case .outlier: return Color(hex: 0xC47D11)          // LiviqaTheme.amber
+        case .noData:  return LiviqaTheme.line2
+        case .low:     return LiviqaTheme.moss3
+        case .medium:  return LiviqaTheme.moss.opacity(0.45)
+        case .high:    return LiviqaTheme.moss
+        case .outlier: return LiviqaTheme.amber
         }
     }
 
@@ -149,9 +149,9 @@ enum TokenTransactionType {
 
     var color: Color {
         switch self {
-        case .earned:  return Color(hex: 0x3D7A5A)   // moss
-        case .spent:   return Color(hex: 0x54627A)   // ink3
-        case .donated: return Color(hex: 0x3D7A5A)   // moss — giving is positive
+        case .earned:  return LiviqaTheme.moss
+        case .spent:   return LiviqaTheme.ink3
+        case .donated: return LiviqaTheme.moss   // giving is positive
         }
     }
 
