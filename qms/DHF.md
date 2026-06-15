@@ -25,10 +25,13 @@ _Append-only dated log of design decisions, linked to the Architecture Decision 
   Contrast (one shared a11y flag). Today glass *cards* were tried and reverted (no
   benefit over the flat canvas); Today's large-title-condense was deferred (would
   move the locked wordmark = redesign).
-- **SAFETY — attention tone reverted to amber.** A6 moves the "worth a look"
-  attention tone from clay **back to Amber Flame**, which **re-opens RK-ALARM-01**
-  (see `qms/RISK.md`, PR-96) — flagged for clinical confirmation. Recorded here so
-  the decision is conscious, not silent.
+- **SAFETY — attention tone reverted to amber (RK-ALARM-01, accepted).** A6 moves
+  the "worth a look" attention tone from clay **back to Amber Flame**, re-assessing
+  RK-ALARM-01 (see `qms/RISK.md`, PR-96). Flagged to the owner; **CN accepted Amber
+  Flame on 2026-06-16** as the patient attention tone — the PR-47 "clay over amber"
+  decision is superseded, on the basis that amber is used as fill/dot + navy text
+  (never alarm text) and colour is never the sole signal (label + position carry the
+  "notice", not "alarm", meaning). Recorded so the decision is conscious, not silent.
 - **Design-system source.** The brand kit (`design-system/` — tokens, templates,
   iris/icon art) is now tracked in-repo (`new design`, `33a167d`).
 - **Verified.** Build green per commit; full suite **130 unit + 2 UI tests, 0
