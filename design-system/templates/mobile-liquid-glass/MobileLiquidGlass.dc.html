@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Mobile home — Liquid Glass" description="Citizen iOS home screen in Apple Liquid Glass: blur+saturate glass cards, large-title nav, floating glass tab capsule. White base." -->
+<helmet>
+<script src="./ds-base.js"></script>
+<style>
+  html, body { margin: 0; min-height: 100%; }
+  body { background: #EDEFF2; display: grid; place-items: center; padding: 28px; font-family: -apple-system, system-ui, sans-serif; }
+</style>
+</helmet>
+<x-import component-from-global-scope="MobileHome" from="./mobile-home.jsx" hint-size="390px,844px"></x-import>
+</x-dc>
+</body>
+</html>

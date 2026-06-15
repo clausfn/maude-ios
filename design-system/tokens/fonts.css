@@ -1,0 +1,65 @@
+/* Liviqa — webfonts · A6 "Daylight" stack.
+   Hanken Grotesk (display/headline) + Public Sans (UI/body) + IBM Plex Mono
+   (kicker/numeric) loaded from Google Fonts. Headlines are SANS at 600/700 — the
+   former Instrument Serif / Schibsted Grotesk / Spline Sans Mono stack is retired.
+   Lato remains self-hosted for legacy artifacts only — new work uses --font-* tokens. */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Thin.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Light.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-BoldItalic.ttf") format("truetype");
+}
+/* Lato Black covers the 800–900 headline range used across the brand. */
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 800 900;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-Black.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 800 900;
+  font-display: swap;
+  src: url("../assets/fonts/Lato-BlackItalic.ttf") format("truetype");
+}

@@ -1,0 +1,42 @@
+/* Liviqa — Signal tokens · A6 "Daylight".
+   Two surfaces, one mechanism: every state ships as a TRIPLET (shape + word + colour)
+   so meaning survives grayscale — colour is reinforcement, never the only channel.
+   Shapes: ● within range · ▲ watch · ✕ act now.
+
+   WATCH = brand amber #FFB703. Amber is a SIGNAL colour — fills, dots, strokes, tints,
+   chip-fills. It is never small text on white (1.8:1). Watch WORDS are navy (legible),
+   or navy-on-amber on a chip. No brown/olive "orange" anywhere — that was an old
+   text-resolved hack and is retired.
+
+   PATIENT APP = calm two-state: green = in your range, amber = worth noticing.
+   CONSOLE = full triage ramp green → amber → red, ground-resolved. */
+
+:root {
+  /* ── Patient app · two-state (day ground) ─────────────────── */
+  --in-range: var(--green);            /* ● 5.85:1 on white */
+  --in-range-fill: var(--green-2);
+  --in-range-border: var(--green-3);
+
+  --clay: #FFB703;                     /* ▲ watch SIGNAL — fills, dots, strokes, bars */
+  --clay-2: #FFF4D6;                   /* watch tint background */
+  --clay-3: #F2D58C;                   /* watch border */
+  --clay-text: var(--navy);            /* watch WORDS are navy — amber never small text */
+  --clay-rev: #FFB703;                 /* amber on dark/ink surfaces (7:1 on navy) */
+
+  /* ── Triage ramp · ground-resolved ────────────────────────── */
+  /* Day (white card / off-white page) — amber is signal/fill, words are navy */
+  --tri-green: #457B9D;   --tri-green-fill: #E6F0F2;  --tri-green-text: #457B9D;
+  --tri-amber: #FFB703;   --tri-amber-fill: #FFF4D6;  --tri-amber-text: var(--navy);
+  --tri-red: #C2242F;     --tri-red-fill: #FBE3E0;    --tri-red-text: #C2242F;
+
+  /* Night (navy page / #2A4160 tile) */
+  --tri-green-night: #A8DADC;   /* Frosted Blue — positive on navy */
+  --tri-amber-night: #FFB703;   /* brand amber — 7:1 navy · 5.4:1 tile */
+  --tri-red-night-text: #F59FA6;/* 6.12:1 navy */
+  --tri-red-night-fill: #F28B93;/* fill — pairs with NAVY text (5.23:1), never white */
+
+  /* ── Evidence metadata (the trust mechanism) ──────────────── */
+  --conf-high: var(--green);      /* gated: passes r/p thresholds */
+  --conf-emerging: var(--clay);   /* directional, still firming up */
+  --conf-learning: var(--ink-4);  /* not enough data yet — baseline building */
+}

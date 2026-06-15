@@ -1,0 +1,29 @@
+/* Liviqa — Spacing, radius & elevation tokens.
+   Spacing scale 4·8·12·16·24·32. Radius sm/md/lg/pill. On the A6 light console, ELEVATION
+   (soft shadows) does the work — the menu bar and cards visibly float above a white ground.
+   No heavy/stacked decorative shadows, no gradients. (Glass/blur is the mobile app's language,
+   never the console.) */
+
+:root {
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;     /* chips, inputs */
+  --radius-md: 10px;    /* buttons, small cards */
+  --radius-lg: 14px;    /* cards */
+  --radius-pill: 999px;
+
+  /* Elevation — ground < card < sidebar < floating top bar */
+  --shadow-card: 0 1px 2px rgba(16, 28, 51, 0.05), 0 6px 16px -10px rgba(16, 28, 51, 0.14);
+  --shadow-panel: 0 1px 2px rgba(16, 28, 51, 0.04), 0 8px 20px -12px rgba(16, 28, 51, 0.12);
+  --shadow-bar: 0 1px 2px rgba(16, 28, 51, 0.04), 0 8px 24px -10px rgba(16, 28, 51, 0.22);
+
+  /* Hairline border weight used across cards/dividers */
+  --border-width: 1px;
+}

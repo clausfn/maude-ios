@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Clinical Ops console" description="Light floating B2B console — KPI tiles, insight rows, sparkline, consent ledger. Hanken + Public Sans + IBM Plex Mono, Lucide icons." -->
+<helmet>
+<script src="./ds-base.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  html, body { margin: 0; min-height: 100%; }
+  body { background: #F5F6F8; font-family: 'Public Sans', system-ui, sans-serif; }
+  .lqc { --font-sans: 'Public Sans', system-ui, sans-serif; --font-serif: 'Hanken Grotesk', system-ui, sans-serif; --font-mono: 'IBM Plex Mono', ui-monospace, monospace; }
+  .lqc {
+    --c-ground: #F5F6F8; --c-tile: #FFFFFF; --c-line: #E6E9EE;
+    --c-text: #1D3557; --c-text2: #456079; --c-text3: #51697E;
+    --c-good: #457B9D; --c-good-line: #BBD0DE;
+    --c-watch: #FFB703; --c-watch-line: #F2D58C;
+    --c-act: #C2242F; --c-act-line: rgba(194,36,51,0.32);
+    --c-kick: #51697E; --c-btn-bg: #1D3557; --c-btn-text: #FFFFFF;
+    --sh-bar: 0 1px 2px rgba(16,28,51,.04), 0 8px 24px -10px rgba(16,28,51,.22);
+    --sh-panel: 0 1px 2px rgba(16,28,51,.04), 0 10px 26px -14px rgba(16,28,51,.16);
+    --sh-card: 0 1px 2px rgba(16,28,51,.05), 0 6px 16px -10px rgba(16,28,51,.14);
+  }
+</style>
+</helmet>
+<x-import component-from-global-scope="ClinicalOpsDashboard" from="./clinical-ops.jsx" hint-size="100%,860px"></x-import>
+</x-dc>
+</body>
+</html>

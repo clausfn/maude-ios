@@ -1,0 +1,144 @@
+/* Liviqa — Colour tokens · A6 "Daylight" (deployed 2026-06-15, replaces A5 Harbor mint-ground).
+   Supplied palette: Red #E63946 · Mint #F1FAEE · Teal #A8DADC · Steel #457B9D · Navy #1D3557 · Amber #FFB703.
+   CHANGE FROM A5 — the page ground is now WHITE / off-white, not mint. Mint is demoted to a
+   decorative wash only. Navy is the floating chrome + primary + text. Cards/bar lift on shadows
+   (see spacing.css), not heavy borders.
+   RULE — no raw palette colour ever carries text. Every state token is GROUND-RESOLVED: a dark
+   form on light grounds, a light form on navy, each measured against every surface it can sit on
+   (WCAG 2.x, AA ≥4.5:1 text, ≥3:1 non-text). Raw red #E63946 (3.9:1 white) and raw amber #FFB703
+   (~1.8:1 white) are FILL/glyph tones only — banned as text. Every ratio below is measured. */
+
+:root {
+  /* ── Base palette ─────────────────────────────────────────── */
+
+  /* ── Palette · the six brand colours (canonical names, source of truth) ──
+     Punch Red #E63946 · Honeydew #F1FAEE · Frosted Blue #A8DADC ·
+     Cerulean #457B9D · Oxford Navy #1D3557 · Amber Flame #FFB703.
+     These are the ONLY hues. No brown/clay/olive, no off-palette derived hues.
+     Text legibility is solved by FILLS + navy/white text, not by inventing darker hues. */
+  --punch-red: #E63946;
+  --honeydew: #F1FAEE;
+  --frosted-blue: #A8DADC;
+  --cerulean: #457B9D;
+  --oxford-navy: #1D3557;
+  --amber-flame: #FFB703;
+
+  /* Light grounds — white & shades of white (Honeydew is a TINT, never the page) */
+  --paper: #F5F6F8;        /* app / page background — cool off-white */
+  --paper-warm: #FBFAF6;   /* warm off-white alternative ground */
+  --paper-2: #FFFFFF;      /* card / tile fill — pure white, lifts on --shadow-card */
+  --mint: var(--honeydew); /* Honeydew — DECORATIVE wash only, never a page ground */
+  --blush: #EAF4F5;        /* quiet frosted tint (decorative only) */
+
+  /* Navy + ink — text, primary surfaces (Oxford Navy family) */
+  --navy: var(--oxford-navy); /* THE brand navy — mark, wordmark, primary fills, chrome. 11.5:1 on white */
+  --ink: var(--navy);      /* headlines, primary fills, ALL body text */
+  --ink-2: #3E5A74;        /* body text — navy at lower emphasis, 6.6:1 white */
+  --ink-3: #51697E;        /* captions, kickers — 5.7:1 white */
+  --ink-4: #8DA0AC;        /* disabled only — never informational text */
+
+  /* Night surfaces — console ground */
+  --night-tile: #2A4160;            /* raised tile on navy */
+  --night-line: rgba(241, 250, 238, 0.18);
+  --night-text: #F1FAEE;            /* 11.56:1 page · 9.71:1 tile */
+  --night-text-2: rgba(241, 250, 238, 0.78);  /* ≈7.7:1 page · 6.5:1 tile */
+  --night-text-3: rgba(241, 250, 238, 0.65);  /* ≈5.9:1 page · 4.9:1 tile */
+
+  /* Frosted Blue + Cerulean — informational layer */
+  --frosted: var(--frosted-blue); /* accents on navy — 6.78:1 tile; soft tint fills by day */
+  --teal: var(--frosted-blue);    /* legacy alias → Frosted Blue */
+  --steel: var(--cerulean);       /* secondary — LARGE text / non-text (4.3:1 white); body uses navy */
+
+  /* Lines — neutral hairlines on white (no mint tint) */
+  --line: #E6E9EE;         /* borders, dividers on white/off-white */
+  --line-2: #EEF1F4;       /* lighter dividers */
+
+  /* Positive · consent · in-range — Cerulean & Frosted Blue (NO green hue in the palette) */
+  --green: var(--cerulean);        /* positive — large text/non-text 4.3:1 white; body uses navy */
+  --green-night: var(--frosted-blue); /* positive on navy — 6.78:1 tile */
+  --green-2: #E6F0F2;      /* consent panel fill (pale frosted) */
+  --green-3: #CBE1E4;      /* consent border tint */
+
+  /* fern / moss aliases (legacy names; do not remove) */
+  --fern: var(--green-night);   /* dark grounds ONLY */
+  --fern-deep: var(--green);    /* text + arc on light */
+  --fern-2: var(--green-2);
+  --fern-3: var(--green-3);
+  --moss: var(--green);
+  --moss-2: var(--green-2);
+  --moss-3: var(--green-3);
+  --moss-rev: var(--green-night);
+  --moss-text-dark: var(--cerulean);
+
+  /* Watch / drifting — brand AMBER #FFB703. Amber is a SIGNAL (fills, dots, strokes,
+     chip-fills). It is NEVER small text on white (1.8:1). Watch WORDS are navy, or
+     navy-on-amber on a chip. The old brown/olive "orange" is retired — do not reintroduce. */
+  --amber-raw: var(--amber-flame);   /* the supplied amber — watch signal */
+  --amber: var(--amber-flame);
+  --orange: var(--amber-flame);      /* legacy alias → amber signal (NOT a brown) */
+  --orange-night: var(--amber-flame);/* amber on navy — 7:1 */
+  --orange-2: #FFF4D6;     /* watch tint bg */
+  --orange-3: #F2D58C;     /* watch border */
+  --amber-2: var(--orange-2);
+  --amber-text: var(--navy);         /* watch WORDS are navy — amber never small text */
+
+  /* Red — act now / revocation / expiry. Punch Red #E63946 is the SIGNAL (fills, dots),
+     white text on it. For red TEXT on white, --seal is the SAME red darkened for legibility. */
+  --red-raw: var(--punch-red);  /* Punch Red — fills with white text; status dots */
+  --seal: #C2242F;             /* Punch Red deepened for text/outline on light — 5.9:1 white (same hue) */
+  --seal-night-text: #F59FA6;  /* red as text on navy — 6.12:1 */
+  --seal-fill-on-navy: #F28B93;/* chip fill on navy — pairs with NAVY text (5.23:1), never white */
+  --rust: var(--seal);         /* legacy alias */
+  --rust-2: #FBE3E0;           /* seal tint bg (day) */
+
+  /* Pure surfaces */
+  --white: #FFFFFF;
+
+  /* Focus — designed, not defaulted (2px + 2px offset) */
+  --focus-on-light: var(--navy);   /* 11.5:1 vs white/off-white */
+  --focus-on-navy: var(--white);   /* 11.5:1 vs navy */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+
+  /* ── Semantic aliases (prefer these in product code) ──────── */
+
+  /* Surfaces */
+  --surface-page: var(--paper);
+  --surface-card: var(--paper-2);
+  --surface-inset: var(--paper);
+  --surface-inverse: var(--navy);     /* dark cards, top bar, primary button, console ground */
+  --surface-inverse-raised: var(--night-tile);
+
+  /* Text */
+  --text-strong: var(--ink);          /* headlines */
+  --text-body: var(--ink-2);          /* body copy */
+  --text-muted: var(--ink-3);         /* captions, kickers */
+  --text-disabled: var(--ink-4);
+  --text-on-inverse: var(--night-text);     /* text on navy surfaces */
+  --text-on-inverse-2: var(--night-text-2);
+  --text-on-inverse-3: var(--night-text-3);
+  --text-accent: var(--green);              /* consent text on light */
+  --text-accent-on-dark: var(--green-night);/* consent text on navy — pairs with navy, never white */
+
+  /* Borders */
+  --border: var(--line);
+  --border-subtle: var(--line-2);
+  --border-strong: var(--steel);
+  --border-on-inverse: var(--night-line);
+
+  /* Accent — consent / citizen */
+  --accent: var(--green);
+  --accent-fill: var(--green-2);
+  --accent-border: var(--green-3);
+  --accent-on-dark: var(--green-night);
+
+  /* Status (amber = signal/fill + navy words; red = signal/fill + white words) */
+  --warn: var(--amber-flame);         /* watch signal — fills/dots */
+  --warn-on-dark: var(--amber-flame);
+  --warn-fill: var(--orange-2);
+  --warn-text: var(--navy);           /* watch WORDS */
+  --danger: var(--seal);              /* act now — red text on light (same hue, legible) */
+  --danger-on-dark: var(--seal-night-text);
+  --danger-fill: var(--rust-2);
+  --danger-fill-on-dark: var(--seal-fill-on-navy); /* navy text on this fill, never white */
+}
