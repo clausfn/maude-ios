@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-94 — Video consult Stage F: virtual waiting room (2026-06-15, FB-AOIWoD6l / FB-AIEzHyog)
+- **feat(consult):** new `WaitingRoomView` (Min Læge *venteværelse*). On a booked consult within the join window (15 min before → 30 min after), the Care tab shows an **"I'm ready"** button; tapping it opens a calm dark waiting screen (gentle pulse, "<clinician> will join shortly", "your clinician has been notified you're waiting"). It then **waits passively** — polling the active-consult feed — and when the clinician starts the consult it **joins and opens the call automatically** (no self-timed "join" link). Honest by design: no fabricated queue position or minute-ETA.
+- Polls `fetchActiveConsults` directly (not the global ring) to avoid double-presenting the incoming-call overlay. Demo mode (no backend) just waits.
+- Stage F of `Liviqa_VideoConsult_Spec_v01`; the citizen-side flow (request → check-in + device test → calendar/reminders → waiting room → auto-launch) is now complete.
+- **Verified:** build green.
+
 ## PR-93 — Video consult Stage C/D (iOS): calendar invite + reminder ladder (2026-06-15, FB-AOIWoD6l)
 - **feat(consult):** the "Add to my calendar" EventKit event now carries the **app deep link** (`liviqa://consult`, in `url` + notes) and the spec **reminder ladder as calendar alarms** — day-before (-24h), -1h, and -10m — reused so calendar alarms and (future) push don't double-fire. Title clarified to "Liviqa video consultation".
 - iOS side of Stage C/D. The server-generated `.ics` email (stable `UID`/`SEQUENCE`/`VTIMEZONE`) + push delivery remain backend follow-ups; a deep-link URL handler for `liviqa://consult/{id}` is a small follow-up.

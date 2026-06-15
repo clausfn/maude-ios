@@ -7,6 +7,7 @@ struct MessagesView: View {
     @Environment(AppState.self) private var appState
     @State private var loading = false
     @State private var showPlan = false
+    @State private var waitingFor: ScheduledConsult?
 
     private var careTeamName: String {
         appState.careThreads.first?.recipientName
@@ -39,6 +40,9 @@ struct MessagesView: View {
         .sheet(isPresented: $showPlan) {
             PlanConsultView(recipientName: careTeamName,
                             recipientId: appState.careThreads.first?.recipientId)
+        }
+        .fullScreenCover(item: $waitingFor) { sc in
+            WaitingRoomView(scheduled: sc)
         }
     }
 
@@ -168,6 +172,15 @@ struct MessagesView: View {
                 Text("Awaiting reply")
                     .font(.lato(10.5, .bold))
                     .foregroundStyle(LiviqaTheme.clay)
+            } else if isJoinable(sc) {
+                // Within the join window — arm the waiting room (auto-launches when
+                // the clinician starts). FB-AOIWoD6l / Min Læge venteværelse.
+                Button { waitingFor = sc } label: {
+                    Text("I'm ready").font(.lato(11.5, .bold))
+                        .foregroundStyle(LiviqaTheme.invertFG)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Capsule().fill(LiviqaTheme.moss))
+                }.buttonStyle(.plain)
             } else {
                 Text(relativeDay(sc.at))
                     .font(.lato(11, .bold))
@@ -179,6 +192,12 @@ struct MessagesView: View {
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(
             sc.status == "proposed:recipient" ? LiviqaTheme.moss3 : LiviqaTheme.line2, lineWidth: 0.5))
+    }
+
+    /// Join window: armable from 15 min before the start until 30 min after.
+    private func isJoinable(_ sc: ScheduledConsult) -> Bool {
+        let t = sc.at.timeIntervalSinceNow
+        return t < 15 * 60 && t > -30 * 60
     }
 
     private func relativeDay(_ d: Date) -> String {
