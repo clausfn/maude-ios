@@ -7,6 +7,8 @@ import EventKit
 
 struct PlanConsultView: View {
     var recipientName: String
+    var recipientId: String? = nil
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
     private let days: [Date] = {
@@ -20,8 +22,10 @@ struct PlanConsultView: View {
     @State private var day: Date = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!
     @State private var slot = "09:00"
     @State private var duration = 30
+    @AppStorage("consultFallbackPhone") private var phone = ""
     @State private var requested = false
     @State private var calendarAdded = false
+    @State private var submitting = false
     @State private var error: String?
 
     private var startDate: Date {
@@ -115,6 +119,20 @@ struct PlanConsultView: View {
             }
             .padding(.top, 6)
 
+            // Fallback phone — so the clinician can reach the citizen if the
+            // video connection drops (Min Læge captures this up front).
+            kicker("If the video drops").padding(.top, 16)
+            TextField("Your mobile number", text: $phone)
+                .keyboardType(.phonePad)
+                .font(.lato(14)).foregroundStyle(LiviqaTheme.ink)
+                .padding(.horizontal, 14).padding(.vertical, 11)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 11))
+                .overlay(RoundedRectangle(cornerRadius: 11).stroke(LiviqaTheme.line, lineWidth: 1))
+                .padding(.top, 6)
+            Text("So your clinician can reach you if the connection drops.")
+                .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 5)
+
             // Summary
             HStack(spacing: 8) {
                 Image(systemName: "calendar").font(.system(size: 13)).foregroundStyle(LiviqaTheme.moss)
@@ -130,16 +148,23 @@ struct PlanConsultView: View {
             .padding(.top, 18)
 
             Button {
-                withAnimation { requested = true }
+                Task { await submitRequest() }
             } label: {
-                Text("Request this time")
+                Text(submitting ? "Requesting…" : "Request this time")
                     .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.invertFG)
                     .frame(maxWidth: .infinity).padding(.vertical, 15)
                     .background(LiviqaTheme.invertBG)
                     .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .opacity(submitting ? 0.7 : 1)
             }
             .buttonStyle(.plain)
+            .disabled(submitting)
             .padding(.top, 14)
+
+            if let error {
+                Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -190,6 +215,25 @@ struct PlanConsultView: View {
     private func kicker(_ t: String) -> some View {
         Text(t.uppercased()).font(.liviqaKicker(10)).tracking(1.2).foregroundStyle(LiviqaTheme.ink3)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func submitRequest() async {
+        // Real backend: post the request (status proposed:citizen) and refresh
+        // the care inbox so it surfaces as "awaiting the clinician". Demo mode
+        // (no careConnect / no recipient) keeps the local confirmation.
+        if let rid = recipientId, let care = appState.careConnect {
+            submitting = true; error = nil
+            do {
+                _ = try await care.requestConsult(recipientId: rid, at: startDate, kind: "consultation")
+                await appState.refreshCareInbox()
+                withAnimation { requested = true }
+            } catch {
+                self.error = "Couldn't send the request — please try again."
+            }
+            submitting = false
+        } else {
+            withAnimation { requested = true }
+        }
     }
 
     private func addToCalendar() {

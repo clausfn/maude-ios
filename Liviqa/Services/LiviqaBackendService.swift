@@ -323,6 +323,19 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         return r.status == "scheduled"
     }
 
+    @discardableResult
+    func requestConsult(recipientId: String, at: Date, kind: String) async throws -> ScheduledConsult {
+        struct Body: Encodable { let recipientId: String; let at: String; let kind: String }
+        struct ApptDTO: Decodable { let id: String; let at: String; let kind: String; let status: String?; let recipientName: String?; let recipientOrg: String? }
+        let iso = ISO8601DateFormatter().string(from: at)
+        let d = try await postCare("/appointments/request",
+                                   body: Body(recipientId: recipientId, at: iso, kind: kind),
+                                   as: ApptDTO.self)
+        return ScheduledConsult(id: d.id, at: BackendMapping.parseDate(d.at) ?? at, kind: d.kind,
+                                status: d.status ?? "proposed:citizen",
+                                recipientName: d.recipientName ?? "Care team", recipientOrg: d.recipientOrg)
+    }
+
     func fetchActiveConsults() async throws -> [ConsultSummary] {
         let dtos = try await getCare("/consults/active", as: [ActiveConsultDTO].self)
         return dtos.map { d in

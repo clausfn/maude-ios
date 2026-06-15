@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-91 — Video consult Stage A: citizen request posts to backend (2026-06-15, beta feedback FB-AOIWoD6l)
+- **feat(consult):** `CareConnect.requestConsult(recipientId:at:kind:)` added to the protocol + implemented in `LiviqaBackendService` (`POST /appointments/request`, status `proposed:citizen`). `PlanConsultView` now takes a `recipientId`, captures a **fallback phone** (`@AppStorage consultFallbackPhone`, framed "so your clinician can reach you if the video drops"), and its **"Request this time" actually posts** + refreshes the care inbox — closing the long-standing "the request doesn't do anything" gap (the button was local-only). `MessagesView` passes the care-team recipient id. Demo/no-backend keeps the local confirmation.
+- The accept/decline side was already wired (`respondToProposal`); this completes the request half of the request→accept loop on iOS.
+- First increment of the full video-consult spec (`Liviqa_VideoConsult_Spec_v01`, grounded in Min Læge / Sundhedsplatformen-Epic / FHIR R4 + iCalendar). Stages B–G (counter UX, virtual waiting room, reminder ladder, eCheck-in + device test, real SMART-Slot feed, .ics invite) to follow; slot/best-practice design awaits the Telecare North reference.
+- **Verified:** build green. Defaults locked: 10-min slot base, 15-min join/grace, 24h cancel (per spec).
+
 ## PR-90 — Research consents revocable in Privacy (2026-06-15, follow-up to FB-AIJMHfz6)
 - **feat(privacy):** `WalletView` (the Privacy tab) gains a **"Research contributions"** section — the two onboarding consents ("Anonymous cohort discovery", "Discoverable for anonymous research") as labelled toggles bound to the same `@AppStorage` keys, so a citizen can review and **turn them off any time** (GDPR — consent must be as easy to withdraw as to give). Caption restates anonymous/aggregated, raw-stays-on-device.
 - Completes the "revocable in Privacy" promise from PR-88. CE-ledger event on backend connect remains the deeper follow-up.

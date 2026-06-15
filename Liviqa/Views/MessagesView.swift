@@ -37,7 +37,8 @@ struct MessagesView: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showPlan) {
-            PlanConsultView(recipientName: careTeamName)
+            PlanConsultView(recipientName: careTeamName,
+                            recipientId: appState.careThreads.first?.recipientId)
         }
     }
 

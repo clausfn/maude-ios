@@ -82,6 +82,11 @@ public protocol CareConnect: Sendable {
     /// Answer a clinician-proposed slot (draft request flow).
     @discardableResult
     func respondToProposal(id: String, accept: Bool) async throws -> Bool
+    /// Citizen requests a consult at a chosen time. Creates an appointment in
+    /// status `proposed:citizen`, awaiting the clinician's accept / counter
+    /// (FB-AOIWoD6l). Returns the created consult.
+    @discardableResult
+    func requestConsult(recipientId: String, at: Date, kind: String) async throws -> ScheduledConsult
     /// Mark the citizen as joined; returns the deterministic Jitsi room name.
     @discardableResult
     func joinConsult(id: String) async throws -> String
