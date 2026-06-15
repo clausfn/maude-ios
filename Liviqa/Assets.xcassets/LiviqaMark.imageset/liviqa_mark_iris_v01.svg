@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" aria-label="Liviqa iris mark">
   <g fill="none" stroke-linecap="round">
-    <path d="M 67.73 46.87 A 18 18 0 1 1 53.13 32.27" stroke="#31780E" stroke-width="5.5"/>
-    <path d="M 43.48 78.26 A 29 29 0 1 1 69.78 71.21" stroke="#112744" stroke-width="5"/>
-    <path d="M 18.48 25.37 A 40 40 0 1 1 10.39 55.57" stroke="#112744" stroke-width="4.5"/>
-    <circle cx="50" cy="50" r="6" fill="#112744"/>
+    <path d="M 67.73 46.87 A 18 18 0 1 1 53.13 32.27" stroke="#287347" stroke-width="5.5"/>
+    <path d="M 43.48 78.26 A 29 29 0 1 1 69.78 71.21" stroke="#1D3557" stroke-width="5"/>
+    <path d="M 18.48 25.37 A 40 40 0 1 1 10.39 55.57" stroke="#1D3557" stroke-width="4.5"/>
+    <circle cx="50" cy="50" r="6" fill="#1D3557"/>
   </g>
 </svg>
