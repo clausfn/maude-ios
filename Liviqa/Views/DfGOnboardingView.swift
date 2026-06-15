@@ -61,6 +61,11 @@ private struct Page1View: View {
     @Binding var showLearnMore: Bool
     var onContinue: () -> Void
 
+    // Optional research-contribution consents — opt-in, default OFF (freely-given).
+    // Persisted app-wide; surfaced/revocable later in Privacy.
+    @AppStorage("consentCohortDiscovery")      private var cohortDiscovery      = false
+    @AppStorage("consentResearchDiscoverable") private var researchDiscoverable = false
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -112,7 +117,34 @@ private struct Page1View: View {
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 16)
-                        .padding(.bottom, 24)
+
+                    // Optional research-contribution consent — opt-in, default OFF.
+                    // Brian beta feedback 2026-06-13 (FB-AIJMHfz6 / FB-AGtO8N6h #2):
+                    // two anonymous-discovery consent boxes, each with a one-line explanation.
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("CONTRIBUTE TO RESEARCH — OPTIONAL")
+                            .font(.liviqaKicker(10))
+                            .tracking(2)
+                            .foregroundStyle(LiviqaTheme.moss)
+
+                        ConsentCheckRow(
+                            isOn: $cohortDiscovery,
+                            title: "Allow me to be included in anonymous cohort discovery",
+                            detail: "Approved research can be told an anonymous person like you exists in a cohort — never your name, never raw data."
+                        )
+                        ConsentCheckRow(
+                            isOn: $researchDiscoverable,
+                            title: "Allow me and my data to be discovered for anonymous research",
+                            detail: "A researcher can ask you — anonymously — to join a study. You still approve every share, and can withdraw any time."
+                        )
+
+                        Text("Off by default. You can change these any time in Privacy.")
+                            .font(.lato(11.5))
+                            .foregroundStyle(LiviqaTheme.ink4)
+                            .padding(.top, 2)
+                    }
+                    .padding(.top, 24)
+                    .padding(.bottom, 24)
                 }
                 .padding(.horizontal, 28)
             }
@@ -387,6 +419,61 @@ private struct LedgerRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
+    }
+}
+
+// MARK: - Consent check row (opt-in research consents)
+
+private struct ConsentCheckRow: View {
+    @Binding var isOn: Bool
+    let title: String
+    let detail: String
+
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            HStack(alignment: .top, spacing: 12) {
+                // Checkbox
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isOn ? LiviqaTheme.moss : Color.clear)
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isOn ? LiviqaTheme.moss : LiviqaTheme.line, lineWidth: 1.5)
+                    if isOn {
+                        Image(systemName: "checkmark")
+                            .font(.lato(12, .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 22, height: 22)
+                .padding(.top, 1)
+
+                // Text
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(detail)
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .lineSpacing(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .background(isOn ? LiviqaTheme.moss2 : LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isOn ? LiviqaTheme.moss3 : LiviqaTheme.line, lineWidth: isOn ? 1 : 0.5)
+            )
+            .animation(.easeInOut(duration: 0.15), value: isOn)
+        }
+        .buttonStyle(.plain)
     }
 }
 

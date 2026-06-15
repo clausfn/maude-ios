@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-88 — Anonymous-research consent boxes on DfG onboarding (2026-06-15, beta feedback FB-AIJMHfz6 / FB-AGtO8N6h #2)
+- **feat(consent):** `DfGOnboardingView` Page 1 gains an opt-in **"Contribute to research — optional"** section with two consent checkboxes (**default OFF**): "Allow me to be included in anonymous cohort discovery" and "Allow me and my data to be discovered for anonymous research", each with a one-line plain-language explanation. New `ConsentCheckRow` component styled to the locked card pattern (moss fill + white checkmark when on; moss2/moss3 card).
+- **wire:** persisted via `@AppStorage` (`consentCohortDiscovery`, `consentResearchDiscoverable`). Default OFF = freely-given consent (GDPR Art. 9). Surfacing/revoke in Privacy and the CE-ledger event are tracked as a follow-up.
+- Implements Brian's FB-AIJMHfz6 (build 10.43) and **closes FB-AGtO8N6h #2** (build 10.40). FB-AGtO8N6h #3 (tooltip/progressive-disclosure copy) remains PROPOSED.
+- **Verified (simulator):** build green; onboarding renders the section both unchecked and checked. Pending TestFlight ship (bump 10.44).
+
 ## PR-87 — LV001 real-data demo: graphs show Claus's goldmine (2026-06-13, beta feedback FB-AN9QOlAh)
 - **feat(data):** new `LV001Dataset` (Ingestion) — `passportStats`, `rings`, `todaySignals` (+ weekly sparkline series), and the 7-day `correlationWeek`, composed from the consented goldmine export (glucose/HRV/RHR/steps/exercise daily aggregates + de-duplicated sleep). Real, trustworthy figures: TIR 88%, GMI ~6.8%, 3 499 days tracked, HRV median 27 ms, RHR 70, ~7.2 h sleep, 20 sources. Mirrors the `PatternSeed.lv001` idiom — values embedded as Swift, no raw JSON bundled, no timestamps/locations (location hard-rule respected).
 - **wire:** `AppState.applyLV001DatasetIfNeeded()` loads it when `profile.alias == "LV001"` and not on live HealthKit (`usingRealData`) — a real device with the user's own Health data still wins. Called from `signInDemo` and a `defer` in `refreshFromHealth` so it survives the simulator's HealthKit-auth throw. Fixes "graphs not showing my real data when logged in as Claus" — previously graphs were local-HealthKit-or-MockData only, with no account/upload path and `LV001Provider` an unwired stub.
