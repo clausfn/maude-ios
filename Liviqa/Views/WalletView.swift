@@ -14,6 +14,11 @@ struct WalletView: View {
     @State private var receiptOffer: WalletReceiptOffer?
     @State private var issuingReceipt: UUID?
 
+    // Research-contribution consents — set opt-in during DfG onboarding
+    // (FB-AIJMHfz6), surfaced + revocable here. Same @AppStorage keys.
+    @AppStorage("consentCohortDiscovery")      private var cohortDiscovery      = false
+    @AppStorage("consentResearchDiscoverable") private var researchDiscoverable = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -57,6 +62,38 @@ struct WalletView: View {
                             Rectangle()
                                 .fill(LiviqaTheme.line)
                                 .frame(width: 2)
+                        }
+                        .padding(.top, 6)
+
+                    // ── Research contributions (opt-in in onboarding; revocable here) ──
+                    LiviqaSectionHeader(label: "Research contributions")
+
+                    VStack(spacing: 0) {
+                        researchToggleRow(
+                            title: "Anonymous cohort discovery",
+                            detail: "Approved research can be told an anonymous person like you exists in a cohort.",
+                            isOn: $cohortDiscovery
+                        )
+                        Divider().background(LiviqaTheme.line2).padding(.leading, 14)
+                        researchToggleRow(
+                            title: "Discoverable for anonymous research",
+                            detail: "A researcher can ask you — anonymously — to join a study. You approve every share.",
+                            isOn: $researchDiscoverable
+                        )
+                    }
+                    .background(LiviqaTheme.paper2)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
+                    .padding(.top, 4)
+
+                    Text("Off by default. Anonymous and aggregated — raw data never leaves your device. Turn off any time.")
+                        .font(.lato(11.5))
+                        .lineSpacing(2)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .padding(.leading, 12)
+                        .padding(.vertical, 10)
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(LiviqaTheme.line).frame(width: 2)
                         }
                         .padding(.top, 6)
 
@@ -149,6 +186,28 @@ struct WalletView: View {
             detail: "Recorded on DfG CE ledger · \(timestamp)",
             tone: isWithdraw ? .bad : .good
         )
+    }
+
+    // MARK: - Research consent toggle row
+
+    private func researchToggleRow(title: String, detail: String, isOn: Binding<Bool>) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.lato(14, .bold))
+                    .foregroundStyle(LiviqaTheme.ink)
+                Text(detail)
+                    .font(.lato(12))
+                    .lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(LiviqaTheme.moss)
+        }
+        .padding(14)
     }
 
     // MARK: - Summary card

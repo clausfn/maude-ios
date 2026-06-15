@@ -2,6 +2,11 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-90 — Research consents revocable in Privacy (2026-06-15, follow-up to FB-AIJMHfz6)
+- **feat(privacy):** `WalletView` (the Privacy tab) gains a **"Research contributions"** section — the two onboarding consents ("Anonymous cohort discovery", "Discoverable for anonymous research") as labelled toggles bound to the same `@AppStorage` keys, so a citizen can review and **turn them off any time** (GDPR — consent must be as easy to withdraw as to give). Caption restates anonymous/aggregated, raw-stays-on-device.
+- Completes the "revocable in Privacy" promise from PR-88. CE-ledger event on backend connect remains the deeper follow-up.
+- **Verified:** build green. Toggles mirror the locked card pattern; bound to the onboarding storage so onboarding ↔ Privacy stay in sync.
+
 ## PR-89 — Onboarding heavy copy → progressive disclosure (2026-06-15, beta feedback FB-AGtO8N6h #3)
 - **feat(onboarding):** new `ExpandableNote` component (ⓘ summary line + chevron, moss card) — taps to reveal detail. Converts the second body paragraph on `DfGOnboardingView` Pages 1 ("You can't be quietly overridden") and 2 ("What if someone disputes it?") from text walls into tap-to-expand notes, so each page leads with one idea and tucks the depth a tap away.
 - Implements Brian's FB-AGtO8N6h #3 ("most explanation text needs rework — tooltip box?"). **FB-AGtO8N6h is now fully closed** (#1 logo PR-84, #2 consent boxes PR-88, #3 here).
