@@ -260,10 +260,17 @@ struct PlanConsultView: View {
             DispatchQueue.main.async {
                 guard granted else { self.error = "Calendar access is off — enable it in Settings to add this."; return }
                 let ev = EKEvent(eventStore: store)
-                ev.title = "Liviqa consultation · \(recipientName)"
-                ev.notes = "Secure video consultation in Liviqa."
+                ev.title = "Liviqa video consultation · \(recipientName)"
+                // App deep link (Stage C): tapping the event reopens the consult in Liviqa.
+                let deepLink = "liviqa://consult"
+                ev.url = URL(string: deepLink)
+                ev.notes = "Secure video consultation in Liviqa.\nOpen in the app: \(deepLink)"
                 ev.startDate = startDate
                 ev.endDate = startDate.addingTimeInterval(TimeInterval(duration * 60))
+                // Reminder ladder (spec Stage D), reused as calendar alarms so push
+                // and calendar don't double-fire: day before · 1 hour · 10 minutes.
+                ev.addAlarm(EKAlarm(relativeOffset: -86_400))
+                ev.addAlarm(EKAlarm(relativeOffset: -3_600))
                 ev.addAlarm(EKAlarm(relativeOffset: -600))
                 ev.calendar = store.defaultCalendarForNewEvents
                 do { try store.save(ev, span: .thisEvent); withAnimation { self.calendarAdded = true } }
