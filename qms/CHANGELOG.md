@@ -2,6 +2,11 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-92 — Video consult Stage E: pre-visit check-in + device test (2026-06-15, FB-AOIWoD6l / FB-AOUGIncO)
+- **feat(consult):** new `PreVisitCheckView` — Epic's eCheck-in pattern with the US billing stripped: (1) a **per-visit share-consent** gate ("share my consented metrics for this consult", default off, raw data stays on device), and (2) a **camera / microphone / connection test** with green (ready) / amber (needs attention) / red (blocked) status + plain-language fixes, plus a "You're ready" banner. Camera/mic via `AVCaptureDevice.authorizationStatus`/`requestAccess`; connectivity via `NWPathMonitor`. Reachable from the request confirmation ("Test your camera & connection"); designed as the entry gate for the waiting room.
+- Addresses the "confusing start on video" feedback (FB-AOUGIncO) and is Stage E of `Liviqa_VideoConsult_Spec_v01`.
+- **Verified:** build green; `NSCameraUsageDescription`/`NSMicrophoneUsageDescription` present so the permission checks are safe.
+
 ## PR-91 — Video consult Stage A: citizen request posts to backend (2026-06-15, beta feedback FB-AOIWoD6l)
 - **feat(consult):** `CareConnect.requestConsult(recipientId:at:kind:)` added to the protocol + implemented in `LiviqaBackendService` (`POST /appointments/request`, status `proposed:citizen`). `PlanConsultView` now takes a `recipientId`, captures a **fallback phone** (`@AppStorage consultFallbackPhone`, framed "so your clinician can reach you if the video drops"), and its **"Request this time" actually posts** + refreshes the care inbox — closing the long-standing "the request doesn't do anything" gap (the button was local-only). `MessagesView` passes the care-team recipient id. Demo/no-backend keeps the local confirmation.
 - The accept/decline side was already wired (`respondToProposal`); this completes the request half of the request→accept loop on iOS.

@@ -26,6 +26,7 @@ struct PlanConsultView: View {
     @State private var requested = false
     @State private var calendarAdded = false
     @State private var submitting = false
+    @State private var showCheck = false
     @State private var error: String?
 
     private var startDate: Date {
@@ -51,6 +52,9 @@ struct PlanConsultView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .sheet(isPresented: $showCheck) {
+            PreVisitCheckView(recipientName: recipientName)
+        }
     }
 
     // MARK: — Picker
@@ -200,6 +204,20 @@ struct PlanConsultView: View {
             .buttonStyle(.plain)
             .disabled(calendarAdded)
             .padding(.top, 22)
+
+            Button { showCheck = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.shield")
+                    Text("Test your camera & connection").font(.lato(15, .bold))
+                }
+                .foregroundStyle(LiviqaTheme.ink)
+                .frame(maxWidth: .infinity).padding(.vertical, 14)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 13))
+                .overlay(RoundedRectangle(cornerRadius: 13).stroke(LiviqaTheme.line, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 10)
 
             Button { dismiss() } label: {
                 Text("Done").font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink2)
