@@ -2,6 +2,43 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-06-16 — A6 "Daylight" re-skin: six-colour palette, SF Pro, iris .icon, Liquid Glass (PR-96)
+
+- **Goal.** Land the locked A6 "Daylight" brand — a six-colour palette (Punch Red ·
+  Honeydew · Frosted Blue · Cerulean · Oxford Navy · Amber Flame), SF Pro + Dynamic
+  Type for headline/body (IBM Plex Mono kept for numbers), the brand iris as a
+  layered Liquid-Glass app icon + in-app marks, and iOS 26 Liquid Glass on the
+  consumer chrome. Successor to **Design System v2 (PR-47)**; extends the prototype,
+  no redesign.
+- **Theme.** `Theme.swift` recoloured by token value, so every `LiviqaTheme.*` call
+  site recolours automatically. Retired fern-green `#31780E` / lime `#4EB818`,
+  brown-clay `#BD7A33`, and near-black `#0B1B30`; dark mode = deep navy `#15243D`.
+  No green hue in the UI — Cerulean carries consent/in-range.
+- **Type.** Headlines/body → system SF Pro (Dynamic-Type friendly); IBM Plex Mono
+  retained for numbers/kickers; removed Lato/Schibsted/Instrument/Spline `.ttf`.
+- **Mark + icon.** In-app `LiviqaMark`/`Reversed` → Oxford-Navy arcs + brand green
+  ring. App icon is now a hand-authored layered **`AppIcon.icon`** (Icon Composer
+  format) — navy ground + honeydew halo + green iris ring/dot, lifted by the system
+  on iOS 26, flattened on iOS 17–25. Mark geometry unchanged (never redrawn).
+- **Liquid Glass.** Floating `.ultraThinMaterial` tab-bar capsule + glass sheets,
+  each with an **opaque solid fallback** under Reduce Transparency / Increase
+  Contrast (one shared a11y flag). Today glass *cards* were tried and reverted (no
+  benefit over the flat canvas); Today's large-title-condense was deferred (would
+  move the locked wordmark = redesign).
+- **SAFETY — attention tone reverted to amber (RK-ALARM-01, accepted).** A6 moves
+  the "worth a look" attention tone from clay **back to Amber Flame**, re-assessing
+  RK-ALARM-01 (see `qms/RISK.md`, PR-96). Flagged to the owner; **CN accepted Amber
+  Flame on 2026-06-16** as the patient attention tone — the PR-47 "clay over amber"
+  decision is superseded, on the basis that amber is used as fill/dot + navy text
+  (never alarm text) and colour is never the sole signal (label + position carry the
+  "notice", not "alarm", meaning). Recorded so the decision is conscious, not silent.
+- **Design-system source.** The brand kit (`design-system/` — tokens, templates,
+  iris/icon art) is now tracked in-repo (`new design`, `33a167d`).
+- **Verified.** Build green per commit; full suite **130 unit + 2 UI tests, 0
+  failures** (incl. blocking `T-NDG-06*` / `T-PROV-01` guards); Paper + Midnight +
+  Increase-Contrast checked on the Simulator. Merged to `develop` (GitHub PR #1 →
+  merge `32f4b33`).
+
 ## 2026-06-09 — DfG wallet (My DfG) integration — scaffold (feature-flagged OFF)
 
 - **Goal.** Prepare a live Liviqa → My DfG wallet consent demo (eIDAS 2.0 /

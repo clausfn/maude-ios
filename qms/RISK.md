@@ -2,6 +2,46 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-96 — A6 "Daylight" re-skin; RK-ALARM-01 re-assessed — Amber Flame accepted (2026-06-16)
+
+The A6 "Daylight" re-skin is a presentation change (six-colour palette, SF Pro
+type, iris app icon, Liquid Glass chrome). Most of it carries **no clinical
+hazard** — palette/type/icon/glass change no data, nudge, unit, or the AFib lane.
+**One change is safety-relevant: it supersedes the PR-47 attention-tone control.**
+
+- **RK-ALARM-01 (attention colour read as a medical warning) — RE-ASSESSED; amber
+  accepted.** A6 retires the desaturated **clay** (`#BD7A33`) attention tone and
+  moves the patient "worth a look" signal **back to Amber Flame** (`#FFB703`) — the
+  hue PR-47 had moved away from because saturated amber can read as a warning light.
+  This was flagged to the owner and **accepted by CN on 2026-06-16** (founder /
+  design owner): Amber Flame is the patient attention tone going forward. The PR-47
+  "clay over amber" decision is **superseded**, on the basis of the controls below.
+  - **Why amber ≠ alarm here (the controls that hold the meaning to "notice"):**
+    amber is used as a **fill / dot / border / icon** with **navy text** on light
+    grounds (never amber alarm *text* on light — the locked contrast rule), not as a
+    full-bleed saturated alarm state; colour is **never the only signal** — the
+    "Worth a look" kicker label + demoted position (below the calm affirming hero) +
+    metadata carry the meaning, preserving the colour-blind-safe rule; the copy keeps
+    the non-threshold, non-alarm voice (`FR-REG-02`); and the patient app stays a
+    **two-state** model (cerulean = in-range · amber = notice) — the saturated
+    green/amber/red triage ramp remains console-only, never shown to the patient.
+  - **AFib / cardiac lane:** untouched — still **display-only, route-to-cardiologist,
+    no interpretation/alarm/trend** (`D9`/`FR-REG-03`; `T-NDG-02/03` still pass). The
+    amber tone is not used on the cardiac lane.
+  - **Residual risk: ACCEPTED (low).** Owner-confirmed presentation control; the tone
+    signals *state* ("worth a look"), never an alarm, via context + label + position,
+    not hue alone. Re-confirm at the next human-factors / regulatory review that
+    amber-as-fill reads as "notice", not "warning".
+- **Liquid Glass legibility (positive):** the new glass surfaces (tab bar, sheets)
+  fall back to an **opaque** `LiviqaTheme.paper/paper2` fill under Reduce Transparency
+  / Increase Contrast, so text contrast is preserved for low-vision users — no
+  legibility regression introduced.
+- **provenance-never-renders (`T-PROV-01`):** A6 added no `provenance` rendering. The
+  guard's pre-existing failure on `develop` (ePRO "provenance receipt" strings in
+  `JournalView`/`WalletView`) is **unrelated to A6** and tracked separately.
+- No new clinical claim; HealthKit read-only (`FR-ARCH-04`), glucose unit (`OD-07`),
+  and the nudge allow-list/guard (`FR-NDG-06`) are untouched.
+
 ## PR-46/47 — full HealthKit capture + Design System v2; controls hold (2026-06-09)
 
 Step A widens ingestion to capture insulin, AFib burden, blood pressure, body
