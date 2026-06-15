@@ -5,6 +5,7 @@ import SwiftUI
 
 @main
 struct LiviqaApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState()
     #if DEBUG
     @State private var debugWallet = false

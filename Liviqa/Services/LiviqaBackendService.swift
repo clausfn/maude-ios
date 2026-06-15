@@ -384,6 +384,12 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         return Self.message(from: dto, fallbackSender: .citizen)
     }
 
+    func registerPushToken(_ token: String) async throws {
+        struct Body: Encodable { let token: String }
+        struct Ok: Decodable { let ok: Bool? }
+        _ = try await post("/me/push-token", body: Body(token: token), as: Ok.self)
+    }
+
     private static func notifKind(_ t: String) -> CitizenNotification.Kind {
         switch t {
         case "consult":        return .consult

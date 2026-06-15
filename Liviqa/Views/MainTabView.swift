@@ -180,6 +180,7 @@ struct MainTabView: View {
             if !didInitialRefresh {
                 didInitialRefresh = true
                 await appState.refreshFromHealth()
+                appState.requestPushAuthorization()   // register for push reminders (signed in)
             }
         }
         .task {

@@ -3,6 +3,8 @@
 import Foundation
 import Observation
 import SwiftData
+import UIKit
+import UserNotifications
 
 @Observable
 final class AppState {
@@ -110,6 +112,32 @@ final class AppState {
 
     init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
         self.supabase = supabase
+        NotificationCenter.default.addObserver(forName: .liviqaPushToken, object: nil, queue: .main) { [weak self] note in
+            guard let hex = note.object as? String else { return }
+            Task { @MainActor in self?.handlePushToken(hex) }
+        }
+    }
+
+    /// APNs device token for this install (sent to the backend once signed in).
+    var pushDeviceToken: String?
+
+    /// Ask for notification permission + register for remote notifications. Safe to
+    /// call repeatedly (iOS prompts once). No effect until the Push capability +
+    /// APNs are in place — registration just fails gracefully.
+    @MainActor
+    func requestPushAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else { return }
+            DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
+        }
+    }
+
+    /// Store the APNs token and push it to the backend (when signed in).
+    @MainActor
+    func handlePushToken(_ hex: String) {
+        pushDeviceToken = hex
+        guard session != nil, let care = careConnect else { return }
+        Task { try? await care.registerPushToken(hex) }
     }
 
     /// Sovereign-only capabilities (recipient directory + derived-share push),

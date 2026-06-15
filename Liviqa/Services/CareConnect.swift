@@ -99,4 +99,7 @@ public protocol CareConnect: Sendable {
     func fetchMessages(recipientId: String) async throws -> [CareMessage]
     @discardableResult
     func sendMessage(recipientId: String, body: String) async throws -> CareMessage
+
+    /// Register this device's APNs token so the backend can send push reminders.
+    func registerPushToken(_ token: String) async throws
 }
