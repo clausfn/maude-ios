@@ -351,7 +351,7 @@ enum MockData {
         .init(
             name: "Health Vault",
             icon: "doc.fill",
-            iconColorHex: 0xC47D11,
+            iconColorHex: 0xFFB703,
             category: .health,
             isConnected: true,
             lastSync: Calendar.current.date(byAdding: .hour, value: -2, to: Date()),
@@ -381,7 +381,7 @@ enum MockData {
         .init(
             name: String(localized: "Screen Time"),
             icon: "hourglass",
-            iconColorHex: 0xC47D11,
+            iconColorHex: 0xFFB703,
             category: .device,
             isConnected: false,
             lastSync: nil,
