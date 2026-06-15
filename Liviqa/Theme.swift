@@ -106,29 +106,17 @@ enum LiviqaTheme {
     enum Tracking { static let h1: CGFloat = -0.5; static let h2: CGFloat = -0.2; static let kicker: CGFloat = 1.5; static let wordmark: CGFloat = -0.4 }
 }
 
-// MARK: - Font helpers — brand type (Lato + IBM Plex Mono, bundled OFL fonts)
+// MARK: - Font helpers — SF Pro (Dynamic Type) for headlines/body + IBM Plex Mono for numbers
 
 extension Font {
-    /// Mono kicker — uppercase, spaced. IBM Plex Mono Medium.
-    static func liviqaKicker(_ size: CGFloat = 10) -> Font { .custom("SplineSansMono-Medium", size: size) }
-    /// Mono number — tabular. IBM Plex Mono Medium.
+    static func liviqaKicker(_ size: CGFloat = 10) -> Font { .custom("IBMPlexMono-Medium", size: size) }
     static func liviqaMono(_ size: CGFloat = 14) -> Font { .custom("IBMPlexMono-Medium", size: size) }
-    /// Lato (headlines/body). weight maps to Regular/Bold/Black faces.
+    /// Headlines/body now use the system face (SF Pro) — Dynamic-Type friendly.
     static func lato(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        let face: String
-        switch weight {
-        case .black, .heavy:   face = "SchibstedGrotesk-Black"
-        case .bold, .semibold: face = "SchibstedGrotesk-Bold"
-        default:               face = "SchibstedGrotesk-Regular"
-        }
-        return .custom(face, size: size)
+        .system(size: size, weight: weight)
     }
-
-    // Semantic type scale (Design System v2 typography.css). Lato for headline/
-    // body; mono (liviqaKicker/liviqaMono) for kickers, numbers, timestamps.
-    // Apply tracking at the call site via `.tracking(LiviqaTheme.Tracking.*)`.
-    static var liviqaH1: Font { lato(32, .heavy) }         // screen headline — 800
-    static var liviqaH2: Font { lato(20, .bold) }          // section / card title — 700
-    static var liviqaBody: Font { lato(15, .regular) }     // body — 15 / 1.4
-    static var liviqaCaption: Font { lato(12, .regular) }  // caption — 12 / 1.4
+    static var liviqaH1: Font { .system(size: 32, weight: .bold) }
+    static var liviqaH2: Font { .system(size: 20, weight: .semibold) }
+    static var liviqaBody: Font { .system(size: 15) }
+    static var liviqaCaption: Font { .system(size: 12) }
 }
