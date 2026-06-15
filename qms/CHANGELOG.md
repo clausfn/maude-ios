@@ -2,6 +2,15 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-96 — A6 "Daylight" six-colour re-skin: palette, SF Pro, iris .icon, Liquid Glass (2026-06-16, GitHub PR #1, design by CN)
+- **feat(theme):** `Theme.swift` recoloured to the locked **six-colour Daylight palette** (Punch Red · Honeydew · Frosted Blue · Cerulean · Oxford Navy · Amber Flame). Retires fern-green/lime, brown-clay, near-black; dark mode = deep navy. Every `LiviqaTheme.*` call site recolours automatically. No green hue in the UI (Cerulean carries consent/in-range).
+- **feat(type):** headlines/body → system **SF Pro** (Dynamic Type); **IBM Plex Mono** kept for numbers/kickers; removed Lato/Schibsted/Instrument/Spline `.ttf` + trimmed `UIAppFonts`.
+- **feat(brand):** in-app iris marks → Oxford Navy + green ring; app icon → hand-authored layered **`AppIcon.icon`** (Liquid Glass on iOS 26, flattened on 17–25), replacing the flat `.appiconset`. Mark never redrawn.
+- **feat(liquid-glass):** floating `.ultraThinMaterial` tab-bar capsule + glass sheets (assistant, consent receipt), each with an **opaque fallback** under Reduce Transparency / Increase Contrast. Today glass cards tried + reverted; Today large-title deferred (brand-lock).
+- **fix(hex):** purged stray legacy hex literals (`0xC47D11 → 0xFFB703`; tokenised hardcoded greys/greens, removing stray fern-green from the correlation grid + wallet).
+- **⚠ RISK — RK-ALARM-01 re-opened:** the attention tone reverts clay → **Amber Flame**, reversing the PR-47 anti-warning-light control. Documented + flagged for clinical confirmation in `qms/RISK.md` (PR-96); design record in `qms/DHF.md`.
+- **Verified:** build green per commit; **130 unit + 2 UI tests, 0 failures** (incl. blocking `T-NDG-06*` / `T-PROV-01` guards); Paper + Midnight + Increase-Contrast on the Simulator. Merged to `develop` (merge `32f4b33`).
+
 ## PR-95 — Video consult: simulated availability + waiting-room grace (2026-06-15, FB-AOIWoD6l, scoped by CN)
 - **feat(consult):** `PlanConsultView` now shows **free/busy availability** — booked times are greyed/struck-through and unselectable, the selection auto-moves to a free slot on day change, with "availability mirrors <clinician>'s calendar" (deterministic simulated EMR/HIS free/busy; swaps to a live SMART-Slot feed later).
 - **feat(consult):** `WaitingRoomView` gains the **15-minute grace → reschedule**: if no clinician joins within 15 min, the screen offers a warm apology + "Reschedule" (per the use case). Still polls in case they join late.
