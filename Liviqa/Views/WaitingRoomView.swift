@@ -12,6 +12,7 @@ struct WaitingRoomView: View {
 
     @State private var live: ConsultSummary?      // set when the consult goes active → the call opens
     @State private var pulse = false
+    @State private var graced = false             // 15-min grace passed with no clinician
 
     var body: some View {
         ZStack {
@@ -60,13 +61,31 @@ struct WaitingRoomView: View {
 
                 Spacer()
 
-                HStack(spacing: 7) {
-                    Image(systemName: "lock.fill").font(.system(size: 10))
-                    Text("Stay on this screen — your call starts automatically. A short wait is normal; thanks for your patience.")
-                        .font(.lato(11.5)).multilineTextAlignment(.center)
+                if graced {
+                    VStack(spacing: 11) {
+                        Text("Sorry — your clinician hasn't been able to join.")
+                            .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.paper)
+                            .multilineTextAlignment(.center)
+                        Text("These things happen on a busy day. You can reschedule and we'll find another time.")
+                            .font(.lato(12)).foregroundStyle(LiviqaTheme.paper.opacity(0.62))
+                            .multilineTextAlignment(.center)
+                        Button { dismiss() } label: {
+                            Text("Reschedule").font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink)
+                                .frame(maxWidth: .infinity).padding(.vertical, 13)
+                                .background(LiviqaTheme.paper)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }.buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 34).padding(.bottom, 36)
+                } else {
+                    HStack(spacing: 7) {
+                        Image(systemName: "lock.fill").font(.system(size: 10))
+                        Text("Stay on this screen — your call starts automatically. A short wait is normal; thanks for your patience.")
+                            .font(.lato(11.5)).multilineTextAlignment(.center)
+                    }
+                    .foregroundStyle(LiviqaTheme.paper.opacity(0.5))
+                    .padding(.horizontal, 34).padding(.bottom, 36)
                 }
-                .foregroundStyle(LiviqaTheme.paper.opacity(0.5))
-                .padding(.horizontal, 34).padding(.bottom, 36)
             }
         }
         .onAppear { pulse = true }
@@ -81,6 +100,7 @@ struct WaitingRoomView: View {
     /// triggered underneath this screen.) Demo mode has no live clinician → just waits.
     private func waitLoop() async {
         guard let care = appState.careConnect else { return }
+        var ticks = 0
         while live == nil && !Task.isCancelled {
             if let consults = try? await care.fetchActiveConsults(),
                let match = consults.first(where: { $0.recipientName == scheduled.recipientName }) ?? consults.first {
@@ -88,6 +108,8 @@ struct WaitingRoomView: View {
                 live = match
                 break
             }
+            ticks += 1
+            if ticks * 5 >= 15 * 60 { graced = true }   // 15-min grace passed — offer reschedule (still polling)
             try? await Task.sleep(for: .seconds(5))
         }
     }

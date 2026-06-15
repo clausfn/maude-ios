@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-95 — Video consult: simulated availability + waiting-room grace (2026-06-15, FB-AOIWoD6l, scoped by CN)
+- **feat(consult):** `PlanConsultView` now shows **free/busy availability** — booked times are greyed/struck-through and unselectable, the selection auto-moves to a free slot on day change, with "availability mirrors <clinician>'s calendar" (deterministic simulated EMR/HIS free/busy; swaps to a live SMART-Slot feed later).
+- **feat(consult):** `WaitingRoomView` gains the **15-minute grace → reschedule**: if no clinician joins within 15 min, the screen offers a warm apology + "Reschedule" (per the use case). Still polls in case they join late.
+- **fix:** `PreVisitCheckView` net check reworked to an AsyncStream (removed a Swift-6 captured-var data-race warning).
+- **Verified:** build green, no warnings.
+
 ## PR-94 — Video consult Stage F: virtual waiting room (2026-06-15, FB-AOIWoD6l / FB-AIEzHyog)
 - **feat(consult):** new `WaitingRoomView` (Min Læge *venteværelse*). On a booked consult within the join window (15 min before → 30 min after), the Care tab shows an **"I'm ready"** button; tapping it opens a calm dark waiting screen (gentle pulse, "<clinician> will join shortly", "your clinician has been notified you're waiting"). It then **waits passively** — polling the active-consult feed — and when the clinician starts the consult it **joins and opens the call automatically** (no self-timed "join" link). Honest by design: no fabricated queue position or minute-ETA.
 - Polls `fetchActiveConsults` directly (not the global ring) to avoid double-presenting the incoming-call overlay. Demo mode (no backend) just waits.

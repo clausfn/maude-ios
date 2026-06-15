@@ -161,23 +161,16 @@ struct PreVisitCheckView: View {
     }
 
     private func netCheck() async -> Check {
-        await withCheckedContinuation { cont in
-            let monitor = NWPathMonitor()
-            let queue = DispatchQueue(label: "liviqa.previsit.net")
-            var resumed = false
-            monitor.pathUpdateHandler = { path in
-                guard !resumed else { return }
-                resumed = true
-                cont.resume(returning: path.status == .satisfied ? .ok : .warn)
-                monitor.cancel()
-            }
+        // NWPathMonitor delivers the current path shortly after start; take the
+        // first value via an AsyncStream (no shared mutable flag → concurrency-clean).
+        let monitor = NWPathMonitor()
+        let queue = DispatchQueue(label: "liviqa.previsit.net")
+        let stream = AsyncStream<Bool> { cont in
+            monitor.pathUpdateHandler = { cont.yield($0.status == .satisfied); cont.finish() }
             monitor.start(queue: queue)
-            queue.asyncAfter(deadline: .now() + 2) {
-                guard !resumed else { return }
-                resumed = true
-                cont.resume(returning: .warn)
-                monitor.cancel()
-            }
         }
+        defer { monitor.cancel() }
+        for await satisfied in stream { return satisfied ? .ok : .warn }
+        return .warn
     }
 }

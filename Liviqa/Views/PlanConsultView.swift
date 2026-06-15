@@ -92,19 +92,26 @@ struct PlanConsultView: View {
             kicker("Time").padding(.top, 16)
             FlowRow(spacing: 8) {
                 ForEach(slots, id: \.self) { s in
-                    let on = s == slot
-                    Button { slot = s } label: {
+                    let busy = isBusy(s, on: day)
+                    let on = s == slot && !busy
+                    Button { if !busy { slot = s } } label: {
                         Text(s).font(.lato(14, .bold))
-                            .foregroundStyle(on ? .white : LiviqaTheme.ink)
+                            .strikethrough(busy, color: LiviqaTheme.ink4)
+                            .foregroundStyle(busy ? LiviqaTheme.ink4 : (on ? .white : LiviqaTheme.ink))
                             .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(on ? LiviqaTheme.moss : LiviqaTheme.paper2)
+                            .background(on ? LiviqaTheme.moss : (busy ? LiviqaTheme.line2.opacity(0.5) : LiviqaTheme.paper2))
                             .clipShape(RoundedRectangle(cornerRadius: 11))
                             .overlay(RoundedRectangle(cornerRadius: 11).stroke(on ? Color.clear : LiviqaTheme.line, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .disabled(busy)
                 }
             }
             .padding(.top, 6)
+            .onChange(of: day) { ensureFreeSlot() }
+            .onAppear { ensureFreeSlot() }
+            Text("Greyed times are already booked. Availability mirrors \(recipientName)'s calendar.")
+                .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4).padding(.top, 5)
 
             kicker("How long").padding(.top, 16)
             HStack(spacing: 8) {
@@ -233,6 +240,22 @@ struct PlanConsultView: View {
     private func kicker(_ t: String) -> some View {
         Text(t.uppercased()).font(.liviqaKicker(10)).tracking(1.2).foregroundStyle(LiviqaTheme.ink3)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Simulated EMR/HIS free/busy — deterministic (stable across launches) so the
+    /// same day reads consistently. Swaps to a live SMART-Slot feed later (spec §A).
+    private func isBusy(_ slot: String, on day: Date) -> Bool {
+        let d = Calendar.current.component(.day, from: day)
+        let idx = slots.firstIndex(of: slot) ?? 0
+        let k = (d &+ idx) % 7
+        return k == 0 || k == 3
+    }
+
+    /// Keep the selection on a free slot (e.g. after changing day).
+    private func ensureFreeSlot() {
+        if isBusy(slot, on: day) {
+            slot = slots.first { !isBusy($0, on: day) } ?? slot
+        }
     }
 
     private func submitRequest() async {
