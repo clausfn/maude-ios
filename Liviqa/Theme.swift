@@ -44,64 +44,60 @@ enum LiviqaTheme {
         var label: String { self == .midnight ? "Midnight" : "Paper" }
     }
 
-    // Backgrounds
-    static let paper   = Color.dyn(0xF8F5EC, 0x0B1B30)   // app canvas (never pure white)
-    static let paper2  = Color.dyn(0xFFFCF4, 0x112744)   // card fill
+    // Backgrounds  (light = Daylight, dark = Navy)
+    static let paper   = Color.dyn(0xF5F6F8, 0x15243D)   // app canvas — off-white / deep navy
+    static let paper2  = Color.dyn(0xFFFFFF, 0x1D3557)   // card fill
 
     // Text / icons
-    static let ink     = Color.dyn(0x112744, 0xF8F5EC)
-    static let ink2    = Color.dyn(0x24375A, 0xCCD5E0)
-    static let ink3    = Color.dyn(0x54627A, 0x8A98AD)   // captions, kickers
-    static let ink4    = Color.dyn(0x8896AA, 0x5C6B80)
+    static let ink     = Color.dyn(0x1D3557, 0xF1FAEE)
+    static let ink2    = Color.dyn(0x456079, 0xC9D8E5)
+    static let ink3    = Color.dyn(0x51697E, 0x8DA4BC)   // captions, kickers
+    static let ink4    = Color.dyn(0x8DA0AC, 0x5C6B80)
 
     // Borders / dividers
-    static let line    = Color.dyn(0xDFD9CE, 0xFFFFFF, 1, 0.09)
-    static let line2   = Color.dyn(0xEAE5DB, 0xFFFFFF, 1, 0.055)
+    static let line    = Color.dyn(0xE6E9EE, 0xFFFFFF, 1, 0.10)
+    static let line2   = Color.dyn(0xEEF1F4, 0xFFFFFF, 1, 0.06)
 
-    // Moss — citizen · consent · active grant (the one accent)
-    static let moss    = Color.dyn(0x31780E, 0x4EB818)   // fern (brand v2)
-    static let moss2   = Color.dyn(0xE7F0DF, 0x4EB818, 1, 0.16)
-    static let moss3   = Color.dyn(0xBFD8AB, 0x4EB818, 1, 0.34)
-    static let mossRev = Color.dyn(0x4EB818, 0x4EB818)   // bright fern
+    // Positive — consent · in-range (Cerulean + Frosted Blue; NO green hue)
+    static let moss    = Color.dyn(0x457B9D, 0xA8DADC)
+    static let moss2   = Color.dyn(0xE6F0F2, 0xA8DADC, 1, 0.16)
+    static let moss3   = Color.dyn(0xBBD0DE, 0xA8DADC, 1, 0.34)
+    static let mossRev = Color.dyn(0xA8DADC, 0xA8DADC)
 
-    // Amber — engine / middle layer (sparing)
-    static let amber   = Color.dyn(0xC47D11, 0xE2A847)
-    static let amber2  = Color.dyn(0xF5E9D2, 0xE2A847, 1, 0.16)
+    // Amber Flame — watch / engine (sparing; fill+navy text)
+    static let amber   = Color.dyn(0xFFB703, 0xFFB703)
+    static let amber2  = Color.dyn(0xFFF4D6, 0xFFB703, 1, 0.16)
 
-    // Rust — refusals / boundary events
-    static let rust    = Color.dyn(0xBF2D24, 0xCD4830)   // seal (brand v2)
-    static let rust2   = Color.dyn(0xF3DDD7, 0xCD4830, 1, 0.18)
+    // Punch Red — refusals / boundary events
+    static let rust    = Color.dyn(0xC2242F, 0xF59FA6)
+    static let rust2   = Color.dyn(0xFBE3E0, 0xF59FA6, 1, 0.18)
 
-    // Clay — the single patient "worth noticing" attention tone (Design System v2,
-    // signals.css, tuned candidate 4). Deliberately NOT amber: clay says "worth a
-    // look", never "alarm" — right for an app pitched below the medical-device line.
-    // The patient two-state logic is moss = in-range · clay = worth noticing.
-    static let clay     = Color.dyn(0xBD7A33, 0xD9A765)            // the attention tone
-    static let clay2    = Color.dyn(0xEFE8DB, 0xD9A765, 1, 0.16)   // calm tint fill
-    static let clay3    = Color.dyn(0xE0D4BC, 0xD9A765, 1, 0.34)   // border tint
-    static let clayText = Color.dyn(0x6B461B, 0xD9A765)            // AA on paper
-    static let clayRev  = Color.dyn(0xD9A765, 0xD9A765)            // clay on ink/dark
+    // “Worth noticing” attention tone — now AMBER FLAME (the old brown clay is retired).
+    static let clay     = Color.dyn(0xFFB703, 0xFFB703)            // amber signal
+    static let clay2    = Color.dyn(0xFFF4D6, 0xFFB703, 1, 0.16)   // tint fill
+    static let clay3    = Color.dyn(0xF2D58C, 0xFFB703, 1, 0.34)   // border tint
+    static let clayText = Color.dyn(0x1D3557, 0xFFB703)            // NAVY on light (amber never text)
+    static let clayRev  = Color.dyn(0xFFB703, 0xFFB703)
 
-    // Confidence ramp — qualifies every insight (the evidence/trust mechanism).
-    // high = gated (passes r/p) · emerging = directional · learning = baseline building.
+    // Confidence ramp
     static let confHigh     = moss
     static let confEmerging = clay
     static let confLearning = ink4
 
-    // Hooks (Oura pass)
-    static let gridEmpty     = Color.dyn(0xEAE5DB, 0xFFFFFF, 1, 0.06)   // correlation "no data"
-    static let heroGlow      = Color.dyn(0x3D7A5A, 0x5CB389, 0.18, 0.30) // radial halo
-    static let homeIndicator = Color.dyn(0x0E1A2B, 0xF7F5F1, 0.26, 0.34)
-    static let cardShadow    = Color.dyn(0x0E1A2B, 0x000000, 0.06, 0.40)
+    // Hooks
+    static let gridEmpty     = Color.dyn(0xEEF1F4, 0xFFFFFF, 1, 0.06)
+    static let heroGlow      = Color.dyn(0x457B9D, 0xA8DADC, 0.18, 0.30)
+    static let homeIndicator = Color.dyn(0x1D3557, 0xF1FAEE, 0.26, 0.34)
+    static let cardShadow    = Color.dyn(0x10243B, 0x000000, 0.06, 0.40)
 
-    // Fixed DfG navy (constant in both themes) — e.g. the DfG logo tile.
-    static let dfgNavy = Color(red: 0x0E/255, green: 0x1A/255, blue: 0x2B/255)
+    // Fixed DfG navy
+    static let dfgNavy = Color(hex: 0x1D3557)
 
-    // Invert surface (dark chip/button/summary on light; warm-light on dark)
-    static let invertBG   = Color.dyn(0x0E1A2B, 0xECE7DC)
-    static let invertFG   = Color.dyn(0xFCFAF5, 0x0E1A2B)
-    static let invertSub  = Color.dyn(0x9FB0C2, 0x5C6B80)
-    static let invertLine = Color.dyn(0xFFFFFF, 0x0E1A2B, 0.12, 0.12)
+    // Invert surface
+    static let invertBG   = Color.dyn(0x1D3557, 0xF1FAEE)
+    static let invertFG   = Color.dyn(0xFFFFFF, 0x1D3557)
+    static let invertSub  = Color.dyn(0x8DA0AC, 0x5C6B80)
+    static let invertLine = Color.dyn(0xFFFFFF, 0x1D3557, 0.12, 0.12)
 
     enum Radius { static let card: CGFloat = 20; static let hero: CGFloat = 26; static let vitals: CGFloat = 24 }
 
