@@ -110,13 +110,13 @@ private struct Page1View: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 20)
 
-                    // Body — paragraph 2
-                    Text("You can't be quietly overridden. Every access request is logged. Every refusal is logged. You can inspect the full record at any time.")
-                        .font(.lato(15))
-                        .foregroundStyle(LiviqaTheme.ink2)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 16)
+                    // Body — paragraph 2 as progressive disclosure (FB-AGtO8N6h #3:
+                    // heavy onboarding copy → a short line + tap-to-expand detail).
+                    ExpandableNote(
+                        summary: "You can't be quietly overridden",
+                        detail: "Every access request is logged. Every refusal is logged. You can inspect the full record at any time."
+                    )
+                    .padding(.top, 18)
 
                     // Optional research-contribution consent — opt-in, default OFF.
                     // Brian beta feedback 2026-06-13 (FB-AIJMHfz6 / FB-AGtO8N6h #2):
@@ -229,13 +229,12 @@ private struct Page2View: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 20)
 
-                    // Body — paragraph 2
-                    Text("If a requester claims they were given access you never approved, the record will show otherwise. If you change your mind and withdraw consent, that withdrawal is also on record.")
-                        .font(.lato(15))
-                        .foregroundStyle(LiviqaTheme.ink2)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 16)
+                    // Body — paragraph 2 as progressive disclosure (FB-AGtO8N6h #3).
+                    ExpandableNote(
+                        summary: "What if someone disputes it?",
+                        detail: "If a requester claims they were given access you never approved, the record will show otherwise. If you change your mind and withdraw consent, that withdrawal is also on record."
+                    )
+                    .padding(.top, 16)
 
                     // Faux ledger card
                     VStack(spacing: 0) {
@@ -419,6 +418,57 @@ private struct LedgerRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
+    }
+}
+
+// MARK: - Expandable note (progressive disclosure for heavy copy)
+// Brian beta feedback 2026-06-13 (FB-AGtO8N6h #3): "most explanation text needs
+// rework (tooltip box?)". A short summary line + an ⓘ that taps to reveal detail,
+// so the onboarding leads with one idea and tucks the depth a tap away.
+
+private struct ExpandableNote: View {
+    let summary: String
+    let detail: String
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: "info.circle")
+                        .font(.lato(14))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text(summary)
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 6)
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.lato(11, .bold))
+                        .foregroundStyle(LiviqaTheme.ink4)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+
+            if expanded {
+                Text(detail)
+                    .font(.lato(14))
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 13)
+            }
+        }
+        .background(LiviqaTheme.moss2)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(LiviqaTheme.moss3, lineWidth: 0.5)
+        )
     }
 }
 

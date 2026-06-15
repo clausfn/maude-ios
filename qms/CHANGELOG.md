@@ -2,6 +2,11 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-89 — Onboarding heavy copy → progressive disclosure (2026-06-15, beta feedback FB-AGtO8N6h #3)
+- **feat(onboarding):** new `ExpandableNote` component (ⓘ summary line + chevron, moss card) — taps to reveal detail. Converts the second body paragraph on `DfGOnboardingView` Pages 1 ("You can't be quietly overridden") and 2 ("What if someone disputes it?") from text walls into tap-to-expand notes, so each page leads with one idea and tucks the depth a tap away.
+- Implements Brian's FB-AGtO8N6h #3 ("most explanation text needs rework — tooltip box?"). **FB-AGtO8N6h is now fully closed** (#1 logo PR-84, #2 consent boxes PR-88, #3 here).
+- **Verified (simulator):** build green; Page 1 renders the collapsed note + (with the text wall gone) the consent box now sits above the fold. Pending TestFlight ship (10.44).
+
 ## PR-88 — Anonymous-research consent boxes on DfG onboarding (2026-06-15, beta feedback FB-AIJMHfz6 / FB-AGtO8N6h #2)
 - **feat(consent):** `DfGOnboardingView` Page 1 gains an opt-in **"Contribute to research — optional"** section with two consent checkboxes (**default OFF**): "Allow me to be included in anonymous cohort discovery" and "Allow me and my data to be discovered for anonymous research", each with a one-line plain-language explanation. New `ConsentCheckRow` component styled to the locked card pattern (moss fill + white checkmark when on; moss2/moss3 card).
 - **wire:** persisted via `@AppStorage` (`consentCohortDiscovery`, `consentResearchDiscoverable`). Default OFF = freely-given consent (GDPR Art. 9). Surfacing/revoke in Privacy and the CE-ledger event are tracked as a follow-up.
