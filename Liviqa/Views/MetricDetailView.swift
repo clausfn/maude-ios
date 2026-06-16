@@ -69,9 +69,9 @@ struct MetricDetailView: View {
     let pillar: WellnessPillar
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
-    /// PR-99 (sign-off gate): show clinical AGP TIR zones on the glucose chart.
-    /// Default OFF ⇒ the current single-band look ships until CN flips it on.
-    @AppStorage("clinicalTIRZones") private var clinicalTIRZones = false
+    /// PR-100: clinical AGP TIR zones on the glucose chart — SIGNED OFF by CN, now
+    /// live by default. (Still a flag so it stays one tap from revertible in Settings.)
+    @AppStorage("clinicalTIRZones") private var clinicalTIRZones = true
 
     private let dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 

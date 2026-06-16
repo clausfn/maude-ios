@@ -7,6 +7,9 @@ struct WeekInContextView: View {
 
     @Environment(AppState.self) private var appState
     @AppStorage("liquidGlass") private var glassOn = true
+    /// PR-100 promotion #2 (sign-off gate): graded deviation ramp instead of the
+    /// 2-state moss/clay fill. Default OFF ⇒ current look until CN flips it on.
+    @AppStorage("gradedHeatmap") private var gradedHeatmap = false
     @State private var showShare = false
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil
@@ -40,6 +43,16 @@ struct WeekInContextView: View {
     /// noticing. Not a saturated ramp — the patient surface has exactly two
     /// meanings, and a column that lights up clay IS a cluster (pre-attentive).
     private func fill(_ level: CorrelationLevel) -> Color {
+        if gradedHeatmap {
+            // Graded magnitude ramp — cool→warm, capped at deep amber (never red).
+            switch level {
+            case .noData:  return LiviqaTheme.gridEmpty
+            case .low:     return LiviqaTheme.moss2      // just like your usual
+            case .medium:  return LiviqaTheme.devMed     // a little off
+            case .high:    return LiviqaTheme.devHigh    // clearly off your usual
+            case .outlier: return LiviqaTheme.devOutlier // worth noticing (+ ring)
+            }
+        }
         switch level {
         case .noData:  return LiviqaTheme.gridEmpty
         case .low:     return LiviqaTheme.moss2     // in range
@@ -317,6 +330,16 @@ struct WeekInContextView: View {
 
     private func readout(metric: Int, level: CorrelationLevel, day: String) -> String {
         let m = metricLabels[metric].lowercased()
+        if gradedHeatmap {
+            // Magnitude language to match the graded ramp (the deriver keeps |deviation|).
+            switch level {
+            case .noData:  return "No \(m) recorded on \(day)."
+            case .low:     return "\(day)'s \(m) was just like your usual."
+            case .medium:  return "\(day)'s \(m) was a little off your usual."
+            case .high:    return "\(day)'s \(m) was clearly off your usual."
+            case .outlier: return "\(day)'s \(m) was worth noticing — a pattern in your own data, not a medical finding."
+            }
+        }
         switch level {
         case .noData:  return "No \(m) recorded on \(day)."
         case .low:     return "\(day)'s \(m) sat below your typical range."
@@ -330,10 +353,17 @@ struct WeekInContextView: View {
 
     private var gridLegend: some View {
         HStack(spacing: 12) {
-            LegendSwatch(color: fill(.low),     label: "In range")
-            LegendSwatch(color: fill(.high),    label: "Mild")
-            LegendSwatch(color: fill(.outlier), label: "Worth noticing")
-            LegendSwatch(color: fill(.noData),  label: "No data")
+            if gradedHeatmap {
+                LegendSwatch(color: fill(.low),     label: "Like usual")
+                LegendSwatch(color: fill(.medium),  label: "A little off")
+                LegendSwatch(color: fill(.high),    label: "Off your usual")
+                LegendSwatch(color: fill(.outlier), label: "Worth noticing")
+            } else {
+                LegendSwatch(color: fill(.low),     label: "In range")
+                LegendSwatch(color: fill(.high),    label: "Mild")
+                LegendSwatch(color: fill(.outlier), label: "Worth noticing")
+                LegendSwatch(color: fill(.noData),  label: "No data")
+            }
             Spacer()
         }
     }
