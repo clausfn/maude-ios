@@ -120,6 +120,10 @@ struct TodayView: View {
                         insightHero
                     }
 
+                    // Zoom out from today → the full week (correlation view).
+                    weekCard
+                        .padding(.top, 20)
+
                     Text(String(localized: "Not averages. Yours.").uppercased())
                         .font(.liviqaKicker(11)).tracking(0.6)
                         .foregroundStyle(LiviqaTheme.ink3)
@@ -277,6 +281,61 @@ struct TodayView: View {
     private var heroSub: String {
         if !isDemoData, let n = nudges.first { return n.evidence?.lever ?? String(localized: "Tap to see the evidence.") }
         return "Calmest when dinner's before 20:30."
+    }
+
+    // MARK: — This week (zoom-out teaser → the full week / correlation view)
+
+    // Restores the "This week" card that was dropped from Home in the PR-51 reframe
+    // (FB 86exz218r). Calm, real-data-aware, and a doorway to WeekInContextView —
+    // not a second alert. Honest values when Health is connected; calm seeds otherwise.
+    private var weekCard: some View {
+        NavigationLink(destination: WeekInContextView()) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11)).foregroundStyle(LiviqaTheme.moss)
+                    Text(String(localized: "This week").uppercased())
+                        .font(.liviqaKicker(10)).tracking(1.2)
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Spacer(minLength: 8)
+                    Text(String(localized: "View full week"))
+                        .font(.lato(12, .bold)).foregroundStyle(LiviqaTheme.ink3)
+                        .lineLimit(1)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .bold)).foregroundStyle(LiviqaTheme.ink3)
+                }
+                Text(weekHeadline)
+                    .font(.lato(17, .black)).kerning(-0.3).lineSpacing(2)
+                    .multilineTextAlignment(.leading)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .padding(.top, 9)
+                if let spark = weekSparkline {
+                    MiniSparkline(values: spark, tint: LiviqaTheme.moss, height: 30)
+                        .padding(.top, 11)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(15)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
+            .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// REAL weekly in-range series (oldest→today) when connected; a calm seed otherwise
+    /// (matches the seed used by WeekInContextView so the teaser and full view agree).
+    private var weekSparkline: [Double]? {
+        if let s = signals, s.inRangeWeek.count > 1 { return s.inRangeWeek }
+        return [71, 74, 69, 78, 80, 76, 84]
+    }
+
+    private var weekHeadline: String {
+        if !isDemoData, let s = signals, !s.inRange.isEmpty, s.inRange != "—" {
+            return String(localized: "Glucose held in range \(s.inRange) of the week.")
+        }
+        return String(localized: "See how this week's days connect.")
     }
 
     // MARK: — Signal row (your value vs your own normal)
