@@ -229,8 +229,18 @@ extension NudgeAccent {
         case .glucose: return LiviqaTheme.clay
         case .sleep:   return LiviqaTheme.moss
         case .cardiac: return LiviqaTheme.ink3
-        case .travel:  return LiviqaTheme.rust
+        case .travel:  return LiviqaTheme.amber   // PR-100: rust is boundary/refusal-only
         case .general: return LiviqaTheme.ink4
+        }
+    }
+    /// PR-100: domain SF Symbol — reinforces category by shape, not colour alone.
+    var icon: String {
+        switch self {
+        case .glucose: return "drop.fill"
+        case .sleep:   return "moon.zzz.fill"
+        case .cardiac: return "waveform.path.ecg"
+        case .travel:  return "airplane"
+        case .general: return "sparkles"
         }
     }
     // Kept for backward compat

@@ -7,9 +7,9 @@ struct WeekInContextView: View {
 
     @Environment(AppState.self) private var appState
     @AppStorage("liquidGlass") private var glassOn = true
-    /// PR-100 promotion #2 (sign-off gate): graded deviation ramp instead of the
-    /// 2-state moss/clay fill. Default OFF ⇒ current look until CN flips it on.
-    @AppStorage("gradedHeatmap") private var gradedHeatmap = false
+    /// PR-100 promotion #2 — graded deviation ramp instead of the 2-state moss/clay
+    /// fill. SIGNED OFF by CN, now live by default (still a flag for instant revert).
+    @AppStorage("gradedHeatmap") private var gradedHeatmap = true
     @State private var showShare = false
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil

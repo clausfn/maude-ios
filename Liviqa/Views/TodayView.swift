@@ -24,6 +24,9 @@ struct TodayView: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @State private var connectHintDismissed = false
+    /// PR-100 promotion #3 (sign-off gate): show a domain icon on the nudge hero
+    /// (the sparkline half needs a numeric series on Nudge — deferred). Default OFF.
+    @AppStorage("visualNudge") private var visualNudge = false
     // UC-RSCH — a matched study invitation surfaces here on Home.
     @Environment(AppState.self) private var appState
 
@@ -205,7 +208,11 @@ struct TodayView: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
-                    Circle().fill(LiviqaTheme.clay).frame(width: 7, height: 7)
+                    if visualNudge, let acc = nudges.first?.accent {
+                        Image(systemName: acc.icon).font(.system(size: 11)).foregroundStyle(acc.accentColor)
+                    } else {
+                        Circle().fill(LiviqaTheme.clay).frame(width: 7, height: 7)
+                    }
                     Text(String(localized: "In your data").uppercased())
                         .font(.liviqaKicker(10)).tracking(1.2)
                         .foregroundStyle(LiviqaTheme.clayText)
