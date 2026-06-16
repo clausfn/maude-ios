@@ -124,6 +124,11 @@ final class AppState {
             // Swift-6 "captured var 'self' in concurrently-executing code" warning.
             Task { @MainActor [weak self] in self?.handlePushToken(hex) }
         }
+        // A research-invitation push (demo bridge: DfG Professional "Contact Cohort"
+        // → simctl push with userInfo type=research) → open the consent flow.
+        NotificationCenter.default.addObserver(forName: .liviqaOpenResearch, object: nil, queue: .main) { _ in
+            Task { @MainActor [weak self] in self?.handleResearchInvite() }
+        }
     }
 
     /// APNs device token for this install (sent to the backend once signed in).
@@ -138,6 +143,14 @@ final class AppState {
             guard granted else { return }
             DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
         }
+    }
+
+    /// A research-invitation push (demo bridge from DfG Professional) arrived or was
+    /// tapped — surface the opportunity on Home and open the consent flow (s09→s10).
+    @MainActor
+    func handleResearchInvite() {
+        researchOpportunity = MockData.demoStudy
+        showStudyConsent = true
     }
 
     /// Store the APNs token and push it to the backend (when signed in).
