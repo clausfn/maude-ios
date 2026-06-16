@@ -56,5 +56,26 @@ extension AppState {
         }
         joinedStudy = study
         researchOpportunity = nil   // the invitation is consumed once acted on
+        #if DEBUG
+        notifyConsoleApproval(studyId: "glp1-effectiveness")
+        #endif
     }
+
+    #if DEBUG
+    /// Demo loop (localhost): POST the citizen's approval back to the local DfG
+    /// Professional console so its "Recruitment" count increments live. Each approval
+    /// is a fresh ref (simulates a distinct citizen). Fire-and-forget; DEBUG only.
+    private func notifyConsoleApproval(studyId: String) {
+        guard let url = URL(string: "http://localhost:3000/api/cohorts/approve") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "studyId": studyId,
+            "patientRef": "liviqa-\(UUID().uuidString.prefix(8))",
+            "decision": "accepted",
+        ])
+        URLSession.shared.dataTask(with: req).resume()
+    }
+    #endif
 }
