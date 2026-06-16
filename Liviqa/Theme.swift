@@ -90,6 +90,28 @@ enum LiviqaTheme {
     static let homeIndicator = Color.dyn(0x1D3557, 0xF1FAEE, 0.26, 0.34)
     static let cardShadow    = Color.dyn(0x10243B, 0x000000, 0.06, 0.40)
 
+    // MARK: Sprint-2 visual system (PR-99 proposal · signed off 2026-06-16, Option B)
+    // Clinical glucose Time-in-Range scale — AGP convention (Battelino 2019). Scoped
+    // to GLUCOSE charts ONLY — the sanctioned exception to the no-green rule; these
+    // never appear elsewhere in the app.
+    static let tirVeryLow  = Color.dyn(0x8E1B26, 0xD06470)   // < 3.0 mmol/L  L2 hypo (dark red)
+    static let tirLow      = Color.dyn(0xC2242F, 0xF59FA6)   // 3.0–3.8       L1 hypo (red)
+    static let tirTarget   = Color.dyn(0x2F9E5E, 0x57D295)   // 3.9–10.0      TARGET (clinical green)
+    static let tirHigh     = Color.dyn(0xE8B007, 0xF0C84B)   // 10.1–13.9     L1 hyper (yellow)
+    static let tirVeryHigh = Color.dyn(0xF07A12, 0xF7A23B)   // > 13.9        L2 hyper (orange)
+
+    // Graded deviation-heatmap ramp — sequential cool→warm, CAPPED at deep amber
+    // (never red; the single strongest outlier carries a non-colour ring). Blue↔amber
+    // is deutan/protan-safe.
+    static let devMed     = Color.dyn(0xDCE3EA, 0xFFFFFF, 1, 0.10)  // a little off
+    static let devHigh    = Color.dyn(0xFCE3A0, 0xFFB703, 1, 0.30)  // clearly off your usual
+    static let devOutlier = Color.dyn(0xE0820C, 0xFFC53D)           // worth noticing (+ ring)
+
+    // Per-domain category accents (Option B) — two new calm hues so the "Apple can't"
+    // sources read as their own thing. Contrast-tuned starting points.
+    static let accentSleep   = Color.dyn(0x4C4FB0, 0x9AA0F0)   // indigo  (sleep)
+    static let accentFinance = Color.dyn(0x566472, 0x9FB0BE)   // slate   (financial / context)
+
     // Fixed DfG navy
     static let dfgNavy = Color(hex: 0x1D3557)
 
