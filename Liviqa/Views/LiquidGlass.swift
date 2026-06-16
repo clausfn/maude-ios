@@ -17,6 +17,27 @@ enum LiviqaGlass {
     }
 }
 
+// MARK: - Bar tier resolver (single source of truth)
+
+/// The three render paths the floating tab bar can take. Resolved once at the call
+/// site so the bar surface, the travelling pill, and the "flag off = prior app"
+/// guarantee all agree.
+enum LiviqaBarTier { case liquidGlass, material, opaque }
+
+@MainActor
+func liviqaBarTier(glassOn: Bool, reduceTransparency: Bool, increasedContrast: Bool) -> LiviqaBarTier {
+    guard glassOn else { return .opaque }                       // flag off → prior app
+    if reduceTransparency || increasedContrast { return .opaque }
+    if #available(iOS 26, *) { return .liquidGlass }
+    return .material                                            // iOS 17–25, flag on
+}
+
+/// One travel spring shared by every tier so the motion identity is constant whether
+/// the pill is real glass, material, or solid. (Same 0.34/0.82 the bar already used.)
+enum LiviqaBarMotion {
+    static let travel: Animation = .spring(response: 0.34, dampingFraction: 0.82)
+}
+
 // MARK: - Floating tab-bar surface (three-tier ladder)
 
 /// Tab-bar capsule treatment: real glass (iOS 26 + flag) → `.ultraThinMaterial`
@@ -69,30 +90,74 @@ struct LiviqaHeroContinuation: ViewModifier {
     }
 }
 
-// MARK: - Magnifier lens (the gliding active-tab indicator, Flighty-style)
+// MARK: - Travelling glass magnifier (the gliding active-tab lens, Flighty-style)
 
-/// A translucent "magnifier" lens that sits behind the active tab and glides to the
-/// selection (drive with `matchedGeometryEffect`). It is a tint + sheen highlight,
-/// NOT a second `.glassEffect` — stacking glass on the already-glass bar renders
-/// muddy and costs a second blur pass. The active icon is magnified at the call site.
-struct MagnifierLens: View {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    private var solid: Bool { reduceTransparency || contrast == .increased }
+/// The selected-tab pill that travels to the active tab.
+///
+/// - `.liquidGlass` (iOS 26): a REAL Liquid Glass lens — `.glassEffect` + `.glassEffectID`
+///   inside the bar's `GlassEffectContainer`, so the pill MERGES with the bar's glass
+///   into one continuous lens (the fix for the old "glass-on-glass is muddy" problem)
+///   and morphs fluidly as it travels. Near-clear tint so it reads as a lens that
+///   refracts the bar content behind it, not a frosted chip. A thin chromatic rim adds
+///   the Flighty edge glint, flaring only while travelling.
+/// - `.material` (iOS 17–25): a `.ultraThinMaterial` pill that still travels/springs.
+/// - `.opaque` (Reduce Transparency / Increase Contrast): the solid moss pill (no blur).
+///
+/// The pill never takes touches — taps fall through to the tab buttons underneath.
+struct TravellingTabPill: View {
+    let tier: LiviqaBarTier
+    let travelling: Bool               // true while the spring is in flight → ramp the rim
+    let reduceMotion: Bool
+
+    private let shape = Capsule()
 
     var body: some View {
-        // A clean, contained selected pill that GLIDES between tabs (Flighty-style) —
-        // not a translucent "magnifier" that reads as vanishing. Stays inside the bar.
-        let shape = Capsule()
-        return Group {
-            if solid {
-                shape.fill(LiviqaTheme.moss2)
-                    .overlay(shape.strokeBorder(LiviqaTheme.moss3, lineWidth: 1))
-            } else {
-                shape.fill(LiviqaTheme.moss.opacity(0.24))
-                    .overlay(shape.strokeBorder(LiviqaTheme.moss.opacity(0.40), lineWidth: 0.5))
+        switch tier {
+        case .liquidGlass:
+            if #available(iOS 26, *) {
+                shape
+                    .glassEffect(.regular.tint(LiviqaTheme.moss.opacity(0.06)).interactive(),
+                                 in: Capsule())
+                    .overlay(chromaticRim)
+                    .allowsHitTesting(false)
             }
+        case .material:
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.strokeBorder(LiviqaTheme.line, lineWidth: 0.5))
+                .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+                .allowsHitTesting(false)
+        case .opaque:
+            shape.fill(LiviqaTheme.moss2)
+                .overlay(shape.strokeBorder(LiviqaTheme.moss3, lineWidth: 1))
+                .allowsHitTesting(false)
         }
+    }
+
+    /// Thin angular-gradient glint on the RIM only (never a fill), `.plusLighter` so it
+    /// reads as specular dispersion, not paint. Brand moss (the bar's own selection hue)
+    /// drifting through clear gaps — calm, no full RGB spectrum. Rest 0.20; flares to
+    /// ~0.45 only while travelling, and never under Reduce Motion.
+    @ViewBuilder private var chromaticRim: some View {
+        let strength = (travelling && !reduceMotion) ? 0.45 : 0.20
+        shape
+            .strokeBorder(
+                AngularGradient(
+                    colors: [
+                        LiviqaTheme.moss,
+                        .white.opacity(0.0),
+                        LiviqaTheme.heroGlow,
+                        .white.opacity(0.0),
+                        LiviqaTheme.moss
+                    ],
+                    center: .center
+                ),
+                lineWidth: 1.0
+            )
+            .blendMode(.plusLighter)
+            .opacity(strength)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.5), value: travelling)
+            .allowsHitTesting(false)
     }
 }
 

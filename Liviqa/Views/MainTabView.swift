@@ -44,6 +44,15 @@ enum LiviqaTab: String, CaseIterable {
     }
 }
 
+/// Collects each tab's slot rect (in the bar's coordinate space) so a single
+/// travelling lens can be positioned over the selection and slide between slots.
+private struct TabFrameKey: PreferenceKey {
+    static let defaultValue: [LiviqaTab: CGRect] = [:]
+    static func reduce(value: inout [LiviqaTab: CGRect], nextValue: () -> [LiviqaTab: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @State private var tab: LiviqaTab = {
@@ -64,7 +73,9 @@ struct MainTabView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("liquidGlass") private var glassOn = true
-    @Namespace private var tabGlass   // glides the magnifier lens between tabs
+    @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots → drive the lens position
+    @State private var pillTravelling = false                 // pulses true mid-travel → flares the chromatic rim
+    private let tabBarSpace = "liviqaTabBar"
     #if DEBUG
     @State private var debugOpenChat = false
     @State private var debugOpenThread = false
@@ -237,24 +248,43 @@ struct MainTabView: View {
     /// Reduce Transparency or Increase Contrast → opaque bar instead of glass.
     private var useSolidBar: Bool { reduceTransparency || contrast == .increased }
 
+    /// Which render path the selected-tab pill takes (single source of truth).
+    private var barTier: LiviqaBarTier {
+        liviqaBarTier(glassOn: glassOn,
+                      reduceTransparency: reduceTransparency,
+                      increasedContrast: contrast == .increased)
+    }
+
     /// Ambient animated background shows only with glass on and full transparency/
     /// contrast (TidelineField itself freezes under Reduce Motion). Flag off ⇒ flat paper.
     private var showAmbientBackground: Bool { glassOn && !useSolidBar }
 
-    private var tabBar: some View {
+    private var tabRow: some View {
         HStack {
             ForEach(LiviqaTab.allCases, id: \.self) { item in
                 let active = tab == item
                 Button {
-                    // Spring so the magnifier lens glides to the new tab (still under Reduce Motion).
-                    withAnimation(glassOn && !reduceMotion ? .spring(response: 0.34, dampingFraction: 0.82) : nil) {
+                    // Spring so the lens glides to the new tab (held still under Reduce Motion).
+                    let animate = glassOn && !reduceMotion
+                    if animate { pillTravelling = true }   // flare the chromatic rim mid-travel
+                    withAnimation(animate ? LiviqaBarMotion.travel : nil) {
                         tab = item
                     }
                     if item != .home { selectedNudge = nil }
+                    // Let the flare decay once the spring has settled.
+                    if animate {
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 420_000_000)
+                            withAnimation(.easeOut(duration: 0.25)) { pillTravelling = false }
+                        }
+                    }
                 } label: {
                     VStack(spacing: 3) {
                         Image(systemName: active ? item.symbolFilled : item.symbol)
-                            .font(.lato(19))   // constant size — never magnifies past the bar
+                            .font(.lato(19))
+                            // The lens "magnifies" the active glyph (subtle, calm) — a
+                            // render-only scale, so it never reflows the bar layout.
+                            .scaleEffect(active && glassOn ? 1.14 : 1.0)
                         Text(item.title)
                             .font(.lato(10, active ? .bold : .regular))
                             .tracking(0.2)
@@ -269,24 +299,63 @@ struct MainTabView: View {
                     .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
-                    // The gliding selected pill (contained, Flighty-style) behind the active tab.
-                    .background {
-                        if active && glassOn {
-                            MagnifierLens()
-                                .matchedGeometryEffect(id: "tabMagnifier", in: tabGlass)
-                                .padding(.horizontal, 3)
-                        }
-                    }
+                    // Report this tab's slot rect so the single travelling lens can sit
+                    // over it and slide between slots (measured in the bar's space).
+                    .background(GeometryReader { g in
+                        Color.clear.preference(key: TabFrameKey.self,
+                                               value: [item: g.frame(in: .named(tabBarSpace))])
+                    })
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 7)
-        .padding(.horizontal, 6)
+    }
+
+    /// The single travelling lens rect: the selected tab's slot, inset slightly.
+    private var pillRect: CGRect? {
+        guard let r = tabFrames[tab], r.width > 0 else { return nil }
+        return r.insetBy(dx: 3, dy: 0)
+    }
+
+    /// ONE persistent lens, sized to the selected slot and moved by `.offset` (NOT
+    /// `.position`, which would expand to fill and balloon the bar). Sliding the offset
+    /// makes the single glass element travel — the Flighty glide. Placed via background
+    /// so it adopts the row's size rather than dictating it; on iOS 26 it's real glass
+    /// that refracts the bar surface behind it and merges into the bar capsule.
+    @ViewBuilder private func lensView() -> some View {
+        if glassOn, let r = pillRect {
+            TravellingTabPill(tier: barTier, travelling: pillTravelling, reduceMotion: reduceMotion)
+                .frame(width: r.width, height: r.height)
+                .offset(x: r.minX, y: r.minY)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var tabBar: some View {
         // Floating capsule — three-tier ladder (LiviqaBarGlass): real Liquid Glass on
         // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
         // Reduce Transparency / Increase Contrast, so label contrast is preserved.
-        .liviqaBarGlass(solid: useSolidBar)
+        let bar = tabRow
+            // The lens sits BEHIND the row so labels/icons stay crisp (a frosted lens
+            // ON TOP hides the selected tab). It still travels as one glass element —
+            // the Flighty glide — and the active glyph is magnified (below) so the
+            // selection still reads as sitting under a magnifier.
+            .background(alignment: .topLeading) { lensView() }
+            .coordinateSpace(.named(tabBarSpace))
+            .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
+            .padding(.vertical, 7)
+            .padding(.horizontal, 6)
+            .liviqaBarGlass(solid: useSolidBar)
+        return Group {
+            // Wrap the glassy bar in a GlassEffectContainer so the lens and the bar
+            // capsule MERGE into one continuous glass on iOS 26 (not two stacked blurs).
+            // Flag off / iOS 17–25 pass straight through — identical to before.
+            if glassOn {
+                GlassEffectContainerCompat { bar }
+            } else {
+                bar
+            }
+        }
         // Detach from the screen edges so it reads as a floating surface.
         .padding(.horizontal, 16)
         .padding(.bottom, 6)
