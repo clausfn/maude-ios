@@ -30,6 +30,9 @@ struct GlassLabView: View {
                     .font(.liviqaKicker(11)).tracking(LiviqaTheme.Tracking.kicker)
                     .foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
+                section("Colourful, calm", "More colour from depth + category, not saturation: the ambient field, a clear-glass summary, and per-domain accent chips (glucose amber · sleep indigo · recovery moss · money slate). Apple-level restraint, Liviqa warmth.") {
+                    ColourfulCalmDemo()
+                }
                 section("Money ↔ sleep", "The “Apple can’t” card: tighter-money days from your bank feed overlaid on your sleep + HRV. Bidirectional, hedged, sample-sized.") {
                     CorrelationCard(icon: "creditcard.fill", accent: LiviqaTheme.accentFinance, kicker: "Money · sleep",
                         headline: "On tighter-money days, your sleep and HRV tend to run lower — and the two move together.",
@@ -363,6 +366,46 @@ private struct AlcoholHRChart: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Colourful-but-calm composition (ambient field + glass summary + per-domain accents)
+
+private struct ColourfulCalmDemo: View {
+    var body: some View {
+        ZStack {
+            TidelineField(phase: 0.40, calm: 0.70)
+                .frame(height: 300)
+                .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.hero))
+            VStack(alignment: .leading, spacing: 14) {
+                DaySummaryGlass {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Tuesday, in balance").font(.lato(18, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                        Text("Your day held close to your own normal across glucose, sleep and recovery.")
+                            .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
+                    }
+                }
+                HStack(spacing: 8) {
+                    domainChip("drop.fill", "88%", "TIR", LiviqaTheme.amber)
+                    domainChip("moon.zzz.fill", "7h10", "Sleep", LiviqaTheme.accentSleep)
+                    domainChip("waveform.path.ecg", "48", "HRV", LiviqaTheme.moss)
+                    domainChip("creditcard.fill", "calm", "Money", LiviqaTheme.accentFinance)
+                }
+            }
+            .padding(16)
+        }
+    }
+    private func domainChip(_ icon: String, _ value: String, _ label: String, _ accent: Color) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: icon).font(.system(size: 13)).foregroundStyle(accent)
+            Text(value).font(.liviqaMono(13)).foregroundStyle(LiviqaTheme.ink)
+            Text(label).font(.lato(9)).foregroundStyle(LiviqaTheme.ink3)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(accent.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.25), lineWidth: 0.5))
     }
 }
 
