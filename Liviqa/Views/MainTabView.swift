@@ -238,24 +238,24 @@ struct MainTabView: View {
                     }
                     if item != .home { selectedNudge = nil }
                 } label: {
-                    VStack(spacing: 5) {
+                    VStack(spacing: 3) {
                         Image(systemName: active ? item.symbolFilled : item.symbol)
-                            .font(.lato(active && glassOn ? 21 : 20))
-                            .scaleEffect(active && glassOn ? 1.06 : 1)   // magnify the active tab
+                            .font(.lato(19))   // constant size — never magnifies past the bar
                         Text(item.title)
                             .font(.lato(10, active ? .bold : .regular))
                             .tracking(0.2)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
-                        // Active moss dot — kept only when the lens is OFF (flag off = today's look).
-                        Circle()
-                            .fill(active && !glassOn ? LiviqaTheme.moss : Color.clear)
-                            .frame(width: 4, height: 4)
+                        // Active dot only when the glass pill is OFF (flag off = today's look);
+                        // not rendered when the pill is on, so it adds no extra bar height.
+                        if active && !glassOn {
+                            Circle().fill(LiviqaTheme.moss).frame(width: 4, height: 4)
+                        }
                     }
                     .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                    // The gliding translucent magnifier lens behind the active tab.
+                    .padding(.vertical, 6)
+                    // The gliding selected pill (contained, Flighty-style) behind the active tab.
                     .background {
                         if active && glassOn {
                             MagnifierLens()
@@ -267,7 +267,7 @@ struct MainTabView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 7)
         .padding(.horizontal, 6)
         // Floating capsule — three-tier ladder (LiviqaBarGlass): real Liquid Glass on
         // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
