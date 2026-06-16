@@ -229,21 +229,10 @@ struct MainTabView: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 6)
-        // Floating Liquid-Glass capsule (A6). Opaque LiviqaTheme.paper2 fallback when
-        // Reduce Transparency / Increase Contrast is on, so label contrast is preserved.
-        .background {
-            if useSolidBar {
-                Capsule().fill(LiviqaTheme.paper2)
-            } else {
-                Capsule().fill(.ultraThinMaterial)
-            }
-        }
-        .overlay {
-            Capsule().strokeBorder(useSolidBar ? LiviqaTheme.ink3 : LiviqaTheme.line,
-                                   lineWidth: useSolidBar ? 1 : 0.5)
-        }
-        // Lift the capsule off the canvas (no shadow on the high-contrast solid bar).
-        .shadow(color: LiviqaTheme.cardShadow, radius: useSolidBar ? 0 : 12, y: useSolidBar ? 0 : 4)
+        // Floating capsule — three-tier ladder (LiviqaBarGlass): real Liquid Glass on
+        // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
+        // Reduce Transparency / Increase Contrast, so label contrast is preserved.
+        .liviqaBarGlass(solid: useSolidBar)
         // Detach from the screen edges so it reads as a floating surface.
         .padding(.horizontal, 16)
         .padding(.bottom, 6)

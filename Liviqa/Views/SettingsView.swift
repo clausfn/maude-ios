@@ -13,6 +13,7 @@ struct SettingsView: View {
     // selection on a fresh install.
     @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.paper.rawValue
     @AppStorage("liviqaReduceMotion") private var reduceMotion = false
+    @AppStorage("liquidGlass")        private var liquidGlass = true
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @AppStorage("liviqa.appLanguage") private var appLanguage = "system"
 
@@ -113,6 +114,18 @@ struct SettingsView: View {
                         Text("Reduce motion")
                             .font(.footnote).foregroundStyle(LiviqaTheme.ink)
                         Text("Skip ring draw-in and chart animations")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $liquidGlass) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Liquid Glass")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Translucent chrome on iPhones running iOS 26")
                             .font(.caption).foregroundStyle(LiviqaTheme.ink4)
                     }
                 }

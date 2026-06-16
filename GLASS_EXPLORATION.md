@@ -43,3 +43,21 @@ Every glass surface is a real-time blur pass. The lab keeps **one live blur per 
 4. **`clay` = Amber Flame over glass** (RK-ALARM-01) — confirm the attention tone stays legible/non-alarming on translucency.
 
 _Removal path: delete `_GlassLab.swift` and the `-glassLab` hook in `LiviqaApp.swift`. It is `#if DEBUG`, so it is already excluded from every TestFlight/Release build._
+
+---
+
+## Promoted to real screens (2026-06-16) — behind the `liquidGlass` flag
+
+The **chrome layer** is now live on the real screens (`Liviqa/Views/LiquidGlass.swift`), all behind `@AppStorage("liquidGlass")` (default ON; **Settings → Liquid Glass** toggles it) and iOS-26-gated. Flag off, or iOS < 26, or Reduce Transparency = today's app exactly.
+
+- **Floating tab bar → real Liquid Glass** (`MainTabView` via `.liviqaBarGlass`): iOS 26 `.glassEffect` → iOS 17–25 `.ultraThinMaterial` → opaque `paper2` fallback. Verified on the iOS 26 Simulator.
+- **Soft scroll-edge dissolve** on Today + Insights (`.liviqaScrollEdgeSoft`): the title melts into the feed on scroll. No-op on iOS 17–25 / flag off.
+- **Settings toggle** + `liquidGlass` flag for instant reversibility.
+
+### Still in the Lab — need a placement nod before they touch a locked screen
+These change a screen's *interaction or content*, not just its surface, so each needs its host confirmed:
+- **Glass scrubber** → proposed home: an Insights/timeline detail (drag across your day).
+- **Morph action cluster** → proposed home: `NudgeDetailView` ("act on this moment").
+- **Ambient tide field + clear-glass card** → proposed home: a day-summary header (Today or Insights); confirm the driving signal (RHR / circadian / sleep).
+- **Tab-bar minimize-on-scroll** → the locked tab bar; needs cross-screen scroll plumbing + sign-off.
+- **Concentric cards / sheet glass** → additive, low-risk; can follow.

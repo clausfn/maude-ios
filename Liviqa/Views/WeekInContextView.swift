@@ -108,6 +108,7 @@ struct WeekInContextView: View {
                 }
             }
         }
+        .liviqaScrollEdgeSoft()   // iOS 26 + flag: chrome dissolves into the trend feed
         .background(LiviqaTheme.paper.ignoresSafeArea())
         .sheet(isPresented: $showShare) {
             shareSheet

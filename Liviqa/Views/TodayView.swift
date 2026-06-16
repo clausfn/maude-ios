@@ -116,6 +116,7 @@ struct TodayView: View {
                 .padding(.top, 12)
             }
         }
+        .liviqaScrollEdgeSoft()   // iOS 26 + flag: title dissolves into the feed
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
