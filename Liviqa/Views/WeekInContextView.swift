@@ -78,7 +78,7 @@ struct WeekInContextView: View {
                     // glass timeline over an ambient field. Pushes an additive screen.
                     if glassOn {
                         NavigationLink {
-                            DayTimelineView(samples: appState.isDemoData ? Self.demoDay : [])
+                            DayTimelineView()
                         } label: { dayScrubEntry }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 16)
@@ -128,9 +128,6 @@ struct WeekInContextView: View {
     }
 
     // MARK: - "Your day" glass-timeline entry (flagged)
-
-    private static let demoDay: [Double] = [5.1,4.8,5.4,6.2,7.1,8.4,7.2,6.1,5.6,6.8,9.1,7.7,
-                                            6.4,5.9,5.2,4.7,5.0,6.3,7.0,6.6,5.8,5.3,5.1,4.9]
 
     private var dayScrubEntry: some View {
         HStack(spacing: 12) {

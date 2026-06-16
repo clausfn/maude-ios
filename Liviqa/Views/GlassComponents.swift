@@ -35,8 +35,11 @@ struct GlassScrubberThumb: View {
 
     var body: some View {
         let shape = Capsule()
+        // Calm attention (RK-ALARM-01): in-range = moss; "worth noticing" uses the
+        // navy ink tone, not a bright Amber-Flame alarm dot. Meaning rides on the
+        // word, not a warning light.
         let content = HStack(spacing: 7) {
-            Circle().fill(inRange ? LiviqaTheme.moss : LiviqaTheme.clay).frame(width: 7, height: 7)
+            Circle().fill(inRange ? LiviqaTheme.moss : LiviqaTheme.clayText).frame(width: 7, height: 7)
             Text(label).font(.liviqaMono(12)).foregroundStyle(LiviqaTheme.ink)
         }
         .padding(.horizontal, 14).padding(.vertical, 9)
@@ -73,7 +76,8 @@ struct ScrubReadout: View {
             Text(unit).font(.liviqaMono(11)).foregroundStyle(LiviqaTheme.ink3)
             Spacer()
             HStack(spacing: 6) {
-                Circle().fill(inRange ? LiviqaTheme.moss : LiviqaTheme.clay).frame(width: 6, height: 6)
+                // Calm attention (RK-ALARM-01): navy ink, not Amber-Flame, for "worth noticing".
+                Circle().fill(inRange ? LiviqaTheme.moss : LiviqaTheme.clayText).frame(width: 6, height: 6)
                 Text(inRange ? "in your range" : "worth noticing")
                     .font(.lato(11, .semibold))
                     .foregroundStyle(inRange ? LiviqaTheme.moss : LiviqaTheme.clayText)

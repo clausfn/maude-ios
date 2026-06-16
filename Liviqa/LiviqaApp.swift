@@ -79,10 +79,11 @@ struct LiviqaApp: App {
             .fullScreenCover(isPresented: $debugGlassLab) { GlassLabView() }
             .fullScreenCover(isPresented: $debugDayLab) {
                 NavigationStack {
-                    DayTimelineView(samples: [5.1,4.8,5.4,6.2,7.1,8.4,7.2,6.1,5.6,6.8,9.1,7.7,
-                                             6.4,5.9,5.2,4.7,5.0,6.3,7.0,6.6,5.8,5.3,5.1,4.9])
+                    DayTimelineView(injectedSamples: [5.1,4.8,5.4,6.2,7.1,8.4,7.2,6.1,5.6,6.8,9.1,7.7,
+                                                      6.4,5.9,5.2,4.7,5.0,6.3,7.0,6.6,5.8,5.3,5.1,4.9])
                         .background(LiviqaTheme.paper.ignoresSafeArea())
                 }
+                .environment(appState)   // covers don't inherit the env automatically
             }
             #endif
             .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default

@@ -3,26 +3,54 @@
 // concepts together: the ambient tide field (background), one clear-glass day
 // summary, and the interactive glass scrubber over the day's readings.
 //
-// Honesty: shows real readings when provided; with none it shows a calm empty
-// state rather than fabricated numbers. In demo mode the caller passes the demo
-// series (consistent with the app's labelled demo behaviour elsewhere).
+// DRIVEN FROM DATA (CN): the scrubber uses the user's real `glucoseToday` curve;
+// the ambient field's breathing period comes from resting HR, its calm from sleep,
+// its tide height from the circadian phase. With no real readings it shows a calm
+// empty state — never fabricated numbers on a real screen. (In demo mode the
+// signals are the app's labelled demo seeds, consistent with the rest of the app.)
 import SwiftUI
 
 struct DayTimelineView: View {
-    /// The day's readings (empty ⇒ empty state). Caller supplies real or demo data.
-    let samples: [Double]
+    /// DEBUG/preview override; production reads `appState.todaySignals`.
+    var injectedSamples: [Double]? = nil
     var unit: String = "mmol/L"
+
+    @Environment(AppState.self) private var appState
+
+    private static let demoDay: [Double] = [5.1,4.8,5.4,6.2,7.1,8.4,7.2,6.1,5.6,6.8,9.1,7.7,
+                                            6.4,5.9,5.2,4.7,5.0,6.3,7.0,6.6,5.8,5.3,5.1,4.9]
+    private var sig: TodaySignals? { appState.todaySignals }
+
+    /// The day's readings — real `glucoseToday` first, then the injected/demo series.
+    private var samples: [Double] {
+        if let g = sig?.glucoseToday, g.count > 1 { return g }
+        if let inj = injectedSamples, inj.count > 1 { return inj }
+        return appState.isDemoData ? Self.demoDay : []
+    }
 
     /// Circadian phase 0…1 from the current time — drives the tide height.
     private var phase: Double {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
-        let mins = (c.hour ?? 12) * 60 + (c.minute ?? 0)
-        return Double(mins) / 1440.0
+        return Double((c.hour ?? 12) * 60 + (c.minute ?? 0)) / 1440.0
+    }
+    /// Breathing period from resting HR (slower beat = slower tide). Default 11s.
+    private var breathPeriod: Double {
+        let rhr = Double(sig?.rhr ?? "") ?? 0
+        return rhr >= 40 ? min(16, max(8, 60.0 / rhr * 8)) : 11
+    }
+    /// Calm 0…1 from last night's sleep duration (more sleep = calmer, lower-contrast).
+    private var calm: Double {
+        guard let s = sig?.sleep else { return 0.7 }
+        // "6h52" → hours
+        let parts = s.lowercased().split(separator: "h")
+        let h = Double(parts.first ?? "") ?? 0
+        let m = parts.count > 1 ? (Double(parts[1]) ?? 0) : 0
+        return min(1, max(0.3, (h + m / 60) / 8.0))
     }
 
     var body: some View {
         ZStack {
-            TidelineField(phase: phase, calm: 0.72).ignoresSafeArea()
+            TidelineField(phase: phase, breathPeriod: breathPeriod, calm: calm).ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     DaySummaryGlass {
