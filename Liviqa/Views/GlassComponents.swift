@@ -276,23 +276,36 @@ struct TidelineField: View {
             LiviqaTheme.paper2
         } else {
             TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: still)) { tl in
-                let t = still ? phase
-                    : phase + 0.5 * (1 + sin(tl.date.timeIntervalSinceReferenceDate * (2 * .pi / breathPeriod))) * 0.04
+                // Slow clock; frozen at a phase-derived instant under Reduce Motion.
+                let clock = still ? phase * 240 : tl.date.timeIntervalSinceReferenceDate
                 Canvas { ctx, size in
-                    let tideY = size.height * (0.62 - 0.18 * t)
-                    let a = 0.10 + 0.06 * (1 - calm)
-                    let top = LiviqaTheme.heroGlow.opacity(a)
-                    let bot = LiviqaTheme.moss.opacity(a * 0.6)
-                    let rect = Path(CGRect(origin: .zero, size: size))
-                    ctx.fill(rect, with: .linearGradient(
+                    let w = size.width, h = size.height
+                    // 1. Base tide — soft vertical wash; height set by the circadian phase.
+                    let a = 0.14 + 0.06 * (1 - calm)
+                    let tideY = h * (0.70 - 0.22 * phase)
+                    ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .linearGradient(
                         Gradient(stops: [
                             .init(color: .clear, location: 0),
-                            .init(color: top, location: max(0, tideY / size.height - 0.15)),
-                            .init(color: bot, location: 1),
+                            .init(color: LiviqaTheme.heroGlow.opacity(a), location: max(0, tideY / h - 0.2)),
+                            .init(color: LiviqaTheme.moss.opacity(a * 0.7), location: 1),
                         ]),
-                        startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                        startPoint: .zero, endPoint: CGPoint(x: 0, y: h)))
+                    // 2. Floating orbs — slow drifting soft shapes (the calm "pictures").
+                    //    Drift SPEED scales with the breathing period (resting HR); each
+                    //    orb has its own phase so they never line up. Visible but gentle.
+                    let tones = [LiviqaTheme.heroGlow, LiviqaTheme.moss, LiviqaTheme.amber, LiviqaTheme.heroGlow]
+                    for i in 0..<4 {
+                        let sp = (2 * Double.pi) / (breathPeriod * Double(6 + i * 2))   // slow
+                        let ph = phase * 6.28 + Double(i) * 1.7
+                        let cx = w * (0.5 + 0.34 * sin(clock * sp + ph))
+                        let cy = h * (0.42 + 0.30 * cos(clock * sp * 1.3 + ph))
+                        let r = min(w, h) * (0.24 + 0.06 * sin(clock * sp * 0.7 + ph))
+                        let oa = (0.18 + 0.05 * (1 - calm)) * (i == 2 ? 0.55 : 1)        // amber kept fainter
+                        ctx.fill(Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: 2 * r, height: 2 * r)),
+                                 with: .color(tones[i].opacity(oa)))
+                    }
                 }
-                .blur(radius: 36)
+                .blur(radius: 34)               // soft, glowing edges
                 .accessibilityHidden(true)
             }
         }
