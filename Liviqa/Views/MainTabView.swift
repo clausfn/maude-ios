@@ -105,7 +105,9 @@ struct MainTabView: View {
                             showConnectHint: showConnectHintResolved,
                             onOpenSettings: { tab = .settings }
                         ))
-                        .task { await appState.refreshFromHealth() }
+                        // Health refresh runs from the app-level one-time `.task`
+                        // below — NOT re-fired on every Home appearance, which used
+                        // to race (and drop) the user's tab tap (FB-AJR9AqEk).
                         .navigationDestination(item: $selectedNudge) { nudge in
                             NudgeDetailView(nudge: nudge).liviqaDetail()
                         }
@@ -180,7 +182,11 @@ struct MainTabView: View {
             if !didInitialRefresh {
                 didInitialRefresh = true
                 await appState.refreshFromHealth()
-                appState.requestPushAuthorization()   // register for push reminders (signed in)
+                // Register for push reminders once signed in — but never during
+                // automated snapshots/UI tests (the system prompt would block them).
+                if !ProcessInfo.processInfo.arguments.contains("-uiTestAutoDemo") {
+                    appState.requestPushAuthorization()
+                }
             }
         }
         .task {

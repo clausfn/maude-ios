@@ -87,11 +87,16 @@ clinical nudge copy (RQ-01); no brand/IA change; Dynamic Type deferred; video-co
 session; watch targets = manual Xcode step.
 **Human steps:** `GOLIVE_CHECKLIST.md` — signing + Product→Archive (set destination to "Any iOS Device" first)
 + upload to TestFlight. Preserved the Share-Receipt wallet feature throughout.
-- 2026-06-10 — **Dynamic Type: now supported (was wrongly assumed deferred).** `Font.custom(_:size:)`
-  already auto-scales, so body content grows with the system text size. Only fixed chrome wrapped at
-  accessibility sizes — fixed by clamping the tab bar (`.dynamicTypeSize(...xLarge)` + lineLimit/minScale)
-  and the Home signal chips (`...xxLarge` + lineLimit/minScale). Verified at accessibility-extra-large:
-  tab labels + pillar chips stay one line, hero/body scale. Screenshot /tmp/dt2_home_s.png. Build ✅.
+- 2026-06-10 — **Dynamic Type clamps added** (chrome): tab bar (`.dynamicTypeSize(...xLarge)` + lineLimit/minScale)
+  and the Home signal chips (`...xxLarge` + lineLimit/minScale).
+  > ⚠️ **CORRECTION (2026-06-16, FB-AEkAWxal):** the note here previously claimed `Font.custom(_:size:)`
+  > "already auto-scales." **That is false** — `Font.custom(_:size:)` and `.system(size:)` are FIXED sizes;
+  > only `.custom(_:size:relativeTo:)` / `UIFontMetrics` scale. So body text never actually scaled (the
+  > clamps above clamped chrome that wasn't growing anyway). NFR-A11Y-01 was marked "implemented" on this
+  > false premise. **Real fix in PR-97:** `Theme.swift` font helpers now route through `UIFontMetrics`
+  > (`relativeTo:` on the mono faces) so all ~566 call-sites scale. Re-verified at accessibility-extra-large
+  > (`/tmp/dt_default.png` vs `/tmp/dt_xxxl.png`): hero/body/kickers genuinely grow; the two clamps still
+  > keep tab + chip chrome on one line.
 - 2026-06-10 — **Tests for Wave-1 provider logic.** Refactored `resolveProviderKind` into a pure,
   testable function; added `ProviderResolutionTests` (6 cases: real device→HealthKit, no-Health→mock,
   UI-test/env force-mock, env force-healthKit, demo-flag semantics). Suite now 97/97 ✅.

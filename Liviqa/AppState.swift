@@ -328,36 +328,49 @@ final class AppState {
                 let coordinator = IngestionCoordinator(context: container.mainContext, provider: provider)
                 _ = try? coordinator.persist(samples, from: start, to: end)
             }
-            let engineNudges = NudgeEngine().generate(samples: samples)
+            let real = usingRealData
+            // FB-AJR9AqEk — run the (pure, Sendable) deriver chain OFF the main
+            // actor. Awaiting the detached task suspends the main actor, so a tab
+            // tap during refresh is handled immediately instead of dropped ("had
+            // to push many times"). Only the cheap @Observable assignments below
+            // run back on main. All inputs/outputs are Sendable value types.
+            let d = await Task.detached(priority: .userInitiated) { () -> DerivedHealth in
+                DerivedHealth(
+                    engineNudges: NudgeEngine().generate(samples: samples),
+                    patternFindings: real ? [] : PatternEngine.run(.lv001),
+                    passport: PassportStatsDeriver.derive(from: samples),
+                    grid: CorrelationDeriver.derive(from: samples),
+                    signals: TodaySignalsDeriver.derive(from: samples),
+                    sleep: SleepDeriver.derive(from: samples))
+            }.value
             // With REAL data, trust the engine even when it finds nothing — clear
             // any demo seeds so fabricated nudges are never shown as the user's own
             // (data-integrity / no-AI-tell). In demo mode, keep the seeds when the
             // engine is quiet so the feed is never empty.
-            if usingRealData || !engineNudges.isEmpty {
-                nudges = engineNudges.map { Nudge(engine: $0) }
+            if real || !d.engineNudges.isEmpty {
+                nudges = d.engineNudges.map { Nudge(engine: $0) }
             }
             // FR-PAT-01: long-horizon pattern findings (same detectors and
             // thresholds as the clinician console — one engine, any citizen).
             // Demo input until the summarisation pipeline computes PatternInput
             // from real device history (FR-PAT-02).
-            if !usingRealData {
-                let findings = PatternEngine.run(.lv001)
-                nudges.append(contentsOf: findings.map { Nudge(finding: $0) })
+            if !real {
+                nudges.append(contentsOf: d.patternFindings.map { Nudge(finding: $0) })
             }
             // FR-PAS-05 / DM-05: refresh the derived half of the Passport from
             // the same on-device samples (the count half comes from app state).
             passportStats = PassportStats.compose(
-                derived: PassportStatsDeriver.derive(from: samples),
+                derived: d.passport,
                 nudgesGenerated: nudges.count,
                 sourcesConnected: connectedSources.filter(\.isConnected).count,
                 journalEntries: journalEntries.count,
                 consentDecisions: walletEvents.count)
             // FR-PAS-05 / DM-06: derive the 7-day correlation grid on device.
-            correlationWeek = CorrelationWeek.from(CorrelationDeriver.derive(from: samples))
+            correlationWeek = CorrelationWeek.from(d.grid)
             // Home signal chips — show the user's OWN latest values (nil keeps seeds).
-            todaySignals = TodaySignalsDeriver.derive(from: samples)
+            todaySignals = d.signals
             // Sleep-stage breakdown for the real sleep visualisation.
-            sleepSummary = SleepDeriver.derive(from: samples)
+            sleepSummary = d.sleep
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }
@@ -522,4 +535,15 @@ final class AppState {
             return nil
         }
     }
+}
+
+/// Results of the off-main deriver chain (FB-AJR9AqEk). All fields are Sendable
+/// value types so the bundle can cross the actor boundary out of `Task.detached`.
+private struct DerivedHealth: Sendable {
+    let engineNudges: [EngineNudge]
+    let patternFindings: [PatternFinding]
+    let passport: DerivedPassportStats
+    let grid: CorrelationGrid
+    let signals: TodaySignals?
+    let sleep: SleepSummary?
 }

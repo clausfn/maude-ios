@@ -109,14 +109,47 @@ enum LiviqaTheme {
 // MARK: - Font helpers — SF Pro (Dynamic Type) for headlines/body + IBM Plex Mono for numbers
 
 extension Font {
-    static func liviqaKicker(_ size: CGFloat = 10) -> Font { .custom("IBMPlexMono-Medium", size: size) }
-    static func liviqaMono(_ size: CGFloat = 14) -> Font { .custom("IBMPlexMono-Medium", size: size) }
-    /// Headlines/body now use the system face (SF Pro) — Dynamic-Type friendly.
-    static func lato(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight)
+    static func liviqaKicker(_ size: CGFloat = 10) -> Font {
+        .custom("IBMPlexMono-Medium", size: size, relativeTo: .caption2)
     }
-    static var liviqaH1: Font { .system(size: 32, weight: .bold) }
-    static var liviqaH2: Font { .system(size: 20, weight: .semibold) }
-    static var liviqaBody: Font { .system(size: 15) }
-    static var liviqaCaption: Font { .system(size: 12) }
+    static func liviqaMono(_ size: CGFloat = 14) -> Font {
+        .custom("IBMPlexMono-Medium", size: size, relativeTo: .footnote)
+    }
+    /// Headlines/body use the system face (SF Pro), scaled with the user's iOS
+    /// text-size setting via UIFontMetrics. `.system(size:)` / `.custom(_:size:)`
+    /// WITHOUT `relativeTo:` never scale — that omission was FB-AEkAWxal ("changed
+    /// text size and it did not change"). All ~566 call sites scale from here.
+    static func lato(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        scaledSystem(size, weight, .body)
+    }
+    static var liviqaH1: Font { scaledSystem(32, .bold, .largeTitle) }
+    static var liviqaH2: Font { scaledSystem(20, .semibold, .title3) }
+    static var liviqaBody: Font { scaledSystem(15, .regular, .subheadline) }
+    static var liviqaCaption: Font { scaledSystem(12, .regular, .caption1) }
+
+    /// A system font at `size`/`weight` that grows/shrinks with Dynamic Type,
+    /// anchored to `style`. UIFontMetrics scales from the Large default, so the
+    /// default text size looks identical to before — only non-default sizes change.
+    private static func scaledSystem(_ size: CGFloat, _ weight: Font.Weight,
+                                     _ style: UIFont.TextStyle = .body) -> Font {
+        let base = UIFont.systemFont(ofSize: size, weight: weight.uiKit)
+        return Font(UIFontMetrics(forTextStyle: style).scaledFont(for: base))
+    }
+}
+
+private extension Font.Weight {
+    /// SwiftUI weight → UIKit weight, for the UIFontMetrics-scaled system face.
+    var uiKit: UIFont.Weight {
+        switch self {
+        case .ultraLight: return .ultraLight
+        case .thin:       return .thin
+        case .light:      return .light
+        case .medium:     return .medium
+        case .semibold:   return .semibold
+        case .bold:       return .bold
+        case .heavy:      return .heavy
+        case .black:      return .black
+        default:          return .regular
+        }
+    }
 }
