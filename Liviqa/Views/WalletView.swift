@@ -14,6 +14,9 @@ struct WalletView: View {
     @State private var receiptOffer: WalletReceiptOffer?
     @State private var issuingReceipt: UUID?
 
+    // UC-CONSENT-REACT — reactivate withdrawn consents (legal bulk re-consent).
+    @State private var showReactivate = false
+
     // Research-contribution consents — set opt-in during DfG onboarding
     // (FB-AIJMHfz6), surfaced + revocable here. Same @AppStorage keys.
     @AppStorage("consentCohortDiscovery")      private var cohortDiscovery      = false
@@ -64,6 +67,29 @@ struct WalletView: View {
                                 .frame(width: 2)
                         }
                         .padding(.top, 6)
+
+                    // ── Reactivate withdrawn consents (UC-CONSENT-REACT) ──
+                    // Recovery for an accidental withdraw. Opens an explicit re-consent
+                    // sheet — never a silent un-revoke (the withdrawal stays on record).
+                    if !appState.withdrawnGrants.isEmpty {
+                        Button { showReactivate = true } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Reactivate withdrawn consents")
+                                    .font(.lato(13.5, .semibold))
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.lato(11, .semibold))
+                            }
+                            .foregroundStyle(LiviqaTheme.moss)
+                            .padding(14)
+                            .frame(maxWidth: .infinity)
+                            .background(LiviqaTheme.moss2)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 8)
+                    }
 
                     // ── Research contributions (opt-in in onboarding; revocable here) ──
                     LiviqaSectionHeader(label: "Research contributions")
@@ -167,12 +193,28 @@ struct WalletView: View {
                     receiptOffer = WalletReceiptOffer(url: sample, recipientName: appState.grants.first?.recipientName ?? "Pharma Partner")
                 }
             }
+            // Deterministic screenshot of the reactivate-consents sheet (UC-CONSENT-REACT).
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_REACTIVATE"] == "1",
+               !appState.withdrawnGrants.isEmpty {
+                showReactivate = true
+            }
             #endif
         }
         .sheet(item: $receiptOffer) { off in
             ShareReceiptSheet(offer: off)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showReactivate) {
+            ReactivateConsentsSheet { n in
+                guard n > 0 else { return }
+                toast = LiviqaToastData(
+                    title: n == 1 ? "1 consent reactivated" : "\(n) consents reactivated",
+                    detail: "Fresh consent recorded on DfG CE ledger",
+                    tone: .good)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .liviqaToast($toast)
     }

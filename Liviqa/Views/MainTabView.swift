@@ -153,6 +153,13 @@ struct MainTabView: View {
         .task {
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_CHAT"] == "1" { debugOpenChat = true }
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_THREAD"] == "1" { debugOpenThread = true }
+            // UC-RSCH deterministic screenshots: SHOW_RESEARCH=1 → Home card (s09);
+            // OPEN_STUDY=1 → consent (s10); OPEN_STUDY=joined → joined (s11).
+            let study = ProcessInfo.processInfo.environment["LIVIQA_OPEN_STUDY"]
+            if ProcessInfo.processInfo.environment["LIVIQA_SHOW_RESEARCH"] == "1" || study != nil {
+                appState.researchOpportunity = MockData.demoStudy
+            }
+            if study != nil { appState.showStudyConsent = true }
         }
         #endif
         .sheet(isPresented: Binding(
@@ -172,6 +179,22 @@ struct MainTabView: View {
             }
         )) {
             ProfileSheet(openSection: nudgeProfileAnchor)
+        }
+        .sheet(isPresented: Binding(
+            get: { appState.showStudyConsent },
+            set: { appState.showStudyConsent = $0 }
+        )) {
+            let startJoined: Bool = {
+                #if DEBUG
+                return ProcessInfo.processInfo.environment["LIVIQA_OPEN_STUDY"] == "joined"
+                #else
+                return false
+                #endif
+            }()
+            StudyConsentView(study: appState.researchOpportunity ?? MockData.demoStudy,
+                             startJoined: startJoined)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .fullScreenCover(item: $joiningConsult) { consult in
             NavigationStack { ConsultView(consult: consult) }
