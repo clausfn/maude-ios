@@ -110,6 +110,11 @@ final class AppState {
     /// MainTabView hides the floating tab bar so it can't overlap the content.
     var detailDepth = 0
 
+    // Research participation (UC-RSCH) — a pending study invitation + its consent flow.
+    var researchOpportunity: ResearchStudy? = nil   // surfaced on Home when matched
+    var showStudyConsent = false                    // MainTabView presents StudyConsentView
+    var joinedStudy: ResearchStudy? = nil           // set on Approve & join
+
     init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
         self.supabase = supabase
         NotificationCenter.default.addObserver(forName: .liviqaPushToken, object: nil, queue: .main) { note in

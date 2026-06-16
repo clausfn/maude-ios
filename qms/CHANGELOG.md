@@ -2,6 +2,12 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-99 — Research participation flow + reactivate-withdrawn-consents (2026-06-16, scoped by CN)
+- **feat(research) UC-RSCH · FR-RSCH-01/02/03** — research-participation flow, built from the Novo storyboard's previously mockup-only screens: a matched **research-opportunity card** on Home (`ResearchOpportunityCard`, s09); a **study review + informed consent** screen (`StudyConsentView`, s10 — "Vouched by Data for Good", per-category data toggles, **aggregate-only · k ≥ 5 · withdraw any time**, Approve & join / Decline); a **joined** confirmation (s11). Approve creates a scoped `WalletGrant` to the sponsor via the existing consent model + logs a `consentGranted` ledger event; nothing is shared before approval. `NFR-RSCH-04`: k ≥ 5 floor surfaced.
+- **feat(consent) FR-WAL-08 · UC-CONSENT-REACT** — *"reactivate withdrawn consents"*, done legally. Revocation stays one-way (the withdrawal remains in the consent-evidence ledger); reactivation creates a **fresh** active grant per withdrawn one (new id + timestamp + `consentGranted` event) behind an explicit confirmation sheet listing each recipient/scope + the aggregate-only/k ≥ 5 disclosure — never a silent un-revoke. Entry point in Privacy when withdrawn grants exist.
+- **risk** — `RK-CONSENT-REACT` added to RISK.md: reactivation is re-consent, not restoration; pending legal review of the bulk-confirm UX.
+- **Verified** — build green (iOS Sim, build 10.48); all four screens screenshotted real (s09/s10/s11 + reactivate sheet); `T-RSCH-01` / `T-CONSENT-REACT-01` authored.
+
 ## PR-98 — Liquid Glass: design exploration → promoted to real screens (2026-06-16, build 10.49, design dir by CN)
 - **Progressive enhancement, iOS 17 floor kept** (CN: "no exclusive phones"). New `Liviqa/Views/LiquidGlass.swift` + `GlassComponents.swift`; all effects behind `@AppStorage("liquidGlass")` (default ON, **Settings → Liquid Glass**) and `if #available(iOS 26, *)`. Three-tier ladder on every surface: iOS 26 real `.glassEffect` → iOS 17–25 `.ultraThinMaterial` → opaque `paper2` under Reduce Transparency / Increase Contrast. Motion resolves to rest via `LiviqaMotion.reduced`. Flag off / iOS < 26 = prior app byte-for-byte. Builds on PR-96 (Daylight).
 - **Chrome promoted:** floating tab bar → real Liquid Glass (`.liviqaBarGlass`); soft scroll-edge dissolve on Today + Insights (`.liviqaScrollEdgeSoft`).

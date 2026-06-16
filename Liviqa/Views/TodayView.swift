@@ -24,6 +24,8 @@ struct TodayView: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @State private var connectHintDismissed = false
+    // UC-RSCH — a matched study invitation surfaces here on Home.
+    @Environment(AppState.self) private var appState
 
     // "Thu · 22 May"
     private var dateKicker: String {
@@ -81,6 +83,16 @@ struct TodayView: View {
                     if showConnectHint, !connectHintDismissed {
                         connectHealthHint
                             .padding(.top, 14)
+                    }
+
+                    // UC-RSCH-1 — matched research opportunity (s09).
+                    if let study = appState.researchOpportunity {
+                        ResearchOpportunityCard(
+                            study: study,
+                            onReview: { appState.showStudyConsent = true },
+                            onLater:  { appState.researchOpportunity = nil }
+                        )
+                        .padding(.top, 14)
                     }
 
                     // Calm, affirming lead (not an alert) — the everyday day-good state.
