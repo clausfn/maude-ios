@@ -231,6 +231,13 @@ struct TodayView: View {
                     .foregroundStyle(LiviqaTheme.clayText)
                     .padding(.top, 7)
 
+                // PR-100 #3: inline sparkline of the matching domain's REAL weekly
+                // series (from todaySignals) — the evidence made visible, not faked.
+                if visualNudge, let spark = heroSparkline, let acc = nudges.first?.accent {
+                    MiniSparkline(values: spark, tint: acc.accentColor, height: 28)
+                        .padding(.top, 11)
+                }
+
                 HStack(spacing: 6) {
                     Text("See the evidence").font(.lato(13, .bold))
                     Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold))
@@ -250,6 +257,19 @@ struct TodayView: View {
 
     // Live when real data is connected (drive from the user's own top nudge);
     // the polished demo seeds otherwise.
+    /// The matching domain's REAL weekly series for the hero sparkline (nil ⇒ none).
+    private var heroSparkline: [Double]? {
+        guard let acc = nudges.first?.accent, let s = signals else { return nil }
+        let series: [Double]
+        switch acc {
+        case .glucose: series = s.inRangeWeek
+        case .sleep:   series = s.sleepWeek
+        case .cardiac: series = s.hrvWeek
+        default:       series = []
+        }
+        return series.count > 1 ? series : nil
+    }
+
     private var heroHeadline: String {
         if !isDemoData, let n = nudges.first { return n.evidence?.headline ?? n.body }
         return "Late dinners are costing you sleep."
