@@ -69,6 +69,9 @@ struct MetricDetailView: View {
     let pillar: WellnessPillar
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// PR-99 (sign-off gate): show clinical AGP TIR zones on the glucose chart.
+    /// Default OFF ⇒ the current single-band look ships until CN flips it on.
+    @AppStorage("clinicalTIRZones") private var clinicalTIRZones = false
 
     private let dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
@@ -132,11 +135,14 @@ struct MetricDetailView: View {
                 Text("Today").font(.liviqaKicker(9.5)).tracking(0.8).foregroundStyle(LiviqaTheme.ink3)
                 Spacer()
                 HStack(spacing: 5) {
-                    RoundedRectangle(cornerRadius: 2).fill(LiviqaTheme.moss.opacity(0.4)).frame(width: 14, height: 9)
-                    Text("YOUR RANGE").font(.liviqaKicker(8)).tracking(0.6).foregroundStyle(LiviqaTheme.ink4)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill((clinicalTIRZones ? LiviqaTheme.tirTarget : LiviqaTheme.moss).opacity(0.4))
+                        .frame(width: 14, height: 9)
+                    Text(clinicalTIRZones ? "TARGET 3.9–10.0" : "YOUR RANGE")
+                        .font(.liviqaKicker(8)).tracking(0.6).foregroundStyle(LiviqaTheme.ink4)
                 }
             }
-            GlucoseCurveView(values: day)
+            GlucoseCurveView(values: day, showsClinicalZones: clinicalTIRZones)
         }
         .padding(14).background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))

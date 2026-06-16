@@ -135,6 +135,9 @@ struct GlucoseCurveView: View {
     var yMax: Double = 14.0
     var height: CGFloat = 150
     var xTicks: [String] = ["00", "06", "12", "18"]
+    /// PR-99: show the clinical AGP Time-in-Range zones (red/yellow/green) instead of
+    /// the single personal target band. Default off ⇒ existing look unchanged.
+    var showsClinicalZones: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var shown = false
@@ -143,6 +146,18 @@ struct GlucoseCurveView: View {
     private func y(_ v: Double, _ h: CGFloat) -> CGFloat {
         let frac = (v - yMin) / (yMax - yMin)
         return h - CGFloat(min(1, max(0, frac))) * h
+    }
+    // PR-99: AGP clinical zones — soft horizontal bands; curve stays readable on top.
+    @ViewBuilder private func clinicalZones(_ h: CGFloat) -> some View {
+        zoneBand(yMin, 3.0, LiviqaTheme.tirVeryLow, h)   // very low (L2 hypo)
+        zoneBand(3.0, low, LiviqaTheme.tirLow, h)         // low (L1 hypo)
+        zoneBand(low, high, LiviqaTheme.tirTarget, h)     // target 3.9–10.0
+        zoneBand(high, 13.9, LiviqaTheme.tirHigh, h)      // high (L1 hyper)
+        zoneBand(13.9, yMax, LiviqaTheme.tirVeryHigh, h)  // very high (L2 hyper)
+    }
+    @ViewBuilder private func zoneBand(_ a: Double, _ b: Double, _ c: Color, _ h: CGFloat) -> some View {
+        let top = y(b, h), bot = y(a, h)
+        Rectangle().fill(c.opacity(0.12)).frame(height: max(0, bot - top)).offset(y: top)
     }
     private func x(_ i: Int, _ w: CGFloat) -> CGFloat {
         values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
@@ -157,9 +172,9 @@ struct GlucoseCurveView: View {
             VStack(alignment: .trailing) {
                 Text(fmt(yMax))
                 Spacer()
-                Text(fmt(high)).foregroundStyle(LiviqaTheme.moss)
+                Text(fmt(high)).foregroundStyle(showsClinicalZones ? LiviqaTheme.tirTarget : LiviqaTheme.moss)
                 Spacer()
-                Text(fmt(low)).foregroundStyle(LiviqaTheme.moss)
+                Text(fmt(low)).foregroundStyle(showsClinicalZones ? LiviqaTheme.tirTarget : LiviqaTheme.moss)
                 Spacer()
                 Text(fmt(yMin))
             }
@@ -187,16 +202,20 @@ struct GlucoseCurveView: View {
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
             ZStack(alignment: .topLeading) {
-                // personal target band
-                Rectangle()
-                    .fill(LiviqaTheme.moss.opacity(0.14))
-                    .frame(height: max(0, y(low, h) - y(high, h)))
-                    .offset(y: y(high, h))
-                    .overlay(alignment: .top) {
-                        Path { p in p.move(to: .zero); p.addLine(to: CGPoint(x: w, y: 0)) }
-                            .stroke(LiviqaTheme.moss.opacity(0.30), lineWidth: 0.5)
-                            .offset(y: y(high, h))
-                    }
+                if showsClinicalZones {
+                    clinicalZones(h)
+                } else {
+                    // personal target band (default — existing look)
+                    Rectangle()
+                        .fill(LiviqaTheme.moss.opacity(0.14))
+                        .frame(height: max(0, y(low, h) - y(high, h)))
+                        .offset(y: y(high, h))
+                        .overlay(alignment: .top) {
+                            Path { p in p.move(to: .zero); p.addLine(to: CGPoint(x: w, y: 0)) }
+                                .stroke(LiviqaTheme.moss.opacity(0.30), lineWidth: 0.5)
+                                .offset(y: y(high, h))
+                        }
+                }
                 if values.count > 1 {
                     let pts = points(w, h)
                     smoothedArea(pts, h).fill(LinearGradient(

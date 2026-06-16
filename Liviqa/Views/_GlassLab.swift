@@ -30,6 +30,11 @@ struct GlassLabView: View {
                     .font(.liviqaKicker(11)).tracking(LiviqaTheme.Tracking.kicker)
                     .foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
+                section("Glucose · clinical zones (live component)", "The real GlucoseCurveView with showsClinicalZones on — AGP red/yellow/green bands behind the curve, target labelled green. The promoted component, not a mock; flag default OFF preserves today's single-band look.") {
+                    GlucoseCurveView(values: [5.1,4.8,5.4,6.2,7.1,8.4,11.2,9.3,6.1,5.6,6.8,12.1,
+                                              7.7,6.4,5.9,5.2,3.6,5.0,6.3,7.0,6.6,5.8,5.3,5.1],
+                                     showsClinicalZones: true)
+                }
                 section("Colourful, calm", "More colour from depth + category, not saturation: the ambient field, a clear-glass summary, and per-domain accent chips (glucose amber · sleep indigo · recovery moss · money slate). Apple-level restraint, Liviqa warmth.") {
                     ColourfulCalmDemo()
                 }
