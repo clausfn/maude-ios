@@ -88,6 +88,13 @@ struct JournalView: View {
     @State private var showVoiceNote      = false
     @State private var showMoodSheet      = false
 
+    // Supplement quick-log (FB 86exz21e1). Manual structured entry now; label-scan
+    // (AI image-recognition) + a supplement registry autocomplete are flagged follow-ups.
+    @State private var showSupplementSheet = false
+    @State private var supplementName  = ""
+    @State private var supplementDose  = ""
+    @State private var supplementBrand = ""
+
     // FAB / filter
     @State private var activeFilter: TimelineFilter = .all
     @State private var selectedDay: Date? = nil
@@ -181,6 +188,13 @@ struct JournalView: View {
             moodSheet
             #if os(iOS)
                 .presentationDetents([.height(300)])
+                .presentationDragIndicator(.hidden)
+            #endif
+        }
+        .sheet(isPresented: $showSupplementSheet) {
+            supplementSheet
+            #if os(iOS)
+                .presentationDetents([.height(440)])
                 .presentationDragIndicator(.hidden)
             #endif
         }
@@ -321,6 +335,10 @@ struct JournalView: View {
                     #endif
                 }
             }
+            captureButton("Log a supplement", icon: "pills.fill",
+                          tint: LiviqaTheme.moss, bg: LiviqaTheme.moss2, wide: true) {
+                showSupplementSheet = true
+            }
             captureButton("Upload a document or photo", icon: "arrow.up.doc",
                           tint: LiviqaTheme.ink3, bg: LiviqaTheme.line2, wide: true) {
                 #if os(iOS)
@@ -431,6 +449,111 @@ struct JournalView: View {
         withAnimation {
             journalEntries.insert(entry, at: 0)
             showMoodSheet = false
+        }
+    }
+
+    // MARK: Supplement quick-log (FB 86exz21e1)
+    // Manual structured entry today; "Scan the label" (on-device AI image-recognition
+    // of brand + ingredients) and a supplement-registry autocomplete are flagged
+    // follow-ups — the scan affordance is an honest, disabled stub for now.
+
+    private var supplementSheet: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Capsule().fill(LiviqaTheme.line).frame(width: 38, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12).padding(.bottom, 18)
+
+            Text("Log a supplement")
+                .font(.lato(20, .black)).kerning(-0.4).foregroundStyle(LiviqaTheme.ink)
+            Text("What you took, and how much.")
+                .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
+
+            // Scan the label — AI image-recognition follow-up (honest "soon" stub).
+            Button { } label: {
+                HStack(spacing: 11) {
+                    Image(systemName: "camera.viewfinder").font(.lato(17, .medium))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Scan the label").font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink)
+                        Text("Read the brand & ingredients from a photo")
+                            .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 6)
+                    Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Capsule().fill(LiviqaTheme.moss2))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                .foregroundStyle(LiviqaTheme.moss)
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14)
+                    .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            }
+            .buttonStyle(.plain)
+            .disabled(true)
+            .padding(.top, 16)
+
+            supplementField("Name", placeholder: "e.g. Vitamin D3", text: $supplementName)
+                .padding(.top, 14)
+            HStack(alignment: .top, spacing: 10) {
+                supplementField("Dose", placeholder: "e.g. 2000 IU", text: $supplementDose)
+                supplementField("Brand (optional)", placeholder: "e.g. Pure", text: $supplementBrand)
+            }
+            .padding(.top, 10)
+
+            Spacer(minLength: 8)
+
+            Button { logSupplement() } label: {
+                Text("Log supplement").font(.lato(15, .bold))
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(LiviqaTheme.invertBG)
+                    .foregroundStyle(LiviqaTheme.invertFG)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            .disabled(supplementName.trimmingCharacters(in: .whitespaces).isEmpty)
+            .opacity(supplementName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+            .padding(.top, 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .background(LiviqaTheme.paper.ignoresSafeArea())
+    }
+
+    private func supplementField(_ label: String, placeholder: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label.uppercased())
+                .font(.liviqaKicker(9)).tracking(0.6).foregroundStyle(LiviqaTheme.ink4)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            TextField(placeholder, text: text)
+                .font(.lato(14)).foregroundStyle(LiviqaTheme.ink)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 12).frame(minHeight: 42)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func logSupplement() {
+        let name = supplementName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        var line = "Supplement — \(name)"
+        let dose = supplementDose.trimmingCharacters(in: .whitespaces)
+        if !dose.isEmpty { line += " · \(dose)" }
+        let brand = supplementBrand.trimmingCharacters(in: .whitespaces)
+        if !brand.isEmpty { line += " (\(brand))" }
+        var entry = JournalEntry(body: line, tags: ["Supplement"])
+        entry.metrics = nil
+        withAnimation {
+            journalEntries.insert(entry, at: 0)
+            showSupplementSheet = false
+            supplementName = ""; supplementDose = ""; supplementBrand = ""
         }
     }
 
