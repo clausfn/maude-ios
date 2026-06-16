@@ -73,8 +73,8 @@ struct MainTabView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("liquidGlass") private var glassOn = true
-    @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots → drive the lens position
-    @State private var pillTravelling = false                 // pulses true mid-travel → flares the chromatic rim
+    @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots → hit-test the finger
+    @State private var dragLoc: CGPoint? = nil               // finger location in bar space while pressing; nil = idle
     private let tabBarSpace = "liviqaTabBar"
     #if DEBUG
     @State private var debugOpenChat = false
@@ -259,76 +259,114 @@ struct MainTabView: View {
     /// contrast (TidelineField itself freezes under Reduce Motion). Flag off ⇒ flat paper.
     private var showAmbientBackground: Bool { glassOn && !useSolidBar }
 
+    // MARK: Tab selection + finger hit-testing
+
+    private func select(_ item: LiviqaTab) {
+        guard tab != item else { return }
+        tab = item
+        if item != .home { selectedNudge = nil }
+    }
+
+    /// The tab whose slot centre is nearest the given x (robust at edges/gaps).
+    private func tabAt(_ x: CGFloat) -> LiviqaTab? {
+        guard !tabFrames.isEmpty else { return nil }
+        return tabFrames.min { abs($0.value.midX - x) < abs($1.value.midX - x) }?.key
+    }
+
+    /// The tab the finger is currently over (only while the magnifier is active).
+    private var hoveredTab: LiviqaTab? {
+        guard glassOn, let p = dragLoc else { return nil }
+        return tabAt(p.x)
+    }
+
+    /// Union of all tab slots — the area the bubble may roam within.
+    private var barBounds: CGRect? {
+        guard !tabFrames.isEmpty else { return nil }
+        let r = Array(tabFrames.values)
+        let minX = r.map(\.minX).min()!, maxX = r.map(\.maxX).max()!
+        let minY = r.map(\.minY).min()!, maxY = r.map(\.maxY).max()!
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
     private var tabRow: some View {
-        HStack {
+        HStack(spacing: 0) {
             ForEach(LiviqaTab.allCases, id: \.self) { item in
-                let active = tab == item
-                Button {
-                    // Spring so the lens glides to the new tab (held still under Reduce Motion).
-                    let animate = glassOn && !reduceMotion
-                    if animate { pillTravelling = true }   // flare the chromatic rim mid-travel
-                    withAnimation(animate ? LiviqaBarMotion.travel : nil) {
-                        tab = item
-                    }
-                    if item != .home { selectedNudge = nil }
-                    // Let the flare decay once the spring has settled.
-                    if animate {
-                        Task { @MainActor in
-                            try? await Task.sleep(nanoseconds: 420_000_000)
-                            withAnimation(.easeOut(duration: 0.25)) { pillTravelling = false }
-                        }
-                    }
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: active ? item.symbolFilled : item.symbol)
-                            .font(.lato(19))
-                            // The lens "magnifies" the active glyph (subtle, calm) — a
-                            // render-only scale, so it never reflows the bar layout.
-                            .scaleEffect(active && glassOn ? 1.14 : 1.0)
-                        Text(item.title)
-                            .font(.lato(10, active ? .bold : .regular))
-                            .tracking(0.2)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                        // Active dot only when the glass pill is OFF (flag off = today's look);
-                        // not rendered when the pill is on, so it adds no extra bar height.
-                        if active && !glassOn {
-                            Circle().fill(LiviqaTheme.moss).frame(width: 4, height: 4)
-                        }
-                    }
-                    .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    // Report this tab's slot rect so the single travelling lens can sit
-                    // over it and slide between slots (measured in the bar's space).
-                    .background(GeometryReader { g in
-                        Color.clear.preference(key: TabFrameKey.self,
-                                               value: [item: g.frame(in: .named(tabBarSpace))])
-                    })
-                }
-                .buttonStyle(.plain)
+                tabCell(item)
             }
         }
     }
 
-    /// The single travelling lens rect: the selected tab's slot, inset slightly.
-    private var pillRect: CGRect? {
-        guard let r = tabFrames[tab], r.width > 0 else { return nil }
-        return r.insetBy(dx: 3, dy: 0)
+    @ViewBuilder private func tabCell(_ item: LiviqaTab) -> some View {
+        let active = tab == item
+        let lifted = (hoveredTab == item)   // finger is over this tab → its glyph rises into the lens
+        VStack(spacing: 3) {
+            Image(systemName: active ? item.symbolFilled : item.symbol)
+                .font(.lato(19))
+            Text(item.title)
+                .font(.lato(10, active ? .bold : .regular))
+                .tracking(0.2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            // Resting selection marker — a small dot. Hidden while the magnifier is up.
+            Circle().fill(LiviqaTheme.moss)
+                .frame(width: 4, height: 4)
+                .opacity(active && dragLoc == nil ? 1 : 0)
+        }
+        .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
+        // Fade the in-row glyph the finger is over — its magnified copy shows in the bubble.
+        .opacity(lifted ? 0.25 : 1)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+        .background(GeometryReader { g in
+            Color.clear.preference(key: TabFrameKey.self,
+                                   value: [item: g.frame(in: .named(tabBarSpace))])
+        })
+        // Selection stays fully accessible without the drag gesture (VoiceOver).
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.title)
+        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction(.default) { select(item) }
     }
 
-    /// ONE persistent lens, sized to the selected slot and moved by `.offset` (NOT
-    /// `.position`, which would expand to fill and balloon the bar). Sliding the offset
-    /// makes the single glass element travel — the Flighty glide. Placed via background
-    /// so it adopts the row's size rather than dictating it; on iOS 26 it's real glass
-    /// that refracts the bar surface behind it and merges into the bar capsule.
-    @ViewBuilder private func lensView() -> some View {
-        if glassOn, let r = pillRect {
-            TravellingTabPill(tier: barTier, travelling: pillTravelling, reduceMotion: reduceMotion)
-                .frame(width: r.width, height: r.height)
-                .offset(x: r.minX, y: r.minY)
-                .allowsHitTesting(false)
+    /// The Flighty magnifier: a large glass bubble that pops up under the finger, tracks
+    /// it, and shows a magnified copy of the tab it's over. Only while pressing + glass on.
+    @ViewBuilder private var magnifierLayer: some View {
+        if glassOn, let p = dragLoc, let bounds = barBounds {
+            let d: CGFloat = 64                                   // bubble ≫ a tab slot
+            let cx = min(max(p.x, bounds.minX + d / 2), bounds.maxX - d / 2)
+            let cy = bounds.midY - 22                             // pops up above the bar line
+            ZStack {
+                GlassMagnifierBubble(tier: barTier)
+                if let h = hoveredTab {
+                    Image(systemName: h.symbolFilled)
+                        .font(.lato(27))                         // the magnified glyph
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .transition(.opacity)
+                        .id(h)                                   // swap as the finger crosses tabs
+                }
+            }
+            .frame(width: d, height: d)
+            .position(x: cx, y: cy)
+            .allowsHitTesting(false)
+            .transition(.scale(scale: 0.5).combined(with: .opacity))
         }
+    }
+
+    /// Touch anywhere on the bar raises the bubble; dragging moves it; lifting selects
+    /// the tab under the finger and dismisses it.
+    private var barDrag: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(tabBarSpace))
+            .onChanged { v in
+                if dragLoc == nil {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.7)) { dragLoc = v.location }
+                } else {
+                    dragLoc = v.location                          // track the finger 1:1, no lag
+                }
+            }
+            .onEnded { v in
+                if let t = tabAt(v.location.x) { select(t) }
+                withAnimation(.easeOut(duration: 0.18)) { dragLoc = nil }
+            }
     }
 
     private var tabBar: some View {
@@ -336,19 +374,19 @@ struct MainTabView: View {
         // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
         // Reduce Transparency / Increase Contrast, so label contrast is preserved.
         let bar = tabRow
-            // The lens sits BEHIND the row so labels/icons stay crisp (a frosted lens
-            // ON TOP hides the selected tab). It still travels as one glass element —
-            // the Flighty glide — and the active glyph is magnified (below) so the
-            // selection still reads as sitting under a magnifier.
-            .background(alignment: .topLeading) { lensView() }
+            // The magnifier rides ABOVE the row (it refracts/enlarges the icon it covers).
+            // It only exists while pressing, so it never hides the resting selection.
+            .overlay { magnifierLayer }
             .coordinateSpace(.named(tabBarSpace))
             .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
+            .contentShape(Rectangle())
+            .gesture(barDrag)
             .padding(.vertical, 7)
             .padding(.horizontal, 6)
             .liviqaBarGlass(solid: useSolidBar)
         return Group {
-            // Wrap the glassy bar in a GlassEffectContainer so the lens and the bar
-            // capsule MERGE into one continuous glass on iOS 26 (not two stacked blurs).
+            // Wrap the bar in a GlassEffectContainer so the bubble lens and the bar
+            // capsule blend into one continuous glass on iOS 26 (not two stacked blurs).
             // Flag off / iOS 17–25 pass straight through — identical to before.
             if glassOn {
                 GlassEffectContainerCompat { bar }
