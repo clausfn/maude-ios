@@ -233,8 +233,7 @@ struct JournalView: View {
                                     .foregroundStyle(isSelected ? LiviqaTheme.invertFG : LiviqaTheme.ink4)
 
                                 Text(dayNumber(day))
-                                    .font(.system(size: 13, weight: isSelected ? .bold : .regular,
-                                                  design: .monospaced))
+                                    .font(.liviqaMono(13))
                                     .foregroundStyle(isSelected ? LiviqaTheme.invertFG : LiviqaTheme.ink2)
 
                                 Circle()

@@ -101,7 +101,7 @@ struct ConsultView: View {
                 ZStack {
                     Circle().fill(Color.white.opacity(0.12)).frame(width: 76, height: 76)
                     Text(String(consult.recipientName.prefix(2)).uppercased())
-                        .font(.system(size: 26, weight: .heavy, design: .rounded))
+                        .font(.lato(26, .heavy))
                         .foregroundStyle(.white)
                 }
                 Text("Connecting to \(consult.recipientName)…")
@@ -132,7 +132,7 @@ struct ConsultView: View {
                 ZStack {
                     Circle().fill(LiviqaTheme.moss2).frame(width: 36, height: 36)
                     Text(String(consult.recipientName.prefix(2)).uppercased())
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .font(.lato(13, .heavy))
                         .foregroundStyle(LiviqaTheme.moss)
                 }
                 VStack(alignment: .leading, spacing: 2) {

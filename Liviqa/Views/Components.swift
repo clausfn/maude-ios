@@ -115,7 +115,7 @@ struct LiviqaAppBar: View {
                     ZStack {
                         Circle().fill(LiviqaTheme.invertBG).frame(width: 32, height: 32)
                         Text(LiviqaAppBar.initials(appState.profile?.displayName))
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .font(.lato(12, .semibold))
                             .foregroundStyle(LiviqaTheme.invertFG)
                     }
                 }

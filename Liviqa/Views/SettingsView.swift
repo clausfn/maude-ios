@@ -295,7 +295,7 @@ struct SettingsView: View {
                     .fill(LiviqaTheme.invertBG)
                     .frame(width: 40, height: 40)
                 Text(initials)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.lato(14, .semibold))
                     .foregroundStyle(LiviqaTheme.invertFG)
             }
             VStack(alignment: .leading, spacing: 2) {

@@ -144,7 +144,7 @@ struct IDProviderLoginView: View {
                 Image(logo).resizable().scaledToFit().frame(width: 22, height: 22)
                     .clipShape(RoundedRectangle(cornerRadius: 5))
             }
-            Text(provider.name).font(.system(size: 16, weight: .heavy, design: .rounded)).foregroundStyle(cream)
+            Text(provider.name).font(.lato(16, .heavy)).foregroundStyle(cream)
             Spacer()
             if step != .verifying && step != .verified {
                 Button { onCancel() } label: {
@@ -185,12 +185,12 @@ struct IDProviderLoginView: View {
                     Image(logo).resizable().scaledToFit().frame(width: 76, height: 76)
                         .clipShape(RoundedRectangle(cornerRadius: 17))
                 } else {
-                    Text(walletInitials).font(.system(size: 30, weight: .black, design: .rounded)).foregroundStyle(cream)
+                    Text(walletInitials).font(.lato(30, .black)).foregroundStyle(cream)
                 }
             }
             .shadow(color: .black.opacity(0.35), radius: 16, y: 8)
             VStack(spacing: 8) {
-                Text(provider.name).font(.system(size: 34, weight: .heavy, design: .rounded)).foregroundStyle(cream)
+                Text(provider.name).font(.lato(34, .heavy)).foregroundStyle(cream)
                 Text(provider.unlockSubtitle).font(.lato(13.5)).lineSpacing(2).foregroundStyle(sub)
                     .multilineTextAlignment(.center).padding(.horizontal, 6)
             }

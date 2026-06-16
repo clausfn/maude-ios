@@ -35,7 +35,7 @@ struct IncomingCallView: View {
                         .opacity(pulse ? 0 : 0.8)
                     Circle().fill(Color.white.opacity(0.10)).frame(width: 110, height: 110)
                     Text(initials)
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        .font(.lato(36, .heavy))
                         .foregroundStyle(.white)
                 }
                 .padding(.top, 26)
