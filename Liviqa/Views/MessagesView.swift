@@ -360,7 +360,7 @@ struct MessagesView: View {
             ZStack {
                 Circle().fill(LiviqaTheme.invertBG).frame(width: 38, height: 38)
                 Text(initials(t.recipientName))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.lato(13, .semibold))
                     .foregroundStyle(LiviqaTheme.invertFG)
             }
             VStack(alignment: .leading, spacing: 2) {

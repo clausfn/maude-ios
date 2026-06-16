@@ -100,7 +100,7 @@ struct TokenWalletView: View {
 
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text("\(balance)")
-                                .font(.system(size: 48, weight: .bold, design: .monospaced))
+                                .font(.liviqaMono(48))
                                 .foregroundStyle(LiviqaTheme.invertFG)
                             Text("DfG")
                                 .font(.liviqaKicker(13))
