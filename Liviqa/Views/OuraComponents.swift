@@ -287,10 +287,10 @@ struct MiniSparkline: View {
                 let pts = values.enumerated().map { CGPoint(x: x($0.offset, w), y: y($0.element, h)) }
                 ZStack {
                     sparkPath(pts).fill(LinearGradient(
-                        colors: [tint.opacity(0.28), tint.opacity(0.0)],
+                        colors: [tint.opacity(0.40), tint.opacity(0.0)],
                         startPoint: .top, endPoint: .bottom))
-                    sparkLine(pts).stroke(tint, style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
-                    Circle().fill(tint).frame(width: 4, height: 4).position(pts[pts.count - 1])
+                    sparkLine(pts).stroke(tint, style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round))
+                    Circle().fill(tint).frame(width: 5, height: 5).position(pts[pts.count - 1])
                 }
             }
         }
