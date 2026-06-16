@@ -24,9 +24,9 @@ struct TodayView: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @State private var connectHintDismissed = false
-    /// PR-100 promotion #3 (sign-off gate): show a domain icon on the nudge hero
-    /// (the sparkline half needs a numeric series on Nudge — deferred). Default OFF.
-    @AppStorage("visualNudge") private var visualNudge = false
+    /// PR-100 promotion #3: domain icon on the nudge hero (sparkline half deferred —
+    /// needs a numeric series on Nudge). On by default; toggle in Settings.
+    @AppStorage("visualNudge") private var visualNudge = true
     // UC-RSCH — a matched study invitation surfaces here on Home.
     @Environment(AppState.self) private var appState
 

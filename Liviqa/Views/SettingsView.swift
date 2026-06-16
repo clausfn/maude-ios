@@ -14,6 +14,9 @@ struct SettingsView: View {
     @AppStorage("liviqaThemeMode")    private var themeModeRaw = LiviqaTheme.Mode.paper.rawValue
     @AppStorage("liviqaReduceMotion") private var reduceMotion = false
     @AppStorage("liquidGlass")        private var liquidGlass = true
+    @AppStorage("clinicalTIRZones")   private var clinicalTIRZones = true
+    @AppStorage("gradedHeatmap")      private var gradedHeatmap = true
+    @AppStorage("visualNudge")        private var visualNudge = true
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @AppStorage("liviqa.appLanguage") private var appLanguage = "system"
 
@@ -126,6 +129,42 @@ struct SettingsView: View {
                         Text("Liquid Glass")
                             .font(.footnote).foregroundStyle(LiviqaTheme.ink)
                         Text("Translucent chrome on iPhones running iOS 26")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $clinicalTIRZones) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Clinical glucose zones")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Red / amber / green time-in-range bands on the glucose chart")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $gradedHeatmap) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Graded heatmap")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Shade each day by how far it is from your usual (Insights)")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $visualNudge) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Nudge domain icons")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Show a category icon on each insight on Home")
                             .font(.caption).foregroundStyle(LiviqaTheme.ink4)
                     }
                 }
