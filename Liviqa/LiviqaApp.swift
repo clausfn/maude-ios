@@ -10,6 +10,7 @@ struct LiviqaApp: App {
     #if DEBUG
     @State private var debugWallet = false
     @State private var debugIDP: IDProvider? = nil
+    @State private var debugGlassLab = false
     #endif
 
     // One-time flags — persist across launches
@@ -74,10 +75,17 @@ struct LiviqaApp: App {
             .fullScreenCover(item: $debugIDP) { p in
                 IDProviderLoginView(provider: p, onComplete: { debugIDP = nil }, onCancel: { debugIDP = nil })
             }
+            .fullScreenCover(isPresented: $debugGlassLab) { GlassLabView() }
             #endif
             .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default
             .task {
                 #if DEBUG
+                // Design-exploration hook: open the Liquid Glass Lab (gallery).
+                if ProcessInfo.processInfo.arguments.contains("-glassLab") {
+                    hasSeenPrivacyDeclaration = true
+                    debugGlassLab = true
+                    return
+                }
                 // Snapshot hook: open the DfG Wallet login flow directly.
                 if ProcessInfo.processInfo.environment["LIVIQA_OPEN_WALLET"] == "1" {
                     hasSeenPrivacyDeclaration = true
