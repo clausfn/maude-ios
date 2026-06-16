@@ -4,7 +4,7 @@
 // (NFR-PORT-01). nil ⇒ not enough real data yet → Home falls back to seeds.
 import Foundation
 
-public struct TodaySignals: Sendable, Equatable {
+public nonisolated struct TodaySignals: Sendable, Equatable {
     public var sleep: String      // "6h52"
     public var inRange: String    // "61%"
     public var hrv: String        // "48"
@@ -31,7 +31,7 @@ public struct TodaySignals: Sendable, Equatable {
     }
 }
 
-public enum TodaySignalsDeriver {
+public nonisolated enum TodaySignalsDeriver {
 
     public static func derive(from s: HealthSamples,
                               tirLowMmol: Double = 3.9,

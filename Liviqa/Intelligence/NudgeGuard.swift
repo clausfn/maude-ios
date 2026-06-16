@@ -11,7 +11,7 @@
 // "this is not a diagnosis" must still pass. Pure Foundation (Android-portable).
 import Foundation
 
-public enum ForbiddenConstruction: String, Sendable, CaseIterable {
+public nonisolated enum ForbiddenConstruction: String, Sendable, CaseIterable {
     case dose                  // a numeric dose, e.g. "12 units", "500 mg"
     case treatmentDirective    // "adjust/take/stop your insulin/medication/dose"
     case dosingVerb            // "inject", "bolus", "titrate", "administer"
@@ -19,7 +19,7 @@ public enum ForbiddenConstruction: String, Sendable, CaseIterable {
     case clinicalNormality     // "normal/abnormal", "within normal limits"
 }
 
-public enum NudgeGuard {
+public nonisolated enum NudgeGuard {
 
     /// (case, regex pattern) — matched case-insensitively against title+body.
     private static let rules: [(ForbiddenConstruction, String)] = [

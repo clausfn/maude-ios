@@ -8,7 +8,7 @@
 import Foundation
 
 /// Each analytical stream is tagged with its regulatory lane (SRS L3 map).
-public enum RegulatoryLane: String, Sendable, CaseIterable {
+public nonisolated enum RegulatoryLane: String, Sendable, CaseIterable {
     case wellness        // recovery, sleep, body-comp, activity
     case watch           // glucose, BP, labs — surface a number/band, no advice
     case constrained     // insulin×glucose, cross-signal — tightly bounded
@@ -16,10 +16,10 @@ public enum RegulatoryLane: String, Sendable, CaseIterable {
 }
 
 /// Position of a value relative to the PERSONAL baseline band (not clinical).
-public enum Band: String, Sendable { case below, inBand, above }
+public nonisolated enum Band: String, Sendable { case below, inBand, above }
 
 /// Non-diagnostic qualitative summary words. Deliberately not clinical.
-public enum Verdict: String, Sendable {
+public nonisolated enum Verdict: String, Sendable {
     case onTrack, mixed, needsAttention
     var phrase: String {
         switch self {
@@ -31,7 +31,7 @@ public enum Verdict: String, Sendable {
 }
 
 /// Generic, non-medical behaviour suggestions. No drug/dose/treatment language.
-public enum Lever: String, Sendable {
+public nonisolated enum Lever: String, Sendable {
     case windDown, earlierNight, move, getOutside, hydrate, breathe
     var phrase: String {
         switch self {
@@ -45,7 +45,7 @@ public enum Lever: String, Sendable {
     }
 }
 
-public enum Specialty: String, Sendable {
+public nonisolated enum Specialty: String, Sendable {
     case cardiologist, gp
     var phrase: String {
         switch self {
@@ -56,7 +56,7 @@ public enum Specialty: String, Sendable {
 }
 
 /// The allow-listed output categories. The engine can ONLY emit these.
-public enum NudgeCategory: String, Sendable, CaseIterable {
+public nonisolated enum NudgeCategory: String, Sendable, CaseIterable {
     case verdict, number, bandStatus, behaviouralLever, routeToClinician
 }
 
@@ -64,7 +64,7 @@ public enum NudgeCategory: String, Sendable, CaseIterable {
 /// and MUST pass FR-NDG-06. NOTE: carries no `provenance` — that field never
 /// reaches this layer. Named `EngineNudge` to stay distinct from the prototype's
 /// presentation-layer `Nudge` card view-model (a future UI PR maps one to the other).
-public struct EngineNudge: Sendable, Identifiable, Equatable {
+public nonisolated struct EngineNudge: Sendable, Identifiable, Equatable {
     public let id: UUID
     public let category: NudgeCategory
     public let lane: RegulatoryLane
@@ -87,7 +87,7 @@ public struct EngineNudge: Sendable, Identifiable, Equatable {
 }
 
 /// Personal baseline (mean ± sd) over a metric's history. Not a clinical range.
-public struct Baseline: Sendable, Equatable {
+public nonisolated struct Baseline: Sendable, Equatable {
     public let mean: Double
     public let sd: Double
 
@@ -113,7 +113,7 @@ public struct Baseline: Sendable, Equatable {
 
 /// Clinical signals that live outside the HealthKit MVP read set (BP, AFib).
 /// Optional; absent in the synthetic demo.
-public struct ClinicalSignals: Sendable {
+public nonisolated struct ClinicalSignals: Sendable {
     public var afibSignalPresent: Bool
     public init(afibSignalPresent: Bool = false) {
         self.afibSignalPresent = afibSignalPresent

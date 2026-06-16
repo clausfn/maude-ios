@@ -15,7 +15,7 @@
 // console repo documents method + thresholds per detector id.
 import Foundation
 
-public struct PatternFinding: Sendable, Identifiable, Equatable {
+public nonisolated struct PatternFinding: Sendable, Identifiable, Equatable {
     public let id: String          // detector id, e.g. "D-ARR-01"
     public let group: String       // "Heart & rhythm", …
     public let tone: PatternTone
@@ -24,11 +24,11 @@ public struct PatternFinding: Sendable, Identifiable, Equatable {
     public let citizen: String     // the finding in the citizen's voice
     public let source: String
 }
-public enum PatternTone: String, Sendable { case green, amber, ink }
+public nonisolated enum PatternTone: String, Sendable { case green, amber, ink }
 
 /// Long-horizon aggregates from the summarisation pipeline. All optional —
 /// detectors fire only on data the citizen actually has.
-public struct PatternInput: Sendable {
+public nonisolated struct PatternInput: Sendable {
     public var asOf: Date = Date()
     public var rhythm: (episodes: Int, lastEpisode: DateComponents, ecgTotal: Int, ecgAfib: Int)?
     public var glucoseYearly: [Int: Double]?          // year -> mean mmol/L
@@ -41,7 +41,7 @@ public struct PatternInput: Sendable {
     public init() {}
 }
 
-public enum PatternEngine {
+public nonisolated enum PatternEngine {
 
     static func monthsBetween(_ comps: DateComponents, and date: Date, calendar: Calendar = .current) -> Int {
         guard let from = calendar.date(from: comps) else { return 0 }
@@ -162,7 +162,7 @@ public enum PatternEngine {
 }
 
 private extension Double {
-    func rounded(toPlaces places: Int) -> Double {
+    nonisolated func rounded(toPlaces places: Int) -> Double {
         let f = pow(10.0, Double(places))
         return (self * f).rounded() / f
     }

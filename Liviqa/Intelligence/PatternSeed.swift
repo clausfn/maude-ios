@@ -7,7 +7,7 @@
 import Foundation
 
 extension PatternInput {
-    static var lv001: PatternInput {
+    nonisolated static var lv001: PatternInput {
         var p = PatternInput()
         p.rhythm = (episodes: 4, lastEpisode: DateComponents(year: 2023, month: 7), ecgTotal: 84, ecgAfib: 12)
         p.glucoseYearly = [2016: 7.0, 2017: 6.7, 2018: 6.9, 2019: 7.9, 2020: 9.9,

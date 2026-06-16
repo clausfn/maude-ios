@@ -189,7 +189,7 @@ public struct HealthSamples: Sendable {
 
     public static let empty = HealthSamples()
 
-    public var isEmpty: Bool {
+    public nonisolated var isEmpty: Bool {
         glucose.isEmpty && hrv.isEmpty && restingHR.isEmpty && steps.isEmpty
             && activeEnergy.isEmpty && sleep.isEmpty && workouts.isEmpty
             && heartExtras.isEmpty && insulin.isEmpty && bloodPressure.isEmpty
@@ -197,5 +197,5 @@ public struct HealthSamples: Sendable {
     }
 
     /// All daily-metric streams flattened — handy for arbitration/derivation.
-    public var allDaily: [DailyMetric] { hrv + restingHR + steps + activeEnergy + heartExtras }
+    public nonisolated var allDaily: [DailyMetric] { hrv + restingHR + steps + activeEnergy + heartExtras }
 }

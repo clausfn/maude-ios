@@ -69,6 +69,35 @@ struct LiviqaHeroContinuation: ViewModifier {
     }
 }
 
+// MARK: - Magnifier lens (the gliding active-tab indicator, Flighty-style)
+
+/// A translucent "magnifier" lens that sits behind the active tab and glides to the
+/// selection (drive with `matchedGeometryEffect`). It is a tint + sheen highlight,
+/// NOT a second `.glassEffect` — stacking glass on the already-glass bar renders
+/// muddy and costs a second blur pass. The active icon is magnified at the call site.
+struct MagnifierLens: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var solid: Bool { reduceTransparency || contrast == .increased }
+
+    var body: some View {
+        let shape = Capsule()
+        return Group {
+            if solid {
+                shape.fill(LiviqaTheme.moss2)
+                    .overlay(shape.strokeBorder(LiviqaTheme.moss3, lineWidth: 1))
+            } else {
+                shape.fill(LiviqaTheme.moss.opacity(0.16))
+                    .overlay(shape.strokeBorder(LiviqaTheme.moss.opacity(0.35), lineWidth: 0.5))
+                    .overlay(  // top sheen — reads as a lens curving the light
+                        shape.fill(LinearGradient(colors: [.white.opacity(0.30), .clear],
+                                                  startPoint: .top, endPoint: .center)))
+            }
+        }
+        .shadow(color: solid ? .clear : LiviqaTheme.moss.opacity(0.18), radius: 6, y: 1)
+    }
+}
+
 extension View {
     /// Real Liquid Glass on the tab-bar capsule (iOS 26 + flag); Material / opaque otherwise.
     func liviqaBarGlass(solid: Bool) -> some View { modifier(LiviqaBarGlass(solid: solid)) }

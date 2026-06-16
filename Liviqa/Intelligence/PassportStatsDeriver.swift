@@ -10,7 +10,7 @@ import Foundation
 
 /// The sensor-derived passport figures. Mirrors the numeric fields of the
 /// presentation-layer `PassportStats` that a sensor/API could compute.
-public struct DerivedPassportStats: Sendable, Equatable {
+public nonisolated struct DerivedPassportStats: Sendable, Equatable {
     public let totalReadings: Int
     public let daysTracked: Int
     public let glucoseTimeInRange: Int   // 0–100 %
@@ -25,7 +25,7 @@ public struct DerivedPassportStats: Sendable, Equatable {
     }
 }
 
-public enum PassportStatsDeriver {
+public nonisolated enum PassportStatsDeriver {
 
     /// Stages that count as actual sleep (excludes `awake` and `inBed`, which
     /// would otherwise inflate the nightly total).

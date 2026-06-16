@@ -62,6 +62,9 @@ struct MainTabView: View {
     // Liquid Glass (A6): honour Reduce Transparency / Increase Contrast with an opaque fallback.
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("liquidGlass") private var glassOn = true
+    @Namespace private var tabGlass   // glides the magnifier lens between tabs
     #if DEBUG
     @State private var debugOpenChat = false
     @State private var debugOpenThread = false
@@ -204,25 +207,39 @@ struct MainTabView: View {
     private var tabBar: some View {
         HStack {
             ForEach(LiviqaTab.allCases, id: \.self) { item in
+                let active = tab == item
                 Button {
-                    tab = item
+                    // Spring so the magnifier lens glides to the new tab (still under Reduce Motion).
+                    withAnimation(glassOn && !reduceMotion ? .spring(response: 0.34, dampingFraction: 0.82) : nil) {
+                        tab = item
+                    }
                     if item != .home { selectedNudge = nil }
                 } label: {
                     VStack(spacing: 5) {
-                        Image(systemName: tab == item ? item.symbolFilled : item.symbol)
-                            .font(.lato(20))
+                        Image(systemName: active ? item.symbolFilled : item.symbol)
+                            .font(.lato(active && glassOn ? 21 : 20))
+                            .scaleEffect(active && glassOn ? 1.06 : 1)   // magnify the active tab
                         Text(item.title)
-                            .font(.lato(10, tab == item ? .bold : .regular))
+                            .font(.lato(10, active ? .bold : .regular))
                             .tracking(0.2)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
-                        // Active moss dot
+                        // Active moss dot — kept only when the lens is OFF (flag off = today's look).
                         Circle()
-                            .fill(tab == item ? LiviqaTheme.moss : Color.clear)
+                            .fill(active && !glassOn ? LiviqaTheme.moss : Color.clear)
                             .frame(width: 4, height: 4)
                     }
-                    .foregroundStyle(tab == item ? LiviqaTheme.ink : LiviqaTheme.ink3)
+                    .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                    // The gliding translucent magnifier lens behind the active tab.
+                    .background {
+                        if active && glassOn {
+                            MagnifierLens()
+                                .matchedGeometryEffect(id: "tabMagnifier", in: tabGlass)
+                                .padding(.horizontal, 3)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
             }

@@ -9,7 +9,7 @@
 // Pure Foundation — no SwiftData/HealthKit/SwiftUI. Android-portable.
 import Foundation
 
-public struct NudgeEngine: Sendable {
+public nonisolated struct NudgeEngine: Sendable {
     public init() {}
 
     public func generate(samples: HealthSamples,

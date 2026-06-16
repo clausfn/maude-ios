@@ -5,7 +5,7 @@
 // recommended duration. Pure Foundation (Android-portable).
 import Foundation
 
-public struct SleepSummary: Sendable, Equatable {
+public nonisolated struct SleepSummary: Sendable, Equatable {
     public let deepMin: Int
     public let coreMin: Int     // "Light" in the UI (core + unspecified)
     public let remMin: Int
@@ -21,7 +21,7 @@ public struct SleepSummary: Sendable, Equatable {
     }
 }
 
-public enum SleepDeriver {
+public nonisolated enum SleepDeriver {
     private static let asleep: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
     private static let cal = Calendar(identifier: .gregorian)
 

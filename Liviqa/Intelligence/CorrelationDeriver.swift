@@ -14,12 +14,12 @@
 // fabricated) until those sources land.
 import Foundation
 
-public enum CorrelationCell: Int, Sendable, Equatable {
+public nonisolated enum CorrelationCell: Int, Sendable, Equatable {
     case noData = 0, low = 1, medium = 2, high = 3, outlier = 4
 }
 
-public struct CorrelationGrid: Sendable, Equatable {
-    public struct Row: Sendable, Equatable {
+public nonisolated struct CorrelationGrid: Sendable, Equatable {
+    public nonisolated struct Row: Sendable, Equatable {
         public let dayLabel: String     // "M" … "S"
         public let dateOffset: Int      // days before today (0 = today)
         public let cells: [CorrelationCell]   // one per signal column
@@ -40,7 +40,7 @@ public struct CorrelationGrid: Sendable, Equatable {
     }
 }
 
-public enum CorrelationDeriver {
+public nonisolated enum CorrelationDeriver {
 
     public static let signalLabels = ["glucose", "sleep", "hrv", "exercise",
                                       "spending", "calendar", "weather"]
