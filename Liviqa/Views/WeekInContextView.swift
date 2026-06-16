@@ -6,6 +6,7 @@ import SwiftUI
 struct WeekInContextView: View {
 
     @Environment(AppState.self) private var appState
+    @AppStorage("liquidGlass") private var glassOn = true
     @State private var showShare = false
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil
@@ -73,6 +74,17 @@ struct WeekInContextView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
 
+                    // Liquid Glass "Your day" detail (flagged): scrub your day on a
+                    // glass timeline over an ambient field. Pushes an additive screen.
+                    if glassOn {
+                        NavigationLink {
+                            DayTimelineView(samples: appState.isDemoData ? Self.demoDay : [])
+                        } label: { dayScrubEntry }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                    }
+
                     // 2b. Recovery & stress (HRV) — descriptive, no stress score/verdict
                     recoveryCard
                         .padding(.horizontal, 16)
@@ -113,6 +125,28 @@ struct WeekInContextView: View {
         .sheet(isPresented: $showShare) {
             shareSheet
         }
+    }
+
+    // MARK: - "Your day" glass-timeline entry (flagged)
+
+    private static let demoDay: [Double] = [5.1,4.8,5.4,6.2,7.1,8.4,7.2,6.1,5.6,6.8,9.1,7.7,
+                                            6.4,5.9,5.2,4.7,5.0,6.3,7.0,6.6,5.8,5.3,5.1,4.9]
+
+    private var dayScrubEntry: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "hand.draw").font(.system(size: 18)).foregroundStyle(LiviqaTheme.moss)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Scrub your day").font(.lato(15, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                Text("Move through today's readings on a glass timeline")
+                    .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(LiviqaTheme.ink4)
+        }
+        .padding(14)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card).stroke(LiviqaTheme.line, lineWidth: 0.5))
     }
 
     // MARK: - TIR trend card (gradient area hero)

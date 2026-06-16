@@ -11,6 +11,7 @@ struct LiviqaApp: App {
     @State private var debugWallet = false
     @State private var debugIDP: IDProvider? = nil
     @State private var debugGlassLab = false
+    @State private var debugDayLab = false
     #endif
 
     // One-time flags — persist across launches
@@ -76,6 +77,13 @@ struct LiviqaApp: App {
                 IDProviderLoginView(provider: p, onComplete: { debugIDP = nil }, onCancel: { debugIDP = nil })
             }
             .fullScreenCover(isPresented: $debugGlassLab) { GlassLabView() }
+            .fullScreenCover(isPresented: $debugDayLab) {
+                NavigationStack {
+                    DayTimelineView(samples: [5.1,4.8,5.4,6.2,7.1,8.4,7.2,6.1,5.6,6.8,9.1,7.7,
+                                             6.4,5.9,5.2,4.7,5.0,6.3,7.0,6.6,5.8,5.3,5.1,4.9])
+                        .background(LiviqaTheme.paper.ignoresSafeArea())
+                }
+            }
             #endif
             .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default
             .task {
@@ -84,6 +92,11 @@ struct LiviqaApp: App {
                 if ProcessInfo.processInfo.arguments.contains("-glassLab") {
                     hasSeenPrivacyDeclaration = true
                     debugGlassLab = true
+                    return
+                }
+                if ProcessInfo.processInfo.arguments.contains("-dayLab") {
+                    hasSeenPrivacyDeclaration = true
+                    debugDayLab = true
                     return
                 }
                 // Snapshot hook: open the DfG Wallet login flow directly.

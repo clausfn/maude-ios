@@ -11,6 +11,7 @@ struct NudgeDetailView: View {
     let nudge: Nudge
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    @AppStorage("liquidGlass") private var glassOn = true
     @State private var showDepth = false
 
     private var ev: NudgeEvidence? { nudge.evidence }
@@ -144,6 +145,17 @@ struct NudgeDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
+            }
+
+            // Liquid Glass "act on this moment" affordance (flagged exploration).
+            // "Why" reveals the evidence depth; share/note are follow-up wiring.
+            if glassOn {
+                MorphActionCluster(
+                    onShareConsent: {},
+                    onJournal: {},
+                    onEvidence: { withAnimation(.easeInOut(duration: 0.2)) { showDepth = true } }
+                )
+                .padding(.top, 2)
             }
 
             shareCard

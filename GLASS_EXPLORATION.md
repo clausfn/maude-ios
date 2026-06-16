@@ -54,10 +54,15 @@ The **chrome layer** is now live on the real screens (`Liviqa/Views/LiquidGlass.
 - **Soft scroll-edge dissolve** on Today + Insights (`.liviqaScrollEdgeSoft`): the title melts into the feed on scroll. No-op on iOS 17–25 / flag off.
 - **Settings toggle** + `liquidGlass` flag for instant reversibility.
 
-### Still in the Lab — need a placement nod before they touch a locked screen
-These change a screen's *interaction or content*, not just its surface, so each needs its host confirmed:
-- **Glass scrubber** → proposed home: an Insights/timeline detail (drag across your day).
-- **Morph action cluster** → proposed home: `NudgeDetailView` ("act on this moment").
-- **Ambient tide field + clear-glass card** → proposed home: a day-summary header (Today or Insights); confirm the driving signal (RHR / circadian / sleep).
-- **Tab-bar minimize-on-scroll** → the locked tab bar; needs cross-screen scroll plumbing + sign-off.
-- **Concentric cards / sheet glass** → additive, low-risk; can follow.
+### Interactive surfaces — now promoted (CN: "all", 2026-06-16)
+
+Wired to real homes behind the same flag. To avoid rewriting any locked screen's content, the scrubber + ambient field + clear-glass summary live together on **one new additive screen**:
+
+- **`DayTimelineView`** (NEW, additive) — pushed from Insights via a flagged "Scrub your day" entry card. Hosts the **ambient tide field** (background, keyed to the current circadian phase), a **clear-glass day-summary** card, and the **interactive glass scrubber** + still readout. Honesty: real readings when present; demo series in demo mode; a calm empty state otherwise (never fabricated numbers on a real screen). Components live in `GlassComponents.swift`.
+- **Morph action cluster** → added to `NudgeDetailView` ("Act on this moment"), flagged; **Why** reveals the evidence depth (share/note are follow-up wiring).
+
+### Still pending sign-off
+- **Tab-bar minimize-on-scroll** → genuine rewrite of the locked tab bar (cross-screen scroll plumbing); not built.
+- **Concentric cards on existing content / sheet glass upgrade** → additive, low-risk; can follow when wanted.
+
+_The `liquidGlass` flag defaults ON, so the next TestFlight shows all of this to iOS 26 testers; flip the default to OFF if you'd rather it be opt-in._
