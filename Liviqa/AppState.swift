@@ -112,9 +112,12 @@ final class AppState {
 
     init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
         self.supabase = supabase
-        NotificationCenter.default.addObserver(forName: .liviqaPushToken, object: nil, queue: .main) { [weak self] note in
+        NotificationCenter.default.addObserver(forName: .liviqaPushToken, object: nil, queue: .main) { note in
             guard let hex = note.object as? String else { return }
-            Task { @MainActor in self?.handlePushToken(hex) }
+            // Capture `self` weakly INSIDE the @MainActor Task (not in the non-isolated
+            // observer closure) so nothing crosses the isolation boundary — silences the
+            // Swift-6 "captured var 'self' in concurrently-executing code" warning.
+            Task { @MainActor [weak self] in self?.handlePushToken(hex) }
         }
     }
 
