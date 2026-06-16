@@ -361,6 +361,8 @@ struct ProfileSheet: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(LiviqaTheme.ink3)
+                // Fixed-width label must shrink, not wrap into the field, at large type.
+                .lineLimit(2).minimumScaleFactor(0.8)
                 .frame(width: 180, alignment: .leading)
             TextField(placeholder, text: doubleBinding(value))
                 .textFieldStyle(.plain)
@@ -377,6 +379,8 @@ struct ProfileSheet: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(LiviqaTheme.ink3)
+                // Fixed-width label must shrink, not wrap into the field, at large type.
+                .lineLimit(2).minimumScaleFactor(0.8)
                 .frame(width: 180, alignment: .leading)
             TextField(placeholder, text: intBinding(value))
                 .textFieldStyle(.plain)
@@ -565,10 +569,12 @@ struct ProfileSheet: View {
                 .foregroundStyle(LiviqaTheme.ink4)
                 .textCase(.uppercase)
                 .tracking(0.5)
+                .lineLimit(1).minimumScaleFactor(0.8)
             TextField(placeholder ?? label, text: text)
                 .font(.lato(14))
                 .foregroundStyle(LiviqaTheme.ink)
                 .textFieldStyle(.plain)
+                .frame(minHeight: 22)
         }
     }
 }

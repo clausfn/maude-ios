@@ -90,6 +90,16 @@ struct MainTabView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             LiviqaTheme.paper.ignoresSafeArea()
+            // Ambient animated field behind the glass chrome (FB 86exz2177). Flag- and
+            // a11y-gated: flag-OFF / Reduce Transparency / Increase Contrast keep the
+            // flat paper canvas byte-for-byte; TidelineField itself freezes under
+            // Reduce Motion. Subtle (low opacity) so card/label contrast is preserved.
+            if showAmbientBackground {
+                TidelineField(phase: 0.62, breathPeriod: 13, calm: 0.86)
+                    .ignoresSafeArea()
+                    .opacity(0.5)
+                    .allowsHitTesting(false)
+            }
 
             Group {
                 switch tab {
@@ -226,6 +236,10 @@ struct MainTabView: View {
 
     /// Reduce Transparency or Increase Contrast → opaque bar instead of glass.
     private var useSolidBar: Bool { reduceTransparency || contrast == .increased }
+
+    /// Ambient animated background shows only with glass on and full transparency/
+    /// contrast (TidelineField itself freezes under Reduce Motion). Flag off ⇒ flat paper.
+    private var showAmbientBackground: Bool { glassOn && !useSolidBar }
 
     private var tabBar: some View {
         HStack {
