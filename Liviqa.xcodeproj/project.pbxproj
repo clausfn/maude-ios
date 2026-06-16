@@ -6,6 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		024491EDAD7E828F34704374 /* WatchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F234336F42FA2F405AEEA1 /* WatchTheme.swift */; };
+		1296C8EEFC7095653691CB78 /* LiviqaWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A693815C27D9BE1FB7AC32F5 /* LiviqaWatchApp.swift */; };
+		35E869F500BB37065DC92A6D /* WatchSessionReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */; };
+		3EFC4C159E4ECC954400ABFD /* WatchModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56341D13B87E420618FE76E2 /* WatchModels.swift */; };
+		4045D39CC8E9A15A91BDE787 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75E226DA0F11DAF42AC16AF6 /* Foundation.framework */; };
+		4D3D61B3612C565ED52DA875 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58EAD3DE8FB1B0EDA15FE83F /* WatchHomeView.swift */; };
+		59F33CA78DB15AB84D053709 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 458B680AA0C64136836526F9 /* Assets.xcassets */; };
+		9057B82DE64FAA7BEB06A4BE /* Liviqa Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 61F7A151266EA1E424304814 /* Liviqa Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CF111B87B9B2F568607A925B /* WatchPillarDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7A2F2D97BBFBA6EBF75FCA /* WatchPillarDetailView.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		48AFF2172FBE5BDD00CFECA5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,14 +33,44 @@
 			remoteGlobalIDString = 48AFF2042FBE5BDB00CFECA5;
 			remoteInfo = Liviqa;
 		};
+		540DCA5AFBCE5A2AEA4AEB93 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 48AFF1FD2FBE5BDB00CFECA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21D81FFFC618C48699B6948C;
+			remoteInfo = "Liviqa Watch";
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		AE1322606654B917374EA1FA /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				9057B82DE64FAA7BEB06A4BE /* Liviqa Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		458B680AA0C64136836526F9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		48AFF2052FBE5BDB00CFECA5 /* Liviqa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Liviqa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		48AFF2162FBE5BDD00CFECA5 /* LiviqaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LiviqaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		48AFF2202FBE5BDD00CFECA5 /* LiviqaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LiviqaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		48AFF2412FBE5BDD00CFECA5 /* Signing.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.example.xcconfig; sourceTree = "<group>"; };
+		4F7A2F2D97BBFBA6EBF75FCA /* WatchPillarDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchPillarDetailView.swift; sourceTree = "<group>"; };
+		56341D13B87E420618FE76E2 /* WatchModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchModels.swift; sourceTree = "<group>"; };
+		58EAD3DE8FB1B0EDA15FE83F /* WatchHomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
+		5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WatchSessionReceiver.swift; path = Connectivity/WatchSessionReceiver.swift; sourceTree = "<group>"; };
+		61F7A151266EA1E424304814 /* Liviqa Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Liviqa Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		69F234336F42FA2F405AEEA1 /* WatchTheme.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchTheme.swift; sourceTree = "<group>"; };
+		75E226DA0F11DAF42AC16AF6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		A693815C27D9BE1FB7AC32F5 /* LiviqaWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiviqaWatchApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -55,11 +97,15 @@
 		};
 		48AFF2192FBE5BDD00CFECA5 /* LiviqaTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = LiviqaTests;
 			sourceTree = "<group>";
 		};
 		48AFF2232FBE5BDD00CFECA5 /* LiviqaUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = LiviqaUITests;
 			sourceTree = "<group>";
 		};
@@ -87,6 +133,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BAD53C4ECC0F4A37D1FEC012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4045D39CC8E9A15A91BDE787 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -98,6 +152,8 @@
 				48AFF2192FBE5BDD00CFECA5 /* LiviqaTests */,
 				48AFF2232FBE5BDD00CFECA5 /* LiviqaUITests */,
 				48AFF2062FBE5BDB00CFECA5 /* Products */,
+				DC88FEF2E70DA19E87A582F9 /* Frameworks */,
+				5718CBD709E21518F9DF7789 /* LiviqaWatch */,
 			);
 			sourceTree = "<group>";
 		};
@@ -107,6 +163,7 @@
 				48AFF2052FBE5BDB00CFECA5 /* Liviqa.app */,
 				48AFF2162FBE5BDD00CFECA5 /* LiviqaTests.xctest */,
 				48AFF2202FBE5BDD00CFECA5 /* LiviqaUITests.xctest */,
+				61F7A151266EA1E424304814 /* Liviqa Watch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -120,9 +177,57 @@
 			path = Config;
 			sourceTree = "<group>";
 		};
+		5718CBD709E21518F9DF7789 /* LiviqaWatch */ = {
+			isa = PBXGroup;
+			children = (
+				A693815C27D9BE1FB7AC32F5 /* LiviqaWatchApp.swift */,
+				58EAD3DE8FB1B0EDA15FE83F /* WatchHomeView.swift */,
+				4F7A2F2D97BBFBA6EBF75FCA /* WatchPillarDetailView.swift */,
+				56341D13B87E420618FE76E2 /* WatchModels.swift */,
+				69F234336F42FA2F405AEEA1 /* WatchTheme.swift */,
+				5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */,
+				458B680AA0C64136836526F9 /* Assets.xcassets */,
+			);
+			name = LiviqaWatch;
+			path = LiviqaWatch;
+			sourceTree = "<group>";
+		};
+		D34266D8024B83841D4779BB /* watchOS */ = {
+			isa = PBXGroup;
+			children = (
+				75E226DA0F11DAF42AC16AF6 /* Foundation.framework */,
+			);
+			name = watchOS;
+			sourceTree = "<group>";
+		};
+		DC88FEF2E70DA19E87A582F9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D34266D8024B83841D4779BB /* watchOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		21D81FFFC618C48699B6948C /* Liviqa Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 477C4493C2485C74EE2854C1 /* Build configuration list for PBXNativeTarget "Liviqa Watch" */;
+			buildPhases = (
+				6A8E2A133597DB11284E2E1D /* Sources */,
+				BAD53C4ECC0F4A37D1FEC012 /* Frameworks */,
+				F0D81B9FD68611E0D8C8F094 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Liviqa Watch";
+			productName = "Liviqa Watch";
+			productReference = 61F7A151266EA1E424304814 /* Liviqa Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		48AFF2042FBE5BDB00CFECA5 /* Liviqa */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 48AFF2292FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "Liviqa" */;
@@ -130,17 +235,17 @@
 				48AFF2012FBE5BDB00CFECA5 /* Sources */,
 				48AFF2022FBE5BDB00CFECA5 /* Frameworks */,
 				48AFF2032FBE5BDB00CFECA5 /* Resources */,
+				AE1322606654B917374EA1FA /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6336EDF3401E8FF2CB8D3A42 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				48AFF2072FBE5BDB00CFECA5 /* Liviqa */,
 			);
 			name = Liviqa;
-			packageProductDependencies = (
-			);
 			productName = Liviqa;
 			productReference = 48AFF2052FBE5BDB00CFECA5 /* Liviqa.app */;
 			productType = "com.apple.product-type.application";
@@ -162,8 +267,6 @@
 				48AFF2192FBE5BDD00CFECA5 /* LiviqaTests */,
 			);
 			name = LiviqaTests;
-			packageProductDependencies = (
-			);
 			productName = LiviqaTests;
 			productReference = 48AFF2162FBE5BDD00CFECA5 /* LiviqaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -185,8 +288,6 @@
 				48AFF2232FBE5BDD00CFECA5 /* LiviqaUITests */,
 			);
 			name = LiviqaUITests;
-			packageProductDependencies = (
-			);
 			productName = LiviqaUITests;
 			productReference = 48AFF2202FBE5BDD00CFECA5 /* LiviqaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -229,8 +330,6 @@
 			);
 			mainGroup = 48AFF1FC2FBE5BDB00CFECA5;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 48AFF2062FBE5BDB00CFECA5 /* Products */;
 			projectDirPath = "";
@@ -239,6 +338,7 @@
 				48AFF2042FBE5BDB00CFECA5 /* Liviqa */,
 				48AFF2152FBE5BDD00CFECA5 /* LiviqaTests */,
 				48AFF21F2FBE5BDD00CFECA5 /* LiviqaUITests */,
+				21D81FFFC618C48699B6948C /* Liviqa Watch */,
 			);
 		};
 /* End PBXProject section */
@@ -262,6 +362,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0D81B9FD68611E0D8C8F094 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59F33CA78DB15AB84D053709 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -289,6 +397,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6A8E2A133597DB11284E2E1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1296C8EEFC7095653691CB78 /* LiviqaWatchApp.swift in Sources */,
+				4D3D61B3612C565ED52DA875 /* WatchHomeView.swift in Sources */,
+				CF111B87B9B2F568607A925B /* WatchPillarDetailView.swift in Sources */,
+				3EFC4C159E4ECC954400ABFD /* WatchModels.swift in Sources */,
+				024491EDAD7E828F34704374 /* WatchTheme.swift in Sources */,
+				35E869F500BB37065DC92A6D /* WatchSessionReceiver.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -302,9 +423,74 @@
 			target = 48AFF2042FBE5BDB00CFECA5 /* Liviqa */;
 			targetProxy = 48AFF2212FBE5BDD00CFECA5 /* PBXContainerItemProxy */;
 		};
+		6336EDF3401E8FF2CB8D3A42 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "Liviqa Watch";
+			target = 21D81FFFC618C48699B6948C /* Liviqa Watch */;
+			targetProxy = 540DCA5AFBCE5A2AEA4AEB93 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		08FD3E3C6ECABBA8DBB72CDB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10.54;
+				DEVELOPMENT_TEAM = PS258XSNL8;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Liviqa;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = dev.liviqa.app;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.liviqa.app.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		48AC01EC126DCF0B1B8B3189 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 10.54;
+				DEVELOPMENT_TEAM = PS258XSNL8;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Liviqa;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = dev.liviqa.app;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.liviqa.app.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		48AFF22A2FBE5BDD00CFECA5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
@@ -315,7 +501,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10.51;
+				CURRENT_PROJECT_VERSION = 10.54;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Liviqa/Info.plist;
@@ -351,7 +537,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Liviqa/Liviqa.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10.51;
+				CURRENT_PROJECT_VERSION = 10.54;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Liviqa/Info.plist;
@@ -503,7 +689,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10.51;
+				CURRENT_PROJECT_VERSION = 10.54;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -528,7 +714,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10.51;
+				CURRENT_PROJECT_VERSION = 10.54;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -552,7 +738,7 @@
 			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10.51;
+				CURRENT_PROJECT_VERSION = 10.54;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -576,7 +762,7 @@
 			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10.51;
+				CURRENT_PROJECT_VERSION = 10.54;
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -598,6 +784,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		477C4493C2485C74EE2854C1 /* Build configuration list for PBXNativeTarget "Liviqa Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AC01EC126DCF0B1B8B3189 /* Release */,
+				08FD3E3C6ECABBA8DBB72CDB /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		48AFF2002FBE5BDB00CFECA5 /* Build configuration list for PBXProject "Liviqa" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

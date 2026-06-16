@@ -79,10 +79,12 @@ struct WatchSparkline: View {
 
     var body: some View {
         GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            let lo = values.min() ?? 0, hi = values.max() ?? 1
+            let w = geo.size.width
+            let h = geo.size.height
+            let lo = values.min() ?? 0
+            let hi = values.max() ?? 1
             let span = (hi - lo) == 0 ? 1 : (hi - lo)
-            func pt(_ i: Int) -> CGPoint {
+            let pts: [CGPoint] = values.indices.map { i in
                 let x = values.count <= 1 ? w / 2 : CGFloat(i) / CGFloat(values.count - 1) * w
                 let y = h - CGFloat((values[i] - lo) / span) * h
                 return CGPoint(x: x, y: y)
@@ -96,12 +98,14 @@ struct WatchSparkline: View {
                 .stroke(WatchTheme.line, lineWidth: 1)
                 // trend
                 Path { p in
-                    for i in values.indices { i == 0 ? p.move(to: pt(i)) : p.addLine(to: pt(i)) }
+                    for (i, pt) in pts.enumerated() {
+                        if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+                    }
                 }
                 .stroke(tint, style: .init(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 // today
-                if let last = values.indices.last {
-                    Circle().fill(tint).frame(width: 5, height: 5).position(pt(last))
+                if let last = pts.last {
+                    Circle().fill(tint).frame(width: 5, height: 5).position(last)
                 }
             }
         }
