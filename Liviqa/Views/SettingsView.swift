@@ -17,6 +17,7 @@ struct SettingsView: View {
     @AppStorage("clinicalTIRZones")   private var clinicalTIRZones = true
     @AppStorage("gradedHeatmap")      private var gradedHeatmap = true
     @AppStorage("visualNudge")        private var visualNudge = true
+    @AppStorage("crossSourceCards")   private var crossSourceCards = false
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @AppStorage("liviqa.appLanguage") private var appLanguage = "system"
 
@@ -165,6 +166,18 @@ struct SettingsView: View {
                         Text("Nudge domain icons")
                             .font(.footnote).foregroundStyle(LiviqaTheme.ink)
                         Text("Show a category icon on each insight on Home")
+                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+
+                Divider().overlay(LiviqaTheme.line2)
+
+                Toggle(isOn: $crossSourceCards) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cross-source patterns")
+                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
+                        Text("Show health × spending × lab correlation cards on Insights")
                             .font(.caption).foregroundStyle(LiviqaTheme.ink4)
                     }
                 }

@@ -10,6 +10,10 @@ struct WeekInContextView: View {
     /// PR-100 promotion #2 — graded deviation ramp instead of the 2-state moss/clay
     /// fill. SIGNED OFF by CN, now live by default (still a flag for instant revert).
     @AppStorage("gradedHeatmap") private var gradedHeatmap = true
+    /// PR-100 — the 3 cross-source correlation cards (HbA1c·glucose, money·sleep,
+    /// alcohol·recovery). SIMULATED pitch data (D5) → default OFF so real users never
+    /// see fabricated data; Settings toggle turns it on for the pitch/demo.
+    @AppStorage("crossSourceCards") private var crossSourceCards = false
     @State private var showShare = false
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil
@@ -128,6 +132,15 @@ struct WeekInContextView: View {
                     // 7. Three metric cards
                     weeklyMetricsRow
                         .padding(.horizontal, 16)
+
+                    // 8. Cross-source patterns (flag-gated; pitch data → default off)
+                    if crossSourceCards {
+                        LiviqaSectionHeader(label: "Cross-source patterns")
+                            .padding(.horizontal, 20)
+                            .padding(.top, 10)
+                        CrossSourcePatterns()
+                            .padding(.horizontal, 16)
+                    }
 
                     Spacer(minLength: 40)
                 }
