@@ -71,6 +71,11 @@ struct JournalView: View {
     @State private var composerExpanded = false
     @State private var composerText     = ""
     @State private var composerTags: Set<String> = []
+    /// A guidance prompt (e.g. "What did you eat?") shown as the composer
+    /// placeholder; `scrollToComposer` is bumped to bring the composer (which
+    /// sits below the capture grid) into view when a quick-capture button opens it.
+    @State private var composerPrompt   = ""
+    @State private var scrollToComposer = 0
     #if os(iOS)
     @FocusState private var composerFocused: Bool
     #else
@@ -102,6 +107,7 @@ struct JournalView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
+          ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
 
@@ -125,6 +131,7 @@ struct JournalView: View {
                         .padding(.bottom, 12)
 
                     composerCard
+                        .id("composer")
                         .padding(.horizontal, 20)
                         .padding(.bottom, 4)
 
@@ -139,9 +146,16 @@ struct JournalView: View {
                     withAnimation(.spring(response: 0.3)) {
                         composerExpanded = false
                         composerFocused  = false
+                        composerPrompt   = ""
                     }
                 }
             }
+            .onChange(of: scrollToComposer) { _, _ in
+                withAnimation(.spring(response: 0.35)) {
+                    proxy.scrollTo("composer", anchor: .center)
+                }
+            }
+          }
 
             fab
                 .padding(.trailing, 20)
@@ -424,9 +438,14 @@ struct JournalView: View {
     private func expandComposer(tag: String, prompt: String) {
         withAnimation(.spring(response: 0.3)) {
             composerTags.insert(tag)
+            composerPrompt   = prompt
             composerExpanded = true
             composerFocused = true
         }
+        // The composer sits below the capture grid, so expanding it in place left
+        // the input off-screen ("Log a meal" appeared to do nothing). Scroll it
+        // into view so the field — and the keyboard target — are actually visible.
+        scrollToComposer += 1
     }
 
     // MARK: Composer card
@@ -445,9 +464,22 @@ struct JournalView: View {
                     .frame(minHeight: 90)
                     .padding(.horizontal, 2)
                     .padding(.top, 4)
+                    // Prompt from the quick-capture button (e.g. "What did you
+                    // eat?") shown as a placeholder until the user types.
+                    .overlay(alignment: .topLeading) {
+                        if composerText.isEmpty, !composerPrompt.isEmpty {
+                            Text(composerPrompt)
+                                .font(.lato(14))
+                                .foregroundStyle(LiviqaTheme.ink4)
+                                .padding(.horizontal, 7)
+                                .padding(.top, 12)
+                                .allowsHitTesting(false)
+                        }
+                    }
             } else {
                 Button {
                     withAnimation(.spring(response: 0.3)) {
+                        composerPrompt   = ""
                         composerExpanded = true
                         composerFocused  = true
                     }
