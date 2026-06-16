@@ -41,18 +41,18 @@ struct LiviqaComplicationView: View {
                 AccessoryWidgetBackground()
                 VStack(spacing: 0) {
                     Image(systemName: "drop.fill").font(.system(size: 10))
-                    Text(entry.inRange).font(.system(size: 15, weight: .heavy, design: .rounded))
+                    Text(entry.inRange).font(.system(size: 15, weight: .heavy).monospacedDigit())
                 }
             }
         case .accessoryCorner:
-            Text(entry.inRange).font(.system(size: 15, weight: .heavy, design: .rounded))
+            Text(entry.inRange).font(.system(size: 15, weight: .heavy).monospacedDigit())
                 .widgetLabel("In range")
         default: // accessoryRectangular / inline
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                 VStack(alignment: .leading, spacing: 0) {
                     Text("In range").font(.system(size: 11, weight: .semibold))
-                    Text(entry.inRange).font(.system(size: 16, weight: .heavy, design: .rounded))
+                    Text(entry.inRange).font(.system(size: 16, weight: .heavy).monospacedDigit())
                 }
             }
         }

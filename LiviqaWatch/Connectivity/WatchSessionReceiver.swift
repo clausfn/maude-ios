@@ -27,7 +27,12 @@ final class WatchSessionReceiver: NSObject, ObservableObject {
             guard let l = d["label"] as? String,
                   let i = d["icon"] as? String,
                   let v = d["value"] as? String else { return nil }
-            return WatchSignal(label: l, icon: i, value: v, clay: (d["clay"] as? Bool) ?? false)
+            // Optional last-7-day series for the tap-through sparkline. WatchConnectivity
+            // may hand back [NSNumber]; fall back to that before giving up.
+            let trend = (d["trend"] as? [Double])
+                ?? (d["trend"] as? [NSNumber])?.map(\.doubleValue)
+                ?? []
+            return WatchSignal(label: l, icon: i, value: v, clay: (d["clay"] as? Bool) ?? false, trend: trend)
         }
         guard !signals.isEmpty else { return }
         snapshot = WatchSnapshot(stateLine: line, signals: signals)

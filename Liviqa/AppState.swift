@@ -308,6 +308,9 @@ final class AppState {
     func refreshFromHealth() async {
         guard !isRefreshing else { return }   // don't overlap (root + Home both trigger on launch)
         isRefreshing = true
+        // Declared first ⇒ runs LAST (after the applyLV001 defer settles todaySignals),
+        // so the wrist mirrors the same Home values across real / LV001 / demo paths.
+        defer { syncWatchGlance() }
         defer { isRefreshing = false; didAttemptHealthFetch = true }
         // Always re-apply the LV001 goldmine after any fetch outcome (success, empty,
         // or a HealthKit auth throw on the simulator) — runs last, after usingRealData
