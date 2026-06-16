@@ -81,20 +81,18 @@ struct MagnifierLens: View {
     private var solid: Bool { reduceTransparency || contrast == .increased }
 
     var body: some View {
+        // A clean, contained selected pill that GLIDES between tabs (Flighty-style) —
+        // not a translucent "magnifier" that reads as vanishing. Stays inside the bar.
         let shape = Capsule()
         return Group {
             if solid {
                 shape.fill(LiviqaTheme.moss2)
                     .overlay(shape.strokeBorder(LiviqaTheme.moss3, lineWidth: 1))
             } else {
-                shape.fill(LiviqaTheme.moss.opacity(0.16))
-                    .overlay(shape.strokeBorder(LiviqaTheme.moss.opacity(0.35), lineWidth: 0.5))
-                    .overlay(  // top sheen — reads as a lens curving the light
-                        shape.fill(LinearGradient(colors: [.white.opacity(0.30), .clear],
-                                                  startPoint: .top, endPoint: .center)))
+                shape.fill(LiviqaTheme.moss.opacity(0.24))
+                    .overlay(shape.strokeBorder(LiviqaTheme.moss.opacity(0.40), lineWidth: 0.5))
             }
         }
-        .shadow(color: solid ? .clear : LiviqaTheme.moss.opacity(0.18), radius: 6, y: 1)
     }
 }
 
