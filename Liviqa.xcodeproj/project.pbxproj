@@ -97,15 +97,11 @@
 		};
 		48AFF2192FBE5BDD00CFECA5 /* LiviqaTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LiviqaTests;
 			sourceTree = "<group>";
 		};
 		48AFF2232FBE5BDD00CFECA5 /* LiviqaUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LiviqaUITests;
 			sourceTree = "<group>";
 		};
@@ -188,7 +184,6 @@
 				5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */,
 				458B680AA0C64136836526F9 /* Assets.xcassets */,
 			);
-			name = LiviqaWatch;
 			path = LiviqaWatch;
 			sourceTree = "<group>";
 		};

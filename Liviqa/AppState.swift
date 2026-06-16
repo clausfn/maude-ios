@@ -111,8 +111,9 @@ final class AppState {
     var detailDepth = 0
 
     // Research participation (UC-RSCH) — a pending study invitation + its consent flow.
-    var researchOpportunity: ResearchStudy? = nil   // surfaced on Home when matched
+    var researchOpportunity: ResearchStudy? = nil   // surfaced on Home + Care when matched
     var showStudyConsent = false                    // MainTabView presents StudyConsentView
+    var researchNotificationUnread = false          // bell badge: a research invite arrived
     var joinedStudy: ResearchStudy? = nil           // set on Approve & join
 
     init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
@@ -128,6 +129,11 @@ final class AppState {
         // → simctl push with userInfo type=research) → open the consent flow.
         NotificationCenter.default.addObserver(forName: .liviqaOpenResearch, object: nil, queue: .main) { _ in
             Task { @MainActor [weak self] in self?.handleResearchInvite() }
+        }
+        // A research invite DELIVERED in the foreground → badge the bell + Care card
+        // (without forcing the consent sheet open; the tap path does that).
+        NotificationCenter.default.addObserver(forName: .liviqaResearchReceived, object: nil, queue: .main) { _ in
+            Task { @MainActor [weak self] in self?.handleResearchReceived() }
         }
     }
 
@@ -145,11 +151,19 @@ final class AppState {
         }
     }
 
-    /// A research-invitation push (demo bridge from DfG Professional) arrived or was
-    /// tapped — surface the opportunity on Home and open the consent flow (s09→s10).
+    /// A research invitation was DELIVERED — surface it on Home + Care and badge the
+    /// bell. Does NOT open the consent sheet (tapping the notification does that).
+    @MainActor
+    func handleResearchReceived() {
+        researchOpportunity = MockData.demoStudy
+        researchNotificationUnread = true
+    }
+
+    /// A research invitation was TAPPED (demo bridge from DfG Professional) — surface
+    /// it and open the consent flow (s09 → s10).
     @MainActor
     func handleResearchInvite() {
-        researchOpportunity = MockData.demoStudy
+        handleResearchReceived()
         showStudyConsent = true
     }
 

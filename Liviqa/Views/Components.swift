@@ -71,6 +71,28 @@ struct LiviqaAppBar: View {
                 .foregroundStyle(LiviqaTheme.moss)
             }
 
+            if let appState, appState.researchNotificationUnread {
+                Button {
+                    appState.researchNotificationUnread = false
+                    appState.showStudyConsent = true
+                } label: {
+                    Image(systemName: "bell.fill")
+                        .font(.lato(15, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(LiviqaTheme.paper2))
+                        .overlay(Circle().stroke(LiviqaTheme.line, lineWidth: 1))
+                        .overlay(alignment: .topTrailing) {
+                            Circle().fill(LiviqaTheme.amber)
+                                .frame(width: 9, height: 9)
+                                .overlay(Circle().stroke(LiviqaTheme.paper, lineWidth: 1.5))
+                                .offset(x: 2, y: -2)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("New research notification")
+            }
+
             if showsAvatar, let appState {
                 Button {
                     appState.showAssistant = true

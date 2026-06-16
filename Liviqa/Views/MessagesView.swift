@@ -21,6 +21,10 @@ struct MessagesView: View {
                 LiviqaAppBar(title: "Care", showMark: false)
 
                 VStack(alignment: .leading, spacing: 0) {
+                    if appState.researchOpportunity != nil {
+                        researchInviteCard
+                            .padding(.bottom, 14)
+                    }
                     planCard
                     if appState.careConnect == nil && appState.careThreads.isEmpty {
                         emptyStateCard("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
@@ -47,6 +51,30 @@ struct MessagesView: View {
     }
 
     // MARK: - Plan a consultation (patient-side scheduling)
+
+    // A research invitation copied into Care (mirrors the push notification). Tap → consent flow.
+    private var researchInviteCard: some View {
+        Button { appState.showStudyConsent = true } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(LiviqaTheme.amber2).frame(width: 38, height: 38)
+                    Image(systemName: "bell.badge.fill").font(.system(size: 15)).foregroundStyle(LiviqaTheme.clayText)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("New research opportunity").font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text("\(appState.researchOpportunity?.name ?? "Study") · \(appState.researchOpportunity?.sponsor ?? "") · via Data for Good")
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3).lineLimit(2).minimumScaleFactor(0.9)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(12)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.clay3, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
 
     private var planCard: some View {
         Button { showPlan = true } label: {

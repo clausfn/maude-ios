@@ -19,8 +19,16 @@ import UserNotifications
 
 extension Notification.Name {
     static let liviqaPushToken = Notification.Name("LiviqaPushToken")
-    /// Posted when a research-invitation notification is received/tapped → AppState opens the flow.
+    /// Posted when a research-invitation notification is TAPPED → AppState opens the flow.
     static let liviqaOpenResearch = Notification.Name("LiviqaOpenResearch")
+    /// Posted when a research invitation is DELIVERED in the foreground → bell badge + Care card.
+    static let liviqaResearchReceived = Notification.Name("LiviqaResearchReceived")
+}
+
+private func isResearchPayload(_ info: [AnyHashable: Any]) -> Bool {
+    (info["type"] as? String) == "research"
+        || (info["kind"] as? String) == "research_invite"
+        || (info["category"] as? String) == "research"
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
@@ -50,6 +58,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Delivered while foreground → badge the bell + drop a Care card, and show the banner.
+        if isResearchPayload(notification.request.content.userInfo) {
+            NotificationCenter.default.post(name: .liviqaResearchReceived, object: nil)
+        }
         completionHandler([.banner, .sound, .list])
     }
 
@@ -57,11 +69,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        let info = response.notification.request.content.userInfo
-        let isResearch = (info["type"] as? String) == "research"
-            || (info["kind"] as? String) == "research_invite"
-            || (info["category"] as? String) == "research"
-        if isResearch {
+        if isResearchPayload(response.notification.request.content.userInfo) {
             NotificationCenter.default.post(name: .liviqaOpenResearch, object: nil)
         }
         completionHandler()
