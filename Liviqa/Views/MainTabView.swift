@@ -329,22 +329,41 @@ struct MainTabView: View {
         .accessibilityAction(.default) { select(item) }
     }
 
-    /// The Flighty lens: the selection pill transformed into a piece of glass while the
-    /// finger is down. A CAPSULE, bigger than a tab, CENTRED on the bar, sitting OVER the
-    /// menu items so the real glass refracts/magnifies them (no fake glyph). Tracks the
-    /// finger; fades (never resizes) in/out.
-    @ViewBuilder private var magnifierLayer: some View {
-        if glassOn, let p = dragLoc, let bounds = barBounds {
-            let slotW = bounds.width / CGFloat(LiviqaTab.allCases.count)
-            let w = slotW * 1.6                                   // bigger than a tab slot
-            let h = bounds.height * 0.92
-            let cx = min(max(p.x, bounds.minX + w / 2), bounds.maxX - w / 2)
-            let cy = bounds.midY                                 // centred on the bar
-            GlassMagnifierLens(tier: barTier)
-                .frame(width: w, height: h)
-                .position(x: cx, y: cy)
-                .allowsHitTesting(false)
-                .transition(.opacity)                            // appear/vanish by fade only — no size change
+    /// Capsule lens geometry at the current finger position (nil while idle). Bigger
+    /// than a tab, centred vertically on the bar.
+    private var lens: (cx: CGFloat, cy: CGFloat, w: CGFloat, h: CGFloat, capR: CGFloat, halfLen: CGFloat)? {
+        guard glassOn, let p = dragLoc, let b = barBounds else { return nil }
+        let w = (b.width / CGFloat(LiviqaTab.allCases.count)) * 1.6
+        let h = b.height * 0.92
+        let capR = h / 2
+        let halfLen = max(0, w / 2 - capR)
+        let cx = min(max(p.x, b.minX + w / 2), b.maxX - w / 2)
+        return (cx, b.midY, w, h, capR, halfLen)
+    }
+
+    /// The lens edge drawn over the shader-magnified content: the chromatic rainbow rim
+    /// (Flighty), or a plain solid capsule under Reduce Transparency / Increase Contrast
+    /// (where the magnify shader is disabled for comfort).
+    @ViewBuilder private var lensRim: some View {
+        if let l = lens {
+            Group {
+                if useSolidBar {
+                    Capsule().fill(LiviqaTheme.moss2)
+                        .overlay(Capsule().strokeBorder(LiviqaTheme.moss3, lineWidth: 1))
+                } else {
+                    Capsule().strokeBorder(
+                        AngularGradient(colors: [.cyan, .blue, .purple, .pink, .orange, .green, .cyan],
+                                        center: .center),
+                        lineWidth: 1.5
+                    )
+                    .blendMode(.plusLighter)
+                    .opacity(0.6)
+                }
+            }
+            .frame(width: l.w, height: l.h)
+            .position(x: l.cx, y: l.cy)
+            .allowsHitTesting(false)
+            .transition(.opacity)
         }
     }
 
@@ -369,12 +388,27 @@ struct MainTabView: View {
         // Floating capsule — three-tier ladder (LiviqaBarGlass): real Liquid Glass on
         // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
         // Reduce Transparency / Increase Contrast, so label contrast is preserved.
+        let l = lens
         let bar = tabRow
-            // The magnifier rides ABOVE the row (it refracts/enlarges the icon it covers).
-            // It only exists while pressing, so it never hides the resting selection.
-            .overlay { magnifierLayer }
+            // Real magnification: a Metal layerEffect samples the row pixels and enlarges
+            // them (with chromatic aberration) inside the capsule at the finger — so the
+            // actual icons magnify through the lens (Flighty), not a frosted overlay.
+            // Disabled under Reduce Transparency / Increase Contrast (lensRim shows a
+            // plain solid capsule there instead).
+            .layerEffect(
+                ShaderLibrary.tabMagnifier(
+                    .float2(l?.cx ?? 0, l?.cy ?? 0),
+                    .float(l?.halfLen ?? 0),
+                    .float(l?.capR ?? 1),
+                    .float(1.7),                                 // magnification
+                    .float(4)                                    // chromatic-aberration px
+                ),
+                maxSampleOffset: CGSize(width: 60, height: 60),
+                isEnabled: l != nil && !useSolidBar
+            )
             .coordinateSpace(.named(tabBarSpace))
             .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
+            .overlay { lensRim }
             .contentShape(Rectangle())
             .gesture(barDrag)
             .padding(.vertical, 7)
