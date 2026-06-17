@@ -84,22 +84,22 @@ struct LiviqaHeroContinuation: ViewModifier {
     }
 }
 
-// MARK: - Glass magnifier bubble (the Flighty drag-lens)
+// MARK: - Glass magnifier lens (the Flighty drag-lens)
 
-/// A LARGE glass bubble that appears under the finger on touch, tracks it across the
-/// bar, magnifies the tab it's over, and vanishes on lift. NOT a selection pill — it is
-/// a transient, interactive lens.
+/// The selection pill, transformed into a piece of glass while the finger is down: a
+/// CAPSULE lens that sits OVER the menu items and refracts/magnifies them (the real
+/// icons, seen through the glass — no fake copy), with a chromatic edge. It tracks the
+/// finger and vanishes on lift. Centred on the bar; bigger than a tab.
 ///
-/// - `.liquidGlass` (iOS 26): a real CLEAR Liquid Glass lens (no tint) that refracts
-///   the content behind it, with a chromatic rim glint — the Flighty look.
-/// - `.material` (iOS 17–25): a `.ultraThinMaterial` bubble (no real refraction).
-/// - `.opaque` (Reduce Transparency / Increase Contrast): a solid `paper2` bubble.
+/// - `.liquidGlass` (iOS 26): a real CLEAR Liquid Glass lens that refracts the content
+///   behind it + a chromatic rim — the Flighty look (renders truly only on device).
+/// - `.material` (iOS 17–25): a `.ultraThinMaterial` capsule (no real refraction).
+/// - `.opaque` (Reduce Transparency / Increase Contrast): a solid `paper2` capsule.
 ///
-/// The magnified glyph is drawn over the bubble at the call site. The bubble never takes
-/// touches — the bar's drag gesture drives it.
-struct GlassMagnifierBubble: View {
+/// Never takes touches — the bar's drag gesture drives it.
+struct GlassMagnifierLens: View {
     let tier: LiviqaBarTier
-    private let shape = Circle()
+    private let shape = Capsule()
 
     var body: some View {
         Group {
@@ -107,7 +107,7 @@ struct GlassMagnifierBubble: View {
             case .liquidGlass:
                 if #available(iOS 26, *) {
                     shape
-                        .glassEffect(.regular.interactive(), in: Circle())   // clear lens → it magnifies
+                        .glassEffect(.regular.interactive(), in: Capsule())   // clear lens → refracts the icons
                         .overlay(chromaticRim)
                 }
             case .material:
@@ -123,21 +123,20 @@ struct GlassMagnifierBubble: View {
         .allowsHitTesting(false)
     }
 
-    /// Thin angular-gradient glint on the rim (`.plusLighter` so it reads as specular
-    /// dispersion, not paint) — brand moss + heroGlow through clear gaps, calm, no full
-    /// RGB spectrum.
+    /// Chromatic dispersion on the rim (`.plusLighter` so it reads as refracted light,
+    /// not paint) — the rainbow edge of the Flighty reference. The native iOS 26 glass
+    /// adds its own edge dispersion on device; this guarantees the colour is present.
     private var chromaticRim: some View {
         shape
             .strokeBorder(
                 AngularGradient(
-                    colors: [LiviqaTheme.moss, .white.opacity(0.0), LiviqaTheme.heroGlow,
-                             .white.opacity(0.0), LiviqaTheme.moss],
+                    colors: [.cyan, .blue, .purple, .pink, .orange, .green, .cyan],
                     center: .center
                 ),
-                lineWidth: 1.0
+                lineWidth: 1.5
             )
             .blendMode(.plusLighter)
-            .opacity(0.55)
+            .opacity(0.5)
     }
 }
 

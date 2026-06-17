@@ -274,12 +274,7 @@ struct MainTabView: View {
     }
 
     /// The tab the finger is currently over (only while the magnifier is active).
-    private var hoveredTab: LiviqaTab? {
-        guard glassOn, let p = dragLoc else { return nil }
-        return tabAt(p.x)
-    }
-
-    /// Union of all tab slots — the area the bubble may roam within.
+    /// Union of all tab slots — the area the lens may roam within.
     private var barBounds: CGRect? {
         guard !tabFrames.isEmpty else { return nil }
         let r = Array(tabFrames.values)
@@ -298,7 +293,6 @@ struct MainTabView: View {
 
     @ViewBuilder private func tabCell(_ item: LiviqaTab) -> some View {
         let active = tab == item
-        let lifted = (hoveredTab == item)   // finger is over this tab → its glyph rises into the lens
         VStack(spacing: 3) {
             Image(systemName: active ? item.symbolFilled : item.symbol)
                 .font(.lato(19))
@@ -307,16 +301,23 @@ struct MainTabView: View {
                 .tracking(0.2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
-            // Resting selection marker — a small dot. Hidden while the magnifier is up.
+            // Flag-off keeps the legacy dot; with glass on, the resting selection is the
+            // chip below (which becomes the glass lens on touch).
             Circle().fill(LiviqaTheme.moss)
                 .frame(width: 4, height: 4)
-                .opacity(active && dragLoc == nil ? 1 : 0)
+                .opacity(!glassOn && active && dragLoc == nil ? 1 : 0)
         }
         .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
-        // Fade the in-row glyph the finger is over — its magnified copy shows in the bubble.
-        .opacity(lifted ? 0.25 : 1)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
+        // Resting selection chip (glass on) — the pill that "becomes glass" on touch.
+        // Hidden while the lens is up so the two never double.
+        .background {
+            if glassOn && active && dragLoc == nil {
+                Capsule().fill(LiviqaTheme.moss.opacity(0.12))
+                    .padding(.horizontal, 6).padding(.vertical, 4)
+            }
+        }
         .background(GeometryReader { g in
             Color.clear.preference(key: TabFrameKey.self,
                                    value: [item: g.frame(in: .named(tabBarSpace))])
@@ -328,27 +329,22 @@ struct MainTabView: View {
         .accessibilityAction(.default) { select(item) }
     }
 
-    /// The Flighty magnifier: a large glass bubble that pops up under the finger, tracks
-    /// it, and shows a magnified copy of the tab it's over. Only while pressing + glass on.
+    /// The Flighty lens: the selection pill transformed into a piece of glass while the
+    /// finger is down. A CAPSULE, bigger than a tab, CENTRED on the bar, sitting OVER the
+    /// menu items so the real glass refracts/magnifies them (no fake glyph). Tracks the
+    /// finger; fades (never resizes) in/out.
     @ViewBuilder private var magnifierLayer: some View {
         if glassOn, let p = dragLoc, let bounds = barBounds {
-            let d: CGFloat = 64                                   // bubble ≫ a tab slot
-            let cx = min(max(p.x, bounds.minX + d / 2), bounds.maxX - d / 2)
-            let cy = bounds.midY - 22                             // pops up above the bar line
-            ZStack {
-                GlassMagnifierBubble(tier: barTier)
-                if let h = hoveredTab {
-                    Image(systemName: h.symbolFilled)
-                        .font(.lato(27))                         // the magnified glyph
-                        .foregroundStyle(LiviqaTheme.ink)
-                        .transition(.opacity)
-                        .id(h)                                   // swap as the finger crosses tabs
-                }
-            }
-            .frame(width: d, height: d)
-            .position(x: cx, y: cy)
-            .allowsHitTesting(false)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            let slotW = bounds.width / CGFloat(LiviqaTab.allCases.count)
+            let w = slotW * 1.6                                   // bigger than a tab slot
+            let h = bounds.height * 0.92
+            let cx = min(max(p.x, bounds.minX + w / 2), bounds.maxX - w / 2)
+            let cy = bounds.midY                                 // centred on the bar
+            GlassMagnifierLens(tier: barTier)
+                .frame(width: w, height: h)
+                .position(x: cx, y: cy)
+                .allowsHitTesting(false)
+                .transition(.opacity)                            // appear/vanish by fade only — no size change
         }
     }
 
