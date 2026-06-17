@@ -348,28 +348,22 @@ struct MainTabView: View {
     }
 
     /// The lens edge drawn over the shader-magnified content: the chromatic rainbow rim
-    /// (Flighty), or a plain solid capsule under Reduce Transparency / Increase Contrast
-    /// (where the magnify shader is disabled for comfort).
+    /// (Flighty). Always a thin STROKE — never an opaque fill — so the magnified icons
+    /// underneath are never hidden.
     @ViewBuilder private var lensRim: some View {
         if let l = lens {
-            Group {
-                if useSolidBar {
-                    Capsule().fill(LiviqaTheme.moss2)
-                        .overlay(Capsule().strokeBorder(LiviqaTheme.moss3, lineWidth: 1))
-                } else {
-                    Capsule().strokeBorder(
-                        AngularGradient(colors: [.cyan, .blue, .purple, .pink, .orange, .green, .cyan],
-                                        center: .center),
-                        lineWidth: 1.5
-                    )
-                    .blendMode(.plusLighter)
-                    .opacity(0.6)
-                }
-            }
-            .frame(width: l.w, height: l.h)
-            .position(x: l.cx, y: l.cy)
-            .allowsHitTesting(false)
-            .transition(.opacity)
+            Capsule()
+                .strokeBorder(
+                    AngularGradient(colors: [.cyan, .blue, .purple, .pink, .orange, .green, .cyan],
+                                    center: .center),
+                    lineWidth: 1.5
+                )
+                .blendMode(.plusLighter)
+                .opacity(0.6)
+                .frame(width: l.w, height: l.h)
+                .position(x: l.cx, y: l.cy)
+                .allowsHitTesting(false)
+                .transition(.opacity)
         }
     }
 
@@ -395,22 +389,22 @@ struct MainTabView: View {
         // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
         // Reduce Transparency / Increase Contrast, so label contrast is preserved.
         let l = lens
-        let bar = tabRow
+        return tabRow
             // Real magnification: a Metal layerEffect samples the row pixels and enlarges
-            // them (with chromatic aberration) inside the capsule at the finger — so the
+            // them (with chromatic aberration) inside the capsule at the finger — the
             // actual icons magnify through the lens (Flighty), not a frosted overlay.
-            // Disabled under Reduce Transparency / Increase Contrast (lensRim shows a
-            // plain solid capsule there instead).
+            // ALWAYS on while pressing (no accessibility disable, no glass container that
+            // could starve the sampled layer) so it magnifies on every device.
             .layerEffect(
                 ShaderLibrary.tabMagnifier(
                     .float2(l?.cx ?? 0, l?.cy ?? 0),
                     .float(l?.halfLen ?? 0),
                     .float(l?.capR ?? 1),
-                    .float(1.7),                                 // magnification
+                    .float(2.0),                                 // magnification
                     .float(4)                                    // chromatic-aberration px
                 ),
-                maxSampleOffset: CGSize(width: 60, height: 60),
-                isEnabled: l != nil && !useSolidBar
+                maxSampleOffset: CGSize(width: 80, height: 80),
+                isEnabled: l != nil
             )
             .background { restChip }                          // resting oval pill (never magnified)
             .coordinateSpace(.named(tabBarSpace))
@@ -421,21 +415,11 @@ struct MainTabView: View {
             .padding(.vertical, 7)
             .padding(.horizontal, 6)
             .liviqaBarGlass(solid: useSolidBar)
-        return Group {
-            // Wrap the bar in a GlassEffectContainer so the bubble lens and the bar
-            // capsule blend into one continuous glass on iOS 26 (not two stacked blurs).
-            // Flag off / iOS 17–25 pass straight through — identical to before.
-            if glassOn {
-                GlassEffectContainerCompat { bar }
-            } else {
-                bar
-            }
-        }
-        // Detach from the screen edges so it reads as a floating surface.
-        .padding(.horizontal, 16)
-        .padding(.bottom, 6)
-        // Cap growth so the six labels never wrap ("Settings" → "Setting s").
-        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+            // Detach from the screen edges so it reads as a floating surface.
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+            // Cap growth so the six labels never wrap ("Settings" → "Setting s").
+            .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
 }
