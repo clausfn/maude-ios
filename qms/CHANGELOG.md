@@ -2,7 +2,8 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
-## PR-101 — Flighty tab-bar magnifier: real Metal shader (2026-06-17, build 10.66, CN reference: Flighty)
+## PR-101 — Flighty tab-bar magnifier: real Metal shader (2026-06-17, build 10.67, CN reference: Flighty)
+- **refine(chrome) — resting selection chip is a wide OVAL** (per CN: not round). Drawn at the selected tab's measured frame (w = slot×1.30, h = barHeight×0.62), behind the row, never magnified; becomes the glass lens on touch. (build 10.67)
 - **feat(chrome) — the lens actually magnifies the icons.** The stock `.glassEffect` only frosts (it never enlarges), which is why earlier takes read grey. Replaced with a Metal `layerEffect` (`Magnifier.metal`, `tabMagnifier`): inside a horizontal CAPSULE centred on the finger it samples the tab-row pixels and ENLARGES them (1.7×) with radial chromatic aberration toward the rim + a faint glass body + edge highlight. Real pixel work (iOS 17+ `layerEffect`) → renders the SAME on Simulator and device. Driven by `DragGesture(minimumDistance:0)`; capsule bigger than a tab, centred on the bar; tracks the finger; lift selects; a thin SwiftUI chromatic-rainbow capsule rim is drawn over it.
 - **build dependency:** needs the Metal Toolchain component (`xcodebuild -downloadComponent MetalToolchain`, 688 MB — installed).
 - **accessibility:** under Reduce Transparency / Increase Contrast the shader is disabled (no distortion) and a plain solid capsule shows instead; per-cell `.isButton` + `.accessibilityAction(.default)` keep selection usable for VoiceOver. Flag off / iOS 17–25 still select by tap with the legacy dot.
