@@ -2,7 +2,13 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
-## PR-101 — Flighty glass-capsule magnifier tab bar (2026-06-17, build 10.65, CN reference: Flighty)
+## PR-101 — Flighty tab-bar magnifier: real Metal shader (2026-06-17, build 10.66, CN reference: Flighty)
+- **feat(chrome) — the lens actually magnifies the icons.** The stock `.glassEffect` only frosts (it never enlarges), which is why earlier takes read grey. Replaced with a Metal `layerEffect` (`Magnifier.metal`, `tabMagnifier`): inside a horizontal CAPSULE centred on the finger it samples the tab-row pixels and ENLARGES them (1.7×) with radial chromatic aberration toward the rim + a faint glass body + edge highlight. Real pixel work (iOS 17+ `layerEffect`) → renders the SAME on Simulator and device. Driven by `DragGesture(minimumDistance:0)`; capsule bigger than a tab, centred on the bar; tracks the finger; lift selects; a thin SwiftUI chromatic-rainbow capsule rim is drawn over it.
+- **build dependency:** needs the Metal Toolchain component (`xcodebuild -downloadComponent MetalToolchain`, 688 MB — installed).
+- **accessibility:** under Reduce Transparency / Increase Contrast the shader is disabled (no distortion) and a plain solid capsule shows instead; per-cell `.isButton` + `.accessibilityAction(.default)` keep selection usable for VoiceOver. Flag off / iOS 17–25 still select by tap with the legacy dot.
+- **Verified on the iOS 26 Simulator (real press-drag via computer-use):** the Care icon + label visibly enlarge inside the capsule with RGB fringing — the picture-reference effect, on the Simulator. **Shipped TestFlight 10.66.**
+
+## PR-101 — Flighty glass-capsule magnifier tab bar (2026-06-17, build 10.65, superseded same day by the Metal shader above)
 - **feat(chrome) — the selection pill becomes a piece of glass on touch.** Per CN's Flighty frames: a `DragGesture(minimumDistance: 0)` on the bar transforms the resting selection chip into a CAPSULE glass lens (`GlassMagnifierLens` — clear iOS 26 `.glassEffect` + a pronounced chromatic rainbow rim, `LiquidGlass.swift`). The lens is bigger than a tab (≈1.6 slots), **centred vertically on the bar** (no pop-up), and sits OVER the menu items so the real glass refracts/magnifies THEM — no fake glyph copy, no size-change; it fades in/out and tracks the finger 1:1. On lift it selects the tab under the finger; the lens fades. Finger hit-tested against measured tab frames (`TabFrameKey`).
 - **rest state:** a subtle selection chip behind the active tab (glass on) that becomes the lens on touch; flag-off keeps the legacy dot. No slide.
 - **accessibility:** selection works without the gesture — each cell is an `.isButton` element with `.accessibilityAction(.default)` → `select(item)` (VoiceOver double-tap).
