@@ -73,7 +73,7 @@ struct MainTabView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("liquidGlass") private var glassOn = true
-    @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots → hit-test the finger
+    @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots (bar space) → hit-test + rest pill
     @State private var dragLoc: CGPoint? = nil               // finger location in bar space while pressing; nil = idle
     private let tabBarSpace = "liviqaTabBar"
     #if DEBUG
@@ -321,8 +321,8 @@ struct MainTabView: View {
         .accessibilityAction(.default) { select(item) }
     }
 
-    /// Capsule lens geometry at the current finger position (nil while idle). Bigger
-    /// than a tab, centred vertically on the bar.
+    /// Capsule lens geometry at the finger (bar space; nil while idle). Bigger than a tab,
+    /// centred on the bar. Stays within the bar — the shader samples only the bar layer.
     private var lens: (cx: CGFloat, cy: CGFloat, w: CGFloat, h: CGFloat, capR: CGFloat, halfLen: CGFloat)? {
         guard glassOn, let p = dragLoc, let b = barBounds else { return nil }
         let w = (b.width / CGFloat(LiviqaTab.allCases.count)) * 1.6
@@ -333,23 +333,23 @@ struct MainTabView: View {
         return (cx, b.midY, w, h, capR, halfLen)
     }
 
-    /// Resting selection indicator (glass on): a wide OVAL pill behind the active tab —
-    /// clearly wider than tall — that "becomes glass" on touch. Hidden while the lens is up.
+    /// Resting selection indicator (glass on): a snug rounded-rect pill that FILLS the
+    /// whole tab — wrapping both the symbol and the label — behind the content (Flighty
+    /// rest pill). Hidden while the lens is up.
     @ViewBuilder private var restChip: some View {
         if glassOn, dragLoc == nil, let r = tabFrames[tab], let b = barBounds {
-            let w = r.width * 1.30          // wider than tall → oval, not round
-            let h = b.height * 0.62
-            Capsule()
-                .fill(LiviqaTheme.moss.opacity(0.12))
+            let w = r.width * 0.98          // fills the cell width (icon + label)
+            let h = b.height * 0.94         // fills the cell height
+            RoundedRectangle(cornerRadius: min(w, h) * 0.42, style: .continuous)
+                .fill(LiviqaTheme.moss.opacity(0.14))
                 .frame(width: w, height: h)
                 .position(x: r.midX, y: b.midY)
                 .allowsHitTesting(false)
         }
     }
 
-    /// The lens edge drawn over the shader-magnified content: the chromatic rainbow rim
-    /// (Flighty). Always a thin STROKE — never an opaque fill — so the magnified icons
-    /// underneath are never hidden.
+    /// The chromatic rainbow rim drawn over the magnified bar content (Flighty). A thin
+    /// stroke, never an opaque fill.
     @ViewBuilder private var lensRim: some View {
         if let l = lens {
             Capsule()
@@ -385,20 +385,13 @@ struct MainTabView: View {
     }
 
     private var tabBar: some View {
-        // Floating opaque capsule (Flighty-style) + the drag magnifier lens over it.
+        // Floating OPAQUE capsule (Flighty-style) + the drag magnifier. The bar surface +
+        // icons are flattened (compositingGroup) so the shader has real pixels to enlarge.
         let l = lens
         let maxOff = (l?.halfLen ?? 0) + (l?.capR ?? 0) + 8
-        // The bar surface is an OPAQUE capsule FLATTENED together with the icons (one
-        // compositingGroup), so the magnify shader has real pixels to enlarge on device.
-        // A `.glassEffect`/`.ultraThinMaterial` backdrop is a private blur layer the shader
-        // CANNOT sample (it would leave the lens empty between icons — the device bug).
-        // This is also why Flighty's bar is an opaque capsule. Layer order: surface →
-        // resting oval → icons.
         return tabRow
             .padding(.vertical, 7)
             .padding(.horizontal, 6)
-            // Opaque surface + resting oval as the row's BACKGROUND (sizes to the row,
-            // never expands) — and part of the sampled layer so the shader can magnify it.
             .background {
                 ZStack {
                     Capsule().fill(LiviqaTheme.paper2)
@@ -407,28 +400,28 @@ struct MainTabView: View {
             }
             .compositingGroup()
             .layerEffect(
-            ShaderLibrary.tabMagnifier(
-                .float2(l?.cx ?? 0, l?.cy ?? 0),
-                .float(l?.halfLen ?? 0),
-                .float(l?.capR ?? 1),
-                .float(2.0),                                     // magnification
-                .float(4)                                        // chromatic-aberration px
-            ),
-            maxSampleOffset: CGSize(width: maxOff, height: maxOff),
-            isEnabled: l != nil
-        )
-        .overlay(Capsule().strokeBorder(LiviqaTheme.line, lineWidth: 0.5))   // floating-bar edge
-        .overlay { lensRim }                                     // crisp chromatic rim (not sampled)
-        .coordinateSpace(.named(tabBarSpace))
-        .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
-        .contentShape(Capsule())
-        .gesture(barDrag)
-        .shadow(color: LiviqaTheme.cardShadow, radius: 12, y: 4)
-        // Detach from the screen edges so it reads as a floating surface.
-        .padding(.horizontal, 16)
-        .padding(.bottom, 6)
-        // Cap growth so the six labels never wrap ("Settings" → "Setting s").
-        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+                ShaderLibrary.tabMagnifier(
+                    .float2(l?.cx ?? 0, l?.cy ?? 0),
+                    .float(l?.halfLen ?? 0),
+                    .float(l?.capR ?? 1),
+                    .float(2.0),                                     // magnification
+                    .float(4)                                        // chromatic-aberration px
+                ),
+                maxSampleOffset: CGSize(width: maxOff, height: maxOff),
+                isEnabled: l != nil
+            )
+            .overlay(Capsule().strokeBorder(LiviqaTheme.line, lineWidth: 0.5))   // floating-bar edge
+            .overlay { lensRim }                                     // crisp chromatic rim (not sampled)
+            .coordinateSpace(.named(tabBarSpace))
+            .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
+            .contentShape(Capsule())
+            .gesture(barDrag)
+            .shadow(color: LiviqaTheme.cardShadow, radius: 12, y: 4)
+            // Detach from the screen edges so it reads as a floating surface.
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+            // Cap growth so the six labels never wrap ("Settings" → "Setting s").
+            .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
 }
