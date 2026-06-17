@@ -310,14 +310,6 @@ struct MainTabView: View {
         .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
-        // Resting selection chip (glass on) — the pill that "becomes glass" on touch.
-        // Hidden while the lens is up so the two never double.
-        .background {
-            if glassOn && active && dragLoc == nil {
-                Capsule().fill(LiviqaTheme.moss.opacity(0.12))
-                    .padding(.horizontal, 6).padding(.vertical, 4)
-            }
-        }
         .background(GeometryReader { g in
             Color.clear.preference(key: TabFrameKey.self,
                                    value: [item: g.frame(in: .named(tabBarSpace))])
@@ -339,6 +331,20 @@ struct MainTabView: View {
         let halfLen = max(0, w / 2 - capR)
         let cx = min(max(p.x, b.minX + w / 2), b.maxX - w / 2)
         return (cx, b.midY, w, h, capR, halfLen)
+    }
+
+    /// Resting selection indicator (glass on): a wide OVAL pill behind the active tab —
+    /// clearly wider than tall — that "becomes glass" on touch. Hidden while the lens is up.
+    @ViewBuilder private var restChip: some View {
+        if glassOn, dragLoc == nil, let r = tabFrames[tab], let b = barBounds {
+            let w = r.width * 1.30          // wider than tall → oval, not round
+            let h = b.height * 0.62
+            Capsule()
+                .fill(LiviqaTheme.moss.opacity(0.12))
+                .frame(width: w, height: h)
+                .position(x: r.midX, y: b.midY)
+                .allowsHitTesting(false)
+        }
     }
 
     /// The lens edge drawn over the shader-magnified content: the chromatic rainbow rim
@@ -406,6 +412,7 @@ struct MainTabView: View {
                 maxSampleOffset: CGSize(width: 60, height: 60),
                 isEnabled: l != nil && !useSolidBar
             )
+            .background { restChip }                          // resting oval pill (never magnified)
             .coordinateSpace(.named(tabBarSpace))
             .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
             .overlay { lensRim }
