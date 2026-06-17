@@ -385,41 +385,50 @@ struct MainTabView: View {
     }
 
     private var tabBar: some View {
-        // Floating capsule — three-tier ladder (LiviqaBarGlass): real Liquid Glass on
-        // iOS 26 (flag on) → `.ultraThinMaterial` on iOS 17–25 → opaque paper2 under
-        // Reduce Transparency / Increase Contrast, so label contrast is preserved.
+        // Floating opaque capsule (Flighty-style) + the drag magnifier lens over it.
         let l = lens
+        let maxOff = (l?.halfLen ?? 0) + (l?.capR ?? 0) + 8
+        // The bar surface is an OPAQUE capsule FLATTENED together with the icons (one
+        // compositingGroup), so the magnify shader has real pixels to enlarge on device.
+        // A `.glassEffect`/`.ultraThinMaterial` backdrop is a private blur layer the shader
+        // CANNOT sample (it would leave the lens empty between icons — the device bug).
+        // This is also why Flighty's bar is an opaque capsule. Layer order: surface →
+        // resting oval → icons.
         return tabRow
-            // Real magnification: a Metal layerEffect samples the row pixels and enlarges
-            // them (with chromatic aberration) inside the capsule at the finger — the
-            // actual icons magnify through the lens (Flighty), not a frosted overlay.
-            // ALWAYS on while pressing (no accessibility disable, no glass container that
-            // could starve the sampled layer) so it magnifies on every device.
-            .layerEffect(
-                ShaderLibrary.tabMagnifier(
-                    .float2(l?.cx ?? 0, l?.cy ?? 0),
-                    .float(l?.halfLen ?? 0),
-                    .float(l?.capR ?? 1),
-                    .float(2.0),                                 // magnification
-                    .float(4)                                    // chromatic-aberration px
-                ),
-                maxSampleOffset: CGSize(width: 80, height: 80),
-                isEnabled: l != nil
-            )
-            .background { restChip }                          // resting oval pill (never magnified)
-            .coordinateSpace(.named(tabBarSpace))
-            .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
-            .overlay { lensRim }
-            .contentShape(Rectangle())
-            .gesture(barDrag)
             .padding(.vertical, 7)
             .padding(.horizontal, 6)
-            .liviqaBarGlass(solid: useSolidBar)
-            // Detach from the screen edges so it reads as a floating surface.
-            .padding(.horizontal, 16)
-            .padding(.bottom, 6)
-            // Cap growth so the six labels never wrap ("Settings" → "Setting s").
-            .dynamicTypeSize(...DynamicTypeSize.xLarge)
+            // Opaque surface + resting oval as the row's BACKGROUND (sizes to the row,
+            // never expands) — and part of the sampled layer so the shader can magnify it.
+            .background {
+                ZStack {
+                    Capsule().fill(LiviqaTheme.paper2)
+                    restChip
+                }
+            }
+            .compositingGroup()
+            .layerEffect(
+            ShaderLibrary.tabMagnifier(
+                .float2(l?.cx ?? 0, l?.cy ?? 0),
+                .float(l?.halfLen ?? 0),
+                .float(l?.capR ?? 1),
+                .float(2.0),                                     // magnification
+                .float(4)                                        // chromatic-aberration px
+            ),
+            maxSampleOffset: CGSize(width: maxOff, height: maxOff),
+            isEnabled: l != nil
+        )
+        .overlay(Capsule().strokeBorder(LiviqaTheme.line, lineWidth: 0.5))   // floating-bar edge
+        .overlay { lensRim }                                     // crisp chromatic rim (not sampled)
+        .coordinateSpace(.named(tabBarSpace))
+        .onPreferenceChange(TabFrameKey.self) { tabFrames = $0 }
+        .contentShape(Capsule())
+        .gesture(barDrag)
+        .shadow(color: LiviqaTheme.cardShadow, radius: 12, y: 4)
+        // Detach from the screen edges so it reads as a floating surface.
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+        // Cap growth so the six labels never wrap ("Settings" → "Setting s").
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
 }

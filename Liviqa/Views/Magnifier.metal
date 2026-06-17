@@ -35,20 +35,17 @@ half4 tabMagnifier(float2 pos, SwiftUI::Layer layer,
     float2 dir = (len > 0.001) ? rel / len : float2(0.0, 0.0);
     float caAmt = ca * t * t;
 
+    // Per-channel sample for chromatic aberration. The sampled layer is opaque (the bar
+    // surface is flattened into it), so premultiplied RGB == RGB and a == 1.
     half4 col;
     col.r = layer.sample(src + dir * caAmt).r;
     col.g = layer.sample(src).g;
     col.b = layer.sample(src - dir * caAmt).b;
     col.a = layer.sample(src).a;
 
-    // Faint glass body so the capsule reads even between icons.
-    col.rgb = mix(col.rgb, half3(0.82h), 0.06h);
-    col.a = max(col.a, 0.10h);
-
     // Specular edge highlight on the rim.
     float rim = smoothstep(capR - 3.0, capR, dist);
-    col.rgb += half3(rim) * 0.30h;
-    col.a = max(col.a, half(rim) * 0.55h);
+    col.rgb += half3(rim) * 0.28h;
 
     return col;
 }
