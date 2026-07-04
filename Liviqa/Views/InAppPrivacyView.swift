@@ -153,15 +153,25 @@ struct InAppPrivacyView: View {
                 }
                 .buttonStyle(.plain)
 
-                Button { } label: {
-                    Text("Manage scope")
-                        .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink2)
-                        .frame(maxWidth: .infinity).padding(.vertical, 10)
-                        .background(LiviqaTheme.paper)
-                        .clipShape(RoundedRectangle(cornerRadius: 11))
-                        .overlay(RoundedRectangle(cornerRadius: 11).stroke(LiviqaTheme.line, lineWidth: 1))
+                // Per-scope editing is follow-up wiring — pause/resume above is
+                // the live control, so this must not look live (honest "soon" stub).
+                Button { } label: {   // HONEST-STUB (disabled + SOON chip)
+                    HStack(spacing: 6) {
+                        Text("Manage scope")
+                            .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink3)
+                        Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(LiviqaTheme.moss2))
+                            .foregroundStyle(LiviqaTheme.moss)
+                    }
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .background(LiviqaTheme.paper)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                    .overlay(RoundedRectangle(cornerRadius: 11)
+                        .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                 }
                 .buttonStyle(.plain)
+                .disabled(true)
             }
             .padding(.top, 12)
         }

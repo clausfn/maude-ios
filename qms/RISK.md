@@ -2,6 +2,60 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-102 — Pre-launch audit fixes, wave 1: two hazards REMOVED, none added (2026-07-03)
+
+Both safety-path changes in PR-102 remove existing hazards; neither introduces a
+new clinical hazard. Nudges, units (glucose mmol/L, OD-07), provenance handling,
+the AFib lane, and the `FR-NDG-06` guard are untouched.
+
+- **Fabricated data presented as the user's own (demo-login leak) — REMOVED.**
+  Cause: `Config.dfgWalletLoginEnabled`/`nationalIDLoginEnabled` shipped `true` in
+  Release, routing simulated wallet/eID sign-ins through `signInDemo()` → the
+  fabricated LV001 9.5-year record rendered as the user's own data on
+  HealthKit-empty devices. Mitigation: both flags are now `#if DEBUG`-gated
+  (compile-time `false` in Release) AND `applyLV001DatasetIfNeeded()` is a no-op
+  in non-DEBUG builds — defence in depth: no Release path can inject LV001.
+  Residual risk: low (Debug/demo builds still show LV001 by design, for the
+  pitch; never distributed to users).
+- **False deletion assurance ("All local data deleted." while nothing was
+  deleted) — REMOVED.** Cause: the Settings delete flow advanced to a success
+  state with `AppState.deleteAllData()` unimplemented (GDPR Art. 17 exposure; a
+  user could believe sensitive health data was erased when it persisted).
+  Mitigation: `deleteAllData()` implemented (SwiftData entities + journal file +
+  encrypted sync anchors + Keychain session + UserDefaults + in-memory reset)
+  and the confirmation is shown only after the erase completes (T-DEL-01).
+  Residual risk: low; verify with `T-DEL-01_deleteAllData_purgesEverything`.
+- **Mistral key in the binary (security, not clinical):** key now DEBUG-only;
+  Release uses the backend `/ai/chat` proxy. No clinical path affected — the
+  ChatGuard before/after every call is unchanged. Key rotation = owner action.
+- **Wave 2 (2026-07-03) — designated control T-PROV-01 was inert
+  (audit-integrity, not a new clinical hazard).** The provenance-never-renders
+  shell guard (`scripts/guard_provenance.sh`) was wired to no build/CI step and
+  was exiting 1 on wallet-receipt word collisions ("provenance receipt",
+  UC-24b/UC-21), while VnV/RTM/this file recorded it green and blocking.
+  Fixed: pattern scoped to the provenance DATA FIELD (`.provenance` access,
+  `provenance:` label, `Provenance` type/case — not the bare word), guard wired
+  as a blocking `build-ios.sh` step before xcodebuild, and the false records
+  corrected in place (kept, not erased). The substantive rule held throughout:
+  no view renders the field (audit-verified). RK-PROV-01 mitigation is now
+  actually enforced as recorded. Also wave 2: 8 missing RTM rows added
+  (FR-RSCH-03, FR-WAL-08, FR-PROV-02, FR-PAT-01/02, FR-PAS-03, FR-ING-08,
+  NFR-RSCH-04) — traceability only, no code-path change, no new hazard.
+- **Wave 3 (2026-07-05) — dead CTAs + consult-availability overclaim
+  (honesty fixes, no new clinical hazard).** Six reachable dead controls
+  (empty `Button { }`) were either wired — `NudgeDetailView` "Share via
+  wallet" now opens the EXISTING `ShareWithClinicianView` consent-share flow
+  (no new share path; same flow already reachable from Settings, full
+  scope/range/recipient consent steps unchanged) — or converted to disabled
+  honest stubs (SOON chip), so no control silently does nothing. And
+  `PlanConsultView` no longer asserts "availability mirrors <clinician>'s
+  calendar" over a simulated free/busy grid; the copy is now "Suggested
+  times — your clinician will confirm." — removes a false trust claim in
+  the care-scheduling flow (the consult request itself is real). A blocking
+  dead-CTA grep in `build-ios.sh` keeps empty CTAs from returning. Nudges,
+  units (mmol/L), provenance handling, the AFib lane, and the FR-NDG-06
+  guard are untouched; no new FR, no RTM change needed.
+
 ## PR-96 — A6 "Daylight" re-skin; RK-ALARM-01 re-assessed — Amber Flame accepted (2026-06-16)
 
 The A6 "Daylight" re-skin is a presentation change (six-colour palette, SF Pro
@@ -250,4 +304,4 @@ Logged per the QMS-lite "no safety-relevant change without a risk touch" rule.
 |---|---|---|---|---|---|
 | RK-CARD-01 | User reads an AFib signal as a diagnosis or acts on it without a clinician | Cardiac data rendered with interpretation/alarm/trend framing | **Display-only lane (D9):** render the signal, route to cardiologist, no interpretation; `FR-NDG-06` forbidden-construction guard (designated control, blocking tests) | D9, FR-REG-03, FR-NDG-06 | **mitigated** (PR-5; T-NDG-02/03/06) |
 | RK-GLU-01 | User changes insulin/treatment based on a glucose nudge | Dosing/treatment language in nudge output | No insulin/dosing surface in MVP (`FR-REG-04`); allow-list output only; `FR-NDG-06` guard | FR-REG-04, FR-NDG-06 | **mitigated** (PR-5; T-NDG-06) |
-| RK-PROV-01 | Synthetic/estimate data mistaken for clinical truth | `provenance`/tier shown or clinical field accepts SIMULATED | `provenance` never renders (CI/unit guard, blocking); clinical-tier entities reject SIMULATED at schema level | NFR-PRIV-05, DataModel v1 | **mitigated** (PR-2/PR-3; T-PROV-01, T-DM-01) |
+| RK-PROV-01 | Synthetic/estimate data mistaken for clinical truth | `provenance`/tier shown or clinical field accepts SIMULATED | `provenance` never renders (blocking file guard — CORRECTION 2026-07-03: recorded as "CI/unit guard, blocking" since PR-2/3, but the shell guard was wired to no CI/build step and was exiting 1 on wallet-receipt word collisions until 2026-07-03, when the pattern was scoped to the data field and the guard wired as a blocking `build-ios.sh` step, PR-102); clinical-tier entities reject SIMULATED at schema level | NFR-PRIV-05, DataModel v1 | **mitigated** (PR-2/PR-3; T-PROV-01 — designated control inert until 2026-07-03, corrected PR-102; T-DM-01). The substantive never-renders rule held throughout (audit-verified) |

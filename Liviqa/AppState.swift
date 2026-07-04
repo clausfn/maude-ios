@@ -311,6 +311,46 @@ final class AppState {
         lastError = nil
     }
 
+    /// Permanently erase everything Liviqa holds on this device (T-DEL-01,
+    /// Settings → "Delete all my data" / GDPR Art. 17): every SwiftData sample
+    /// entity, the journal file, the encrypted HealthKit sync anchors, the
+    /// Keychain session token, and Liviqa's UserDefaults leftovers — then sign
+    /// out and reset the in-memory surfaces to first-launch demo seeds. Each
+    /// step is best-effort so one failing store can never block the others.
+    @MainActor
+    func deleteAllData() async {
+        // 1. On-device SwiftData store — every sample/source entity (OD-09).
+        if let container = modelContainer {
+            let context = container.mainContext
+            for model in LiviqaStore.models {
+                try? context.delete(model: model)
+            }
+            try? context.save()
+        }
+        // 2. Journal file (Application Support/journal.v1.json).
+        if let journalURL = JournalStore.defaultURL() {
+            try? FileManager.default.removeItem(at: journalURL)
+        }
+        // 3. Encrypted HealthKit sync anchors for this local scope (FR-ING-03/04).
+        (try? EncryptedAnchorStore(keyVault: .shared, userScope: LocalUserScope.current()))?.clear()
+        // 4. Keychain session token (NFR-SEC-01) + server session + auth state.
+        SessionTokenStore().clear()
+        await signOut()
+        // 5. Liviqa UserDefaults leftovers.
+        citizenCredentialValidUntil = nil
+        // 6. Reset every health-derived in-memory surface to first-launch seeds
+        //    so no trace of the erased data survives in the running session.
+        usingRealData   = false
+        rings           = MockData.rings
+        nudges          = MockData.todayNudges
+        todaySignals    = nil
+        sleepSummary    = nil
+        workoutMerges   = []
+        passportStats   = MockData.passportStats
+        correlationWeek = MockData.correlationWeek
+        healthContext   = .demo
+    }
+
     // MARK: - Data loading
 
     @MainActor
@@ -415,13 +455,18 @@ final class AppState {
     /// goldmine dataset instead of demo seeds (FB-AN9QOlAh — "graphs not showing my
     /// real data when logged in as Claus"). A real device with the user's own
     /// HealthKit history (`usingRealData`) always wins — this only fills the demo.
+    /// DEBUG-ONLY (PR-102, launch audit): a Release/TestFlight build must NEVER
+    /// inject the fabricated LV001 record as the user's own data — in non-DEBUG
+    /// builds this is a no-op, whatever path calls it.
     @MainActor
     func applyLV001DatasetIfNeeded() {
+        #if DEBUG
         guard !usingRealData, profile?.alias == "LV001" else { return }
         passportStats   = LV001Dataset.passportStats
         correlationWeek = LV001Dataset.correlationWeek
         rings           = LV001Dataset.rings
         todaySignals    = LV001Dataset.todaySignals
+        #endif
     }
 
     @MainActor

@@ -97,12 +97,24 @@ enum Config {
     /// DfG Wallet *login* flow (eIDAS 2.0 + Partisia verification) on the sign-in
     /// screen. This is the in-app, high-fidelity simulation of the wallet use cases
     /// (identity presentation → MPC signature check → CE-ledger anchoring) for demos
-    /// and pilots — it does not require the live Partisia backend. ON for the pitch.
+    /// and pilots — it does not require the live Partisia backend.
+    /// DEBUG-ONLY (PR-102, launch audit): simulated identity logins must never ship
+    /// in a Release/TestFlight build — they route through `signInDemo()` and would
+    /// present fabricated data as the user's own. ON for the pitch in Debug.
+    #if DEBUG
     static let dfgWalletLoginEnabled = true
+    #else
+    static let dfgWalletLoginEnabled = false
+    #endif
 
     /// National eID / login-provider sign-in (MitID, e-Boks ID) — simulated, in-app
-    /// high-fidelity flows for demos and pilots. No live IDP integration. ON for the pitch.
+    /// high-fidelity flows for demos and pilots. No live IDP integration.
+    /// DEBUG-ONLY (PR-102): same rationale as `dfgWalletLoginEnabled`.
+    #if DEBUG
     static let nationalIDLoginEnabled = true
+    #else
+    static let nationalIDLoginEnabled = false
+    #endif
 
     /// Wallet credential rails (Liviqa Citizen issuance, receipts, OID4VP login).
     /// They live in the SANDBOX only (per Partisia/Kim, 2026-06-09: production

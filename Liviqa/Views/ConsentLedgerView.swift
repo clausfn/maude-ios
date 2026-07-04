@@ -25,15 +25,21 @@ struct ConsentLedgerView: View {
                     }
                     .padding(.top, 16)
 
-                    // Proof on demand — the machinery waits under here.
-                    Button { } label: {
+                    // Proof on demand — the machinery waits under here. The
+                    // cryptographic proof surface is follow-up wiring, so this
+                    // must not look tappable (honest "soon" stub).
+                    Button { } label: {   // HONEST-STUB (disabled + SOON chip)
                         HStack(spacing: 6) {
                             Text("Technical details").font(.lato(13.5, .bold))
-                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold))
+                            Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(Capsule().fill(LiviqaTheme.moss2))
+                                .foregroundStyle(LiviqaTheme.moss)
                         }
-                        .foregroundStyle(LiviqaTheme.ink2)
+                        .foregroundStyle(LiviqaTheme.ink3)
                     }
                     .buttonStyle(.plain)
+                    .disabled(true)
                     .padding(.top, 8)
                 }
             }
