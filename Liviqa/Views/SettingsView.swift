@@ -226,7 +226,7 @@ struct SettingsView: View {
                 Divider().padding(.leading, 56)
                 connectedSourceRow(
                     icon: "heart.fill",
-                    color: .red,
+                    color: LiviqaTheme.accentHeart,
                     label: "Apple Health",
                     status: "Connected",
                     statusColor: LiviqaTheme.moss
@@ -242,7 +242,7 @@ struct SettingsView: View {
                 Divider().padding(.leading, 56)
                 connectedSourceRow(
                     icon: "cross.case.fill",
-                    color: Color(hex: 0x2992A5),
+                    color: LiviqaTheme.accentRecovery,
                     label: "Sundhedsplatformen",
                     status: "Not connected",
                     statusColor: LiviqaTheme.ink4

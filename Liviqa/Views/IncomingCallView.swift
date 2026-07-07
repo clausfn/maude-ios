@@ -18,13 +18,13 @@ struct IncomingCallView: View {
 
     var body: some View {
         ZStack {
-            Color(hex: 0x0C1520).ignoresSafeArea()
+            Color(hex: 0x0B1B26).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 Spacer()
 
                 Text("INCOMING VIDEO CONSULTATION")
-                    .font(.liviqaMono(11)).tracking(1.6)
+                    .font(.liviqaKicker(11)).tracking(1.6)
                     .foregroundStyle(LiviqaTheme.mossRev)
 
                 // Avatar with a soft ring pulse
@@ -42,7 +42,7 @@ struct IncomingCallView: View {
                 .onAppear { withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) { pulse = true } }
 
                 Text(consult.recipientName)
-                    .font(.lato(24, .black)).foregroundStyle(.white)
+                    .font(.liviqaSerif(24)).foregroundStyle(.white)
                     .padding(.top, 22)
                 if let org = consult.recipientOrg {
                     Text(org).font(.lato(13)).foregroundStyle(.white.opacity(0.65)).padding(.top, 2)

@@ -96,8 +96,8 @@ private struct Page1View: View {
 
                     // Headline
                     Text("An independent body that works for you — not for institutions.")
-                        .font(.lato(26, .black))
-                        .kerning(-0.4)
+                        .font(.liviqaSerif(26))
+                        .kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 10)
@@ -215,8 +215,8 @@ private struct Page2View: View {
 
                     // Headline
                     Text("Every decision.\nPermanently recorded.")
-                        .font(.lato(26, .black))
-                        .kerning(-0.4)
+                        .font(.liviqaSerif(26))
+                        .kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 10)
@@ -332,8 +332,8 @@ private struct Page3View: View {
 
                     // Headline
                     Text("Your data lives where you choose.")
-                        .font(.lato(26, .black))
-                        .kerning(-0.4)
+                        .font(.liviqaSerif(26))
+                        .kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 10)
@@ -617,7 +617,7 @@ private struct LearnMoreSheet: View {
 
                 // Heading
                 Text("About Data for Good Foundation")
-                    .font(.lato(20, .black))
+                    .font(.liviqaSerif(20))
                     .kerning(-0.3)
                     .foregroundStyle(LiviqaTheme.ink)
 

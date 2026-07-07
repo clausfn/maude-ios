@@ -46,7 +46,7 @@ struct ChatView: View {
     private var header: some View {
         HStack(spacing: 10) {
             LiviqaApertureMark(size: 24)
-            Text("Assistant").font(.lato(17, .black)).kerning(-0.3).foregroundStyle(LiviqaTheme.ink)
+            Text("Assistant").font(.liviqaSerif(17)).kerning(-0.3).foregroundStyle(LiviqaTheme.ink)
             Spacer()
             if consentProcess {
                 Menu {

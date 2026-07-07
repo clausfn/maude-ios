@@ -80,7 +80,7 @@ struct NudgeDetailView: View {
 
             // 01 — Comprehend: the plain declarative sentence
             Text(ev?.headline ?? nudge.body)
-                .font(.lato(26, .black)).kerning(-0.6)
+                .font(.liviqaSerif(26)).kerning(-0.2)
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
@@ -233,7 +233,7 @@ struct NudgeDetailView: View {
                 .padding(.top, 6)
 
             Text(ev.headline ?? "We're still learning your baseline.")
-                .font(.lato(23, .black)).kerning(-0.5)
+                .font(.liviqaSerif(23)).kerning(-0.2)
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
                 .fixedSize(horizontal: false, vertical: true)

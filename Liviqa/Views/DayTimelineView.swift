@@ -56,7 +56,7 @@ struct DayTimelineView: View {
                     DaySummaryGlass {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Move through your day")
-                                .font(.lato(17, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                                .font(.liviqaSerif(17)).foregroundStyle(LiviqaTheme.ink)
                             Text("Drag the handle across your readings — the value stays still while you scrub.")
                                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
                         }

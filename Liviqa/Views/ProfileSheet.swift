@@ -54,8 +54,8 @@ struct ProfileSheet: View {
                         // ── Header ──
                         VStack(alignment: .leading, spacing: 4) {
                             Text(appState.profile?.displayName ?? "Your profile")
-                                .font(.lato(22, .black))
-                                .kerning(-0.4)
+                                .font(.liviqaSerif(22))
+                                .kerning(-0.2)
                                 .foregroundStyle(LiviqaTheme.ink)
                             Text("Liviqa uses this to personalise your nudges. Stays on device.")
                                 .font(.footnote)

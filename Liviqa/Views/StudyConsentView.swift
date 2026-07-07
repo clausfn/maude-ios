@@ -25,7 +25,7 @@ struct ResearchOpportunityCard: View {
             }
 
             Text(study.name)
-                .font(.lato(18, .bold)).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(18)).foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 10)
             Text("\(study.sponsor) · via Data for Good")
                 .font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink3)
@@ -101,7 +101,7 @@ struct StudyConsentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(study.name)
-                        .font(.lato(24, .black)).kerning(-0.5).foregroundStyle(LiviqaTheme.ink)
+                        .font(.liviqaSerif(24)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
 
                     HStack(spacing: 8) {
                         Text(study.sponsor).font(.lato(13)).foregroundStyle(LiviqaTheme.ink3)
@@ -181,7 +181,7 @@ struct StudyConsentView: View {
                     Image(systemName: "checkmark").font(.system(size: 36, weight: .bold))
                         .foregroundStyle(LiviqaTheme.moss)
                 }
-                Text("You've joined").font(.lato(24, .black)).foregroundStyle(LiviqaTheme.ink)
+                Text("You've joined").font(.liviqaSerif(24)).foregroundStyle(LiviqaTheme.ink)
                 Text(study.name).font(.lato(16, .semibold)).foregroundStyle(LiviqaTheme.ink2)
                     .multilineTextAlignment(.center)
                 Text("You'll contribute \(study.dataCategories.map { $0.capitalized }.joined(separator: ", ")) as anonymous aggregates. Withdraw any time in Privacy.")

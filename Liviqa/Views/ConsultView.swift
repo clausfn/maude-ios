@@ -96,7 +96,7 @@ struct ConsultView: View {
         ZStack {
             // Always-dark video stage (a call surface) — never the theme `ink`,
             // which is light in Midnight and would make the white text vanish.
-            RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x0C1520))
+            RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x0B1B26))
             VStack(spacing: 10) {
                 ZStack {
                     Circle().fill(Color.white.opacity(0.12)).frame(width: 76, height: 76)

@@ -81,7 +81,7 @@ struct TodayView: View {
                         .foregroundStyle(LiviqaTheme.ink3)
 
                     Text(greetingLine)
-                        .font(.lato(26, .black)).kerning(-0.6)
+                        .font(.liviqaSerif(26)).kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                         .padding(.top, 4)
 
@@ -196,7 +196,7 @@ struct TodayView: View {
                     .foregroundStyle(LiviqaTheme.moss)
             }
             Text(affirmHeadline)
-                .font(.lato(20, .black)).kerning(-0.4).lineSpacing(2)
+                .font(.liviqaSerif(20)).kerning(-0.2).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 10)
             Text(affirmSub)
@@ -228,7 +228,7 @@ struct TodayView: View {
                     .foregroundStyle(LiviqaTheme.moss)
             }
             Text("No insights yet — and that's honest.")
-                .font(.lato(20, .black)).kerning(-0.4).lineSpacing(2)
+                .font(.liviqaSerif(20)).kerning(-0.2).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 10)
             Text("Liviqa reads your history from Apple Health and learns what's normal for you. Your first insights typically appear after about 3 days of readings.")
@@ -263,7 +263,7 @@ struct TodayView: View {
                 }
 
                 Text(heroHeadline)
-                    .font(.lato(19, .black)).kerning(-0.4)
+                    .font(.liviqaSerif(19)).kerning(-0.2)
                     .lineSpacing(2)
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(LiviqaTheme.ink)
@@ -345,7 +345,7 @@ struct TodayView: View {
                         .font(.system(size: 10, weight: .bold)).foregroundStyle(LiviqaTheme.ink3)
                 }
                 Text(weekHeadline)
-                    .font(.lato(17, .black)).kerning(-0.3).lineSpacing(2)
+                    .font(.liviqaSerif(17)).kerning(-0.3).lineSpacing(2)
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(LiviqaTheme.ink)
                     .padding(.top, 9)

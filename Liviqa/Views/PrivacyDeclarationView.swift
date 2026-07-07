@@ -35,8 +35,8 @@ struct PrivacyDeclarationView: View {
                 // Heading
                 VStack(spacing: 6) {
                     Text("Before we begin")
-                        .font(.lato(26, .black))
-                        .kerning(-0.5)
+                        .font(.liviqaSerif(26))
+                        .kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                     Text("A few things you should know")
                         .font(.lato(14))

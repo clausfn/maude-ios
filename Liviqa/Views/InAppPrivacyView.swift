@@ -273,7 +273,7 @@ private struct PauseReceiptSheet: View {
             .padding(.top, 30)
 
             Text("Paused. Nothing is shared.")
-                .font(.lato(22, .black)).kerning(-0.5).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(22)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 18)
             Text("\(grant.name.components(separatedBy: " · ").first ?? grant.name) can no longer see anything. It happened the instant you tapped — and it's on your record.")
                 .font(.lato(14)).lineSpacing(2).multilineTextAlignment(.center)

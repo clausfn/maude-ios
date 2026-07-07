@@ -42,8 +42,8 @@ struct HealthKitPrimerView: View {
                     .padding(.top, 56)
 
                     Text("Connect Apple Health")
-                        .font(.lato(24, .black))
-                        .kerning(-0.4)
+                        .font(.liviqaSerif(24))
+                        .kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                         .padding(.top, 4)
 

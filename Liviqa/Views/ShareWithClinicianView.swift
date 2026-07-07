@@ -476,7 +476,7 @@ struct ShareWithClinicianView: View {
             } label: {
                 Text("Done")
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LiviqaTheme.invertFG)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(LiviqaTheme.moss)
@@ -492,7 +492,7 @@ struct ShareWithClinicianView: View {
         Button(action: action) {
             Text(label)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(LiviqaTheme.invertFG)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(disabled ? LiviqaTheme.moss.opacity(0.4) : LiviqaTheme.moss)

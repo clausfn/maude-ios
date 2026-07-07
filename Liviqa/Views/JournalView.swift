@@ -429,7 +429,7 @@ struct JournalView: View {
         VStack(spacing: 0) {
             Capsule().fill(LiviqaTheme.line).frame(width: 38, height: 4).padding(.top, 12).padding(.bottom, 18)
             Text("How's your energy?")
-                .font(.lato(20, .black)).kerning(-0.4).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(20)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
             Text("One tap. You can add a note after — or not.")
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
@@ -481,7 +481,7 @@ struct JournalView: View {
                 .padding(.top, 12).padding(.bottom, 18)
 
             Text("Log a supplement")
-                .font(.lato(20, .black)).kerning(-0.4).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(20)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
             Text("What you took, and how much.")
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
@@ -1037,7 +1037,7 @@ struct JournalView: View {
         case .amber: return LiviqaTheme.clay
         case .moss:  return LiviqaTheme.moss
         case .ink:   return LiviqaTheme.ink
-        case .blue:  return Color(hex: 0x2992A5)
+        case .blue:  return LiviqaTheme.accentRecovery
         case .ink3:  return LiviqaTheme.ink3
         }
     }
