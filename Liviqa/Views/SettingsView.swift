@@ -2,11 +2,24 @@
 // Three zones: My Data (profile + connected sources) / Consent & Sharing (audit trail)
 // / Regulatory (disclaimer, privacy policy, delete). This is the trust layer.
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
-    @State private var showDeleteConfirmStep: Int = 0   // 0=idle 1=warn 2=confirm 3=done
-    @State private var showExportDone = false
+    // 0=idle 1=warn 2=confirm 3=done 4=server-erase failed (retryable)
+    @State private var showDeleteConfirmStep: Int = 0
+    @State private var isErasing = false
+    // GDPR Art. 20 export (T1): GET /me/export → share sheet with the JSON.
+    @State private var isExporting = false
+    @State private var exportFile: ExportFile?
+    @State private var exportFailed = false
+
+    struct ExportFile: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     // Runtime display options (drive the locked design tokens at the root).
     // Default MUST match LiviqaApp's default (Paper) or the picker shows the wrong
@@ -265,26 +278,53 @@ struct SettingsView: View {
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
 
-            // Export button
+            // Export — GDPR Art. 20 (T1): fetches the real server export
+            // (`GET /me/export`) on the sovereign backend, an honest device-local
+            // JSON otherwise, and hands the file to the share sheet.
             Button {
-                withAnimation { showExportDone = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    withAnimation { showExportDone = false }
+                guard !isExporting else { return }
+                isExporting = true
+                exportFailed = false
+                Task { @MainActor in
+                    defer { isExporting = false }
+                    if let url = await appState.exportMyData() {
+                        exportFile = ExportFile(url: url)
+                    } else {
+                        withAnimation { exportFailed = true }
+                    }
                 }
             } label: {
-                HStack {
-                    Image(systemName: showExportDone ? "checkmark.circle.fill" : "square.and.arrow.up")
-                        .foregroundStyle(showExportDone ? LiviqaTheme.moss : LiviqaTheme.ink3)
-                    Text(showExportDone ? "Export ready in Files" : "Export all my Liviqa data")
-                        .font(.footnote)
-                        .foregroundStyle(LiviqaTheme.ink2)
-                    Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        if isExporting {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundStyle(LiviqaTheme.ink3)
+                        }
+                        Text(isExporting ? "Preparing your export…" : "Export all my Liviqa data")
+                            .font(.footnote)
+                            .foregroundStyle(LiviqaTheme.ink2)
+                        Spacer()
+                    }
+                    if exportFailed {
+                        Text("The export couldn't be prepared. Check your connection and try again.")
+                            .font(.caption)
+                            .foregroundStyle(LiviqaTheme.rust)
+                    }
                 }
                 .padding(14)
                 .background(LiviqaTheme.paper2)
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
             }
+            .disabled(isExporting)
+            #if os(iOS)
+            .sheet(item: $exportFile) { file in
+                ActivityShareSheet(items: [file.url])
+                    .presentationDetents([.medium, .large])
+            }
+            #endif
         }
     }
 
@@ -565,7 +605,7 @@ struct SettingsView: View {
 
             case 1:
                 VStack(spacing: 8) {
-                    Text("This will permanently delete all local Liviqa data, including your health records, vault files, journal entries, and nudge history. It cannot be undone.")
+                    Text("This will permanently delete your data from Liviqa's servers and from this device — health records, vault files, journal entries, consent grants, messages, and nudge history. It cannot be undone.")
                         .font(.caption)
                         .foregroundStyle(LiviqaTheme.rust)
                         .multilineTextAlignment(.center)
@@ -605,27 +645,75 @@ struct SettingsView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(LiviqaTheme.rust)
 
-                    Button("Delete permanently") {
-                        // T-DEL-01: actually erase (SwiftData + journal + anchors +
-                        // Keychain session), and only then show the confirmation.
-                        // deleteAllData() signs out, so the root swaps to AuthView.
-                        Task { @MainActor in
-                            await appState.deleteAllData()
-                            withAnimation { showDeleteConfirmStep = 3 }
+                    Button {
+                        runErase()
+                    } label: {
+                        Group {
+                            if isErasing {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Delete permanently")
+                            }
                         }
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(12)
+                        .background(LiviqaTheme.rust)
+                        .cornerRadius(10)
                     }
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(12)
-                    .background(LiviqaTheme.rust)
-                    .cornerRadius(10)
+                    .disabled(isErasing)
 
                     Button("Cancel") {
                         withAnimation { showDeleteConfirmStep = 0 }
                     }
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink4)
+                    .disabled(isErasing)
+                }
+                .padding(14)
+                .background(LiviqaTheme.rust2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.rust.opacity(0.3), lineWidth: 1))
+
+            case 4:
+                // Server erase failed — nothing was removed anywhere. Honest
+                // failure + retry (T1: server FIRST, local wipe only after).
+                VStack(spacing: 8) {
+                    Text("The server couldn't confirm the deletion, so nothing was removed yet — not from Liviqa's servers and not from this device.")
+                        .font(.caption)
+                        .foregroundStyle(LiviqaTheme.rust)
+                        .multilineTextAlignment(.center)
+                    if let detail = appState.eraseServerError {
+                        Text(detail)
+                            .font(.caption2)
+                            .foregroundStyle(LiviqaTheme.ink4)
+                            .multilineTextAlignment(.center)
+                    }
+                    Button {
+                        runErase()
+                    } label: {
+                        Group {
+                            if isErasing {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Try again")
+                            }
+                        }
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(12)
+                        .background(LiviqaTheme.rust)
+                        .cornerRadius(10)
+                    }
+                    .disabled(isErasing)
+                    Button("Cancel") {
+                        withAnimation { showDeleteConfirmStep = 0 }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(LiviqaTheme.ink4)
+                    .disabled(isErasing)
                 }
                 .padding(14)
                 .background(LiviqaTheme.rust2)
@@ -636,13 +724,28 @@ struct SettingsView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(LiviqaTheme.moss)
-                    Text("All local data deleted.")
+                    Text("Your data has been deleted from Liviqa's servers and this device.")
                         .font(.footnote)
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(14)
             }
+        }
+    }
+
+    /// T-DEL-01 + T1 GDPR ordering: erase SERVER-side first (POST /me/erase),
+    /// wipe the device only after the server confirmed — a network failure can
+    /// then never strand server data behind a success message. On failure the
+    /// flow lands on the retryable error state; on success deleteAllData()
+    /// signs out, so the root swaps to AuthView behind the confirmation.
+    private func runErase() {
+        guard !isErasing else { return }
+        isErasing = true
+        Task { @MainActor in
+            defer { isErasing = false }
+            let ok = await appState.eraseEverythingServerFirst()
+            withAnimation { showDeleteConfirmStep = ok ? 3 : 4 }
         }
     }
 
@@ -695,6 +798,18 @@ struct SettingsView: View {
         return String(name.prefix(2)).uppercased()
     }
 }
+
+#if os(iOS)
+/// Minimal UIActivityViewController wrapper for the data-export share sheet
+/// (GDPR Art. 20 — the /me/export JSON handed to Files/AirDrop/Mail).
+struct ActivityShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+#endif
 
 #Preview {
     NavigationStack {

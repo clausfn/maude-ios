@@ -7,6 +7,12 @@ import SwiftUI
 struct LiviqaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState()
+
+    init() {
+        // TESTPROD posture check (T1): a Release build that regressed any demo
+        // gate crashes here, on the first launch — not in a review.
+        ReleasePosture.verify()
+    }
     #if DEBUG
     @State private var debugWallet = false
     @State private var debugIDP: IDProvider? = nil

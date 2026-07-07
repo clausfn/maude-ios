@@ -42,3 +42,17 @@ protocol SupabaseServiceProtocol: Sendable {
     func upsertJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry
     func deleteJournalEntry(id: UUID) async throws
 }
+
+// MARK: - GDPR rights (optional capability — sovereign backend only)
+
+/// GDPR self-service rights (Art. 20 export · Art. 17 erase) on the sovereign
+/// backend. Mock/sandbox services don't carry it; callers degrade to
+/// device-local behaviour (`appState.dataRights == nil`). T1 TestProd wave.
+protocol DataRights: Sendable {
+    /// `GET /me/export` — the raw JSON blob of everything the backend holds
+    /// (account, grants, ledger, shares, journal, messages, care surface).
+    func exportMyData() async throws -> Data
+    /// `POST /me/erase` — server-side erasure of the account and all its data
+    /// (revoke-on-erase). Throws unless the backend confirms `erased: true`.
+    func eraseMyData() async throws
+}

@@ -63,7 +63,7 @@ protocol SovereignSharing: Sendable {
 
 // MARK: - Service
 
-final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, CareConnect, @unchecked Sendable {
+final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, CareConnect, DataRights, @unchecked Sendable {
 
     private let baseURL: URL
     private let session: URLSession
@@ -185,7 +185,8 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
                 scopeKeys: dto.scopeKeys,
                 isActive: dto.active,
                 expiresAt: BackendMapping.parseDate(dto.expiresAt),
-                createdAt: BackendMapping.parseDate(dto.createdAt)
+                createdAt: BackendMapping.parseDate(dto.createdAt),
+                ceGrantRef: dto.ceGrantRef
             )
         }
         storeBackendIDs(map)
@@ -214,24 +215,97 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
 
     func fetchEvents(limit: Int) async throws -> [WalletEvent] {
         let dtos = try await get("/ledger?limit=\(limit)", as: [LedgerEventDTO].self)
-        return dtos.map { dto in
-            WalletEvent(
-                id: BackendMapping.stableUUID(dto.id),
-                userId: nil,
-                eventType: BackendMapping.eventType(dto.type),
-                actorName: dto.detail?.actorName ?? dto.detail?.actor ?? "—",
-                scopeKeys: dto.detail?.scopeKeys ?? dto.detail?.scope ?? [],
-                decision: BackendMapping.decision(dto.type),
-                occurredAt: BackendMapping.parseDate(dto.occurredAt) ?? Date()
-            )
-        }
+        return dtos.map(Self.walletEvent(from:))
     }
 
-    // MARK: - Journal (PUT /journal — opt-in, deferred parity)
+    /// Pure DTO→domain mapping (internal so `ReceiptDecodeTests` can exercise
+    /// the ce evidence decode without URLSession).
+    static func walletEvent(from dto: LedgerEventDTO) -> WalletEvent {
+        WalletEvent(
+            id: BackendMapping.stableUUID(dto.id),
+            userId: nil,
+            eventType: BackendMapping.eventType(dto.type),
+            actorName: dto.detail?.actorName ?? dto.detail?.actor ?? "—",
+            scopeKeys: dto.detail?.scopeKeys ?? dto.detail?.scope ?? [],
+            decision: BackendMapping.decision(dto.type),
+            occurredAt: BackendMapping.parseDate(dto.occurredAt) ?? Date(),
+            ce: dto.detail?.ce
+        )
+    }
 
-    func fetchJournalEntries(limit: Int) async throws -> [JournalEntry] { [] }
-    func upsertJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry { entry }
-    func deleteJournalEntry(id: UUID) async throws {}
+    // MARK: - Journal (GET/PUT /journal · DELETE /journal/{id} — opt-in sync)
+    // T1 TestProd wave: the former stub trio (fetch→[], upsert echo, delete
+    // no-op) silently discarded synced entries. These are now the real citizen
+    // journal routes. The server stores TEXT + timestamp only; mood/tags/metric
+    // snapshots stay device-local by design (never uploaded).
+
+    /// Local-UUID → backend journal id, so update/delete address the server row.
+    private var journalBackendIDs: [UUID: String] = [:]
+
+    func fetchJournalEntries(limit: Int) async throws -> [JournalEntry] {
+        let dtos = try await get("/journal", as: [JournalEntryDTO].self)
+        var map: [UUID: String] = [:]
+        let entries = dtos.prefix(max(limit, 0)).map { dto -> JournalEntry in
+            let entry = BackendMapping.journalEntry(from: dto)
+            map[entry.id] = dto.id
+            return entry
+        }
+        mapLock.lock()
+        journalBackendIDs.merge(map) { _, new in new }
+        mapLock.unlock()
+        return Array(entries)
+    }
+
+    func upsertJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry {
+        let backendID = journalBackendID(for: entry.id)
+        let body = JournalUpsertBody(id: backendID,
+                                     text: entry.body,
+                                     at: BackendMapping.iso(entry.createdAt))
+        let dto = try await put("/journal", body: body, as: JournalEntryDTO.self)
+        mapLock.lock()
+        journalBackendIDs[entry.id] = dto.id
+        journalBackendIDs[BackendMapping.stableUUID(dto.id)] = dto.id
+        mapLock.unlock()
+        // Keep the caller's identity + device-local fields (mood/tags/metrics);
+        // the server round-trip confirms text + timestamp.
+        var confirmed = entry
+        confirmed.syncEnabled = true
+        confirmed.updatedAt = Date()
+        return confirmed
+    }
+
+    func deleteJournalEntry(id: UUID) async throws {
+        // Entry never synced ⇒ nothing server-side to delete (honest no-op).
+        guard let backendID = journalBackendID(for: id) else { return }
+        struct DeletedDTO: Decodable { let deleted: Bool }
+        let resp = try await delete("/journal/\(backendID)", as: DeletedDTO.self)
+        guard resp.deleted else { throw SupabaseError.serverError("Delete failed.") }
+        mapLock.lock()
+        journalBackendIDs[id] = nil
+        mapLock.unlock()
+    }
+
+    private func journalBackendID(for uuid: UUID) -> String? {
+        mapLock.lock(); defer { mapLock.unlock() }
+        return journalBackendIDs[uuid]
+    }
+
+    // MARK: - GDPR rights (GET /me/export · POST /me/erase) — T1 TestProd wave
+
+    /// GDPR Art. 20 — the server's export blob, verbatim (shared as JSON).
+    func exportMyData() async throws -> Data {
+        try await sendRaw("/me/export", method: "GET", bodyData: nil)
+    }
+
+    /// GDPR Art. 17 — server-side erasure (revoke-on-erase: the account row and
+    /// its auth mapping die together; re-entry needs a fresh invite).
+    func eraseMyData() async throws {
+        struct ErasedDTO: Decodable { let erased: Bool }
+        let resp = try await post("/me/erase", body: EmptyBody(), as: ErasedDTO.self)
+        guard resp.erased else {
+            throw SupabaseError.serverError("The server did not confirm the erase.")
+        }
+    }
 
     // MARK: - SovereignSharing
 
@@ -444,8 +518,21 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     private func put<B: Encodable, T: Decodable>(_ path: String, body: B, as: T.Type) async throws -> T {
         try await send(path, method: "PUT", bodyData: try Self.encoder.encode(body), as: T.self)
     }
+    private func delete<T: Decodable>(_ path: String, as: T.Type) async throws -> T {
+        try await send(path, method: "DELETE", bodyData: nil, as: T.self)
+    }
 
     private func send<T: Decodable>(_ path: String, method: String, bodyData: Data?, as: T.Type, base: URL? = nil) async throws -> T {
+        let data = try await sendRaw(path, method: method, bodyData: bodyData, base: base)
+        if data.isEmpty, let empty = EmptyDecodable() as? T { return empty }
+        do { return try Self.decoder.decode(T.self, from: data) }
+        catch { throw SupabaseError.serverError("Decode \(T.self): \(error.localizedDescription)") }
+    }
+
+    /// Request returning the raw response body (used for `/me/export`, whose
+    /// JSON blob is shared verbatim, and as the plumbing under `send`).
+    @discardableResult
+    private func sendRaw(_ path: String, method: String, bodyData: Data?, base: URL? = nil) async throws -> Data {
         guard let url = URL(string: path, relativeTo: base ?? baseURL) else {
             throw SupabaseError.serverError("Bad URL: \(path)")
         }
@@ -467,9 +554,7 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         }
         switch http.statusCode {
         case 200...299:
-            if data.isEmpty, let empty = EmptyDecodable() as? T { return empty }
-            do { return try Self.decoder.decode(T.self, from: data) }
-            catch { throw SupabaseError.serverError("Decode \(T.self): \(error.localizedDescription)") }
+            return data
         case 401:
             throw SupabaseError.notSignedIn
         default:
@@ -512,20 +597,42 @@ private struct MyGrantDTO: Decodable {
     let delivery: String?
     let expiresAt: String?
     let createdAt: String?
+    /// CE chain reference — carried by the grant DETAIL today; tolerated on the
+    /// list route for forward-compatibility (optional decode, T1 wave).
+    let ceGrantRef: String?
 }
 
-private struct LedgerEventDTO: Decodable {
+/// Internal (not private) so `ReceiptDecodeTests` can decode fixtures and
+/// exercise `LiviqaBackendService.walletEvent(from:)` without URLSession.
+struct LedgerEventDTO: Decodable {
     struct Detail: Decodable {
         let actorName: String?
         let actor: String?
         let scope: [String]?
         let scopeKeys: [String]?
+        /// CE evidence block (`detail.ce`, CE_MODE=sim) — snake_case keys
+        /// decoded straight into the domain `CEEvidence` (same wire names).
+        let ce: CEEvidence?
     }
     let id: String
     let type: String
     let grantId: String?
     let detail: Detail?
     let occurredAt: String
+}
+
+/// Citizen journal row (`GET/PUT /journal`). Internal for mapping tests.
+struct JournalEntryDTO: Decodable {
+    let id: String
+    let text: String
+    let at: String
+    let createdAt: String?
+}
+
+private struct JournalUpsertBody: Encodable {
+    let id: String?
+    let text: String
+    let at: String
 }
 
 private struct CreateGrantDTO: Encodable {

@@ -16,6 +16,9 @@ struct TodayView: View {
     var isDemoData: Bool = false
     /// Live Home signal values (real HealthKit). nil ⇒ show the demo seeds.
     var signals: TodaySignals? = nil
+    /// T1 cold-start honesty (Release): nothing real to show yet — render the
+    /// honest "baseline building" state instead of demo placeholder values.
+    var coldStart: Bool = false
     var onOpen: (Nudge) -> Void
     var onCalibrate: ((ProfileSheet.Section?) -> Void)? = nil
     /// Real device that tried HealthKit but has no readings → show the connect hint.
@@ -98,9 +101,17 @@ struct TodayView: View {
                         .padding(.top, 14)
                     }
 
-                    // Calm, affirming lead (not an alert) — the everyday day-good state.
-                    calmHero
-                        .padding(.top, 14)
+                    // Calm, affirming lead (not an alert) — the everyday day-good
+                    // state. On a genuinely empty cold start (Release, no Health
+                    // readings yet) the honest baseline card replaces it.
+                    Group {
+                        if coldStart {
+                            baselineBuildingCard
+                        } else {
+                            calmHero
+                        }
+                    }
+                    .padding(.top, 14)
 
                     Text(String(localized: "Your signals · vs your normal").uppercased())
                         .font(.liviqaKicker(9)).tracking(1)
@@ -148,7 +159,9 @@ struct TodayView: View {
             Image(systemName: "heart.text.square")
                 .font(.lato(15)).foregroundStyle(LiviqaTheme.moss)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Showing sample data")
+                // Cold start shows the honest empty state, not sample data —
+                // the hint header must not claim otherwise (T1).
+                Text(coldStart ? "Waiting for your Health data" : "Showing sample data")
                     .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
                 Button { onOpenSettings?() } label: {
                     Text("Connect Apple Health in Settings to see your own →")
@@ -202,6 +215,33 @@ struct TodayView: View {
     private var affirmHeadline: String { String(localized: "You're having a steady week.") }
     private var affirmSub: String {
         String(localized: "Sleep, glucose and recovery are all tracking close to your own normal.")
+    }
+
+    // MARK: — Honest cold start (no readings yet — nothing is faked)
+
+    private var baselineBuildingCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
+                Text(String(localized: "Building your baseline").uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            Text("No insights yet — and that's honest.")
+                .font(.lato(20, .black)).kerning(-0.4).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 10)
+            Text("Liviqa reads your history from Apple Health and learns what's normal for you. Your first insights typically appear after about 3 days of readings.")
+                .font(.lato(13)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .padding(.top, 7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
     // MARK: — Deviation insight (demoted under the calm state)
@@ -326,9 +366,10 @@ struct TodayView: View {
 
     /// REAL weekly in-range series (oldest→today) when connected; a calm seed otherwise
     /// (matches the seed used by WeekInContextView so the teaser and full view agree).
+    /// Cold start: no seed sparkline — nothing real to draw yet (T1).
     private var weekSparkline: [Double]? {
         if let s = signals, s.inRangeWeek.count > 1 { return s.inRangeWeek }
-        return [71, 74, 69, 78, 80, 76, 84]
+        return coldStart ? nil : [71, 74, 69, 78, 80, 76, 84]
     }
 
     private var weekHeadline: String {
@@ -346,26 +387,32 @@ struct TodayView: View {
     private var signalRow: some View {
         HStack(spacing: 8) {
             NavigationLink(value: WellnessPillar.sleep) {
-                signalChip(String(localized: "Sleep"), "moon.fill", signals?.sleep ?? "6h52", clay: false, spark: spark(\.sleepWeek, .sleep))
+                signalChip(String(localized: "Sleep"), "moon.fill", signals?.sleep ?? seedValue("6h52"), clay: false, spark: spark(\.sleepWeek, .sleep))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
-                signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true, spark: spark(\.inRangeWeek, .glucose))
+                signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? seedValue("61%"), clay: signals?.inRangeIsClay ?? !coldStart, spark: spark(\.inRangeWeek, .glucose))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.recovery) {
-                signalChip(String(localized: "Recovery"), "waveform.path.ecg", signals?.hrv ?? "48", clay: false, spark: spark(\.hrvWeek, .recovery))
+                signalChip(String(localized: "Recovery"), "waveform.path.ecg", signals?.hrv ?? seedValue("48"), clay: false, spark: spark(\.hrvWeek, .recovery))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.heart) {
-                signalChip(String(localized: "Heart"), "heart.fill", signals?.rhr ?? "58", clay: false, spark: spark(\.rhrWeek, .heart))
+                signalChip(String(localized: "Heart"), "heart.fill", signals?.rhr ?? seedValue("58"), clay: false, spark: spark(\.rhrWeek, .heart))
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
     }
 
+    /// Demo seed values render only outside the honest cold start; a genuinely
+    /// empty Release start shows "—" until real readings arrive (T1).
+    private func seedValue(_ demo: String) -> String {
+        coldStart ? "—" : demo
+    }
+
     /// Sparkline source: real per-day week when connected (empty ⇒ no spark, honest),
-    /// the pillar's demo week when showing seeds.
+    /// the pillar's demo week when showing seeds — never a seed on cold start.
     private func spark(_ keyPath: KeyPath<TodaySignals, [Double]>, _ pillar: WellnessPillar) -> [Double] {
         if let s = signals { return s[keyPath: keyPath] }
-        return pillar.week
+        return coldStart ? [] : pillar.week
     }
 
     private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool,

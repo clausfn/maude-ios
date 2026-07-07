@@ -121,6 +121,7 @@ struct MainTabView: View {
                             displayName: appState.profile?.displayName,
                             isDemoData: appState.isDemoData && showDemoChip,
                             signals: appState.todaySignals,
+                            coldStart: appState.isColdStartEmpty,
                             onOpen: { nudge in selectedNudge = nudge },
                             onCalibrate: { anchor in
                                 nudgeProfileAnchor = anchor

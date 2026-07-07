@@ -21970,6 +21970,482 @@
           }
         }
       }
+    },
+    "Building your baseline" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Din baseline bygges op"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Construyendo tu línea base"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Grunnlinjen din bygges opp"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A construir a sua linha de base"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Din baslinje byggs upp"
+          }
+        }
+      }
+    },
+    "No insights yet — and that's honest." : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ingen indsigter endnu — og det er ærligt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aún no hay conclusiones — y eso es honesto."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ingen innsikter ennå — og det er ærlig."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ainda não há conclusões — e isso é honesto."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Inga insikter ännu — och det är ärligt."
+          }
+        }
+      }
+    },
+    "Liviqa reads your history from Apple Health and learns what's normal for you. Your first insights typically appear after about 3 days of readings." : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Liviqa læser din historik fra Apple Health og lærer, hvad der er normalt for dig. Dine første indsigter kommer typisk efter cirka 3 dages målinger."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Liviqa lee tu historial de Apple Health y aprende qué es normal para ti. Tus primeras conclusiones suelen aparecer tras unos 3 días de mediciones."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Liviqa leser historikken din fra Apple Health og lærer hva som er normalt for deg. De første innsiktene dine kommer vanligvis etter omtrent 3 dager med målinger."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A Liviqa lê o seu histórico do Apple Health e aprende o que é normal para si. As suas primeiras conclusões aparecem normalmente após cerca de 3 dias de leituras."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Liviqa läser din historik från Apple Health och lär sig vad som är normalt för dig. Dina första insikter visas vanligtvis efter ungefär 3 dagars mätningar."
+          }
+        }
+      }
+    },
+    "Preparing your export…" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Forbereder din eksport…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Preparando tu exportación…"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Forbereder eksporten din…"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A preparar a sua exportação…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Förbereder din export…"
+          }
+        }
+      }
+    },
+    "The export couldn't be prepared. Check your connection and try again." : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Eksporten kunne ikke forberedes. Tjek din forbindelse, og prøv igen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "No se pudo preparar la exportación. Comprueba tu conexión e inténtalo de nuevo."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Eksporten kunne ikke forberedes. Sjekk tilkoblingen din og prøv igjen."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Não foi possível preparar a exportação. Verifique a sua ligação e tente novamente."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Exporten kunde inte förberedas. Kontrollera din anslutning och försök igen."
+          }
+        }
+      }
+    },
+    "This will permanently delete your data from Liviqa's servers and from this device — health records, vault files, journal entries, consent grants, messages, and nudge history. It cannot be undone." : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dette sletter permanent dine data fra Liviqas servere og fra denne enhed — helbredsdata, boksfiler, dagbogsnotater, samtykker, beskeder og indsigtshistorik. Det kan ikke fortrydes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Esto eliminará permanentemente tus datos de los servidores de Liviqa y de este dispositivo — registros de salud, archivos de la bóveda, entradas del diario, consentimientos, mensajes e historial de conclusiones. No se puede deshacer."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dette sletter dataene dine permanent fra Liviqas servere og fra denne enheten — helsedata, hvelvfiler, dagboknotater, samtykker, meldinger og innsiktshistorikk. Det kan ikke angres."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Isto eliminará permanentemente os seus dados dos servidores da Liviqa e deste dispositivo — registos de saúde, ficheiros do cofre, entradas do diário, consentimentos, mensagens e histórico de conclusões. Não pode ser anulado."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Detta raderar permanent dina data från Liviqas servrar och från den här enheten — hälsodata, valvfiler, dagboksanteckningar, samtycken, meddelanden och insiktshistorik. Det kan inte ångras."
+          }
+        }
+      }
+    },
+    "The server couldn't confirm the deletion, so nothing was removed yet — not from Liviqa's servers and not from this device." : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Serveren kunne ikke bekræfte sletningen, så intet er fjernet endnu — hverken fra Liviqas servere eller fra denne enhed."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "El servidor no pudo confirmar la eliminación, así que aún no se ha borrado nada — ni de los servidores de Liviqa ni de este dispositivo."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Serveren kunne ikke bekrefte slettingen, så ingenting er fjernet ennå — verken fra Liviqas servere eller fra denne enheten."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O servidor não conseguiu confirmar a eliminação, por isso nada foi removido ainda — nem dos servidores da Liviqa nem deste dispositivo."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Servern kunde inte bekräfta raderingen, så inget har tagits bort ännu — varken från Liviqas servrar eller från den här enheten."
+          }
+        }
+      }
+    },
+    "Try again" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Prøv igen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Inténtalo de nuevo"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Prøv igjen"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tentar novamente"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Försök igen"
+          }
+        }
+      }
+    },
+    "Your data has been deleted from Liviqa's servers and this device." : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dine data er slettet fra Liviqas servere og denne enhed."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus datos se han eliminado de los servidores de Liviqa y de este dispositivo."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dataene dine er slettet fra Liviqas servere og denne enheten."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Os seus dados foram eliminados dos servidores da Liviqa e deste dispositivo."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dina data har raderats från Liviqas servrar och den här enheten."
+          }
+        }
+      }
+    },
+    "Evidence receipt" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Beviskvittering"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Recibo de evidencia"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Beviskvittering"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Recibo de evidência"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Beviskvitto"
+          }
+        }
+      }
+    },
+    "Event hash %@…" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hændelses-hash %@…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hash del evento %@…"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hendelses-hash %@…"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Hash do evento %@…"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Händelsehash %@…"
+          }
+        }
+      }
+    },
+    "Verified by the DATA for GOOD consent ledger" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Verificeret af DATA for GOOD-samtykkeregisteret"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Verificado por el registro de consentimiento de DATA for GOOD"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Verifisert av DATA for GOOD-samtykkeregisteret"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Verificado pelo registo de consentimento do DATA for GOOD"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Verifierad av DATA for GOOD-samtyckesregistret"
+          }
+        }
+      }
+    },
+    "Copy receipt ID" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kopiér kvitterings-ID"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Copiar ID del recibo"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kopier kvitterings-ID"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Copiar ID do recibo"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Kopiera kvitto-ID"
+          }
+        }
+      }
+    },
+    "Waiting for your Health data" : {
+      "localizations" : {
+        "da" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Venter på dine Apple Health-data"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Esperando tus datos de Apple Health"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Venter på Apple Health-dataene dine"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "À espera dos seus dados do Apple Health"
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Väntar på dina Apple Health-data"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

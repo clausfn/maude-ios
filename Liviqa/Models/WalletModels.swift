@@ -54,6 +54,24 @@ struct WalletGrant: Identifiable, Codable, Equatable {
     var isActive: Bool
     var expiresAt: Date?
     var createdAt: Date?
+    /// Consent-engine chain reference (`grant_…`) for this grant on the DATA
+    /// for GOOD consent ledger. Optional/backward-compatible: absent on mock
+    /// data, on pre-CE grants, and on backends without the CE seam (T1 wave).
+    var ceGrantRef: String?
+
+    init(id: UUID, userId: UUID? = nil, recipientName: String,
+         recipientType: RecipientType, scopeKeys: [String], isActive: Bool,
+         expiresAt: Date? = nil, createdAt: Date? = nil, ceGrantRef: String? = nil) {
+        self.id = id
+        self.userId = userId
+        self.recipientName = recipientName
+        self.recipientType = recipientType
+        self.scopeKeys = scopeKeys
+        self.isActive = isActive
+        self.expiresAt = expiresAt
+        self.createdAt = createdAt
+        self.ceGrantRef = ceGrantRef
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -64,6 +82,7 @@ struct WalletGrant: Identifiable, Codable, Equatable {
         case isActive      = "is_active"
         case expiresAt     = "expires_at"
         case createdAt     = "created_at"
+        case ceGrantRef    = "ce_grant_ref"
     }
 }
 
@@ -82,6 +101,37 @@ enum EventDecision: String, Codable {
     case pending  = "pending"
 }
 
+/// Consent-engine evidence attached to a ledger event (CE seam, sim mode).
+/// The receipt is offline-verifiable against the consent contract's public key
+/// (P7) — on-device the T1 wave DISPLAYS it (receipt id + short hash) without
+/// cryptographic verification; on-device verification is a flagged follow-up.
+/// All fields optional: pre-CE events and mock data carry none.
+struct CEEvidence: Codable, Equatable {
+    var receiptId: String?
+    var grantRef: String?
+    var contractSig: String?
+    var eventHash: String?
+    var txHash: String?
+    var ceScopeKeys: [String]?
+    var excludedScopeKeys: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case receiptId         = "receipt_id"
+        case grantRef          = "grant_ref"
+        case contractSig       = "contract_sig"
+        case eventHash         = "event_hash"
+        case txHash            = "tx_hash"
+        case ceScopeKeys       = "ce_scope_keys"
+        case excludedScopeKeys = "excluded_scope_keys"
+    }
+
+    /// Short display form of the event hash (first 10 hex chars), or nil.
+    var shortHash: String? {
+        guard let h = eventHash, !h.isEmpty else { return nil }
+        return String(h.prefix(10))
+    }
+}
+
 struct WalletEvent: Identifiable, Codable {
     let id: UUID
     var userId: UUID?
@@ -90,6 +140,22 @@ struct WalletEvent: Identifiable, Codable {
     var scopeKeys: [String]
     var decision: EventDecision
     var occurredAt: Date
+    /// Evidence receipt from the DATA for GOOD consent ledger (optional —
+    /// absent on mock data and pre-CE events; backward-compatible decode).
+    var ce: CEEvidence?
+
+    init(id: UUID, userId: UUID? = nil, eventType: EventType, actorName: String,
+         scopeKeys: [String], decision: EventDecision, occurredAt: Date,
+         ce: CEEvidence? = nil) {
+        self.id = id
+        self.userId = userId
+        self.eventType = eventType
+        self.actorName = actorName
+        self.scopeKeys = scopeKeys
+        self.decision = decision
+        self.occurredAt = occurredAt
+        self.ce = ce
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -99,5 +165,6 @@ struct WalletEvent: Identifiable, Codable {
         case scopeKeys  = "scope_keys"
         case decision
         case occurredAt = "occurred_at"
+        case ce
     }
 }

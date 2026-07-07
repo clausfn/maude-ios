@@ -1,8 +1,17 @@
 // ConsentLedgerView.swift — Read-only consent audit trail · v01 2026-05-22
+// T1 TestProd wave (2026-07-07): per-event "Evidence receipt" — the consent-
+// engine receipt (id + short hash) recorded on the DATA for GOOD consent
+// ledger. Display + copyable id only; on-device cryptographic verification of
+// the receipt signature (P7) is a flagged follow-up.
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct ConsentLedgerView: View {
     @Environment(AppState.self) private var appState
+    /// Receipt id most recently copied to the pasteboard (drives the ✓ affordance).
+    @State private var copiedReceiptID: String? = nil
 
     var body: some View {
         ScrollView {
@@ -102,17 +111,74 @@ struct ConsentLedgerView: View {
                 HStack(spacing: 7) {
                     Text(relativeDate(event.occurredAt))
                         .font(.liviqaMono(10.5)).foregroundStyle(LiviqaTheme.ink3)
-                    HStack(spacing: 3) {
-                        Image(systemName: "checkmark.seal.fill").font(.system(size: 9))
-                        Text("verified").font(.liviqaMono(10))
+                    // "verified" is only claimed when the event actually carries
+                    // ledger evidence (honesty: no receipt, no verified chip).
+                    if event.ce?.receiptId != nil {
+                        HStack(spacing: 3) {
+                            Image(systemName: "checkmark.seal.fill").font(.system(size: 9))
+                            Text("verified").font(.liviqaMono(10))
+                        }
+                        .foregroundStyle(LiviqaTheme.moss)
                     }
-                    .foregroundStyle(LiviqaTheme.moss)
+                }
+                if let ce = event.ce, let receiptId = ce.receiptId {
+                    evidenceReceipt(ce, receiptId: receiptId)
+                        .padding(.top, 6)
                 }
             }
             .padding(.bottom, isLast ? 0 : 18)
 
             Spacer(minLength: 0)
         }
+    }
+
+    // MARK: - Evidence receipt (CE seam · display-only, T1)
+
+    /// The consent-engine receipt behind an event: receipt id (tap to copy),
+    /// short event hash, and where it is anchored. No on-device crypto
+    /// verification in this wave — the receipt id is deep-copyable so it can
+    /// be verified against the consent contract's public key elsewhere.
+    private func evidenceReceipt(_ ce: CEEvidence, receiptId: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(String(localized: "Evidence receipt").uppercased())
+                .font(.liviqaKicker(8.5)).tracking(1)
+                .foregroundStyle(LiviqaTheme.moss)
+
+            Button {
+                #if os(iOS)
+                UIPasteboard.general.string = receiptId
+                #endif
+                withAnimation { copiedReceiptID = receiptId }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(receiptId)
+                        .font(.liviqaMono(10.5))
+                        .foregroundStyle(LiviqaTheme.ink2)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Image(systemName: copiedReceiptID == receiptId ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 10))
+                        .foregroundStyle(copiedReceiptID == receiptId ? LiviqaTheme.moss : LiviqaTheme.ink4)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Copy receipt ID"))
+
+            if let short = ce.shortHash {
+                Text("Event hash \(short)…")
+                    .font(.liviqaMono(10))
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+
+            Text("Verified by the DATA for GOOD consent ledger")
+                .font(.lato(11))
+                .foregroundStyle(LiviqaTheme.ink3)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.moss2.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss3, lineWidth: 1))
     }
 
     private func pinColor(_ event: WalletEvent) -> Color {

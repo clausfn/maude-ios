@@ -66,7 +66,10 @@ struct AuthView: View {
                         }
                     }
 
-                    // Quiet demo path (no account) — kept for a quick look-around.
+                    // Quiet demo path (no account) — DEBUG-ONLY (T1 TestProd):
+                    // signInDemo() seeds fabricated grants/threads, so a Release/
+                    // TestFlight build must not offer it. Real sign-in only there.
+                    #if DEBUG
                     Button {
                         appState.signInDemo()
                     } label: {
@@ -77,6 +80,7 @@ struct AuthView: View {
                             .padding(.vertical, 12)
                     }
                     .padding(.top, Config.authEnabled ? 2 : 0)
+                    #endif
                 }
                 .padding(.horizontal, 28)
 

@@ -8,7 +8,16 @@ import SwiftUI
 struct InAppPrivacyView: View {
 
     // Local control state (self-contained; mirrors AppState grants in production).
-    @State private var grants: [PrivacyGrant] = PrivacyGrant.demo
+    // Demo grants are DEBUG-only (T1 TestProd): a Release build must not render
+    // fabricated recipients as live sharing relationships — real grants surface
+    // in Settings → Consent & Sharing and the Wallet.
+    @State private var grants: [PrivacyGrant] = {
+        #if DEBUG
+        PrivacyGrant.demo
+        #else
+        []
+        #endif
+    }()
     @State private var receiptFor: PrivacyGrant? = nil
 
     private var activeCount: Int { grants.filter { !$0.paused }.count }

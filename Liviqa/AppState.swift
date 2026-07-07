@@ -59,9 +59,10 @@ final class AppState {
     var profile: UserProfile?  = nil
     var isSigningIn: Bool      = false
 
-    // Today
-    var rings:  [MetricRing]   = MockData.rings
-    var nudges: [Nudge]        = MockData.todayNudges
+    // Today. Seeds are demo data in DEBUG, EMPTY in Release (honest cold start,
+    // T1 TestProd wave — see ColdStartSeeds.swift).
+    var rings:  [MetricRing]   = ColdStart.rings
+    var nudges: [Nudge]        = ColdStart.nudges
     /// Live Home "signals vs your normal" chips, derived from real HealthKit
     /// samples. nil ⇒ no real data yet → Home shows the demo seeds.
     var todaySignals: TodaySignals? = nil
@@ -84,18 +85,18 @@ final class AppState {
 
     // Data sources & backup
     var backupPreference: BackupPreference    = .onDevice
-    var connectedSources: [DataSourceConnection] = MockData.connectedSources
+    var connectedSources: [DataSourceConnection] = ColdStart.connectedSources
 
     // Health Passport
-    var passportStats: PassportStats = MockData.passportStats
-    var correlationWeek: CorrelationWeek = MockData.correlationWeek
+    var passportStats: PassportStats = ColdStart.passportStats
+    var correlationWeek: CorrelationWeek = ColdStart.correlationWeek
 
     // DfG tokens
-    var tokenBalance: Int                    = 47
-    var tokenTransactions: [TokenTransaction] = MockData.tokenTransactions
+    var tokenBalance: Int                    = ColdStart.tokenBalance
+    var tokenTransactions: [TokenTransaction] = ColdStart.tokenTransactions
 
     // Declared profile — things only the user knows
-    var healthContext: HealthContext = .demo
+    var healthContext: HealthContext = ColdStart.healthContext
 
     // Error surface
     var lastError: String? = nil
@@ -153,10 +154,15 @@ final class AppState {
 
     /// A research invitation was DELIVERED — surface it on Home + Care and badge the
     /// bell. Does NOT open the consent sheet (tapping the notification does that).
+    /// DEBUG-ONLY payload (T1): the surfaced study is the fabricated demo study
+    /// (DfG Professional demo bridge). A Release build must never present it as
+    /// a real invitation — no-op until real study payloads ride the push.
     @MainActor
     func handleResearchReceived() {
+        #if DEBUG
         researchOpportunity = MockData.demoStudy
         researchNotificationUnread = true
+        #endif
     }
 
     /// A research invitation was TAPPED (demo bridge from DfG Professional) — surface
@@ -272,10 +278,15 @@ final class AppState {
             email: nil
         )
         profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date(), alias: "LV001")
+        // Mock wallet/care seeds are DEBUG-only (T1). All Release entry points to
+        // signInDemo are already gated (AuthView demo button, wallet/eID flags),
+        // this keeps the fabricated grants out even if a new caller slips in.
+        #if DEBUG
         grants = MockData.walletGrants
         walletEvents = MockData.walletEvents
         careThreads = MockData.demoCareThreads
         applyLV001DatasetIfNeeded()   // show Claus's real goldmine data immediately
+        #endif
     }
 
     /// True when the session was established via the DfG Wallet (eIDAS 2.0 identity
@@ -338,17 +349,91 @@ final class AppState {
         await signOut()
         // 5. Liviqa UserDefaults leftovers.
         citizenCredentialValidUntil = nil
+        UserDefaults.standard.removeObject(forKey: Self.initialBackfillKey)
         // 6. Reset every health-derived in-memory surface to first-launch seeds
-        //    so no trace of the erased data survives in the running session.
+        //    (demo in DEBUG, EMPTY in Release — ColdStartSeeds.swift) so no trace
+        //    of the erased data survives in the running session.
         usingRealData   = false
-        rings           = MockData.rings
-        nudges          = MockData.todayNudges
+        rings           = ColdStart.rings
+        nudges          = ColdStart.nudges
         todaySignals    = nil
         sleepSummary    = nil
         workoutMerges   = []
-        passportStats   = MockData.passportStats
-        correlationWeek = MockData.correlationWeek
-        healthContext   = .demo
+        passportStats   = ColdStart.passportStats
+        correlationWeek = ColdStart.correlationWeek
+        healthContext   = ColdStart.healthContext
+        tokenBalance    = ColdStart.tokenBalance
+        tokenTransactions = ColdStart.tokenTransactions
+        connectedSources  = ColdStart.connectedSources
+    }
+
+    // MARK: - GDPR rights (Art. 20 export · Art. 17 erase) — T1 TestProd wave
+
+    /// GDPR self-service on the sovereign backend. nil on mock/sandbox so the
+    /// Settings surfaces degrade to device-local behaviour.
+    var dataRights: (any DataRights)? { supabase as? DataRights }
+
+    /// Server-erase failure surfaced to the Settings delete flow (retryable).
+    var eraseServerError: String? = nil
+
+    /// Full erasure, SERVER FIRST: the backend account is deleted before the
+    /// local wipe, so a network failure can never strand server-side data
+    /// behind a "deleted" confirmation the user already saw. Returns false
+    /// (with `eraseServerError` set) when the server step fails — nothing
+    /// local is touched then, and the flow offers retry.
+    @MainActor
+    func eraseEverythingServerFirst() async -> Bool {
+        eraseServerError = nil
+        if session != nil, let rights = dataRights {
+            do { try await rights.eraseMyData() }
+            catch {
+                eraseServerError = error.localizedDescription
+                return false
+            }
+        }
+        await deleteAllData()
+        return true
+    }
+
+    /// GDPR Art. 20 export → a shareable JSON file URL (temporary directory).
+    /// Sovereign backend: the server's own `/me/export` blob. Mock/demo: an
+    /// honest device-local export (grants, ledger, journal). nil with
+    /// `lastError` set on failure.
+    @MainActor
+    func exportMyData() async -> URL? {
+        do {
+            let data: Data
+            if session != nil, let rights = dataRights {
+                data = try await rights.exportMyData()
+            } else {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                encoder.dateEncodingStrategy = .iso8601
+                data = try encoder.encode(LocalExport(
+                    exportedAt: Date(),
+                    note: "Data held on this device. Raw HealthKit samples never leave your device and are read directly from Apple Health.",
+                    grants: grants,
+                    consentLedger: walletEvents,
+                    journal: JournalStore.load() ?? journalEntries))
+            }
+            let df = DateFormatter()
+            df.dateFormat = "yyyyMMdd-HHmm"
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("Liviqa-export-\(df.string(from: Date())).json")
+            try data.write(to: url, options: [.atomic])
+            return url
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private struct LocalExport: Encodable {
+        let exportedAt: Date
+        let note: String
+        let grants: [WalletGrant]
+        let consentLedger: [WalletEvent]
+        let journal: [JournalEntry]
     }
 
     // MARK: - Data loading
@@ -366,10 +451,27 @@ final class AppState {
 
     // MARK: - On-device health pipeline (L1 → L2 → L3)
 
-    /// Ingest the last 30 days from the active provider, persist on-device, and
+    /// Ingest the recent window from the active provider, persist on-device, and
     /// regenerate the capped, FR-NDG-06-clean nudge feed. Falls back to the
     /// existing nudges if nothing fires, so the feed is never empty.
     @MainActor private var isRefreshing = false
+
+    /// One-time flag: the initial 90-day HealthKit backfill has completed (a
+    /// real fetch returned readings). Cleared by deleteAllData.
+    static let initialBackfillKey = "liviqa.backfill.initialDone"
+    private static var initialBackfillDone: Bool {
+        get { UserDefaults.standard.bool(forKey: initialBackfillKey) }
+        set { UserDefaults.standard.set(newValue, forKey: initialBackfillKey) }
+    }
+
+    /// Reflect a successful real HealthKit fetch on the Data sources surface —
+    /// the Release cold-start seed lists Apple Health as not-yet-connected.
+    @MainActor
+    private func markAppleHealthConnected() {
+        guard let i = connectedSources.firstIndex(where: { $0.name == "Apple Health" }) else { return }
+        connectedSources[i].isConnected = true
+        connectedSources[i].lastSync = Date()
+    }
 
     @MainActor
     func refreshFromHealth() async {
@@ -385,7 +487,11 @@ final class AppState {
         defer { applyLV001DatasetIfNeeded() }
         let provider = HealthProviderFactory.make(dataProviderKind)
         let end = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -30, to: end) ?? end
+        // T1 cold-start honesty: the FIRST successful real fetch backfills 90
+        // days of existing Health history so baselines/patterns fill from data
+        // the user already has; steady state stays at 30 days.
+        let windowDays = Self.initialBackfillDone ? 30 : 90
+        let start = Calendar.current.date(byAdding: .day, value: -windowDays, to: end) ?? end
         do {
             try await provider.requestReadAuthorization()
             // §2.3: arbitrate sources (highest tier wins, lower fills gaps) before
@@ -397,8 +503,12 @@ final class AppState {
             workoutMerges = raw.workoutMergeReport()
             // Real data = a HealthKit fetch that actually returned readings. An
             // empty fetch (e.g. Simulator, or a device with no Health history)
-            // keeps the demo seeds and the "Demo data" label.
+            // keeps the demo seeds (DEBUG) / the honest empty state (Release).
             usingRealData = provider.kind == .healthKit && !samples.isEmpty
+            if usingRealData {
+                Self.initialBackfillDone = true
+                markAppleHealthConnected()
+            }
             if let container = modelContainer {
                 let coordinator = IngestionCoordinator(context: container.mainContext, provider: provider)
                 _ = try? coordinator.persist(samples, from: start, to: end)
@@ -479,9 +589,15 @@ final class AppState {
             grants       = try await g
             walletEvents = try await e
         } catch {
-            // Fall back to mock data so the UI is never empty
+            #if DEBUG
+            // Demo builds: fall back to mock data so the UI is never empty.
             grants       = MockData.walletGrants
             walletEvents = MockData.walletEvents
+            #else
+            // TestProd (T1): never present fabricated grants/events as the
+            // user's own. Keep what we have and surface the failure honestly.
+            lastError = error.localizedDescription
+            #endif
         }
     }
 

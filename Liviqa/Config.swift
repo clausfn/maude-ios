@@ -117,19 +117,22 @@ enum Config {
     #endif
 
     /// Wallet credential rails (Liviqa Citizen issuance, receipts, OID4VP login).
-    /// They live in the SANDBOX only (per Partisia/Kim, 2026-06-09: production
-    /// credentials are parked). The sandbox backend shares prod's database and
-    /// JWT secret, so on production builds the wallet rails are ROUTED to the
-    /// sandbox container instead of being hidden — same accounts, same grants,
-    /// same ledger; only the credential calls take the sandbox path.
     static let walletIssuanceEnabled = true
 
-    /// Base URL for the wallet rails when the main backend doesn't carry them
-    /// (prod). nil ⇒ use the main backend (local/staging already have the rails).
+    /// Base URL override for the wallet/care rails. TESTPROD (T1, 2026-07-07):
+    /// the sandbox-container detour is RETIRED — on Release every rail
+    /// (grants, ledger, wallet issuance, care surface) rides the main backend
+    /// (`api.liviqa.app`). nil ⇒ use the main backend. DEBUG-only env override
+    /// (`LIVIQA_WALLET_RAIL_URL`) kept for local dev against a split backend.
+    /// Deploy gating (route parity on api.liviqa.app) is the owner's step —
+    /// this constant just stops the app from hard-coding a sandbox host.
     static var walletRailBaseURL: URL? {
-        if case .sovereign(let baseURL, _, _) = backend, baseURL.host == "api.liviqa.app" {
-            return URL(string: "https://liviqa70f58a68-liviqa-backend-sandbox.functions.fnc.fr-par.scw.cloud")!
+        #if DEBUG
+        if let raw = ProcessInfo.processInfo.environment["LIVIQA_WALLET_RAIL_URL"],
+           let url = URL(string: raw) {
+            return url
         }
+        #endif
         return nil
     }
 
