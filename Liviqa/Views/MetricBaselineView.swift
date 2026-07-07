@@ -58,24 +58,42 @@ struct MetricBaselineView: View {
                     .padding(.top, 4)
 
                 VStack(spacing: 4) {
-                    Button { } label: {
-                        Text("Log what's working")
-                            .font(.lato(15, .bold))
-                            .foregroundStyle(LiviqaTheme.invertFG)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 15)
-                            .background(LiviqaTheme.invertBG)
-                            .clipShape(RoundedRectangle(cornerRadius: 13))
+                    // Metric quick-log and the 90-day baseline history are
+                    // follow-up wiring — honest, disabled stubs until they exist.
+                    Button { } label: {   // HONEST-STUB (disabled + SOON chip)
+                        HStack(spacing: 8) {
+                            Text("Log what's working")
+                                .font(.lato(15, .bold))
+                                .foregroundStyle(LiviqaTheme.ink)
+                            Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(Capsule().fill(LiviqaTheme.moss2))
+                                .foregroundStyle(LiviqaTheme.moss)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(LiviqaTheme.paper2)
+                        .clipShape(RoundedRectangle(cornerRadius: 13))
+                        .overlay(RoundedRectangle(cornerRadius: 13)
+                            .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                     }
                     .buttonStyle(.plain)
-                    Button { } label: {
-                        Text("See your 90-day baseline ›")
-                            .font(.lato(14, .bold))
-                            .foregroundStyle(LiviqaTheme.ink2)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 13)
+                    .disabled(true)
+                    Button { } label: {   // HONEST-STUB (disabled + SOON chip)
+                        HStack(spacing: 8) {
+                            Text("See your 90-day baseline ›")
+                                .font(.lato(14, .bold))
+                                .foregroundStyle(LiviqaTheme.ink3)
+                            Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(Capsule().fill(LiviqaTheme.moss2))
+                                .foregroundStyle(LiviqaTheme.moss)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
                     }
                     .buttonStyle(.plain)
+                    .disabled(true)
                 }
                 .padding(.top, 6)
 

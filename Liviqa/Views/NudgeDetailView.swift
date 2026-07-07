@@ -13,6 +13,7 @@ struct NudgeDetailView: View {
     @Environment(AppState.self) private var appState
     @AppStorage("liquidGlass") private var glassOn = true
     @State private var showDepth = false
+    @State private var showShare = false
 
     private var ev: NudgeEvidence? { nudge.evidence }
 
@@ -37,6 +38,9 @@ struct NudgeDetailView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .sheet(isPresented: $showShare) {
+            ShareWithClinicianView(nudge: nudge, onDismiss: { showShare = false })
+        }
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
@@ -133,25 +137,36 @@ struct NudgeDetailView: View {
                 .padding(.top, 4)
             }
 
-            // Primary action
+            // Primary action — per-nudge handlers (reminders, journal hand-off…)
+            // are follow-up wiring, so this must not look live (honest "soon" stub).
             if !nudge.primaryAction.isEmpty {
-                Button { } label: {
-                    Text(nudge.primaryAction)
-                        .font(.lato(15, .bold))
-                        .foregroundStyle(LiviqaTheme.invertFG)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(LiviqaTheme.invertBG)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                Button { } label: {   // HONEST-STUB (disabled + SOON chip)
+                    HStack(spacing: 8) {
+                        Text(nudge.primaryAction)
+                            .font(.lato(15, .bold))
+                            .foregroundStyle(LiviqaTheme.ink)
+                        Spacer(minLength: 6)
+                        Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(Capsule().fill(LiviqaTheme.moss2))
+                            .foregroundStyle(LiviqaTheme.moss)
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(LiviqaTheme.paper2)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                 }
                 .buttonStyle(.plain)
+                .disabled(true)
             }
 
             // Liquid Glass "act on this moment" affordance (flagged exploration).
             // "Why" reveals the evidence depth; share/note are follow-up wiring.
             if glassOn {
                 MorphActionCluster(
-                    onShareConsent: {},
+                    onShareConsent: { showShare = true },
                     onJournal: {},
                     onEvidence: { withAnimation(.easeInOut(duration: 0.2)) { showDepth = true } }
                 )
@@ -260,7 +275,7 @@ struct NudgeDetailView: View {
                 .font(.lato(12.5)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
-            Button { } label: {
+            Button { showShare = true } label: {
                 Text("Share via wallet")
                     .font(.lato(13.5, .bold))
                     .foregroundStyle(.white)

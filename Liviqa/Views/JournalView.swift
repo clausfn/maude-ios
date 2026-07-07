@@ -469,7 +469,7 @@ struct JournalView: View {
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
             // Scan the label — AI image-recognition follow-up (honest "soon" stub).
-            Button { } label: {
+            Button { } label: {   // HONEST-STUB (disabled + SOON chip)
                 HStack(spacing: 11) {
                     Image(systemName: "camera.viewfinder").font(.lato(17, .medium))
                     VStack(alignment: .leading, spacing: 1) {

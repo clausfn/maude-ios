@@ -110,7 +110,7 @@ struct PlanConsultView: View {
             .padding(.top, 6)
             .onChange(of: day) { ensureFreeSlot() }
             .onAppear { ensureFreeSlot() }
-            Text("Greyed times are already booked. Availability mirrors \(recipientName)'s calendar.")
+            Text("Suggested times — your clinician will confirm.")
                 .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4).padding(.top, 5)
 
             kicker("How long").padding(.top, 16)

@@ -606,8 +606,13 @@ struct SettingsView: View {
                         .foregroundStyle(LiviqaTheme.rust)
 
                     Button("Delete permanently") {
-                        withAnimation { showDeleteConfirmStep = 3 }
-                        // TODO: call AppState.deleteAllData()
+                        // T-DEL-01: actually erase (SwiftData + journal + anchors +
+                        // Keychain session), and only then show the confirmation.
+                        // deleteAllData() signs out, so the root swaps to AuthView.
+                        Task { @MainActor in
+                            await appState.deleteAllData()
+                            withAnimation { showDeleteConfirmStep = 3 }
+                        }
                     }
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.white)

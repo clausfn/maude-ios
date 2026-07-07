@@ -29,7 +29,7 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-CTX-02 | Request URLs carry only lat/lon + env fields (no health/identifiers) | Unit | No | **pass** — executed this session |
 | T-CTX-03 | Mock weather provider returns a snapshot offline | Unit (async) | No | **pass** — executed this session |
 | T-CTX-04 | Snapshot maps to `WeatherContext` with provenance EXTERNAL | Unit | No | authored — run in Xcode |
-| T-PROV-01 | `provenance` never appears in any SwiftUI (view-layer) file | Shell guard (`scripts/guard_provenance.sh`) | **Yes** | **pass** (2026-06-03) |
+| T-PROV-01 | Provenance DATA FIELD (`.provenance` access, `provenance:` label, `Provenance` type/case) never referenced in any SwiftUI (view-layer) file | Shell guard (`scripts/guard_provenance.sh`), blocking step in `build-ios.sh` | **Yes** | **pass** (2026-07-03). CORRECTION (launch audit 2026-07-03): the 2026-06-03 "pass" was recorded while the guard was wired to no build/CI step (inert) and was in fact exiting 1 on wallet-receipt word collisions ("provenance receipt", UC-24b/UC-21 copy in JournalView/WalletView) — the record overstated the control. Fixed + wired 2026-07-03 (PR-102): pattern scoped to data-field usage, guard added to `build-ios.sh` before xcodebuild. The substantive never-renders rule held throughout (no view renders the field — audit-verified) |
 | T-PROV-02 | `Provenance` is not `CustomStringConvertible` (no interpolatable label) | Unit | **Yes** | authored — run in Xcode |
 | T-PROV-03 | `provenance` raw values stay machine tokens (REAL/SIMULATED/EXTERNAL) | Unit | No | authored — run in Xcode |
 | T-ING-01 | Mock provider yields full read set, all SIMULATED | Unit (async) | No | authored — run in Xcode |
@@ -125,6 +125,17 @@ bash scripts/guard_provenance.sh Liviqa
 Result: **pass** (2026-06-03). Greps every file importing SwiftUI for the word
 `provenance`; fails the build on any hit. Wired as a required CI check (below).
 
+CORRECTION (launch audit 2026-07-03, PR-102): the record above is kept for
+history but was wrong on both counts by audit time — the guard was wired to no
+build/CI step (inert; "wired as a required CI check" was never true, see the
+corrected CI note below) and the bare-word pattern was exiting 1 on
+wallet-receipt product vocabulary ("provenance receipt", UC-24b/UC-21 copy in
+`JournalView`/`WalletView`). Fixed 2026-07-03: pattern scoped to the provenance
+DATA FIELD (`.provenance` access, `provenance:` label, `Provenance` type/case),
+guard wired as a blocking `build-ios.sh` step before xcodebuild. Re-run
+2026-07-03: **pass** (green on the tree; red on a data-field fixture; green on a
+receipt-vocabulary fixture). The substantive never-renders rule held throughout.
+
 ## T-NDG-06 — procedure & result (PR-5)
 
 The FR-NDG-06 guard + engine were compiled and **executed** this session via a
@@ -145,3 +156,10 @@ re-run in Xcode. T-NDG-06/06b/06c and T-NDG-02/03 are required, non-skippable.
 ## CI note (later)
 A GitHub Actions workflow (PR-3+) runs lint + build + test on every PR; `T-NDG-06`
 and `T-PROV-01` are configured as required, non-skippable checks.
+
+CORRECTION (launch audit 2026-07-03, PR-102): the note above never became true —
+no `.github/workflows/` exists in this repo (audit-verified: 0 workflows, 0
+hooks, 0 `PBXShellScriptBuildPhase` entries). Actual enforcement as of
+2026-07-03: `T-PROV-01` runs as a blocking step in `build-ios.sh` (before
+xcodebuild; `set -e` aborts the build); `T-NDG-06*` suites run in Xcode.
+Standing up real CI with both as required checks remains an open owner action.
