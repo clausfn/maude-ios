@@ -31,6 +31,19 @@ final class MockSupabaseService: SupabaseServiceProtocol, @unchecked Sendable {
         return session
     }
 
+    func signUpWithEmail(email: String, password: String) async throws -> UserSession {
+        await delay()
+        guard !email.isEmpty else { throw SupabaseError.invalidCredentials }
+        guard password.count >= 6 else { throw SupabaseError.weakPassword("") }
+        if email.lowercased() == "taken@liviqa.app" { throw SupabaseError.emailTaken }  // dev: exercise the state
+        let session = UserSession(
+            userId: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            email: email
+        )
+        _session = session
+        return session
+    }
+
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
         await delay()
         let session = UserSession(

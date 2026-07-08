@@ -96,6 +96,15 @@ enum Config {
 
     /// DfG Wallet *login* flow (eIDAS 2.0 + Partisia verification) on the sign-in
     /// screen. This is the in-app, high-fidelity simulation of the wallet use cases
+    /// Sign in with Apple can only succeed under the canonical bundle identity
+    /// (`dev.liviqa.app`): the SIWA entitlement, the backend token audience, and
+    /// Apple's team-scoped user identifiers are all bound to it. On any other
+    /// bundle (e.g. the temporary PPCN beta `xyz.ppcn.liviqa`, 2026-07-07) the
+    /// button is HIDDEN rather than shown-and-broken.
+    static var appleSignInAvailable: Bool {
+        Bundle.main.bundleIdentifier == "dev.liviqa.app"
+    }
+
     /// (identity presentation → MPC signature check → CE-ledger anchoring) for demos
     /// and pilots — it does not require the live Partisia backend.
     /// DEBUG-ONLY (PR-102, launch audit): simulated identity logins must never ship

@@ -6,6 +6,9 @@ final class SupabaseService: SupabaseServiceProtocol, @unchecked Sendable {
     func signInWithEmail(email: String, password: String) async throws -> UserSession {
         throw SupabaseError.notAvailable
     }
+    func signUpWithEmail(email: String, password: String) async throws -> UserSession {
+        throw SupabaseError.notAvailable
+    }
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
         throw SupabaseError.notAvailable
     }

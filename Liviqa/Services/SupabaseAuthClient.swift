@@ -52,6 +52,42 @@ final class SupabaseAuthClient: @unchecked Sendable {
         }
     }
 
+    /// POST {base}/auth/v1/signup — create a user. With GOTRUE_MAILER_AUTOCONFIRM
+    /// the response carries a full session (access_token); if a deployment ever
+    /// turns confirmation e-mails on, the 200 comes back WITHOUT a token and the
+    /// caller must surface a "confirm your email" state (SupabaseError.notSignedIn).
+    func signup(email: String, password: String) async throws -> SupabaseSessionResult {
+        let (data, status) = try await post("/auth/v1/signup",
+                                            body: Self.passwordBody(email: email, password: password))
+        switch status {
+        case 200:
+            if let r = Self.parseTokenResponse(data) { return r }
+            // 200 without a token = confirmation-pending deployment.
+            throw SupabaseError.notSignedIn
+        case 400, 422:
+            throw Self.mapSignupError(data)
+        default:
+            throw SupabaseError.serverError("Supabase signup failed (HTTP \(status)).")
+        }
+    }
+
+    /// GoTrue signup rejections → typed errors (pure → unit-testable).
+    /// Shapes seen across GoTrue versions: {"msg": …} / {"message": …} /
+    /// {"error_description": …} / {"error_code":"user_already_exists"}.
+    static func mapSignupError(_ data: Data) -> SupabaseError {
+        let o = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        let code = (o["error_code"] as? String ?? "").lowercased()
+        let msg = (o["msg"] as? String ?? o["message"] as? String ?? o["error_description"] as? String ?? "")
+        let lower = msg.lowercased()
+        if code.contains("already") || lower.contains("already registered") || lower.contains("already exists") {
+            return .emailTaken
+        }
+        if code.contains("weak_password") || lower.contains("password") {
+            return .weakPassword(msg)
+        }
+        return .serverError(msg.isEmpty ? "Signup failed." : msg)
+    }
+
     // MARK: - Sign in with Apple (native id_token grant)
 
     func loginWithApple(idToken: String, nonce: String) async throws -> SupabaseSessionResult {

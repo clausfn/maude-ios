@@ -5,8 +5,13 @@ import SwiftUI
 import AuthenticationServices
 
 struct AuthView: View {
+    /// Email surface mode — signup is the primary path for new citizens
+    /// (open registration, CN 2026-07-07); sign-in one tap away.
+    private enum EmailMode { case create, signIn }
+
     @Environment(AppState.self) private var appState
     @State private var showEmailForm = false
+    @State private var emailMode: EmailMode = .create
     @State private var email = ""
     @State private var password = ""
     @State private var appleCoordinator = AppleSignInCoordinator()
@@ -14,6 +19,8 @@ struct AuthView: View {
     #if DEBUG
     /// Screenshot hook: open the DfG wallet flow immediately (LIVIQA_OPEN_DFG=1).
     private var autoOpenDfG: Bool { ProcessInfo.processInfo.environment["LIVIQA_OPEN_DFG"] == "1" }
+    /// Screenshot hook: open the email surface (LIVIQA_OPEN_EMAIL=create|signin).
+    private var autoOpenEmail: String? { ProcessInfo.processInfo.environment["LIVIQA_OPEN_EMAIL"] }
     #endif
     @State private var activeIDP: IDProvider? = nil
 
@@ -42,7 +49,9 @@ struct AuthView: View {
                 // ── Sign-in ──
                 VStack(spacing: 11) {
                     if Config.authEnabled {
-                        appleButton
+                        if Config.appleSignInAvailable {
+                            appleButton
+                        }
 
                         if Config.dfgWalletLoginEnabled || Config.nationalIDLoginEnabled {
                             walletGrid
@@ -100,6 +109,14 @@ struct AuthView: View {
                 .padding(.bottom, 32)
             }
         }
+        #if DEBUG
+        .onAppear {
+            if let mode = autoOpenEmail {
+                emailMode = (mode == "signin") ? .signIn : .create
+                showEmailForm = true
+            }
+        }
+        #endif
     }
 
     // MARK: — Buttons
@@ -201,11 +218,20 @@ struct AuthView: View {
         }
     }
 
-    // MARK: — Email form
+    // MARK: — Email form (create-account first; sign-in one tap away)
 
     @ViewBuilder
     private var emailForm: some View {
         VStack(spacing: 9) {
+            // Serif mini-verdict — the Morning Edition voice at the decision moment.
+            Text(emailMode == .create
+                 ? String(localized: "Create your account.")
+                 : String(localized: "Welcome back."))
+                .font(.liviqaSerif(19))
+                .foregroundStyle(LiviqaTheme.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+
             inputField {
                 #if os(iOS)
                 TextField("Email", text: $email)
@@ -219,16 +245,28 @@ struct AuthView: View {
             }
             inputField {
                 SecureField("Password", text: $password)
-                    .textContentType(.password)
+                    .textContentType(emailMode == .create ? .newPassword : .password)
+            }
+            if emailMode == .create {
+                // The rule, stated up front — never a surprise rejection.
+                Text(String(localized: "At least 6 characters."))
+                    .font(.lato(11.5))
+                    .foregroundStyle(password.isEmpty || password.count >= 6
+                                     ? LiviqaTheme.ink4 : LiviqaTheme.clayText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 4)
             }
             Button {
-                Task { await emailSignIn() }
+                Task { await emailSubmit() }
             } label: {
                 Group {
                     if appState.isSigningIn {
                         ProgressView().tint(LiviqaTheme.invertFG)
                     } else {
-                        Text("Sign in").font(.lato(15, .bold))
+                        Text(emailMode == .create
+                             ? String(localized: "Create account")
+                             : String(localized: "Sign in"))
+                            .font(.lato(15, .bold))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -238,6 +276,22 @@ struct AuthView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .disabled(appState.isSigningIn || email.isEmpty || password.isEmpty)
+
+            // Mode switch — the answer to "email taken" / "no account yet" is always visible.
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    emailMode = (emailMode == .create) ? .signIn : .create
+                    appState.lastError = nil
+                }
+            } label: {
+                Text(emailMode == .create
+                     ? String(localized: "Already have an account? Sign in")
+                     : String(localized: "New to Liviqa? Create an account"))
+                    .font(.lato(13, .bold))
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+            }
         }
     }
 
@@ -253,8 +307,11 @@ struct AuthView: View {
 
     // MARK: — Actions
 
-    private func emailSignIn() async {
-        await appState.signInWithEmail(email: email, password: password)
+    private func emailSubmit() async {
+        switch emailMode {
+        case .create: await appState.signUpWithEmail(email: email, password: password)
+        case .signIn: await appState.signInWithEmail(email: email, password: password)
+        }
     }
 
     private func appleSignIn() async {

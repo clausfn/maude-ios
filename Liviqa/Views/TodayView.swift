@@ -164,7 +164,9 @@ struct TodayView: View {
                 Text(coldStart ? "Waiting for your Health data" : "Showing sample data")
                     .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
                 Button { onOpenSettings?() } label: {
-                    Text("Connect Apple Health in Settings to see your own →")
+                    // The silent failure mode is granting access with every category
+                    // toggled OFF — say it, or the user is stuck with an empty app.
+                    Text("Connect Apple Health in Settings — and make sure the data categories are turned ON →")
                         .font(.lato(12.5)).foregroundStyle(LiviqaTheme.moss)
                         .multilineTextAlignment(.leading)
                 }

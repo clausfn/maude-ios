@@ -258,6 +258,22 @@ final class AppState {
         }
     }
 
+    /// Create a new account (email + password) and enter the app signed in.
+    /// Typed failures (email taken, weak password) surface via `lastError` in
+    /// the same plain-language voice as sign-in.
+    @MainActor
+    func signUpWithEmail(email: String, password: String) async {
+        isSigningIn = true
+        lastError = nil
+        defer { isSigningIn = false }
+        do {
+            session = try await supabase.signUpWithEmail(email: email, password: password)
+            await postSignIn()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     @MainActor
     func signInWithApple(idToken: String, nonce: String) async {
         isSigningIn = true
@@ -519,10 +535,17 @@ final class AppState {
             // tap during refresh is handled immediately instead of dropped ("had
             // to push many times"). Only the cheap @Observable assignments below
             // run back on main. All inputs/outputs are Sendable value types.
+            // Demo pattern findings exist ONLY for the mock/demo provider in DEBUG
+            // builds (launch-audit PR-102: a Release build must never fabricate).
+            #if DEBUG
+            let demoPatternsAllowed = provider.kind == .mock
+            #else
+            let demoPatternsAllowed = false
+            #endif
             let d = await Task.detached(priority: .userInitiated) { () -> DerivedHealth in
                 DerivedHealth(
                     engineNudges: NudgeEngine().generate(samples: samples),
-                    patternFindings: real ? [] : PatternEngine.run(.lv001),
+                    patternFindings: (real || !demoPatternsAllowed) ? [] : PatternEngine.run(.lv001),
                     passport: PassportStatsDeriver.derive(from: samples),
                     grid: CorrelationDeriver.derive(from: samples),
                     signals: TodaySignalsDeriver.derive(from: samples),
@@ -539,7 +562,7 @@ final class AppState {
             // thresholds as the clinician console — one engine, any citizen).
             // Demo input until the summarisation pipeline computes PatternInput
             // from real device history (FR-PAT-02).
-            if !real {
+            if !real, !d.patternFindings.isEmpty {   // DEBUG demo provider only
                 nudges.append(contentsOf: d.patternFindings.map { Nudge(finding: $0) })
             }
             // FR-PAS-05 / DM-05: refresh the derived half of the Passport from

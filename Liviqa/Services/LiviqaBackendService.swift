@@ -115,6 +115,20 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: email)
     }
 
+    func signUpWithEmail(email: String, password: String) async throws -> UserSession {
+        if let auth {
+            // GoTrue signup (autoconfirm → session) → the first authenticated /me
+            // auto-provisions the citizen account server-side (OPEN_CITIZEN_SIGNUP).
+            let result = try await auth.signup(email: email, password: password)
+            bearerToken = result.accessToken
+            tokenStore.save(result.accessToken)
+            let account = try await getMe()
+            return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email ?? email)
+        }
+        // Local dev has no registration surface; the seed token is the identity.
+        throw SupabaseError.notAvailable
+    }
+
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
         if let auth {
             // Supabase native id_token grant (Sign in with Apple) → access token = bearer.
