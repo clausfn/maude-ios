@@ -60,9 +60,11 @@ public nonisolated enum PassportStatsDeriver {
             tir = Int((Double(inRange) / Double(s.glucose.count) * 100).rounded())
         }
 
+        // Per-night total = UNION of asleep intervals, so an overlapping night
+        // recorded by two sources (iPhone + Watch) counts once, not double.
         let nightly = Dictionary(grouping: s.sleep.filter { asleepStages.contains($0.stage) }) {
             calendar.startOfDay(for: $0.date)
-        }.mapValues { $0.reduce(0.0) { $0 + $1.hours } }
+        }.mapValues { SleepReading.mergedAsleepHours($0, asleep: asleepStages) }
         let avgSleep = nightly.isEmpty ? 0 : nightly.values.reduce(0, +) / Double(nightly.count)
 
         return DerivedPassportStats(

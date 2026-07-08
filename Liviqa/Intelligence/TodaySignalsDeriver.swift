@@ -71,6 +71,7 @@ public nonisolated enum TodaySignalsDeriver {
     // MARK: 7-day micro-trend series (oldest→today; one value per day WITH data).
 
     private static let cal = Calendar(identifier: .gregorian)
+    private static let asleepStages: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
     private static func recentDays(_ count: Int = 7) -> [Date] {
         let today = cal.startOfDay(for: Date())
         return (0..<count).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
@@ -88,9 +89,15 @@ public nonisolated enum TodaySignalsDeriver {
     /// Per-day total asleep hours over the last 7 days, days with data only.
     private static func sleepWeekSeries(_ s: HealthSamples) -> [Double] {
         guard !s.sleep.isEmpty else { return [] }
-        var byDay: [Date: Double] = [:]
-        for seg in s.sleep { byDay[cal.startOfDay(for: seg.date), default: 0] += seg.hours }
-        let series = recentDays().compactMap { byDay[$0] }
+        // Union per night (dedupes overlapping iPhone + Watch segments), asleep
+        // stages only — mirrors the SLEEP chip's nightly total.
+        var byDay: [Date: [SleepReading]] = [:]
+        for seg in s.sleep where asleepStages.contains(seg.stage) {
+            byDay[cal.startOfDay(for: seg.date), default: []].append(seg)
+        }
+        let series = recentDays().compactMap { day in
+            byDay[day].map { SleepReading.mergedAsleepHours($0, asleep: asleepStages) }
+        }
         return series.count >= 2 ? series : []
     }
 

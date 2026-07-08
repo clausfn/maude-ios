@@ -1,4 +1,8 @@
-// DfGOnboardingView.swift — 3-step consent governance intro · v04 2026-05-22
+// DfGOnboardingView.swift — 3-step consent governance intro · v05 2026-07-08
+// v05: removed the fabricated "faux ledger" grants (Diabetes Nurse / Insurer A /
+//      Stress & absence study) from Page 2 — they shipped to fresh Release users as
+//      if they were the user's own immutable record. Replaced with an honest
+//      empty state mirroring ConsentLedgerView; dropped the now-unused LedgerRow.
 // v04: corrected DfG name (Data for Good Foundation), mission framing (answers to you),
 //      URL (liviqa.app), DfG logo added to Page 1 icon + LearnMoreSheet.
 //      Buttons remain pinned outside ScrollView (v03 fix retained).
@@ -236,29 +240,27 @@ private struct Page2View: View {
                     )
                     .padding(.top, 16)
 
-                    // Faux ledger card
-                    VStack(spacing: 0) {
-                        LedgerRow(
-                            icon: "checkmark.circle",
-                            iconColor: LiviqaTheme.moss,
-                            label: "Diabetes Nurse · University Hospital · glucose, activity",
-                            meta: "Approved · 5 days ago"
-                        )
-                        Divider().background(LiviqaTheme.line2)
-                        LedgerRow(
-                            icon: "xmark.circle",
-                            iconColor: LiviqaTheme.rust,
-                            label: "Insurer A · requested access",
-                            meta: "Denied · 3 days ago"
-                        )
-                        Divider().background(LiviqaTheme.line2)
-                        LedgerRow(
-                            icon: "lock.circle",
-                            iconColor: LiviqaTheme.ink3,
-                            label: "Stress & absence study · DK/NO",
-                            meta: "Active · 21 days ago"
-                        )
+                    // Privacy record — starts empty. Honest empty state, mirroring
+                    // ConsentLedgerView.emptyState. A fresh user has made no
+                    // decisions yet, so the record is genuinely empty until their
+                    // first grant or refusal. NEVER seed this with example grants —
+                    // it presents as the user's own immutable record (see caption).
+                    VStack(spacing: 10) {
+                        Image(systemName: "checkmark.shield")
+                            .font(.lato(30))
+                            .foregroundStyle(LiviqaTheme.moss)
+                        Text("Your record starts empty.")
+                            .font(.lato(15, .bold))
+                            .foregroundStyle(LiviqaTheme.ink)
+                        Text("Each grant or refusal you make appears here — permanently, and in order.")
+                            .font(.lato(12.5))
+                            .foregroundStyle(LiviqaTheme.ink3)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+                    .padding(.horizontal, 20)
                     .background(LiviqaTheme.moss2)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
@@ -386,38 +388,6 @@ private struct Page3View: View {
             .padding(.top, 12)
             .padding(.bottom, 48)
         }
-    }
-}
-
-// MARK: - Ledger row
-
-private struct LedgerRow: View {
-    let icon: String
-    let iconColor: Color
-    let label: String
-    let meta: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.lato(16))
-                .foregroundStyle(iconColor)
-                .frame(width: 22)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.lato(13, .medium))
-                    .foregroundStyle(LiviqaTheme.ink)
-                    .lineLimit(1)
-                Text(meta)
-                    .font(.lato(11.5))
-                    .foregroundStyle(LiviqaTheme.ink4)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
     }
 }
 

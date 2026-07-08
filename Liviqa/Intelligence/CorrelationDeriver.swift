@@ -60,8 +60,9 @@ public nonisolated enum CorrelationDeriver {
             return v.isEmpty ? nil : v.reduce(0, +) / Double(v.count)
         }
         func dailySleep(_ d: Date) -> Double? {
-            let v = s.sleep.filter { asleepStages.contains($0.stage) && calendar.isDate($0.date, inSameDayAs: d) }.map(\.hours)
-            return v.isEmpty ? nil : v.reduce(0, +)
+            let segs = s.sleep.filter { asleepStages.contains($0.stage) && calendar.isDate($0.date, inSameDayAs: d) }
+            // Union, not sum, so overlapping two-source nights count once.
+            return segs.isEmpty ? nil : SleepReading.mergedAsleepHours(segs, asleep: asleepStages)
         }
         func dailyHRV(_ d: Date) -> Double? {
             let v = s.hrv.filter { calendar.isDate($0.date, inSameDayAs: d) }.map(\.value)
