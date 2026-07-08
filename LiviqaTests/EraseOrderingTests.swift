@@ -33,6 +33,9 @@ struct EraseOrderingTests {
         func signInWithEmail(email: String, password: String) async throws -> UserSession {
             UserSession(userId: UUID(), email: email)
         }
+        func signUpWithEmail(email: String, password: String) async throws -> UserSession {
+            UserSession(userId: UUID(), email: email)
+        }
         func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
             UserSession(userId: UUID(), email: nil)
         }

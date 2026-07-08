@@ -429,9 +429,13 @@ struct AuthView: View {
             let result = try await appleCoordinator.signIn()
             await appState.signInWithApple(idToken: result.idToken, nonce: result.rawNonce)
         } catch {
-            if (error as? ASAuthorizationError)?.code != .canceled {
-                appState.lastError = "Apple sign-in didn’t complete. Use email, or continue without an account."
-            }
+            // User backed out of the Apple sheet — not an error.
+            if (error as? ASAuthorizationError)?.code == .canceled { return }
+            // Surface the REAL reason (domain + code + message) so a failing Apple
+            // sign-in is diagnosable instead of a dead end. A GoTrue token rejection
+            // surfaces its own message via signInWithApple → lastError already.
+            let ns = error as NSError
+            appState.lastError = "Apple sign-in failed — \(ns.domain) \(ns.code): \(error.localizedDescription)"
         }
     }
 }
