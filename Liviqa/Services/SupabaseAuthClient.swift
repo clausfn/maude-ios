@@ -107,6 +107,35 @@ final class SupabaseAuthClient: @unchecked Sendable {
         }
     }
 
+    /// PUT {base}/auth/v1/user (Bearer = the recovery access-token from the reset
+    /// link) { password } — set a new password once the citizen has proven
+    /// ownership by opening the e-mailed recovery link. Completes the /recover
+    /// half in-app. Returns the updated identity (email, when GoTrue includes it),
+    /// so the caller can immediately sign the citizen in with the new password.
+    func updatePassword(accessToken: String, newPassword: String) async throws -> SupabaseSessionResult {
+        let (data, status) = try await put("/auth/v1/user",
+                                           body: Self.passwordUpdateBody(newPassword),
+                                           bearer: accessToken)
+        switch status {
+        case 200:
+            // GoTrue answers PUT /user with the user object (no fresh token), so
+            // carry the recovery access-token forward alongside the parsed id/email.
+            let user = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            return SupabaseSessionResult(accessToken: accessToken,
+                                         userID: user["id"] as? String ?? "",
+                                         email: user["email"] as? String,
+                                         refreshToken: nil)
+        case 401, 403:
+            // Recovery tokens are single-use and time-boxed — an expired/used link.
+            throw SupabaseError.serverError(String(localized: "This reset link has expired. Request a new one and try again."))
+        case 422:
+            // Reuse the signup rejection mapping (weak-password rule text, etc.).
+            throw Self.mapSignupError(data)
+        default:
+            throw SupabaseError.serverError(String(localized: "We couldn't set your new password (HTTP \(status)). Try again in a moment."))
+        }
+    }
+
     /// POST {base}/auth/v1/token?grant_type=refresh_token — trade the stored
     /// refresh token for a fresh session (GoTrue rotates the refresh token).
     func refresh(refreshToken: String) async throws -> SupabaseSessionResult {
@@ -188,6 +217,64 @@ final class SupabaseAuthClient: @unchecked Sendable {
         (try? JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])) ?? Data()
     }
 
+    static func passwordUpdateBody(_ password: String) -> Data {
+        (try? JSONSerialization.data(withJSONObject: ["password": password])) ?? Data()
+    }
+
+    // MARK: - Recovery deep link (password-reset link → in-app completion)
+
+    /// What a GoTrue recovery link resolves to. `.ready` carries the short-lived
+    /// recovery session token used to set a new password; `.expired` carries the
+    /// friendly message from GoTrue's error redirect (link used / timed out).
+    enum RecoveryLinkOutcome: Equatable, Sendable {
+        case ready(accessToken: String, refreshToken: String?)
+        case expired(message: String)
+    }
+
+    /// Resolve an inbound URL to a recovery outcome. GoTrue's implicit flow puts
+    /// the tokens in the URL *fragment* (`…#access_token=…&type=recovery`); some
+    /// setups use the query. On an expired/used link GoTrue redirects with an
+    /// `error_description`/`error_code` instead. Returns `nil` for any URL that is
+    /// not a recovery link, so an unrelated deep link never opens the reset screen.
+    /// Pure → unit-testable without networking.
+    static func recoveryOutcome(from url: URL) -> RecoveryLinkOutcome? {
+        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        var p = parseParams(comps?.query)
+        p.merge(parseParams(comps?.fragment)) { _, new in new }   // fragment wins
+
+        if p["type"] == "recovery", let token = p["access_token"], !token.isEmpty {
+            return .ready(accessToken: token, refreshToken: p["refresh_token"])
+        }
+        // Expired/used recovery link: GoTrue redirects with an error. Only claim it
+        // when the error clearly belongs to the recovery/OTP family, so we don't
+        // hijack an unrelated failed deep link.
+        let code = (p["error_code"] ?? "").lowercased()
+        let hasError = p["error"] != nil || p["error_description"] != nil || !code.isEmpty
+        let recoveryFamily = p["type"] == "recovery"
+            || code.contains("otp") || code.contains("recovery") || code.contains("expired")
+        if hasError, recoveryFamily {
+            let msg = p["error_description"].map { $0.replacingOccurrences(of: "+", with: " ") }
+            return .expired(message: msg?.isEmpty == false
+                ? msg!
+                : String(localized: "This reset link has expired. Request a new one and try again."))
+        }
+        return nil
+    }
+
+    /// Split an `a=b&c=d` query/fragment string into a percent-decoded dictionary.
+    private static func parseParams(_ raw: String?) -> [String: String] {
+        guard let raw, !raw.isEmpty else { return [:] }
+        var out: [String: String] = [:]
+        for pair in raw.split(separator: "&", omittingEmptySubsequences: true) {
+            let kv = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard let k = kv.first else { continue }
+            let key = String(k).removingPercentEncoding ?? String(k)
+            let value = kv.count > 1 ? (String(kv[1]).removingPercentEncoding ?? String(kv[1])) : ""
+            out[key] = value
+        }
+        return out
+    }
+
     /// GoTrue native id_token grant. `nonce` is the RAW nonce; GoTrue checks it
     /// against the Apple token's hashed nonce. Omitted when empty.
     static func appleGrantBody(idToken: String, nonce: String) -> Data {
@@ -223,6 +310,10 @@ final class SupabaseAuthClient: @unchecked Sendable {
     @discardableResult
     private func post(_ path: String, body: Data, bearer: String? = nil) async throws -> (Data, Int) {
         try await send(path, method: "POST", body: body, bearer: bearer)
+    }
+    @discardableResult
+    private func put(_ path: String, body: Data, bearer: String? = nil) async throws -> (Data, Int) {
+        try await send(path, method: "PUT", body: body, bearer: bearer)
     }
 
     private func send(_ path: String, method: String, body: Data?, bearer: String?) async throws -> (Data, Int) {

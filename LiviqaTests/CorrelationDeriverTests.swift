@@ -41,6 +41,32 @@ struct CorrelationDeriverTests {
         #expect(NudgeGuard.check(g.patternNote) == nil)
     }
 
+    /// Regression (T-COR-02): an ordinary MIXED week — steady active-energy kcal
+    /// every day plus two normal ~45-min walks — must NOT flag the walk days.
+    /// The old column mixed workout MINUTES (workout days) with active-energy
+    /// KCAL (other days), so a 45-min value z-scored against a ~500-kcal mean
+    /// flagged both healthy walk days `.high` and fabricated an exercise standout.
+    @Test func ordinaryMixedExerciseWeekFlagsNoWalkDays() {
+        var s = HealthSamples()
+        for off in 0...6 {
+            s.activeEnergy.append(DailyMetric(date: day(off), kind: .activeEnergy,
+                value: 500.0, source: "watch", tier: .estimate, provenance: .real))
+        }
+        // Two ordinary 45-minute walks (their burn is already in active energy).
+        for off in [2, 5] {
+            let start = cal.startOfDay(for: day(off)).addingTimeInterval(9 * 3600)
+            s.workouts.append(WorkoutReading(start: start, end: start + 45 * 60,
+                type: "walking", durMin: 45, kcal: 200, distKm: 4,
+                source: "watch", tier: .good, provenance: .real))
+        }
+        let g = CorrelationDeriver.derive(from: s)
+        let exCol = 3
+        #expect(g.rows.allSatisfy { $0.cells[exCol] != .high && $0.cells[exCol] != .outlier })
+        // Exercise must not be fabricated as the week's standout signal.
+        #expect(!g.patternSources.contains("Exercise"))
+        #expect(NudgeGuard.check(g.patternNote) == nil)
+    }
+
     @Test func steadyWeekHasNoSources() {
         var s = HealthSamples()
         for off in 0...6 {

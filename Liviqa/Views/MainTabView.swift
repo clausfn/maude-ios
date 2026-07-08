@@ -216,10 +216,15 @@ struct MainTabView: View {
                 return false
                 #endif
             }()
-            StudyConsentView(study: appState.researchOpportunity ?? MockData.demoStudy,
-                             startJoined: startJoined)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+            // Only present the consent flow for a REAL surfaced invitation. Never fall
+            // back to the fabricated demo study — joining writes a live consent grant.
+            if let study = appState.researchOpportunity {
+                StudyConsentView(study: study, startJoined: startJoined)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            } else {
+                EmptyView()
+            }
         }
         .fullScreenCover(item: $joiningConsult) { consult in
             NavigationStack { ConsultView(consult: consult) }

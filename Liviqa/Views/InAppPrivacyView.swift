@@ -20,6 +20,14 @@ struct InAppPrivacyView: View {
     }()
     @State private var receiptFor: PrivacyGrant? = nil
 
+    // Research-contribution state — same @AppStorage keys set opt-in during DfG
+    // onboarding and toggled in WalletView. Default OFF, so a fresh user who
+    // enabled nothing is honestly shown "Off · not contributing", never told
+    // contribution is On and earning tokens.
+    @AppStorage("consentCohortDiscovery")      private var cohortDiscovery      = false
+    @AppStorage("consentResearchDiscoverable") private var researchDiscoverable = false
+    private var researchContributionOn: Bool { cohortDiscovery || researchDiscoverable }
+
     private var activeCount: Int { grants.filter { !$0.paused }.count }
 
     var body: some View {
@@ -60,8 +68,9 @@ struct InAppPrivacyView: View {
 
                 Text("Anonymous compute only — your device answers queries, your data never moves. ")
                     .font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink3)
-                + Text("On · earns DfG tokens")
-                    .font(.lato(12.5, .bold)).foregroundStyle(LiviqaTheme.moss)
+                + Text(researchContributionOn ? "On · earns DfG tokens" : "Off · not contributing")
+                    .font(.lato(12.5, .bold))
+                    .foregroundStyle(researchContributionOn ? LiviqaTheme.moss : LiviqaTheme.ink2)
 
                 // ── The details (legal / machinery, below the fold) ──
                 Text("THE DETAILS")

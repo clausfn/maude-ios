@@ -174,7 +174,10 @@ final class AppState {
     @MainActor
     func handleResearchInvite() {
         handleResearchReceived()
-        showStudyConsent = true
+        // Open the consent sheet only when a real invitation was surfaced. In Release
+        // handleResearchReceived() is a no-op (demo payload is DEBUG-only), so this
+        // stays closed and the fabricated demo study is never presented.
+        if researchOpportunity != nil { showStudyConsent = true }
     }
 
     /// Store the APNs token and push it to the backend (when signed in).

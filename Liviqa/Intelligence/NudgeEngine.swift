@@ -148,9 +148,20 @@ public nonisolated struct NudgeEngine: Sendable {
         }
     }
 
-    /// Sleep (wellness): last night vs baseline.
+    /// Sleep (wellness): last night vs baseline. Each night's total is the UNION
+    /// of that night's asleep segments (via SleepReading.mergedAsleepHours), so a
+    /// night recorded by two sources (iPhone + Apple Watch) counts once — "last
+    /// night" is a real nightly total, never a single fragment segment compared
+    /// against a baseline of individual fragments. Same grouping as SleepDeriver /
+    /// PassportStatsDeriver.
     private func sleepNudge(_ s: HealthSamples) -> [EngineNudge] {
-        let nightly = s.sleep.sorted { $0.date < $1.date }.map(\.hours)
+        let cal = Calendar(identifier: .gregorian)
+        let asleep: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
+        let nightly = Dictionary(grouping: s.sleep.filter { asleep.contains($0.stage) }) {
+            cal.startOfDay(for: $0.date)
+        }
+        .sorted { $0.key < $1.key }                                  // oldest → newest
+        .map { SleepReading.mergedAsleepHours($0.value, asleep: asleep) }
         guard let (latest, base) = latestVsBaseline(nightly) else { return [] }
         if base.band(for: latest) == .below {
             return [EngineNudge(category: .behaviouralLever, lane: .wellness,

@@ -68,11 +68,23 @@ public nonisolated enum CorrelationDeriver {
             let v = s.hrv.filter { calendar.isDate($0.date, inSameDayAs: d) }.map(\.value)
             return v.isEmpty ? nil : v.reduce(0, +) / Double(v.count)
         }
+        // Exercise must be ONE unit across the 7-day series. Mixing workout
+        // MINUTES (workout days) with active-energy KCAL (other days) z-scores a
+        // ~45-min value against a ~500-kcal mean, so ordinary walk days read as
+        // the week's biggest deviations. Active energy is present ~daily and
+        // already includes the workout burn, so it is the single source of
+        // truth. Only if the WHOLE week has no active energy do we fall back to
+        // workout minutes — still one consistent unit across the series.
+        let weekHasActiveEnergy = days.contains { d in
+            s.activeEnergy.contains { calendar.isDate($0.date, inSameDayAs: d) }
+        }
         func dailyExercise(_ d: Date) -> Double? {
+            if weekHasActiveEnergy {
+                let e = s.activeEnergy.filter { calendar.isDate($0.date, inSameDayAs: d) }.map(\.value)
+                return e.isEmpty ? nil : e.reduce(0, +) / Double(e.count)
+            }
             let mins = s.workouts.filter { calendar.isDate($0.start, inSameDayAs: d) }.map(\.durMin)
-            if !mins.isEmpty { return mins.reduce(0, +) }
-            let e = s.activeEnergy.filter { calendar.isDate($0.date, inSameDayAs: d) }.map(\.value)
-            return e.isEmpty ? nil : e.reduce(0, +) / Double(e.count)
+            return mins.isEmpty ? nil : mins.reduce(0, +)
         }
         let providers: [(Date) -> Double?] = [dailyGlucose, dailySleep, dailyHRV, dailyExercise]
 

@@ -86,3 +86,56 @@ struct NudgeEngineTests {
         #expect(v.band(for: -100) == .below)
     }
 }
+
+// T-NDG-08 — the sleep nudge must group multi-source segments into per-night
+// totals before comparing "last night" to the baseline. Regression for the
+// fragment-vs-night bug: with iPhone + Apple Watch both recording a night as
+// many overlapping asleep segments, the old code mapped each raw segment to its
+// own hours and compared one fragment against a baseline of fragments. Here
+// every raw segment is a uniform 1.5h fragment (zero-σ per-segment series, which
+// can never flag anything), so only correct per-night grouping can distinguish a
+// short night from a normal one.
+struct SleepNudgeGroupingTests {
+    private let cal = Calendar(identifier: .gregorian)
+    private let start = Calendar(identifier: .gregorian)
+        .startOfDay(for: Date(timeIntervalSince1970: 1_750_000_000))
+
+    /// One night as uniform 1.5h asleep fragments, each recorded twice (iPhone +
+    /// Apple Watch overlap) so the union collapses the duplicates. `hours` must be
+    /// a multiple of 1.5; fragments run back-to-back from the day's start, so the
+    /// merged nightly total is exactly `hours`.
+    private func night(_ dayOffset: Int, hours: Double) -> [SleepReading] {
+        let day = cal.date(byAdding: .day, value: dayOffset, to: start)!
+        let slots = Int((hours / 1.5).rounded())
+        return (0..<slots).flatMap { slot -> [SleepReading] in
+            let segStart = cal.date(byAdding: .minute, value: slot * 90, to: day)!
+            return ["iPhone", "Apple Watch"].map { src in
+                SleepReading(date: segStart, stage: .core, hours: 1.5,
+                             source: src, tier: .estimate, provenance: .simulated)
+            }
+        }
+    }
+
+    /// Six baseline nights with natural variance (a zero-σ baseline is always
+    /// in-band by design), then the night under test — all doubly-sourced.
+    private func samples(lastNightHours: Double) -> HealthSamples {
+        var s = HealthSamples.empty
+        for (i, h) in [7.5, 6.0, 7.5, 6.0, 7.5, 6.0].enumerated() { s.sleep += night(i, hours: h) }
+        s.sleep += night(6, hours: lastNightHours)
+        return s
+    }
+
+    // A genuinely short last night (3h vs a ~6.75h baseline) fires the lever —
+    // impossible under the old per-segment code, whose series was a flat 1.5.
+    @Test func shortLastNightFromMergedFragmentsFires() {
+        let nudges = NudgeEngine().generate(samples: samples(lastNightHours: 3.0), cap: 10)
+        #expect(nudges.contains { $0.title.contains("Short night") && $0.category == .behaviouralLever })
+    }
+
+    // A normal (in-band) last night, equally fragmented across two sources, must
+    // not fabricate a short-night nudge.
+    @Test func normalLastNightFromMergedFragmentsIsQuiet() {
+        let nudges = NudgeEngine().generate(samples: samples(lastNightHours: 7.5), cap: 10)
+        #expect(!nudges.contains { $0.title.contains("Short night") })
+    }
+}
