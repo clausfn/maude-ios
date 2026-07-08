@@ -46,6 +46,13 @@ struct LiviqaApp: App {
                     PrivacyDeclarationView {
                         hasSeenPrivacyDeclaration = true
                     }
+                } else if appState.session == nil && appState.isRestoringSession {
+                    // Restoring a previous sign-in (Keychain token, revalidated by the
+                    // backend) — calm launch progress, never a flash of the auth screen.
+                    ZStack {
+                        LiviqaTheme.paper.ignoresSafeArea()
+                        ProgressView().tint(LiviqaTheme.ink)
+                    }
                 } else if appState.session == nil {
                     // Screen 2 — sign in / demo mode
                     AuthView()
@@ -94,6 +101,12 @@ struct LiviqaApp: App {
             #endif
             .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default
             .task {
+                // Session restore FIRST (before the debug hooks, so the restoring
+                // flag always resolves): a valid Keychain token puts the tester
+                // straight back in the app across cold launches. Resolves
+                // instantly when no token is stored, so the hooks below and a
+                // true first launch are not delayed.
+                await appState.restoreSession()
                 #if DEBUG
                 // Design-exploration hook: open the Liquid Glass Lab (gallery).
                 if ProcessInfo.processInfo.arguments.contains("-glassLab") {

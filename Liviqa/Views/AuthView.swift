@@ -9,11 +9,18 @@ struct AuthView: View {
     /// (open registration, CN 2026-07-07); sign-in one tap away.
     private enum EmailMode { case create, signIn }
 
+    /// Forgot-password flow (GoTrue /recover): request state + calm confirmation.
+    private enum ResetState: Equatable { case idle, needsEmail, sending, sent(String), failed(String) }
+
     @Environment(AppState.self) private var appState
     @State private var showEmailForm = false
     @State private var emailMode: EmailMode = .create
     @State private var email = ""
     @State private var password = ""
+    @State private var resetState: ResetState = .idle
+    /// Signup accepted, session withheld — the deployment wants the e-mail
+    /// confirmed first (token-less 200 from GoTrue).
+    @State private var confirmEmailPending = false
     @State private var appleCoordinator = AppleSignInCoordinator()
     @State private var showWalletLogin = false
     #if DEBUG
@@ -232,6 +239,11 @@ struct AuthView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
 
+            // Confirmation-pending signup: a calm inbox nudge, not an error.
+            if confirmEmailPending {
+                calmNote(icon: "envelope.badge", EmailConfirmationPending.message)
+            }
+
             inputField {
                 #if os(iOS)
                 TextField("Email", text: $email)
@@ -246,6 +258,9 @@ struct AuthView: View {
             inputField {
                 SecureField("Password", text: $password)
                     .textContentType(emailMode == .create ? .newPassword : .password)
+            }
+            if emailMode == .signIn, appState.supabase is PasswordRecovery {
+                forgotPasswordRow
             }
             if emailMode == .create {
                 // The rule, stated up front — never a surprise rejection.
@@ -282,6 +297,8 @@ struct AuthView: View {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     emailMode = (emailMode == .create) ? .signIn : .create
                     appState.lastError = nil
+                    resetState = .idle
+                    confirmEmailPending = false
                 }
             } label: {
                 Text(emailMode == .create
@@ -293,6 +310,66 @@ struct AuthView: View {
                     .padding(.vertical, 6)
             }
         }
+    }
+
+    // "Forgot password?" — standard placement under the password field. GoTrue
+    // answers 200 for unknown emails too (no account enumeration), so the
+    // confirmation copy stays conditional.
+    @ViewBuilder
+    private var forgotPasswordRow: some View {
+        if case .sent(let to) = resetState {
+            calmNote(icon: "envelope.badge",
+                     String(localized: "Check your email — if an account exists for \(to), we've sent a reset link."))
+        } else {
+            Button {
+                Task { await sendPasswordReset() }
+            } label: {
+                Group {
+                    if resetState == .sending {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text(String(localized: "Forgot password?"))
+                            .font(.lato(13, .bold))
+                            .foregroundStyle(LiviqaTheme.moss)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, 4)
+            }
+            .disabled(resetState == .sending)
+            if case .needsEmail = resetState {
+                Text(String(localized: "Enter your email above first, then tap again."))
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.clayText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 4)
+            }
+            if case .failed(let msg) = resetState {
+                Text(msg)
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.rust)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 4)
+            }
+        }
+    }
+
+    /// Calm confirmation surface (moss tint, ink text — not the error voice).
+    private func calmNote(icon: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(LiviqaTheme.moss)
+                .padding(.top, 1)
+            Text(text)
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .background(LiviqaTheme.moss2)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
     }
 
     private func inputField<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -308,9 +385,42 @@ struct AuthView: View {
     // MARK: — Actions
 
     private func emailSubmit() async {
+        confirmEmailPending = false
         switch emailMode {
-        case .create: await appState.signUpWithEmail(email: email, password: password)
-        case .signIn: await appState.signInWithEmail(email: email, password: password)
+        case .create:
+            await appState.signUpWithEmail(email: email, password: password)
+            // A confirmation-pending deployment answers 200 without a session;
+            // that typed outcome lands in lastError — reroute it to the calm
+            // inbox state and put sign-in front and centre for the return trip.
+            if appState.lastError == EmailConfirmationPending.message {
+                appState.lastError = nil
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    confirmEmailPending = true
+                    emailMode = .signIn
+                }
+            }
+        case .signIn:
+            await appState.signInWithEmail(email: email, password: password)
+        }
+    }
+
+    /// GoTrue /recover — prefilled from the email field; calm conditional
+    /// confirmation on success, friendly copy on failure.
+    private func sendPasswordReset() async {
+        guard let recovery = appState.supabase as? PasswordRecovery else { return }
+        let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !address.isEmpty else {
+            withAnimation(.easeInOut(duration: 0.15)) { resetState = .needsEmail }
+            return
+        }
+        resetState = .sending
+        do {
+            try await recovery.requestPasswordReset(email: address)
+            withAnimation(.easeInOut(duration: 0.2)) { resetState = .sent(address) }
+        } catch {
+            let msg = (error as? SupabaseError)?.errorDescription
+                ?? String(localized: "We couldn't send the reset email. Check your connection and try again.")
+            withAnimation(.easeInOut(duration: 0.2)) { resetState = .failed(msg) }
         }
     }
 

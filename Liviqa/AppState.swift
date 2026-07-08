@@ -58,6 +58,10 @@ final class AppState {
     var session: UserSession?  = nil
     var profile: UserProfile?  = nil
     var isSigningIn: Bool      = false
+    /// True while the launch-time session restore is in flight. Starts true so
+    /// the root view shows calm launch progress instead of flashing AuthView
+    /// before the Keychain check resolves (cleared by `restoreSession`).
+    private(set) var isRestoringSession = true
 
     // Today. Seeds are demo data in DEBUG, EMPTY in Release (honest cold start,
     // T1 TestProd wave — see ColdStartSeeds.swift).
@@ -244,6 +248,22 @@ final class AppState {
     }
 
     // MARK: - Auth actions
+
+    /// Restore a persisted session at launch: the service revalidates the
+    /// Keychain bearer (`currentSession`) so a tester who signed in yesterday
+    /// lands straight in the app, not on AuthView. On failure (no token,
+    /// expired, offline validation) this clears the restoring flag and the
+    /// root view falls through to AuthView exactly as before. Signed-out
+    /// sessions can't resurrect: `signOut` clears the Keychain token, so the
+    /// next launch's restore finds nothing.
+    @MainActor
+    func restoreSession() async {
+        defer { isRestoringSession = false }
+        guard session == nil else { return }
+        guard let restored = await supabase.currentSession() else { return }
+        session = restored
+        await postSignIn()   // same wiring as the explicit sign-in paths
+    }
 
     @MainActor
     func signInWithEmail(email: String, password: String) async {

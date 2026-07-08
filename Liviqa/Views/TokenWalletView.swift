@@ -5,14 +5,6 @@ import SwiftUI
 
 // MARK: - Models
 
-struct TokenEarnEvent: Identifiable {
-    let id = UUID()
-    let tokens: Int
-    let purpose: String        // researcher-facing label, anonymised
-    let category: String       // "Diabetes research", "Sleep science", etc.
-    let date: Date
-}
-
 struct TokenSpendOption: Identifiable {
     let id = UUID()
     let title: String
@@ -26,14 +18,10 @@ struct TokenSpendOption: Identifiable {
 
 // MARK: - Demo Data
 
-private let demoEvents: [TokenEarnEvent] = [
-    TokenEarnEvent(tokens: 4, purpose: "CGM variability cohort query answered", category: "Diabetes research", date: Date().addingTimeInterval(-3600)),
-    TokenEarnEvent(tokens: 2, purpose: "Sleep fragmentation pattern contributed", category: "Sleep science", date: Date().addingTimeInterval(-86400)),
-    TokenEarnEvent(tokens: 3, purpose: "HRV + activity correlation computed", category: "Cardiovascular research", date: Date().addingTimeInterval(-172800)),
-    TokenEarnEvent(tokens: 2, purpose: "Glucose post-meal response pattern", category: "Diabetes research", date: Date().addingTimeInterval(-259200)),
-    TokenEarnEvent(tokens: 1, purpose: "Resting HR seasonal trend", category: "Public health", date: Date().addingTimeInterval(-432000)),
-]
-
+// Spend catalogue — demo builds only. On a shipped build the catalogue is
+// empty and the spend section shows an honest "coming soon" state instead
+// (launch-audit PR-102 line: no fabricated offers on real devices).
+#if DEBUG
 private let demoSpendOptions: [TokenSpendOption] = [
     // In-app
     TokenSpendOption(title: "Extended history", description: "Nudge patterns across 12 months instead of 3", cost: 8, icon: "chart.line.uptrend.xyaxis", category: .inApp),
@@ -44,15 +32,21 @@ private let demoSpendOptions: [TokenSpendOption] = [
     TokenSpendOption(title: "Sleep Foundation NL", description: "Fund independent sleep disorder research", cost: 10, icon: "moon.stars.fill", category: .charity),
     TokenSpendOption(title: "Open Health Data Initiative", description: "Support public-domain health data infrastructure", cost: 5, icon: "globe.europe.africa.fill", category: .charity),
 ]
+#else
+private let demoSpendOptions: [TokenSpendOption] = []
+#endif
 
 // MARK: - Main View
 
 struct TokenWalletView: View {
+    @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
-    @State private var balance: Int = 12
     @State private var selectedTab: SpendTab = .inApp
     @State private var redeemingId: UUID? = nil
     @State private var confirmedId: UUID? = nil
+
+    /// Single source of truth — the same balance the Privacy screen shows.
+    private var balance: Int { appState.tokenBalance }
 
     enum SpendTab { case inApp, charity }
 
@@ -125,15 +119,29 @@ struct TokenWalletView: View {
                     .padding(.vertical, 12)
 
                 HStack(spacing: 0) {
-                    statCell(label: "EARNED", value: "14", sublabel: "last 30 days")
+                    statCell(label: "EARNED", value: "\(earnedLast30Days)", sublabel: "last 30 days")
                     Divider().frame(width: 1, height: 36).overlay(LiviqaTheme.invertLine)
-                    statCell(label: "DONATED", value: "2", sublabel: "all time")
+                    statCell(label: "DONATED", value: "\(donatedAllTime)", sublabel: "all time")
                     Divider().frame(width: 1, height: 36).overlay(LiviqaTheme.invertLine)
-                    statCell(label: "REDEEMED", value: "0", sublabel: "in-app")
+                    statCell(label: "REDEEMED", value: "\(redeemedInApp)", sublabel: "in-app")
                 }
                 .padding(.bottom, 16)
             }
         }
+    }
+
+    // Real ledger sums — never hard-coded stats (honest-data principle).
+    private var earnedLast30Days: Int {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        return appState.tokenTransactions
+            .filter { $0.type == .earned && $0.date >= cutoff }
+            .reduce(0) { $0 + $1.amount }
+    }
+    private var donatedAllTime: Int {
+        appState.tokenTransactions.filter { $0.type == .donated }.reduce(0) { $0 + $1.amount }
+    }
+    private var redeemedInApp: Int {
+        appState.tokenTransactions.filter { $0.type == .spent }.reduce(0) { $0 + $1.amount }
     }
 
     private func statCell(label: String, value: String, sublabel: String) -> some View {
@@ -170,41 +178,63 @@ struct TokenWalletView: View {
         .cornerRadius(10)
     }
 
-    // MARK: Earn History
+    // MARK: Token History
 
     private var earnSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "RECENT EARNINGS", icon: "arrow.down.circle.fill", color: LiviqaTheme.moss)
+            sectionHeader(title: "RECENT ACTIVITY", icon: "arrow.down.circle.fill", color: LiviqaTheme.moss)
 
-            VStack(spacing: 1) {
-                ForEach(demoEvents) { event in
-                    earnRow(event)
+            if appState.tokenTransactions.isEmpty {
+                // Honest empty state — a fresh user has earned nothing yet.
+                VStack(spacing: 10) {
+                    Image(systemName: "circle.hexagongrid")
+                        .font(.lato(28))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text("You haven't earned tokens yet")
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text("When your device answers an anonymised research query, your first tokens appear here.")
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .multilineTextAlignment(.center)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .padding(.horizontal, 20)
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            } else {
+                VStack(spacing: 1) {
+                    ForEach(appState.tokenTransactions) { tx in
+                        transactionRow(tx)
+                    }
+                }
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
             }
-            .background(LiviqaTheme.paper2)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
         }
         .padding(.horizontal, 20)
     }
 
-    private func earnRow(_ event: TokenEarnEvent) -> some View {
+    private func transactionRow(_ tx: TokenTransaction) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(event.purpose)
+                Text(tx.description)
                     .font(.footnote)
                     .foregroundStyle(LiviqaTheme.ink)
-                Text(event.category)
+                Text(tx.type.label.uppercased())
                     .font(.liviqaKicker(9))
                     .foregroundStyle(LiviqaTheme.ink3)
                     .kerning(0.5)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("+\(event.tokens)")
+                Text(tx.type == .earned ? "+\(tx.amount)" : "−\(tx.amount)")
                     .font(.liviqaMono(14))
-                    .foregroundStyle(LiviqaTheme.moss)
-                Text(event.date, style: .relative)
+                    .foregroundStyle(tx.type == .earned ? LiviqaTheme.moss : LiviqaTheme.ink2)
+                Text(tx.date, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(LiviqaTheme.ink4)
             }
@@ -220,21 +250,43 @@ struct TokenWalletView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader(title: "SPEND", icon: "arrow.up.circle.fill", color: LiviqaTheme.clay)
 
-            // Tab picker
-            HStack(spacing: 0) {
-                tabButton(label: "In-app features", tab: .inApp, icon: "sparkles")
-                tabButton(label: "Charity donation", tab: .charity, icon: "heart.fill")
-            }
-            .background(LiviqaTheme.paper2)
-            .cornerRadius(10)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 1))
-            .padding(.bottom, 4)
+            if demoSpendOptions.isEmpty {
+                // Honest "not yet" state — no fabricated rewards catalogue.
+                VStack(spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.lato(28))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text("Nothing to spend on yet")
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text("In-app features and charity donations are on the way. Your tokens keep their value until then.")
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .padding(.horizontal, 20)
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            } else {
+                // Tab picker
+                HStack(spacing: 0) {
+                    tabButton(label: "In-app features", tab: .inApp, icon: "sparkles")
+                    tabButton(label: "Charity donation", tab: .charity, icon: "heart.fill")
+                }
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 1))
+                .padding(.bottom, 4)
 
-            VStack(spacing: 8) {
-                ForEach(demoSpendOptions.filter { opt in
-                    selectedTab == .inApp ? opt.category == .inApp : opt.category == .charity
-                }) { option in
-                    spendCard(option)
+                VStack(spacing: 8) {
+                    ForEach(demoSpendOptions.filter { opt in
+                        selectedTab == .inApp ? opt.category == .inApp : opt.category == .charity
+                    }) { option in
+                        spendCard(option)
+                    }
                 }
             }
         }
@@ -304,7 +356,7 @@ struct TokenWalletView: View {
             Button {
                 guard canAfford else { return }
                 withAnimation(.spring(response: 0.3)) {
-                    balance -= option.cost
+                    appState.tokenBalance -= option.cost
                     confirmedId = option.id
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -346,5 +398,6 @@ struct TokenWalletView: View {
 #Preview {
     NavigationStack {
         TokenWalletView()
+            .environment(AppState())
     }
 }

@@ -144,27 +144,10 @@ struct WalletView: View {
                     // ── Recent events ──
                     LiviqaSectionHeader(label: "Recent events", trailing: "Full log")
 
+                    // Disclosure-report export is follow-up wiring — no dead
+                    // affordance until it works (honest UI, launch-audit line).
                     auditTrail
-
-                    // ── Disclosure report button ──
-                    Button {
-                        // TODO: generate report
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.down")
-                                .font(.lato(14, .medium))
-                            Text("Download full disclosure report")
-                                .font(.lato(13.5, .bold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(Color.clear)
-                        .foregroundStyle(LiviqaTheme.ink2)
-                        .overlay(RoundedRectangle(cornerRadius: 10)
-                            .stroke(LiviqaTheme.line, lineWidth: 1))
-                    }
-                    .padding(.top, 14)
-                    .padding(.bottom, 28)
+                        .padding(.bottom, 28)
                 }
                 .padding(.horizontal, 20)
             }
@@ -367,10 +350,9 @@ struct WalletView: View {
                 .background(LiviqaTheme.line2)
                 .padding(.top, 10)
 
+            // Scope detail screen is follow-up wiring — the chips above already
+            // name the groups, so no dead "View scope" affordance (honest UI).
             HStack {
-                Button("View scope") {}
-                    .font(.lato(12.5, .bold))
-                    .foregroundStyle(LiviqaTheme.ink2)
                 Spacer()
                 Button("Withdraw") {
                     Task {
@@ -579,30 +561,23 @@ struct WalletView: View {
     private var auditTrail: some View {
         VStack(spacing: 0) {
             if appState.walletEvents.isEmpty {
-                // Placeholder rows for demo
-                auditRow(dot: LiviqaTheme.moss,
-                         title: "Grant confirmed",
-                         detail: "Pharma Partner · glucose, activity",
-                         when: "Today", time: "08:12",
-                         titleColor: LiviqaTheme.ink)
-                Divider().background(LiviqaTheme.line2)
-                auditRow(dot: LiviqaTheme.ink4,
-                         title: "Aggregate query run",
-                         detail: "DfG Professional · no raw data accessed",
-                         when: "Yesterday", time: "19:30",
-                         titleColor: LiviqaTheme.ink)
-                Divider().background(LiviqaTheme.line2)
-                auditRow(dot: LiviqaTheme.rust,
-                         title: "Consent withdrawn",
-                         detail: "HealthGraph Labs · sharing stopped",
-                         when: "18 May", time: "11:04",
-                         titleColor: LiviqaTheme.rust)
-                Divider().background(LiviqaTheme.line2)
-                auditRow(dot: LiviqaTheme.moss,
-                         title: "Grant confirmed",
-                         detail: "DfG Professional · analytics relay",
-                         when: "14 May", time: "09:20",
-                         titleColor: LiviqaTheme.ink)
+                // Honest empty state — fabricated audit rows must never render
+                // as the user's own record (mirrors ConsentLedgerView).
+                VStack(spacing: 10) {
+                    Image(systemName: "checkmark.shield")
+                        .font(.lato(28))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text("No sharing activity yet")
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text("When you share data or change a consent, it appears here.")
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .padding(.horizontal, 20)
             } else {
                 ForEach(Array(appState.walletEvents.enumerated()), id: \.element.id) { idx, event in
                     if idx > 0 { Divider().background(LiviqaTheme.line2) }

@@ -2,12 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- TEMPORARY PPCN beta entitlements (2026-07-07): HealthKit only.
-	     App Groups + Sign in with Apple are dropped for the beta because headless
-	     cloud-signing with an ASC API key cannot register them, and SIWA would fail
-	     backend audience validation under the xyz.ppcn.liviqa bundle ID anyway.
-	     The canonical entitlements remain Liviqa/Liviqa.entitlements (DfG builds). -->
+	<!-- TEMPORARY PPCN beta entitlements (2026-07-07): HealthKit + Sign in with Apple.
+	     App Groups stays dropped for the beta (headless ASC-key signing can't register
+	     it and nothing here needs it). SIWA is now ON: the APPLE_ID_AUTH capability is
+	     registered on the xyz.ppcn.liviqa App ID and xyz.ppcn.liviqa was added to
+	     GoTrue's Apple token audience (GOTRUE_EXTERNAL_APPLE_CLIENT_ID), so the native
+	     id-token flow validates. The canonical entitlements remain
+	     Liviqa/Liviqa.entitlements (DfG builds). -->
 	<key>com.apple.developer.healthkit</key>
 	<true/>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

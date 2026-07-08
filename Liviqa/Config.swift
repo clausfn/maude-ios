@@ -94,15 +94,20 @@ enum Config {
     /// unaffected while this is `false`.
     static let dfgWalletEnabled = false
 
-    /// DfG Wallet *login* flow (eIDAS 2.0 + Partisia verification) on the sign-in
-    /// screen. This is the in-app, high-fidelity simulation of the wallet use cases
-    /// Sign in with Apple can only succeed under the canonical bundle identity
-    /// (`dev.liviqa.app`): the SIWA entitlement, the backend token audience, and
-    /// Apple's team-scoped user identifiers are all bound to it. On any other
-    /// bundle (e.g. the temporary PPCN beta `xyz.ppcn.liviqa`, 2026-07-07) the
-    /// button is HIDDEN rather than shown-and-broken.
+    /// Sign in with Apple needs three things bound to the running bundle: the SIWA
+    /// entitlement, the backend/GoTrue token audience, and Apple's team-scoped user
+    /// identifiers. Both shipping bundles now satisfy all three — the canonical DfG
+    /// build (`dev.liviqa.app`) and the temporary PPCN beta (`xyz.ppcn.liviqa`,
+    /// 2026-07-07: SIWA capability registered on the App ID, entitlement in
+    /// `Liviqa.ppcn.entitlements`, and `xyz.ppcn.liviqa` added to GoTrue's Apple
+    /// audience). Caveat on PPCN: Apple's user id is team-scoped, so a sign-in there
+    /// links to an existing account only when Apple releases the real email; a
+    /// "Hide My Email" relay makes a fresh account. Any *other* bundle → hide the
+    /// button rather than show-and-break.
+    static let appleSignInBundles: Set<String> = ["dev.liviqa.app", "xyz.ppcn.liviqa"]
     static var appleSignInAvailable: Bool {
-        Bundle.main.bundleIdentifier == "dev.liviqa.app"
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        return appleSignInBundles.contains(id)
     }
 
     /// (identity presentation → MPC signature check → CE-ledger anchoring) for demos

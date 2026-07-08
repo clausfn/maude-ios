@@ -6,8 +6,10 @@
 // (jose, HS256/JWKS) and maps to the account by email. See docs/Auth_Supabase_v01.md.
 //
 // GoTrue endpoints used:
-//   POST {base}/auth/v1/token?grant_type=password   { email, password }
-//   POST {base}/auth/v1/token?grant_type=id_token    { provider:"apple", id_token, nonce }
+//   POST {base}/auth/v1/token?grant_type=password       { email, password }
+//   POST {base}/auth/v1/token?grant_type=id_token        { provider:"apple", id_token, nonce }
+//   POST {base}/auth/v1/token?grant_type=refresh_token   { refresh_token }  → fresh session
+//   POST {base}/auth/v1/recover             { email }     → password-reset e-mail
 //   GET  {base}/auth/v1/user            (Bearer)     → current user
 //   POST {base}/auth/v1/logout          (Bearer)
 import Foundation
@@ -20,6 +22,15 @@ struct SupabaseSessionResult: Equatable, Sendable {
     let refreshToken: String?
 }
 
+/// Signup accepted but session withheld: the GoTrue deployment has confirmation
+/// e-mails ON, so the citizen must click the link before signing in. Typed
+/// separately from `SupabaseError` (shared enum, not owned here) so the UI can
+/// show a calm "check your inbox" instead of the misleading "not signed in".
+struct EmailConfirmationPending: LocalizedError, Equatable {
+    static let message = String(localized: "Almost there — check your email to confirm your account, then sign in.")
+    var errorDescription: String? { Self.message }
+}
+
 final class SupabaseAuthClient: @unchecked Sendable {
 
     private let baseURL: URL
@@ -28,7 +39,16 @@ final class SupabaseAuthClient: @unchecked Sendable {
     private let apiKey: String?
     private let session: URLSession
 
-    init(baseURL: URL, apiKey: String? = nil, session: URLSession = .shared) {
+    /// Default session with sane timeouts (URLSession.shared waits 60 s per
+    /// request) — a dead network should fail fast into friendly copy.
+    static let defaultSession: URLSession = {
+        let c = URLSessionConfiguration.default
+        c.timeoutIntervalForRequest = 15
+        c.timeoutIntervalForResource = 30
+        return URLSession(configuration: c)
+    }()
+
+    init(baseURL: URL, apiKey: String? = nil, session: URLSession = SupabaseAuthClient.defaultSession) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.session = session
@@ -55,19 +75,53 @@ final class SupabaseAuthClient: @unchecked Sendable {
     /// POST {base}/auth/v1/signup — create a user. With GOTRUE_MAILER_AUTOCONFIRM
     /// the response carries a full session (access_token); if a deployment ever
     /// turns confirmation e-mails on, the 200 comes back WITHOUT a token and the
-    /// caller must surface a "confirm your email" state (SupabaseError.notSignedIn).
+    /// caller must surface a "confirm your email" state (EmailConfirmationPending).
     func signup(email: String, password: String) async throws -> SupabaseSessionResult {
         let (data, status) = try await post("/auth/v1/signup",
                                             body: Self.passwordBody(email: email, password: password))
         switch status {
         case 200:
             if let r = Self.parseTokenResponse(data) { return r }
-            // 200 without a token = confirmation-pending deployment.
-            throw SupabaseError.notSignedIn
+            // 200 without a token = confirmation-pending deployment — a distinct
+            // typed outcome, NOT an error ("You are not signed in." misleads here).
+            throw EmailConfirmationPending()
         case 400, 422:
             throw Self.mapSignupError(data)
         default:
             throw SupabaseError.serverError("Supabase signup failed (HTTP \(status)).")
+        }
+    }
+
+    /// POST {base}/auth/v1/recover — ask GoTrue to e-mail a password-reset link
+    /// (standard template). 200 = accepted even for unknown emails (no account
+    /// enumeration), so the UI copy must stay conditional ("if an account exists…").
+    func recover(email: String) async throws {
+        let (_, status) = try await post("/auth/v1/recover", body: Self.emailBody(email))
+        switch status {
+        case 200...299:
+            return
+        case 429:
+            throw SupabaseError.serverError("Too many reset requests. Wait a minute, then try again.")
+        default:
+            throw SupabaseError.serverError("We couldn't send the reset email right now. Try again in a moment.")
+        }
+    }
+
+    /// POST {base}/auth/v1/token?grant_type=refresh_token — trade the stored
+    /// refresh token for a fresh session (GoTrue rotates the refresh token).
+    func refresh(refreshToken: String) async throws -> SupabaseSessionResult {
+        let (data, status) = try await post("/auth/v1/token?grant_type=refresh_token",
+                                            body: Self.refreshBody(refreshToken: refreshToken))
+        switch status {
+        case 200:
+            guard let r = Self.parseTokenResponse(data) else {
+                throw SupabaseError.serverError("Supabase: malformed refresh response.")
+            }
+            return r
+        case 400, 401, 403:
+            throw SupabaseError.notSignedIn   // refresh token expired/revoked → real sign-out
+        default:
+            throw SupabaseError.serverError("Supabase refresh failed (HTTP \(status)).")
         }
     }
 
@@ -124,6 +178,14 @@ final class SupabaseAuthClient: @unchecked Sendable {
 
     static func passwordBody(email: String, password: String) -> Data {
         (try? JSONSerialization.data(withJSONObject: ["email": email, "password": password])) ?? Data()
+    }
+
+    static func emailBody(_ email: String) -> Data {
+        (try? JSONSerialization.data(withJSONObject: ["email": email])) ?? Data()
+    }
+
+    static func refreshBody(refreshToken: String) -> Data {
+        (try? JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])) ?? Data()
     }
 
     /// GoTrue native id_token grant. `nonce` is the RAW nonce; GoTrue checks it

@@ -27,19 +27,16 @@ struct WeekInContextView: View {
         "SPENDING", "CALENDAR", "WEATHER"
     ]
 
-    /// Weekly glucose time-in-range %, oldest → today (presentation seed).
-    private static let tirWeek: [Double] = [71, 74, 69, 78, 80, 76, 84]
-    /// Weekly HRV (ms), oldest → today — the recovery / stress axis (presentation seed).
-    private static let hrvWeek: [Double] = [48, 45, 39, 41, 44, 50, 52]
-
-    // Real derived series/values when Health is connected, else the seeds above.
+    // Real derived series only — no presentation seeds. A fresh user must never
+    // see a fabricated trend presented as their own; the cards fall back to
+    // honest empty states instead (launch-audit PR-102 line).
     private var sig: TodaySignals? { appState.todaySignals }
-    private var tirValues: [Double] { (sig?.inRangeWeek.isEmpty == false) ? sig!.inRangeWeek : Self.tirWeek }
-    private var hrvValues: [Double] { (sig?.hrvWeek.isEmpty == false) ? sig!.hrvWeek : Self.hrvWeek }
-    private var hasRealTIR: Bool { (sig?.inRange ?? "—") != "—" }
-    private var hasRealHRV: Bool { (sig?.hrv ?? "—") != "—" }
-    private var tirHeadline: String { hasRealTIR ? sig!.inRange : "84%" }
-    private var hrvHeadline: String { hasRealHRV ? sig!.hrv + " ms" : "52 ms" }
+    private var tirValues: [Double] { sig?.inRangeWeek ?? [] }
+    private var hrvValues: [Double] { sig?.hrvWeek ?? [] }
+    private var hasRealTIR: Bool { tirValues.count >= 2 }
+    private var hasRealHRV: Bool { hrvValues.count >= 2 }
+    private var tirHeadline: String { sig?.inRange ?? "—" }
+    private var hrvHeadline: String { (sig?.hrv).map { $0 + " ms" } ?? "—" }
 
     struct SelectedCell: Equatable { let day: Int; let metric: Int }
 
@@ -111,14 +108,26 @@ struct WeekInContextView: View {
                     LiviqaSectionHeader(label: "7 days in context")
                         .padding(.horizontal, 20)
 
-                    // 3. Correlation grid card
-                    correlationGridCard
-                        .padding(.horizontal, 16)
+                    // 3. Correlation grid card (honest empty card until the
+                    // on-device deriver has a real week to show)
+                    if week.days.isEmpty {
+                        emptyTrendState("Your week is still filling in",
+                                        detail: "The 7-day grid builds from your own data as it arrives.")
+                            .background(LiviqaTheme.paper2)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+                            .padding(.horizontal, 16)
+                    } else {
+                        correlationGridCard
+                            .padding(.horizontal, 16)
+                    }
 
-                    // 4. Pattern callout
-                    patternCard
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
+                    // 4. Pattern callout — only when a real pattern was derived
+                    if !week.patternNote.isEmpty {
+                        patternCard
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                    }
 
                     // 5. MDR/AI Act note
                     regulatoryNoteCard
@@ -149,7 +158,8 @@ struct WeekInContextView: View {
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: chrome dissolves into the trend feed
         .background(LiviqaTheme.paper.ignoresSafeArea())
         .sheet(isPresented: $showShare) {
-            shareSheet
+            // The real multi-step share flow (same presentation as Settings).
+            ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
     }
 
@@ -181,13 +191,17 @@ struct WeekInContextView: View {
                     .font(.liviqaKicker(10.5)).tracking(0.8)
                     .foregroundStyle(LiviqaTheme.ink3)
                 Spacer()
-                HStack(spacing: 6) {
+                if hasRealTIR {
                     Text(tirHeadline).font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
-                    if !hasRealTIR { StatusPill(text: "▲ 8 pts", dot: nil) }
                 }
             }
-            AreaTrendChart(values: tirValues, tint: LiviqaTheme.moss,
-                           xTicks: week.days.map { $0.localizedDayLetter }, unit: "%")
+            if hasRealTIR {
+                AreaTrendChart(values: tirValues, tint: LiviqaTheme.moss,
+                               xTicks: week.days.map { $0.localizedDayLetter }, unit: "%")
+            } else {
+                emptyTrendState("No glucose data yet",
+                                detail: "Connect a data source and your week in range appears here.")
+            }
         }
         .padding(14)
         .background(LiviqaTheme.paper2)
@@ -208,32 +222,58 @@ struct WeekInContextView: View {
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
                 Spacer()
-                HStack(spacing: 6) {
+                if hasRealHRV {
                     Text(hrvHeadline).font(.liviqaMono(15)).foregroundStyle(LiviqaTheme.ink)
-                    if !hasRealHRV { StatusPill(text: "▲ 4 ms", dot: nil) }
                 }
             }
-            AreaTrendChart(values: hrvValues, tint: LiviqaTheme.moss,
-                           xTicks: week.days.map { $0.localizedDayLetter }, unit: " ms")
-            Text("In your data, your HRV ran lower mid-week — the days with higher meeting load and later meals. A pattern in your own data, not a medical finding.")
-                .font(.lato(12.5)).lineSpacing(2)
-                .foregroundStyle(LiviqaTheme.ink2)
-            Button { appState.showAssistant = true } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles").font(.system(size: 11, weight: .bold))
-                    Text("Ask the assistant about this").font(.lato(12.5, .bold))
-                    Image(systemName: "arrow.right").font(.system(size: 10, weight: .bold))
+            if hasRealHRV {
+                AreaTrendChart(values: hrvValues, tint: LiviqaTheme.moss,
+                               xTicks: week.days.map { $0.localizedDayLetter }, unit: " ms")
+                Text(hrvNarrative)
+                    .font(.lato(12.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                Button { appState.showAssistant = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles").font(.system(size: 11, weight: .bold))
+                        Text("Ask the assistant about this").font(.lato(12.5, .bold))
+                        Image(systemName: "arrow.right").font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundStyle(LiviqaTheme.moss)
                 }
-                .foregroundStyle(LiviqaTheme.moss)
+                .buttonStyle(.plain)
+                .padding(.top, 2)
+            } else {
+                emptyTrendState("No recovery data yet",
+                                detail: "HRV from your watch or ring appears here once it syncs.")
             }
-            .buttonStyle(.plain)
-            .padding(.top, 2)
         }
         .padding(14)
         .background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 0.5))
         .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+    }
+
+    /// Descriptive sentence computed from the user's own series — never a
+    /// canned story about meetings or meals the app knows nothing about.
+    private var hrvNarrative: String {
+        guard let lo = hrvValues.min(), let hi = hrvValues.max() else { return "" }
+        return "In your data, your HRV ranged from \(Int(lo.rounded())) to \(Int(hi.rounded())) ms this week. A pattern in your own data, not a medical finding."
+    }
+
+    /// Honest in-card empty state for the trend heroes (calm, no fake curve).
+    private func emptyTrendState(_ title: String, detail: String) -> some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.lato(14, .bold))
+                .foregroundStyle(LiviqaTheme.ink)
+            Text(detail)
+                .font(.lato(12.5))
+                .foregroundStyle(LiviqaTheme.ink3)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
     }
 
     // MARK: - Grid card
@@ -473,48 +513,47 @@ struct WeekInContextView: View {
 
     // MARK: - Weekly metrics row
 
+    // Real weekly derivations from todaySignals (TodaySignalsDeriver series) —
+    // never literal numbers. Each card falls back to an honest "No data yet".
     private var weeklyMetricsRow: some View {
         HStack(spacing: 8) {
-            WeeklyMetricCard(
-                value: "7.1",
-                unit: "mmol/L",
-                label: "GLUCOSE AVG",
-                deltaLabel: "▼ 0.8 from last week",
-                deltaColor: LiviqaTheme.moss
-            )
-            WeeklyMetricCard(
-                value: "7h 02",
-                unit: "",
-                label: "SLEEP",
-                deltaLabel: "▲ 18 min",
-                deltaColor: LiviqaTheme.moss
-            )
-            WeeklyMetricCard(
-                value: "42 ms",
-                unit: "",
-                label: "HRV",
-                deltaLabel: "▼ 8 ms",
-                deltaColor: LiviqaTheme.rust
-            )
+            weeklyCard(series: tirValues, unit: "%", label: "TIME IN RANGE",
+                       value: { "\(Int($0.rounded()))" },
+                       delta: { "\($0 >= 0 ? "▲" : "▼") \(abs(Int($0.rounded()))) pts this week" })
+            weeklyCard(series: sig?.sleepWeek ?? [], unit: "", label: "SLEEP",
+                       value: { Self.hoursMinutes($0) },
+                       delta: { "\($0 >= 0 ? "▲" : "▼") \(abs(Int(($0 * 60).rounded()))) min this week" })
+            weeklyCard(series: hrvValues, unit: "", label: "HRV",
+                       value: { "\(Int($0.rounded())) ms" },
+                       delta: { "\($0 >= 0 ? "▲" : "▼") \(abs(Int($0.rounded()))) ms this week" })
         }
     }
 
-    // MARK: - Share sheet placeholder
-
-    private var shareSheet: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Text("Share flow coming soon")
-                .font(.lato(15, .medium))
-                .foregroundStyle(LiviqaTheme.ink2)
-            Button("Dismiss") { showShare = false }
-                .font(.lato(14))
-                .foregroundStyle(LiviqaTheme.moss)
-            Spacer()
+    /// Week average + first→last trend computed from the user's own series.
+    @ViewBuilder
+    private func weeklyCard(series: [Double], unit: String, label: String,
+                            value: (Double) -> String,
+                            delta: (Double) -> String) -> some View {
+        if series.count >= 2, let first = series.first, let last = series.last {
+            let avg = series.reduce(0, +) / Double(series.count)
+            let d = last - first
+            WeeklyMetricCard(value: value(avg), unit: unit, label: label,
+                             deltaLabel: delta(d),
+                             deltaColor: d >= 0 ? LiviqaTheme.moss : LiviqaTheme.rust)
+        } else {
+            WeeklyMetricCard(value: "—", unit: "", label: label,
+                             deltaLabel: "No data yet",
+                             deltaColor: LiviqaTheme.ink2)
         }
-        .frame(maxWidth: .infinity)
-        .background(LiviqaTheme.paper.ignoresSafeArea())
     }
+
+    private static func hoursMinutes(_ hours: Double) -> String {
+        var h = Int(hours)
+        var m = Int(((hours - Double(h)) * 60).rounded())
+        if m == 60 { h += 1; m = 0 }
+        return String(format: "%dh %02d", h, m)
+    }
+
 }
 
 // MARK: - GridCell
@@ -610,6 +649,7 @@ private struct WeeklyMetricCard: View {
 
 #Preview {
     WeekInContextView()
+        .environment(AppState())
 }
 
 // Locale-correct weekday labels derived from the day's actual date (dateOffset

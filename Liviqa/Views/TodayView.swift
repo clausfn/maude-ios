@@ -214,9 +214,55 @@ struct TodayView: View {
         .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
-    private var affirmHeadline: String { String(localized: "You're having a steady week.") }
+    // Calm affirmation derived from the user's OWN week (simple descriptive
+    // heuristics on the real 7-day series — never a verdict, never medical).
+    // No signals yet (demo seeds) keeps the original steady copy; the genuine
+    // cold start is covered by the honest baseline card above.
+    private enum WeekTone { case steady, improving, uneven }
+
+    private var weekTone: WeekTone {
+        guard let s = signals else { return .steady }          // seeds → original copy
+        if s.inRangeIsClay { return .uneven }                  // the one flagged deviation
+        if tirImproving || sleepImproving { return .improving }
+        return .steady
+    }
+
+    /// Second-half average vs first-half average of a real 7-day series.
+    private func trendingUp(_ series: [Double], by delta: Double) -> Bool {
+        guard series.count >= 4 else { return false }
+        let half = series.count / 2
+        let early = series.prefix(half), late = series.suffix(series.count - half)
+        return late.reduce(0, +) / Double(late.count)
+             - early.reduce(0, +) / Double(early.count) >= delta
+    }
+
+    private var tirImproving: Bool {
+        guard let s = signals else { return false }
+        return trendingUp(s.inRangeWeek, by: 5)                // ≥5 points more in range
+    }
+    private var sleepImproving: Bool {
+        guard let s = signals else { return false }
+        return trendingUp(s.sleepWeek, by: 0.4)                // ≥ ~25 min longer nights
+    }
+
+    private var affirmHeadline: String {
+        switch weekTone {
+        case .steady:    return String(localized: "You're having a steady week.")
+        case .improving: return String(localized: "This week is trending gently up.")
+        case .uneven:    return String(localized: "A more uneven week — that happens.")
+        }
+    }
     private var affirmSub: String {
-        String(localized: "Sleep, glucose and recovery are all tracking close to your own normal.")
+        switch weekTone {
+        case .steady:
+            return String(localized: "Sleep, glucose and recovery are all tracking close to your own normal.")
+        case .improving:
+            return tirImproving
+                ? String(localized: "Recent days show a little more time in range than earlier in the week.")
+                : String(localized: "Recent nights have been a touch longer than earlier in the week.")
+        case .uneven:
+            return String(localized: "Glucose spent a bit less time in range this week — the day-to-day picture is just below.")
+        }
     }
 
     // MARK: — Honest cold start (no readings yet — nothing is faked)
