@@ -200,8 +200,26 @@ struct SundhedWebSessionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            LiviqaAppBar(title: "Connect Sundhed.dk", showMark: false, showsAvatar: false)
-                .padding(.horizontal, 16)
+            // Header with an explicit Back/close control (this is a full-screen
+            // WebView, so the standard nav back affordance isn't available).
+            HStack(spacing: 10) {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(LiviqaTheme.ink2)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(LiviqaTheme.paper2))
+                        .overlay(Circle().stroke(LiviqaTheme.line2, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+                Text("Connect Sundhed.dk")
+                    .font(.lato(17, .bold)).foregroundStyle(LiviqaTheme.ink)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
 
             if Config.sundhedWebConnectEnabled {
                 webStage
@@ -403,6 +421,7 @@ private struct SundhedWebView: UIViewRepresentable {
 
         let web = WKWebView(frame: .zero, configuration: config)
         web.isOpaque = false
+        web.allowsBackForwardNavigationGestures = true   // swipe to go back within sundhed.dk
         web.uiDelegate = context.coordinator          // grants getUserMedia (MitID QR/camera)
         web.navigationDelegate = context.coordinator  // pings session state per navigation
         context.coordinator.webView = web
