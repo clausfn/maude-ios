@@ -553,6 +553,9 @@ public struct SundhedImportView: View {
 
         do {
             try await ingestClient.ingestSundhed(body)
+            // Surface the parsed data so HealthPassportView actually shows it (the
+            // ingest wire body stays codes-only; this display merge is LOCAL).
+            mergeForDisplay()
             stage = .done
         } catch {
             errorMessage = (error as? SundhedIngestError)?.errorDescription ?? error.localizedDescription
@@ -586,6 +589,48 @@ public struct SundhedImportView: View {
             // Leave the marker unset so a later import retries; the ingest below still
             // runs and surfaces any "no covering grant" message verbatim.
         }
+    }
+
+    /// Surface the parsed Sundhed.dk data into the app so HealthPassportView
+    /// renders it. LOCAL, on-device DISPLAY mapping only — it does NOT change the
+    /// codes-only ingest wire body, so brand/form names are fine here. Merges into
+    /// the citizen's existing self-declared HealthContext by NAME: appends only
+    /// entries not already present, never wiping the user's own self-declared data.
+    @MainActor
+    private func mergeForDisplay() {
+        // Medications — display brand (falling back to active substance) + the
+        // strength/form as the "dose" line; tag the frequency as the source.
+        var existingMedNames = Set(appState.healthContext.medications.map {
+            $0.name.lowercased().trimmingCharacters(in: .whitespaces)
+        })
+        for m in parsedMeds {
+            let name = (m.brand.isEmpty ? m.activeSubstance : m.brand)
+                .trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty else { continue }
+            let key = name.lowercased()
+            guard !existingMedNames.contains(key) else { continue }
+            existingMedNames.insert(key)
+            let dose = (m.form ?? m.dosage ?? "").trimmingCharacters(in: .whitespaces)
+            appState.healthContext.medications.append(
+                MedicationEntry(name: name, dose: dose, frequency: "Sundhed.dk")
+            )
+        }
+        // Conditions — one entry per coded ICD-10 diagnosis (codes only).
+        var existingCondNames = Set(appState.healthContext.conditions.map {
+            $0.name.lowercased().trimmingCharacters(in: .whitespaces)
+        })
+        for code in parsedDiagnoses {
+            let name = code.trimmingCharacters(in: .whitespaces).uppercased()
+            guard !name.isEmpty else { continue }
+            let key = name.lowercased()
+            guard !existingCondNames.contains(key) else { continue }
+            existingCondNames.insert(key)
+            appState.healthContext.conditions.append(
+                ConditionEntry(name: name, diagnosedYear: nil, notes: "Sundhed.dk (ICD-10)")
+            )
+        }
+        // TODO: surface imported labs (parsedLabs) via the passport-stats (derived)
+        // layer — labs are derived metrics, not self-declared HealthContext.
     }
 
     /// Return to idle and drop all transient parse buffers from memory.

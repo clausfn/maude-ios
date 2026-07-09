@@ -334,6 +334,9 @@ struct SundhedWebSessionView: View {
         await ensureCoveringGrant()
         do {
             try await client.ingestSundhed(body)
+            // Surface what landed so HealthPassportView actually shows it (the
+            // ingest wire body stays codes-only; this display merge is LOCAL).
+            mergeForDisplay(harvest)
             phase = .done
             message = "Done — your Sundhed.dk labs, medicine, and diagnoses are now in Liviqa as summaries and codes."
         } catch {
@@ -347,6 +350,50 @@ struct SundhedWebSessionView: View {
     private func fail(_ text: String) {
         phase = .failed
         message = text
+    }
+
+    /// Surface the imported Sundhed.dk data into the app so HealthPassportView
+    /// renders it. This is a LOCAL, on-device DISPLAY mapping only — it does NOT
+    /// change the codes-only ingest wire body, so brand/form names are fine here.
+    /// Merges into the citizen's existing self-declared HealthContext by NAME:
+    /// appends only entries that aren't already present, never wiping the user's
+    /// own self-declared meds/conditions.
+    @MainActor
+    private func mergeForDisplay(_ h: SundhedWebHarvest) {
+        // Medications — display brand (falling back to active substance) + the
+        // form as the "dose" line; tag the frequency as the source.
+        var existingMedNames = Set(appState.healthContext.medications.map {
+            $0.name.lowercased().trimmingCharacters(in: .whitespaces)
+        })
+        for m in h.meds {
+            let name = (m.brand ?? m.activeSubstance ?? "").trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty else { continue }
+            let key = name.lowercased()
+            guard !existingMedNames.contains(key) else { continue }
+            existingMedNames.insert(key)
+            appState.healthContext.medications.append(
+                MedicationEntry(name: name,
+                                dose: (m.form ?? "").trimmingCharacters(in: .whitespaces),
+                                frequency: "Sundhed.dk")
+            )
+        }
+        // Conditions — one entry per coded ICD-10 diagnosis (codes only).
+        var existingCondNames = Set(appState.healthContext.conditions.map {
+            $0.name.lowercased().trimmingCharacters(in: .whitespaces)
+        })
+        for c in h.conditions {
+            let code = (c.icd10 ?? "").trimmingCharacters(in: .whitespaces).uppercased()
+            guard !code.isEmpty else { continue }
+            let key = code.lowercased()
+            guard !existingCondNames.contains(key) else { continue }
+            existingCondNames.insert(key)
+            appState.healthContext.conditions.append(
+                ConditionEntry(name: code, diagnosedYear: nil, notes: "Sundhed.dk (ICD-10)")
+            )
+        }
+        // TODO: surface imported labs (h.labs) via the passport-stats (derived)
+        // layer — labs are derived metrics, not self-declared HealthContext, so
+        // they are intentionally NOT merged here.
     }
 
     /// Ensure an active consent grant covers the Sundhed metric groups (labs / meds /
@@ -671,74 +718,103 @@ private struct SundhedWebView: UIViewRepresentable {
       };
 
       // --- LABS: svaroversigt → aggregate per Titel component -------------------
-      function harvestLabs() {
-        var url = "/app/proevesvarportal/api/v1/svaroversigt"
+      var SVAROVERSIGT = "/app/proevesvarportal/api/v1/svaroversigt";
+      function svaroversigtURL() {
+        return SVAROVERSIGT
           + "?fra=" + encodeURIComponent(isoYearsAgo(10))
           + "&til=" + encodeURIComponent(isoNow())
           + "&source=RegionaleProevesvar&omraade=Alle";
-        return getJSON(url).then(function (j) {
-          var sv = (j && (j.Svaroversigt || j.svaroversigt)) || j || {};
-          var results = sv.Laboratorieresultater || sv.laboratorieresultater
-                     || sv.Resultater || sv.resultater || sv.results || null;
-          var types = sv.Analysetyper || sv.analysetyper || {};
-          if (!Array.isArray(results) || !results.length) {
-            results = scanForResultArray(j, 0) || [];
-          }
-          // id → Titel lookup, tolerating a map {id:{Titel}} or an array.
-          function titelFor(id) {
-            if (id === null || id === undefined) return null;
-            var t = types[id] || types[String(id)];
-            if (!t && Array.isArray(types)) {
-              for (var i = 0; i < types.length; i++) {
-                var e = types[i];
-                var eid = (e && (e.AnalysetypeId != null ? e.AnalysetypeId : e.Id));
-                if (eid != null && String(eid) === String(id)) { t = e; break; }
-              }
+      }
+      // Reduce one svaroversigt JSON payload → [{component,specimen,unit,latest,
+      // mean,n,latestDate}]. Keeps the defensive parsing (scanForResultArray).
+      function reduceSvaroversigt(j) {
+        var sv = (j && (j.Svaroversigt || j.svaroversigt)) || j || {};
+        var results = sv.Laboratorieresultater || sv.laboratorieresultater
+                   || sv.Resultater || sv.resultater || sv.results || null;
+        var types = sv.Analysetyper || sv.analysetyper || {};
+        if (!Array.isArray(results) || !results.length) {
+          results = scanForResultArray(j, 0) || [];
+        }
+        // id → Titel lookup, tolerating a map {id:{Titel}} or an array.
+        function titelFor(id) {
+          if (id === null || id === undefined) return null;
+          var t = types[id] || types[String(id)];
+          if (!t && Array.isArray(types)) {
+            for (var i = 0; i < types.length; i++) {
+              var e = types[i];
+              var eid = (e && (e.AnalysetypeId != null ? e.AnalysetypeId : e.Id));
+              if (eid != null && String(eid) === String(id)) { t = e; break; }
             }
-            if (!t) return null;
-            return t.Titel || t.titel || t.Navn || t.navn || null;
           }
-          var by = {};
-          (results || []).forEach(function (row) {
-            if (!row || typeof row !== "object") return;
-            var id = (row.AnalysetypeId != null ? row.AnalysetypeId
-                    : (row.analysetypeId != null ? row.analysetypeId : row.TypeId));
-            var titel = titelFor(id)
-                      || row.Titel || row.titel || row.Analysenavn || row.Navn || row.name;
-            if (!titel) return;
-            // Titel like "Hæmoglobin;B" / "Alanintransaminase [ALAT];P" → split on ';'.
-            var parts = String(titel).split(";");
-            var component = parts[0].trim();
-            var specimen = parts.length > 1 ? (parts[1].trim() || null) : null;
-            var unit = row.Enhed || row.enhed || row.unit || null;
-            var val = num(row.Vaerdi != null ? row.Vaerdi
-                        : (row.vaerdi != null ? row.vaerdi : row.value));
-            var date = row.Resultatdato || row.resultatdato
-                     || row.Provetagningsdato || row.date || null;
-            var key = component + "|" + (specimen || "");
-            var b = by[key] || (by[key] = {
-              component: component, specimen: specimen, unit: unit,
-              _sum: 0, _num: 0, n: 0, latest: null, latestDate: null
-            });
-            if (!b.unit && unit) b.unit = unit;
-            b.n += 1;                                        // count every row (n)
-            if (val != null) { b._sum += val; b._num += 1; } // numerics into mean only
-            if (date && (!b.latestDate || String(date) > String(b.latestDate))) {
-              b.latestDate = date;
-              b.latest = val;                                // value at the newest date
-            }
+          if (!t) return null;
+          return t.Titel || t.titel || t.Navn || t.navn || null;
+        }
+        var by = {};
+        (results || []).forEach(function (row) {
+          if (!row || typeof row !== "object") return;
+          var id = (row.AnalysetypeId != null ? row.AnalysetypeId
+                  : (row.analysetypeId != null ? row.analysetypeId : row.TypeId));
+          var titel = titelFor(id)
+                    || row.Titel || row.titel || row.Analysenavn || row.Navn || row.name;
+          if (!titel) return;
+          // Titel like "Hæmoglobin;B" / "Alanintransaminase [ALAT];P" → split on ';'.
+          var parts = String(titel).split(";");
+          var component = parts[0].trim();
+          var specimen = parts.length > 1 ? (parts[1].trim() || null) : null;
+          var unit = row.Enhed || row.enhed || row.unit || null;
+          var val = num(row.Vaerdi != null ? row.Vaerdi
+                      : (row.vaerdi != null ? row.vaerdi : row.value));
+          var date = row.Resultatdato || row.resultatdato
+                   || row.Provetagningsdato || row.date || null;
+          var key = component + "|" + (specimen || "");
+          var b = by[key] || (by[key] = {
+            component: component, specimen: specimen, unit: unit,
+            _sum: 0, _num: 0, n: 0, latest: null, latestDate: null
           });
-          return Object.keys(by).map(function (k) {
-            var b = by[k];
-            return {
-              component: b.component,
-              specimen: b.specimen,
-              unit: b.unit,
-              latest: b.latest,
-              mean: b._num ? Math.round((b._sum / b._num) * 1000) / 1000 : null,
-              n: b.n,
-              latestDate: b.latestDate
-            };
+          if (!b.unit && unit) b.unit = unit;
+          b.n += 1;                                        // count every row (n)
+          if (val != null) { b._sum += val; b._num += 1; } // numerics into mean only
+          if (date && (!b.latestDate || String(date) > String(b.latestDate))) {
+            b.latestDate = date;
+            b.latest = val;                                // value at the newest date
+          }
+        });
+        return Object.keys(by).map(function (k) {
+          var b = by[k];
+          return {
+            component: b.component,
+            specimen: b.specimen,
+            unit: b.unit,
+            latest: b.latest,
+            mean: b._num ? Math.round((b._sum / b._num) * 1000) / 1000 : null,
+            n: b.n,
+            latestDate: b.latestDate
+          };
+        });
+      }
+      function wait(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+      // Best-effort WARM-UP: the labs live in the proevesvar sub-app, whose own
+      // session must be established before svaroversigt returns anything. Meds
+      // worked (citizen was on Medicinkortet) but labs came back 0 because that
+      // sub-app was never opened. Touch it here so its session goes warm. Every
+      // hop is caught — a warm-up failure must NEVER break labs, let alone meds.
+      function warmProevesvar() {
+        return rawGET("/app/proevesvarportal/").catch(function () {})
+          .then(function () {
+            return rawGET("/borger/min-side/min-sundhedsjournal/laboratoriesvar/");
+          }).catch(function () {});
+      }
+      function harvestLabs() {
+        var url = svaroversigtURL();
+        // Warm the sub-app FIRST (wrapped so it can never throw), then read.
+        return warmProevesvar().then(function () {
+          return getJSON(url).then(reduceSvaroversigt, function () { return null; });
+        }).then(function (rows) {
+          if (rows && rows.length) return rows;
+          // First read empty/non-ok → the sub-app session may still have been
+          // cold. Wait briefly and retry ONCE, then give up to [] (never sink meds).
+          return wait(600).then(function () {
+            return getJSON(url).then(reduceSvaroversigt, function () { return []; });
           });
         });
       }
