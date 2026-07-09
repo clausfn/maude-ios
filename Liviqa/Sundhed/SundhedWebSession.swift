@@ -193,10 +193,31 @@ struct SundhedWebSessionView: View {
     @State private var loggedIn = false
     @State private var phase: Phase = .idle
     @State private var message: String?
-    /// Bumped to ask the WebView coordinator to run the in-page harvest.
+    /// Bumped to ask the WebView coordinator to assemble + run the in-page harvest.
     @State private var harvestNonce = 0
+    /// Bumped after a successful ingest to clear the transient sessionStorage caps.
+    @State private var clearNonce = 0
+    /// Per-section capture state for the visible checklist (meds/labs/conditions/journal).
+    @State private var secState: [String: SecState] = SundhedWebSessionView.freshSecState
 
     enum Phase: Equatable { case idle, harvesting, ingesting, done, failed }
+
+    /// A section row in the "what's coming in" checklist.
+    enum SecState { case pending, active, done }
+    struct SectionRow: Identifiable { let key: String; let title: String; let icon: String; var id: String { key } }
+
+    /// Walk order = the order the coordinator drives the WebView through. Keys match
+    /// the JS interceptor's `progress` section names (journal capture reports as
+    /// "conditions", so its checklist tick lands when the walk finishes).
+    static let sectionRows: [SectionRow] = [
+        .init(key: "meds",       title: "Medicine",         icon: "pills"),
+        .init(key: "labs",       title: "Lab results",      icon: "testtube.2"),
+        .init(key: "conditions", title: "Diagnoses",        icon: "list.bullet.clipboard"),
+        .init(key: "journal",    title: "Hospital journal", icon: "cross.case"),
+    ]
+    static var freshSecState: [String: SecState] {
+        ["meds": .pending, "labs": .pending, "conditions": .pending, "journal": .pending]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -237,13 +258,36 @@ struct SundhedWebSessionView: View {
     private var webStage: some View {
         SundhedWebView(
             harvestNonce: harvestNonce,
+            clearNonce: clearNonce,
             onSessionChange: { loggedIn = $0 },
+            onProgress: { section, ok in handleProgress(section, ok) },
             onHarvest: { harvest in Task { await ingest(harvest) } },
             onError: { fail($0) }
         )
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .padding(.horizontal, 16)
         .padding(.top, 8)
+    }
+
+    /// Relay the interceptor's section progress + the coordinator's walk cursor into
+    /// the visible checklist. `ok == true` ⇒ a capture landed for `section`;
+    /// `ok == false` ⇒ the coordinator just started navigating to `section` (mark it
+    /// active and everything before it done). `__walkdone__` ⇒ tick everything.
+    @MainActor
+    private func handleProgress(_ section: String, _ ok: Bool) {
+        if section == "__walkdone__" {
+            for k in secState.keys { secState[k] = .done }
+            return
+        }
+        if ok {
+            if secState[section] != nil { secState[section] = .done }
+            return
+        }
+        var reached = false
+        for r in Self.sectionRows {
+            if r.key == section { reached = true; secState[r.key] = .active }
+            else if !reached, secState[r.key] != .done { secState[r.key] = .done }
+        }
     }
 
     // MARK: Controls
@@ -256,12 +300,18 @@ struct SundhedWebSessionView: View {
                     .foregroundStyle(phase == .failed ? LiviqaTheme.rust : LiviqaTheme.ink3)
             }
 
+            // Once signed in, the coordinator auto-walks the four journal sections;
+            // this checklist ticks each one off as its capture arrives.
+            if loggedIn { checklist }
+
             Text(loggedIn
-                 ? "You're signed in to Sundhed.dk. Liviqa reads only your lab results, current medicine, and diagnosis codes — as summaries and codes. Your journal text is never read."
+                 ? "You're signed in to Sundhed.dk. Liviqa is opening your Medicine, Lab results, Diagnoses and Hospital-journal pages and reading only summaries and codes. Your journal text is never read."
                  : "Sign in with MitID above. Liviqa never sees or stores your MitID login — that happens directly with Sundhed.dk.")
                 .font(.lato(12)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink3)
 
+            // Manual assemble+ingest — the "I'm done, bring it in" control. Works even
+            // if the auto-walk stalls: it assembles whatever caps have accumulated.
             Button { harvestNonce += 1; phase = .harvesting; message = "Reading your Sundhed.dk data on this device…" } label: {
                 HStack(spacing: 8) {
                     if phase == .harvesting || phase == .ingesting { ProgressView().tint(.white) }
@@ -277,6 +327,36 @@ struct SundhedWebSessionView: View {
             .disabled(!canHarvest)
         }
         .padding(16)
+    }
+
+    /// The section checklist shown while connected: one row per data type, ticking
+    /// pending → active (spinner) → done (check) as the walk + interceptor progress.
+    private var checklist: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(Self.sectionRows) { row in
+                let st = secState[row.key] ?? .pending
+                HStack(spacing: 10) {
+                    Group {
+                        switch st {
+                        case .done:    Image(systemName: "checkmark.circle.fill").foregroundStyle(LiviqaTheme.moss)
+                        case .active:  ProgressView().scaleEffect(0.7)
+                        case .pending: Image(systemName: "circle").foregroundStyle(LiviqaTheme.ink4)
+                        }
+                    }
+                    .font(.system(size: 15))
+                    .frame(width: 20, height: 20)
+                    Image(systemName: row.icon)
+                        .font(.system(size: 12))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .frame(width: 18)
+                    Text(row.title)
+                        .font(.lato(13, st == .pending ? .regular : .bold))
+                        .foregroundStyle(st == .pending ? LiviqaTheme.ink3 : LiviqaTheme.ink)
+                    Spacer()
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     // The button is available whenever a pull isn't already running — it does NOT
@@ -337,6 +417,8 @@ struct SundhedWebSessionView: View {
             // Surface what landed so HealthPassportView actually shows it (the
             // ingest wire body stays codes-only; this display merge is LOCAL).
             mergeForDisplay(harvest)
+            // Clear the transient sessionStorage caps now that the coded summary is in.
+            clearNonce += 1
             phase = .done
             message = "Done — your Sundhed.dk labs, medicine, and diagnoses are now in Liviqa as summaries and codes."
         } catch {
@@ -433,28 +515,38 @@ struct SundhedWebSessionView: View {
 /// ConsultView.ConsultWebView (same WKUIDelegate media grant), with an added
 /// WKUserScript + WKScriptMessageHandler for the harvest.
 private struct SundhedWebView: UIViewRepresentable {
-    /// Incrementing this asks the coordinator to run the in-page harvest once.
+    /// Incrementing this asks the coordinator to assemble + run the in-page harvest once.
     let harvestNonce: Int
+    /// Incrementing this asks the coordinator to clear the transient sessionStorage caps.
+    let clearNonce: Int
     let onSessionChange: (Bool) -> Void
+    /// (section, ok): interceptor capture progress + the coordinator's walk cursor.
+    let onProgress: (String, Bool) -> Void
     let onHarvest: (SundhedWebHarvest) -> Void
     let onError: (String) -> Void
 
-    /// sundhed.dk origin — the WebView starts here and the reducer only ever
-    /// fetches SAME-ORIGIN paths under it (never a third-party host).
+    /// sundhed.dk origin — the WebView starts here and the interceptor only ever
+    /// observes SAME-ORIGIN paths under it (never a third-party host).
     static let startURL = URL(string: "https://www.sundhed.dk")!
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onSessionChange: onSessionChange, onHarvest: onHarvest, onError: onError)
+        Coordinator(onSessionChange: onSessionChange,
+                    onProgress: onProgress,
+                    onHarvest: onHarvest,
+                    onError: onError)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let controller = WKUserContentController()
-        // JS→Swift channel. `contentWorld: .page` so the injected reducer and the
+        // JS→Swift channel. `contentWorld: .page` so the injected interceptor and the
         // handler name resolve in the page's own world (same as the page's fetch).
         controller.add(context.coordinator, name: Coordinator.channel)
+        // CHANGE 1: inject at documentStart so the fetch/XHR interceptor patches the
+        // network layer BEFORE the SPA runs its own gated requests (labs return {}
+        // to a re-fetch, so we must observe the SPA's OWN request instead).
         controller.addUserScript(WKUserScript(
             source: Self.injectedReducerJS,
-            injectionTime: .atDocumentEnd,
+            injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         ))
 
@@ -477,10 +569,17 @@ private struct SundhedWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // Fire the harvest exactly once per nonce bump.
+        // Fire the assemble+harvest exactly once per nonce bump (and cancel the
+        // auto-walk — a manual "bring it in" supersedes it).
         if harvestNonce != context.coordinator.lastHarvestNonce {
             context.coordinator.lastHarvestNonce = harvestNonce
+            context.coordinator.cancelWalk()
             context.coordinator.runHarvest()
+        }
+        // Clear the transient caps exactly once per clear-nonce bump.
+        if clearNonce != context.coordinator.lastClearNonce {
+            context.coordinator.lastClearNonce = clearNonce
+            context.coordinator.clearCaps()
         }
     }
 
@@ -496,25 +595,85 @@ private struct SundhedWebView: UIViewRepresentable {
 
         weak var webView: WKWebView?
         var lastHarvestNonce = 0
+        var lastClearNonce = 0
 
         private let onSessionChange: (Bool) -> Void
+        private let onProgress: (String, Bool) -> Void
         private let onHarvest: (SundhedWebHarvest) -> Void
         private let onError: (String) -> Void
         private static let decoder = JSONDecoder()
 
+        // CHANGE 3 — SECTION WALK. Once login is detected, drive the WebView through
+        // the four Min Sundhedsjournal sections in order (full navigations, so the
+        // documentStart interceptor re-arms on each and the SPA fires its own gated
+        // calls, which we capture). Generous per-section dwell; a monotonically
+        // increasing generation cancels stale timers when the walk is superseded.
+        private static let walkSections: [(key: String, url: String)] = [
+            ("meds",       "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/medicinkortet/"),
+            ("labs",       "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/laboratoriesvar/"),
+            ("conditions", "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/diagnoser/"),
+            ("journal",    "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/journal-fra-sygehus/"),
+        ]
+        private static let sectionDwell: TimeInterval = 5.5
+        private var walkStarted = false
+        private var walkIndex = -1
+        private var walkGeneration = 0
+
         init(onSessionChange: @escaping (Bool) -> Void,
+             onProgress: @escaping (String, Bool) -> Void,
              onHarvest: @escaping (SundhedWebHarvest) -> Void,
              onError: @escaping (String) -> Void) {
             self.onSessionChange = onSessionChange
+            self.onProgress = onProgress
             self.onHarvest = onHarvest
             self.onError = onError
         }
 
-        /// Ask the page to run the reducer. Result comes back over the message
-        /// channel (`postMessage`), not this call's completion handler.
+        /// Ask the page to assemble the accumulated caps and post the harvest. Result
+        /// comes back over the message channel (`postMessage`), not this completion.
         func runHarvest() {
             webView?.evaluateJavaScript("window.__liviqaSundhedHarvest && window.__liviqaSundhedHarvest();") { [weak self] _, err in
                 if let err { self?.onError("Couldn't read your data in the page: \(err.localizedDescription)") }
+            }
+        }
+
+        /// Clear the transient sessionStorage caps (called after a successful ingest).
+        func clearCaps() {
+            webView?.evaluateJavaScript("window.__liviqaSundhedClear && window.__liviqaSundhedClear();", completionHandler: nil)
+        }
+
+        // MARK: Section walk
+
+        /// Start the section walk once, the first time we see a logged-in session.
+        func beginWalkIfNeeded() {
+            guard !walkStarted else { return }
+            walkStarted = true
+            walkGeneration += 1
+            loadWalkSection(0, generation: walkGeneration)
+        }
+
+        /// Cancel any in-flight walk (manual harvest supersedes it).
+        func cancelWalk() { walkGeneration += 1 }
+
+        private func loadWalkSection(_ i: Int, generation: Int) {
+            guard generation == walkGeneration else { return }
+            guard i < Self.walkSections.count else { finishWalk(generation: generation); return }
+            walkIndex = i
+            let s = Self.walkSections[i]
+            onProgress(s.key, false)                       // mark this row active
+            if let url = URL(string: s.url) { webView?.load(URLRequest(url: url)) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.sectionDwell) { [weak self] in
+                guard let self, generation == self.walkGeneration, self.walkIndex == i else { return }
+                self.loadWalkSection(i + 1, generation: generation)
+            }
+        }
+
+        private func finishWalk(generation: Int) {
+            // Let the last section's captures settle, tick everything, then assemble.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self, generation == self.walkGeneration else { return }
+                self.onProgress("__walkdone__", true)
+                self.runHarvest()
             }
         }
 
@@ -538,7 +697,11 @@ private struct SundhedWebView: UIViewRepresentable {
 
             switch kind {
             case "session":
-                onSessionChange((dict["loggedIn"] as? Bool) ?? false)
+                let inNow = (dict["loggedIn"] as? Bool) ?? false
+                onSessionChange(inNow)
+                if inNow { beginWalkIfNeeded() }         // auto-walk once, on first login
+            case "progress":
+                onProgress((dict["section"] as? String) ?? "", (dict["ok"] as? Bool) ?? false)
             case "error":
                 onError((dict["message"] as? String) ?? "Couldn't read your Sundhed.dk data.")
             case "harvest":
@@ -586,9 +749,10 @@ private struct SundhedWebView: UIViewRepresentable {
             (url.host?.lowercased()) == "app.mitid.dk"
         }
 
-        // Navigation → refresh login state cheaply (the page also posts on load).
+        // Navigation → refresh login state cheaply (the page also posts on load) and
+        // re-run the DOM code scan (no-op unless on the diagnoser/journal page).
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            webView.evaluateJavaScript("window.__liviqaSundhedProbe && window.__liviqaSundhedProbe();", completionHandler: nil)
+            webView.evaluateJavaScript("window.__liviqaSundhedProbe && window.__liviqaSundhedProbe(); window.__liviqaSundhedScan && window.__liviqaSundhedScan();", completionHandler: nil)
         }
 
         // Grant camera/mic for MitID flows that use them (QR scan). The OS still
@@ -603,40 +767,88 @@ private struct SundhedWebView: UIViewRepresentable {
         }
     }
 
-    // MARK: - Injected in-page reducer (JS)
+    // MARK: - Injected in-page interceptor + reducer (JS)
     //
-    // Runs in the sundhed.dk page's own world, using the citizen's live cookie
-    // session. It:
-    //   1. exposes __liviqaSundhedProbe()  → posts {type:"session", loggedIn}
-    //   2. exposes __liviqaSundhedHarvest() → same-origin fetches, REDUCES to
-    //      codes + aggregates, posts {type:"harvest", payload:<SundhedWebHarvest>}
-    // It NEVER fetches journal-fra-sygehus free text (deferred, rule 4), NEVER
-    // sends brand/description prose as narrative, and only ever calls SAME-ORIGIN
-    // paths on www.sundhed.dk with the X-XSRF-TOKEN self-access header.
+    // Runs in the sundhed.dk page's own world at DOCUMENT START, using the citizen's
+    // live cookie session. Re-fetching the self-access APIs fails for labs (the
+    // proevesvar SPA gates svaroversigt behind its own session state → a direct
+    // re-fetch answers 200 {} while the SPA's OWN request returns the full ~46KB).
+    // So instead of re-issuing requests we INTERCEPT the SPA's own network calls.
+    // It:
+    //   1. patches window.fetch + XMLHttpRequest to OBSERVE responses and stash the
+    //      raw text of the four self-access endpoints into sessionStorage caps
+    //      (survives same-origin navigation, so captures ACCUMULATE across the walk);
+    //   2. runs a DOM fallback on the diagnoser + journal-fra-sygehus pages, reading
+    //      only the "ICD 10:" / "Diagnosekode:" CODES from the rendered detail;
+    //   3. exposes __liviqaSundhedProbe()   → posts {type:"session", loggedIn};
+    //   4. exposes __liviqaSundhedHarvest()  → REDUCES the accumulated caps to codes
+    //      + aggregates, posts {type:"harvest", payload:<SundhedWebHarvest>};
+    //   5. exposes __liviqaSundhedClear()    → drops the caps after a successful ingest.
     //
-    // ── LIVE SELF-ACCESS ENDPOINTS (proven; memory: sundhed_ingest_live) ───────
-    // Wired to the citizen's own self-access APIs. Auth for EVERY call is the same
-    // same-origin XSRF pattern: fetch(path, {credentials:"include",
-    //   headers:{ "X-XSRF-TOKEN": decodeURIComponent(
-    //     (document.cookie.match(/XSRF-TOKEN=([^;]+)/)||[])[1] || "") }}).
-    //   LABS  GET /app/proevesvarportal/api/v1/svaroversigt?fra=…&til=…&source=RegionaleProevesvar&omraade=Alle
+    // CODES-ONLY DISCIPLINE (rule 3): labs/meds API JSON (numeric + coded) is stashed
+    // transiently and cleared after ingest; diagnoser/journal responses are NEVER
+    // stored as prose — only ICD-10 codes are extracted from them. Journal free-text
+    // narrative is never captured, stored, or uploaded.
+    //
+    // ── SELF-ACCESS ENDPOINTS OBSERVED (proven; memory: sundhed_ingest_live) ───
+    //   LABS  GET …/proevesvarportal/api/v1/svaroversigt
     //         → Svaroversigt.Laboratorieresultater[] (+ Svaroversigt.Analysetyper id→Titel)
-    //   MEDS  GET /app/medicinkort2borger/api/v1/ordinations/  → array of ordinations
-    //   COND  best-effort only (no proven diagnoser JSON) → conditions stays [].
-    // Aggregation runs IN PAGE to codes + numeric summaries; the postMessage shape
-    // (SundhedWebHarvest) is unchanged, and journal-fra-sygehus is NEVER fetched.
+    //   MEDS  GET …/medicinkort2borger/api/v1/ordinations/  → array of ordinations
+    //   COND  DOM fallback on …/diagnoser/ ("ICD 10:") + …/journal-fra-sygehus/
+    //         ("Diagnosekode:"); any diagnoser/ejournal JSON is scanned for codes only.
     // ──────────────────────────────────────────────────────────────────────────
     static let injectedReducerJS = #"""
     (function () {
       "use strict";
-      // ===== LIVIQA SUNDHED REDUCER — BEGIN (injected, page world) =====
+      // ===== LIVIQA SUNDHED INTERCEPTOR + REDUCER — BEGIN (injected, documentStart) =====
       var CH = "liviqaSundhed";
       function post(msg) {
         try { window.webkit.messageHandlers[CH].postMessage(msg); } catch (e) {}
       }
       function postErr(m) { post({ type: "error", message: String(m || "read failed") }); }
 
-      // --- self-access session helpers -----------------------------------------
+      // --- sessionStorage caps (accumulate across same-origin navigations) ------
+      var CAP = { labs: "liviqa.cap.labs", meds: "liviqa.cap.meds", conditions: "liviqa.cap.conditions" };
+      function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+      function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+      // Keep the largest response per key (svaroversigt fires several times; the
+      // most-complete one wins). Returns true if it replaced the stored value.
+      function keepBiggest(k, text) {
+        if (!text) return false;
+        var prev = ssGet(k);
+        if (!prev || text.length > prev.length) { ssSet(k, text); return true; }
+        return false;
+      }
+      function ssCodes() {
+        try { var a = JSON.parse(ssGet(CAP.conditions) || "[]"); return Array.isArray(a) ? a : []; }
+        catch (e) { return []; }
+      }
+      // Uppercase + dedupe ICD-10 (SKS) codes into the conditions cap.
+      function addConditionCodes(codes) {
+        if (!codes || !codes.length) return;
+        var cur = ssCodes(), set = {}, added = 0;
+        cur.forEach(function (c) { set[c] = true; });
+        codes.forEach(function (c) {
+          if (!c) return;
+          var up = String(c).toUpperCase().replace(/\s+/g, "");
+          if (up && !set[up]) { set[up] = true; cur.push(up); added++; }
+        });
+        if (added) { ssSet(CAP.conditions, JSON.stringify(cur)); post({ type: "progress", section: "conditions", ok: true }); }
+      }
+      // Pull ICD-10 codes out of arbitrary text — labelled ("ICD 10: dm420",
+      // "Diagnosekode: DE104") or bare D-prefixed SKS ("DM420"). Codes only; used on
+      // both rendered DOM text and on diagnoser/ejournal JSON (never stored as prose).
+      function collectCodes(text) {
+        if (!text) return [];
+        var out = [], m;
+        var reLabel = /(?:ICD[\s\-]?10|Diagnosekode)\s*[:：]?\s*([A-Za-z]{1,2}\d{2}[0-9A-Za-z]{0,4})/gi;
+        while ((m = reLabel.exec(text)) !== null) out.push(m[1]);
+        var reSks = /\bD[A-Z]\d{2}[0-9A-Z]{0,4}\b/g;   // uppercase SKS in coded JSON fields
+        while ((m = reSks.exec(text)) !== null) out.push(m[1]);
+        return out;
+      }
+
+      // --- self-access session helpers (used only by the login probe) -----------
       function xsrf() {
         // sundhed.dk self-access APIs require the XSRF token echoed as a header.
         return decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || "");
@@ -650,18 +862,113 @@ private struct SundhedWebView: UIViewRepresentable {
         // SAME-ORIGIN only. credentials:"include" rides the MitID cookie session.
         return fetch(path, { method: "GET", credentials: "include", headers: authHeaders() });
       }
-      function getJSON(path) {
-        return rawGET(path).then(function (r) {
-          if (!r.ok) throw new Error(path + " → " + r.status);
-          return r.json();
+
+      // --- CHANGE 2: INTERCEPTOR — patch fetch + XHR to observe SPA responses ----
+      // Match a response URL to one of the four self-access endpoints.
+      function matchKey(url) {
+        if (!url) return null;
+        if (url.indexOf("/proevesvarportal/api/v1/svaroversigt") !== -1) return "labs";
+        if (url.indexOf("/medicinkort2borger/api/v1/ordinations") !== -1) return "meds";
+        if (/diagnoser\/api\//i.test(url) && /diagnoser/i.test(url)) return "codesJSON";
+        if (/ejournal|sygehusjournal|journal-fra-sygehus\/api/i.test(url)) return "codesJSON";
+        return null;
+      }
+      function capture(url, text) {
+        if (!text) return;
+        var key = matchKey(url);
+        if (!key) return;
+        if (key === "labs" || key === "meds") {
+          // Numeric/coded API JSON — stash transiently, biggest wins.
+          if (keepBiggest(CAP[key], text)) post({ type: "progress", section: key, ok: true });
+        } else if (key === "codesJSON") {
+          // Diagnoser/ejournal JSON: extract ICD-10 CODES only, never store the raw
+          // (may contain journal narrative — rule 3).
+          addConditionCodes(collectCodes(text));
+        }
+      }
+      (function patchFetch() {
+        var _fetch = window.fetch;
+        if (!_fetch) return;
+        window.fetch = function (input, init) {
+          var url = (typeof input === "string") ? input : (input && input.url) || "";
+          return _fetch.apply(this, arguments).then(function (resp) {
+            try {
+              if (resp && matchKey(url)) {
+                resp.clone().text().then(function (t) { capture(url, t); }).catch(function () {});
+              }
+            } catch (e) {}
+            return resp;
+          });
+        };
+      })();
+      (function patchXHR() {
+        var _open = XMLHttpRequest.prototype.open;
+        var _send = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.open = function (method, url) {
+          try { this.__liviqaURL = url; } catch (e) {}
+          return _open.apply(this, arguments);
+        };
+        XMLHttpRequest.prototype.send = function () {
+          var xhr = this;
+          try {
+            xhr.addEventListener("loadend", function () {
+              try {
+                var url = xhr.__liviqaURL || "";
+                if (matchKey(url) && xhr.status >= 200 && xhr.status < 300) capture(url, xhr.responseText || "");
+              } catch (e) {}
+            });
+          } catch (e) {}
+          return _send.apply(this, arguments);
+        };
+      })();
+
+      // --- CHANGE 4: DOM FALLBACK for diagnoser + journal-fra-sygehus ------------
+      // Their APIs are gated like labs', but the RENDERED DOM carries the codes.
+      var _clicked = (typeof WeakSet !== "undefined") ? new WeakSet() : null;
+      function expandDetails() {
+        // Click each "Vis diagnose detaljer" (and generic "vis detaljer/forløb")
+        // control ONCE to reveal the code lines; WeakSet stops re-toggling.
+        var re = /vis diagnose detaljer|vis detaljer|se detaljer|vis forl(ø|oe)b/i;
+        var els = document.querySelectorAll('button,[role="button"],a,li');
+        Array.prototype.forEach.call(els, function (b) {
+          try {
+            if (_clicked && _clicked.has(b)) return;
+            var t = (b.textContent || "").trim();
+            if (t.length > 0 && t.length < 60 && re.test(t)) {
+              if (_clicked) _clicked.add(b);
+              if (typeof b.click === "function") b.click();
+            }
+          } catch (e) {}
         });
       }
+      function onCodePage() {
+        return /diagnoser/.test(location.pathname) || /journal-fra-sygehus/.test(location.pathname);
+      }
+      // Read ONLY codes from the rendered text — never store the narrative prose.
+      window.__liviqaSundhedScan = function () {
+        try {
+          if (!onCodePage()) return;
+          expandDetails();
+          var body = document.body ? (document.body.innerText || document.body.textContent || "") : "";
+          addConditionCodes(collectCodes(body));
+        } catch (e) {}
+      };
+      function scheduleDomFallback() {
+        if (!onCodePage()) return;
+        var tries = 0;
+        var iv = setInterval(function () {
+          tries++;
+          window.__liviqaSundhedScan();
+          if (tries >= 8) clearInterval(iv);   // ~5.6s of re-scan as details expand
+        }, 700);
+      }
+
+      // --- assemble helpers: caps → SundhedWebHarvest ---------------------------
+      window.__liviqaSundhedClear = function () {
+        try { [CAP.labs, CAP.meds, CAP.conditions].forEach(function (k) { sessionStorage.removeItem(k); }); } catch (e) {}
+      };
 
       // --- date + number helpers -----------------------------------------------
-      function isoNow() { return new Date().toISOString(); }
-      function isoYearsAgo(y) {
-        var d = new Date(); d.setFullYear(d.getFullYear() - y); return d.toISOString();
-      }
       function num(v) {
         if (v === null || v === undefined) return null;
         // Danish decimals use comma; keep only the numeric part of "7,4".
@@ -717,14 +1024,7 @@ private struct SundhedWebView: UIViewRepresentable {
         });
       };
 
-      // --- LABS: svaroversigt → aggregate per Titel component -------------------
-      var SVAROVERSIGT = "/app/proevesvarportal/api/v1/svaroversigt";
-      function svaroversigtURL() {
-        return SVAROVERSIGT
-          + "?fra=" + encodeURIComponent(isoYearsAgo(10))
-          + "&til=" + encodeURIComponent(isoNow())
-          + "&source=RegionaleProevesvar&omraade=Alle";
-      }
+      // --- LABS: reduce a captured svaroversigt payload → aggregate per component -
       // Reduce one svaroversigt JSON payload → [{component,specimen,unit,latest,
       // mean,n,latestDate}]. Keeps the defensive parsing (scanForResultArray).
       function reduceSvaroversigt(j) {
@@ -792,126 +1092,81 @@ private struct SundhedWebView: UIViewRepresentable {
           };
         });
       }
-      function wait(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
-      // Best-effort WARM-UP: the labs live in the proevesvar sub-app, whose own
-      // session must be established before svaroversigt returns anything. Meds
-      // worked (citizen was on Medicinkortet) but labs came back 0 because that
-      // sub-app was never opened. Touch it here so its session goes warm. Every
-      // hop is caught — a warm-up failure must NEVER break labs, let alone meds.
-      function warmProevesvar() {
-        return rawGET("/app/proevesvarportal/").catch(function () {})
-          .then(function () {
-            return rawGET("/borger/min-side/min-sundhedsjournal/laboratoriesvar/");
-          }).catch(function () {});
-      }
-      function harvestLabs() {
-        var url = svaroversigtURL();
-        // Warm the sub-app FIRST (wrapped so it can never throw), then read.
-        return warmProevesvar().then(function () {
-          return getJSON(url).then(reduceSvaroversigt, function () { return null; });
-        }).then(function (rows) {
-          if (rows && rows.length) return rows;
-          // First read empty/non-ok → the sub-app session may still have been
-          // cold. Wait briefly and retry ONCE, then give up to [] (never sink meds).
-          return wait(600).then(function () {
-            return getJSON(url).then(reduceSvaroversigt, function () { return []; });
-          });
-        });
-      }
-
-      // --- MEDS: ordinations → one row per active substance --------------------
+      // --- MEDS: reduce a captured ordinations payload → one row per substance --
       function medStatusStr(row) {
         var s = row.Status || row.status;
         if (s == null) return null;
         if (typeof s === "object") return s.EnumStr || s.enumStr || s.Value || s.value || null;
         return String(s);
       }
-      function harvestMeds() {
-        return getJSON(MEDS).then(function (j) {
-          var rows = Array.isArray(j) ? j
-                   : (j.items || j.results || j.data || j.ordinations || j.Ordinations || []);
-          var out = [];
-          var seen = {};
-          (rows || []).forEach(function (row) {
-            if (!row || typeof row !== "object") return;
-            var brand = row.DrugMedication || row.drugMedication || row.Laegemiddel || row.name || null;
-            var sub = row.ActiveSubstance || row.activeSubstance || null;
-            var strength = row.Strength || row.strength || row.Styrke || null;
-            var start = row.StartDate || row.startDate || row.Startdato || null;
-            // Only include active ordinations when a status makes activity explicit;
-            // otherwise include all (drop only clearly-inactive rows).
-            var st = medStatusStr(row);
-            if (st != null) {
-              var low = String(st).toLowerCase();
-              if (/seponer|ophoer|ophør|inaktiv|inactive|stopped|paused|annuller|afsluttet|expired/.test(low)) {
-                return;
-              }
-            }
-            if (!sub && !brand) return;
-            var key = ((sub || "") + "|" + (brand || "")).toLowerCase();
-            if (seen[key]) return;
-            seen[key] = true;
-            out.push({
-              activeSubstance: sub || null,
-              brand: brand || null,
-              atc: null,                       // resolved on-device from the substance
-              form: strength || null,
-              startDate: start || null
-            });
-          });
-          return out;
-        });
-      }
-
-      // --- CONDITIONS: codes only; best-effort (no proven diagnoser JSON) -------
-      function reduceConditions(rows) {
-        var seen = {};
+      function reduceMedsJSON(j) {
+        var rows = Array.isArray(j) ? j
+                 : (j && (j.items || j.results || j.data || j.ordinations || j.Ordinations)) || [];
         var out = [];
+        var seen = {};
         (rows || []).forEach(function (row) {
           if (!row || typeof row !== "object") return;
-          var icd = row.icd10 || row.ICD10 || row.sks || row.SKS
-                  || (row.codes && (row.codes.icd10 || row.codes.ICD10)) || null;
-          var icpc = row.icpc2 || row.ICPC2 || (row.codes && row.codes.icpc2) || null;
-          var key = String(icd || icpc || "").toLowerCase();
-          if (!key || seen[key]) return;
+          var brand = row.DrugMedication || row.drugMedication || row.Laegemiddel || row.name || null;
+          var sub = row.ActiveSubstance || row.activeSubstance || null;
+          var strength = row.Strength || row.strength || row.Styrke || null;
+          var start = row.StartDate || row.startDate || row.Startdato || null;
+          // Only include active ordinations when a status makes activity explicit;
+          // otherwise include all (drop only clearly-inactive rows).
+          var st = medStatusStr(row);
+          if (st != null) {
+            var low = String(st).toLowerCase();
+            if (/seponer|ophoer|ophør|inaktiv|inactive|stopped|paused|annuller|afsluttet|expired/.test(low)) {
+              return;
+            }
+          }
+          if (!sub && !brand) return;
+          var key = ((sub || "") + "|" + (brand || "")).toLowerCase();
+          if (seen[key]) return;
           seen[key] = true;
-          out.push({ icd10: icd || null, icpc2: icpc || null, debut: row.debut || row.onset || null });
+          out.push({
+            activeSubstance: sub || null,
+            brand: brand || null,
+            atc: null,                       // resolved on-device from the substance
+            form: strength || null,
+            startDate: start || null
+          });
         });
         return out;
       }
-      function harvestConditions() {
-        // No sanctioned diagnoser self-access JSON is proven, so this stays a
-        // best-effort probe that resolves to [] on any failure — it must NEVER
-        // sink the harvest. journal-fra-sygehus free text is NOT fetched (rule 4).
-        return getJSON("/app/diagnoser/api/v1/diagnoser/").then(function (j) {
-          var rows = Array.isArray(j) ? j : (j.items || j.results || j.data || []);
-          return reduceConditions(rows);
-        }).catch(function () { return []; });
-      }
 
-      // --- harvest: fetch → reduce → post (each section isolated) ---------------
+      // --- CHANGE 5: ASSEMBLE — accumulated caps → SundhedWebHarvest → post ------
       window.__liviqaSundhedHarvest = function () {
-        // Each section has its own catch so one failing never aborts the others.
-        Promise.all([
-          harvestLabs().catch(function () { return []; }),
-          harvestMeds().catch(function () { return []; }),
-          harvestConditions().catch(function () { return []; })
-        ]).then(function (res) {
+        try {
+          // One last DOM scan in case we're sitting on a code page right now.
+          try { if (onCodePage()) window.__liviqaSundhedScan(); } catch (e) {}
+
+          var labs = [], meds = [];
+          var labText = ssGet(CAP.labs);
+          if (labText) { try { labs = reduceSvaroversigt(JSON.parse(labText)) || []; } catch (e) {} }
+          var medText = ssGet(CAP.meds);
+          if (medText) { try { meds = reduceMedsJSON(JSON.parse(medText)) || []; } catch (e) {} }
+
+          var conditions = ssCodes().map(function (c) {
+            return { icd10: c, icpc2: null, debut: null };
+          });
+
           post({
             type: "harvest",
-            payload: {
-              asOf: new Date().toISOString(),
-              labs: res[0] || [],
-              meds: res[1] || [],
-              conditions: res[2] || []
-            }
+            payload: { asOf: new Date().toISOString(), labs: labs, meds: meds, conditions: conditions }
           });
-        }).catch(function (e) { postErr(e && e.message); });
+        } catch (e) { postErr(e && e.message); }
       };
 
-      // Announce initial state so Swift can enable the button once signed in.
+      // Announce initial state so Swift knows when the citizen is signed in, and arm
+      // the DOM fallback on this document (fires only on the diagnoser/journal pages).
       window.__liviqaSundhedProbe();
-      // ===== LIVIQA SUNDHED REDUCER — END =====
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", scheduleDomFallback);
+      } else {
+        scheduleDomFallback();
+      }
+      window.addEventListener("load", scheduleDomFallback);
+      // ===== LIVIQA SUNDHED INTERCEPTOR + REDUCER — END =====
     })();
     """#
 }
