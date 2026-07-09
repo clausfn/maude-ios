@@ -8,6 +8,7 @@ struct DataSourcesView: View {
     @Environment(AppState.self) private var appState
     @State private var showImporter = false
     @State private var showSundhedWeb = false       // live in-app MitID connect
+    @State private var showSundhedImport = false    // Path B — PDF/file export import
     @State private var connecting = false
     @State private var importedNote: String? = nil
 
@@ -114,6 +115,7 @@ struct DataSourcesView: View {
                 citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
             )
         }
+        .navigationDestination(isPresented: $showSundhedImport) { SundhedImportView() }
         .sheet(isPresented: $showImporter) {
             DocumentPickerView { name, _ in
                 importedNote = "Imported “\(name)” — stored on this device."
@@ -178,6 +180,25 @@ struct DataSourcesView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "cross.case").font(.system(size: 14, weight: .medium))
                         Text("Connect Sundhed.dk").font(.lato(14, .bold))
+                    }
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                    .background(LiviqaTheme.paper)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+
+            // ── Import Sundhed.dk export (Path B — PDF/file → on-device parse) ──
+            // Live connect (Path A) covers medicine; labs (svaroversigt) + journal
+            // (ejournal) can't be pulled headless, so the citizen brings their own
+            // PDF export here. Kept alongside the live button, not instead of it.
+            if Config.sundhedConnectEnabled {
+                Button { showSundhedImport = true } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.text.magnifyingglass").font(.system(size: 14, weight: .medium))
+                        Text("Import Sundhed.dk export (labs · journal)").font(.lato(14, .bold))
                     }
                     .foregroundStyle(LiviqaTheme.ink)
                     .frame(maxWidth: .infinity).padding(.vertical, 12)

@@ -505,7 +505,12 @@ public struct SundhedImportView: View {
                 let text = try SundhedPDFText.text(fromData: file.data, filename: file.name)
                 labs += SundhedParsers.parseLabs(text)
                 meds += SundhedParsers.parseMeds(text)
+                // Structured "Aktuelle diagnoser" (ICD 10: …) AND the explicit
+                // ICD-10/SKS codes harvested from a "Journal fra sygehus" export —
+                // so a journal.pdf contributes conditions and a labs.pdf its labs.
+                // De-duplicated together below (presence semantics).
                 diagnoses += SundhedParsers.parseDiagnoses(text)
+                diagnoses += SundhedParsers.parseJournal(text)
                 // `text` goes out of scope here — nothing retains it.
             } catch {
                 failures += 1
