@@ -401,31 +401,28 @@ struct SundhedWebSessionView: View {
             fail("Nothing came back yet. Make sure you're signed in above and have opened Min Sundhedsjournal (Laboratoriesvar / Medicinkortet), then tap again.")
             return
         }
-        // SAME seam + SAME concrete client as Path B: prefer the app service if it
-        // adopts SundhedIngesting, else the self-contained LiviqaSundhedIngestClient.
-        let client = ingest ?? LiviqaSundhedIngestClient()
-        // Reduce the coded harvest to the canonical wire body via the shared builder.
-        let body = harvest.toIngestBody(citizenID: citizenId)
         phase = .ingesting
-        message = "Bringing your summary into Liviqa…"
-        // Inbound-import consent: /ingest/sundhed lands a DerivedShare only under an
-        // active grant whose scope covers the imported vars. Ensure one exists (once
-        // per citizen). Best-effort — never blocks the ingest below.
-        await ensureCoveringGrant()
-        do {
-            try await client.ingestSundhed(body)
-            // Surface what landed so HealthPassportView actually shows it (the
-            // ingest wire body stays codes-only; this display merge is LOCAL).
-            mergeForDisplay(harvest)
-            // Clear the transient sessionStorage caps now that the coded summary is in.
-            clearNonce += 1
-            phase = .done
-            message = "Done — your Sundhed.dk labs, medicine, and diagnoses are now in Liviqa as summaries and codes."
-        } catch {
-            fail((error as? SundhedIngestError)?.errorDescription
-                 ?? (error as? SupabaseError)?.errorDescription
-                 ?? "That didn't go through. Please try again.")
-        }
+        message = "Saving your Sundhed.dk data on this device…"
+        // ON-DEVICE ONLY. Reduce the coded harvest to the canonical derived summary
+        // and UPSERT it into the source-agnostic HealthStore. NOTHING is uploaded:
+        // the automatic ensureCoveringGrant + POST /ingest/sundhed calls were removed
+        // (those functions stay in this file for the EXPLICIT share/research path).
+        let r = toParseResults(from: harvest)
+        let summary = SundhedPayloadBuilder.summarise(labs: r.labs, meds: r.meds, diagnoses: r.diagnoses)
+        appState.ingestHealthRecord(summary, source: .sundhedLive)
+        // Also surface into the self-declared HealthContext (local display) as before.
+        mergeForDisplay(harvest)
+        // Clear the transient sessionStorage caps now that the summary is stored.
+        clearNonce += 1
+        phase = .done
+        message = "Saved to your device — nothing was uploaded."
+    }
+
+    /// Reduce a harvest to the flat parser model types (thin wrapper over the
+    /// harvest's own reducer, kept here so the ingest path reads top-to-bottom).
+    private func toParseResults(from harvest: SundhedWebHarvest)
+        -> (labs: [SundhedLabMeasurement], meds: [SundhedMedItem], diagnoses: [String]) {
+        harvest.toParseResults()
     }
 
     @MainActor

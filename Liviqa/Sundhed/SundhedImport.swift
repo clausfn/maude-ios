@@ -431,8 +431,8 @@ public struct SundhedImportView: View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44)).foregroundStyle(LiviqaTheme.moss)
-            Text("Imported").font(.liviqaH2).foregroundStyle(LiviqaTheme.ink)
-            Text("Your Sundhed.dk summary is saved to your Liviqa health record. Only the coded summary was shared — the file stayed on this device.")
+            Text("Saved").font(.liviqaH2).foregroundStyle(LiviqaTheme.ink)
+            Text("Saved to your device — nothing was uploaded. Your Sundhed.dk labs, medicine and diagnoses are now in your Liviqa health record, and the file stayed on this phone.")
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -532,40 +532,22 @@ public struct SundhedImportView: View {
         stage = .review
     }
 
-    /// Build the coded body and POST it to /ingest/sundhed.
+    /// Save the parsed record to the on-device canonical store. NOTHING is uploaded:
+    /// the automatic ensureCoveringGrant + POST /ingest/sundhed calls were removed
+    /// (both functions stay in this file for the EXPLICIT share/research path).
     @MainActor
     private func save(_ s: SundhedDerivedSummary) async {
         guard !s.isEmpty else { return }
-        guard !citizenID.isEmpty else {
-            errorMessage = SundhedIngestError.notSignedIn.errorDescription
-            return
-        }
         stage = .saving
         errorMessage = nil
 
-        // Build the coded body from the FULL parse (mean/n/scaled preserved).
-        let body = SundhedPayloadBuilder.build(
-            citizenID: citizenID,
-            labs: parsedLabs,
-            meds: parsedMeds,
-            diagnoses: parsedDiagnoses
-        )
-
-        // Inbound-import consent: /ingest/sundhed lands a DerivedShare only under an
-        // active grant whose scope covers the imported vars. Ensure one exists (once
-        // per citizen; re-runs reuse it and supersede the prior share). Best-effort.
-        await ensureCoveringGrant()
-
-        do {
-            try await ingestClient.ingestSundhed(body)
-            // Surface the parsed data so HealthPassportView actually shows it (the
-            // ingest wire body stays codes-only; this display merge is LOCAL).
-            mergeForDisplay()
-            stage = .done
-        } catch {
-            errorMessage = (error as? SundhedIngestError)?.errorDescription ?? error.localizedDescription
-            stage = .review
-        }
+        // Source-agnostic ingest: same single API every source uses. The full-fidelity
+        // parse (parsedLabs/Meds/Diagnoses) is what the review summary reflects, so the
+        // summary carries the same rows; store it tagged as the PDF source.
+        appState.ingestHealthRecord(s, source: .sundhedPdf)
+        // Also surface into the self-declared HealthContext (local display) as before.
+        mergeForDisplay()
+        stage = .done
     }
 
     /// Ensure an active consent grant covers the Sundhed metric groups (labs / meds /

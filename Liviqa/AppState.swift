@@ -54,6 +54,22 @@ final class AppState {
     // schema/store failure can never crash launch — the feed still works.
     private let modelContainer: ModelContainer? = try? LiviqaStore.makeContainer()
 
+    /// The canonical, source-agnostic health record repository (labs/diagnoses/meds
+    /// from ANY source). On-device only. `nil` only if the store failed to open.
+    var healthStore: HealthStore? {
+        guard let modelContainer else { return nil }
+        return HealthStore(context: modelContainer.mainContext)
+    }
+
+    // Display projections of the canonical record, refreshed from the store after any
+    // ingest and on view appear. Newest-per-scopeKey labs (multi-source aware); all
+    // conditions/meds (each tagged with its source).
+    private(set) var healthObservations: [HealthObservation] = []
+    private(set) var healthConditions:   [HealthCondition]   = []
+    private(set) var healthMedications:  [HealthMedication]  = []
+    /// Set true after an explicit, consented "contribute to research" upload succeeds.
+    var researchContributed = false
+
     // Auth
     var session: UserSession?  = nil
     var profile: UserProfile?  = nil
@@ -404,6 +420,11 @@ final class AppState {
         tokenBalance    = ColdStart.tokenBalance
         tokenTransactions = ColdStart.tokenTransactions
         connectedSources  = ColdStart.connectedSources
+        // Canonical health-record projections (the @Model rows were wiped in step 1).
+        healthObservations = []
+        healthConditions   = []
+        healthMedications  = []
+        researchContributed = false
     }
 
     // MARK: - GDPR rights (Art. 20 export · Art. 17 erase) — T1 TestProd wave
@@ -481,6 +502,56 @@ final class AppState {
     func postSignIn() async {
         await loadProfile()
         await loadWallet()
+        reloadHealthRecord()   // surface the persisted canonical record on launch
+    }
+
+    // MARK: - Canonical health record (source-agnostic; on-device only)
+
+    /// Map a source's derived summary into canonical rows and UPSERT them into the
+    /// on-device store, then refresh the display projections. NOTHING is uploaded —
+    /// this only writes to the local SwiftData store. Any source that can produce a
+    /// `SundhedDerivedSummary` (Sundhed live/PDF today; OCR/HealthKit later) reuses
+    /// this single entry point.
+    @MainActor
+    func ingestHealthRecord(_ summary: SundhedDerivedSummary, source: HealthDataSource) {
+        guard let store = healthStore else { return }
+        let rows = HealthStore.canonicalize(summary, source: source)
+        store.ingest(observations: rows.obs, conditions: rows.cond,
+                     medications: rows.med, source: source)
+        reloadHealthRecord()
+    }
+
+    /// Reload the display projections from the persisted store (survives relaunch).
+    @MainActor
+    func reloadHealthRecord() {
+        guard let store = healthStore else { return }
+        healthObservations = store.latestObservations()
+        healthConditions   = store.conditions()
+        healthMedications  = store.medications()
+    }
+
+    /// EXPLICIT, consented research contribution — the ONLY path that sends the
+    /// canonical record off-device. Builds the coded, MPC-ready body from the store
+    /// and hands it to the EXISTING ingest client. Never auto-called: only a user tap
+    /// reaches here. Surfaces backend copy on failure.
+    @MainActor
+    func contributeHealthResearch() async {
+        guard let store = healthStore, !store.isEmpty else {
+            lastError = "There's nothing in your health record to contribute yet."
+            return
+        }
+        let citizen = profile?.alias ?? session?.userId.uuidString ?? ""
+        let body = store.researchPayload(citizenId: citizen)
+        let client = (supabase as? SundhedIngesting) ?? LiviqaSundhedIngestClient()
+        do {
+            try await client.ingestSundhed(body)
+            researchContributed = true
+            lastError = nil
+        } catch {
+            lastError = (error as? SundhedIngestError)?.errorDescription
+                ?? (error as? SupabaseError)?.errorDescription
+                ?? error.localizedDescription
+        }
     }
 
     @MainActor

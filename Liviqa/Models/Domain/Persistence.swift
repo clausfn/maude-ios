@@ -30,6 +30,11 @@ enum LiviqaStore {
         MedicationInteraction.self,
         WeatherContext.self,
         CalendarLoad.self,
+        // Canonical, source-agnostic health record (Sundhed live/PDF, OCR, HealthKit,
+        // manual…). On-device only; leaves only by explicit user action.
+        HealthObservation.self,
+        HealthCondition.self,
+        HealthMedication.self,
     ]
 
     static var schema: Schema { Schema(models) }
