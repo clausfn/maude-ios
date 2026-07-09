@@ -214,7 +214,9 @@ public struct SundhedImportView: View {
                     unavailableCard
                 } else {
                     switch stage {
-                    case .idle, .parsing: pickCard
+                    case .idle, .parsing:
+                        howToCard
+                        pickCard
                     case .review, .saving: reviewCard
                     case .done: doneCard
                     }
@@ -249,6 +251,36 @@ public struct SundhedImportView: View {
                 .foregroundStyle(LiviqaTheme.ink3)
             Text("Export your labs, medication and diagnoses from Sundhed.dk as a PDF (or text), then import the file here. Liviqa reads it on this device and only shares the coded summary.")
                 .font(.lato(13)).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// In-app step-by-step: how to export from sundhed.dk and bring it in.
+    private var howToCard: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            Text("HOW TO EXPORT")
+                .font(.liviqaKicker(10)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            stepRow(1, "In **Safari or Chrome**, sign in to **sundhed.dk** with MitID.")
+            stepRow(2, "Open **Min Side → Sundhedsjournalen**. For each of **Laboratoriesvar**, **Medicinkortet** and **Diagnoser**: tap **Share → Print**, pinch the preview outward, then **Save to Files**.")
+            stepRow(3, "Come back here, tap **Choose PDF or text file**, review what Liviqa found, and tap **Approve**.")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+    }
+
+    private func stepRow(_ n: Int, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(n)")
+                .font(.lato(12, .bold)).foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(LiviqaTheme.moss).clipShape(Circle())
+            Text(LocalizedStringKey(text))
+                .font(.lato(13)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
         }

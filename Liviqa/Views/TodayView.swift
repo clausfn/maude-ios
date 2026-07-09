@@ -27,6 +27,7 @@ struct TodayView: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @State private var connectHintDismissed = false
+    @State private var showSundhedImport = false
     /// PR-100 promotion #3: domain icon on the nudge hero (sparkline half deferred —
     /// needs a numeric series on Nudge). On by default; toggle in Settings.
     @AppStorage("visualNudge") private var visualNudge = true
@@ -101,6 +102,12 @@ struct TodayView: View {
                         .padding(.top, 14)
                     }
 
+                    // Bring in Sundhed.dk records (Path B import) — visible entry.
+                    if Config.sundhedConnectEnabled {
+                        sundhedConnectCard
+                            .padding(.top, 14)
+                    }
+
                     // Calm, affirming lead (not an alert) — the everyday day-good
                     // state. On a genuinely empty cold start (Release, no Health
                     // readings yet) the honest baseline card replaces it.
@@ -149,7 +156,40 @@ struct TodayView: View {
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: title dissolves into the feed
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showSundhedImport) {
+            NavigationStack { SundhedImportView() }
+        }
         #endif
+    }
+
+    // MARK: — Connect Sundhed.dk (prominent, health-records import)
+
+    private var sundhedConnectCard: some View {
+        Button { showSundhedImport = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "cross.case.fill")
+                    .font(.system(size: 17)).foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(LiviqaTheme.moss)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Bring in your Sundhed.dk records")
+                        .font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text("Labs, medicine & diagnoses — read on your device")
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right")
+                    .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss.opacity(0.35), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: — Connect-Apple-Health hint (real device, no data yet)

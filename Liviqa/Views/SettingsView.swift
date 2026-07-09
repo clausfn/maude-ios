@@ -37,6 +37,7 @@ struct SettingsView: View {
     // Navigation destinations
     @State private var showDataSources    = false
     @State private var showHealthPassport = false
+    @State private var showSundhedImport  = false
     @State private var showConsentLedger  = false
     @State private var showNudgeSettings  = false
     @State private var showPrivacy        = false
@@ -60,6 +61,7 @@ struct SettingsView: View {
         #endif
         .navigationDestination(isPresented: $showDataSources)    { DataSourcesView() }
         .navigationDestination(isPresented: $showHealthPassport) { HealthPassportView() }
+        .navigationDestination(isPresented: $showSundhedImport)  { SundhedImportView() }
         .navigationDestination(isPresented: $showConsentLedger)  { ConsentLedgerView() }
         .navigationDestination(isPresented: $showNudgeSettings)  { NotificationSettingsView() }
         .navigationDestination(isPresented: $showPrivacy)        { InAppPrivacyView() }
@@ -254,6 +256,18 @@ struct SettingsView: View {
 
             // Data Sources + Health Passport
             VStack(spacing: 1) {
+                if Config.sundhedConnectEnabled {
+                    Button { showSundhedImport = true } label: {
+                        settingsNavRow(
+                            icon: "cross.case.fill",
+                            color: LiviqaTheme.moss,
+                            label: "Connect Sundhed.dk",
+                            detail: "Import labs, medicine & diagnoses"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    Divider().padding(.leading, 56)
+                }
                 Button { showDataSources = true } label: {
                     settingsNavRow(
                         icon: "externaldrive.connected.to.line.below.fill",
