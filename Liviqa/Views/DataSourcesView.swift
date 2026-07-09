@@ -7,8 +7,7 @@ struct DataSourcesView: View {
     @State private var showVault = false
     @Environment(AppState.self) private var appState
     @State private var showImporter = false
-    @State private var showSundhedImport = false   // Path B (file/PDF import)
-    @State private var showSundhedWeb = false       // Path A (in-app MitID WebView)
+    @State private var showSundhedWeb = false       // live in-app MitID connect
     @State private var connecting = false
     @State private var importedNote: String? = nil
 
@@ -109,7 +108,6 @@ struct DataSourcesView: View {
             ScreenTimeSheet { connect(named: "Screen Time", detail: nil) }
         }
         .navigationDestination(isPresented: $showVault) { HealthVaultView() }
-        .navigationDestination(isPresented: $showSundhedImport) { SundhedImportView() }
         .navigationDestination(isPresented: $showSundhedWeb) {
             SundhedWebSessionView(
                 ingest: appState.supabase as? SundhedIngesting,
@@ -174,28 +172,12 @@ struct DataSourcesView: View {
             }
             .buttonStyle(.plain)
 
-            // ── Connect Sundhed.dk (Path B: file/PDF → on-device parse → coded ingest) ──
-            if Config.sundhedConnectEnabled {
-                Button { showSundhedImport = true } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "cross.case").font(.system(size: 14, weight: .medium))
-                        Text("Connect Sundhed.dk").font(.lato(14, .bold))
-                    }
-                    .foregroundStyle(LiviqaTheme.ink)
-                    .frame(maxWidth: .infinity).padding(.vertical, 12)
-                    .background(LiviqaTheme.paper)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-
-            // ── Connect Sundhed.dk (Path A: in-app MitID WebView — DEBUG only, Trifork-sanction gated) ──
+            // ── Connect Sundhed.dk (live in-app MitID connect) ──
             if Config.sundhedWebConnectEnabled {
                 Button { showSundhedWeb = true } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "globe").font(.system(size: 14, weight: .medium))
-                        Text("Connect Sundhed.dk (in-app)").font(.lato(14, .bold))
+                        Image(systemName: "cross.case").font(.system(size: 14, weight: .medium))
+                        Text("Connect Sundhed.dk").font(.lato(14, .bold))
                     }
                     .foregroundStyle(LiviqaTheme.ink)
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
