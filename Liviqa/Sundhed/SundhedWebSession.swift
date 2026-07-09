@@ -261,9 +261,12 @@ struct SundhedWebSessionView: View {
         .padding(16)
     }
 
+    // The button is available whenever a pull isn't already running — it does NOT
+    // gate on the login probe (that pings a sub-app API that isn't always warm, so
+    // it kept the button disabled even after a successful MitID sign-in). If the
+    // citizen isn't signed in yet, the pull simply returns nothing and says so.
     private var canHarvest: Bool {
-        loggedIn && citizenId != nil
-            && phase != .harvesting && phase != .ingesting
+        phase != .harvesting && phase != .ingesting
     }
 
     private var buttonTitle: String {
@@ -297,7 +300,7 @@ struct SundhedWebSessionView: View {
         }
         // Nothing coded came back → don't call the backend (no covering-grant churn).
         guard !(harvest.labs.isEmpty && harvest.meds.isEmpty && harvest.conditions.isEmpty) else {
-            fail("No lab, medicine, or diagnosis data was found on your Sundhed.dk account.")
+            fail("Nothing came back yet. Make sure you're signed in above and have opened Min Sundhedsjournal (Laboratoriesvar / Medicinkortet), then tap again.")
             return
         }
         // SAME seam + SAME concrete client as Path B: prefer the app service if it
@@ -629,11 +632,22 @@ private struct SundhedWebView: UIViewRepresentable {
 
       // --- probe: report login via a lightweight AUTHED GET (200 ⇒ logged in) ---
       var MEDS = "/app/medicinkort2borger/api/v1/ordinations/";
+      function domLoginSignal() {
+        try {
+          var hasXsrf = xsrf() !== "";
+          var loggedUI = !!document.querySelector('a[href*="logud"],a[href*="log-af"],a[href*="logaf"],[href*="/borger/min-side"]');
+          var onMinSide = /min-side|min-sundhedsjournal/.test(location.pathname);
+          return hasXsrf && (loggedUI || onMinSide);
+        } catch (e) { return false; }
+      }
       window.__liviqaSundhedProbe = function () {
+        // Report login for the UI hint. Prefer the authed meds GET (200 ⇒ in), but
+        // fall back to a DOM/URL signal so a warm-up-needed sub-app never reads as
+        // "signed out". The harvest button no longer depends on this.
         rawGET(MEDS).then(function (r) {
-          post({ type: "session", loggedIn: r.status === 200 });
+          post({ type: "session", loggedIn: r.status === 200 || domLoginSignal() });
         }).catch(function () {
-          post({ type: "session", loggedIn: false });
+          post({ type: "session", loggedIn: domLoginSignal() });
         });
       };
 
