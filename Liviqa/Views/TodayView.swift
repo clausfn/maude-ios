@@ -157,7 +157,12 @@ struct TodayView: View {
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showSundhedImport) {
-            NavigationStack { SundhedImportView() }
+            NavigationStack {
+                SundhedWebSessionView(
+                    ingest: appState.supabase as? SundhedIngesting,
+                    citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
+                )
+            }
         }
         #endif
     }
@@ -175,7 +180,7 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Bring in your Sundhed.dk records")
                         .font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
-                    Text("Labs, medicine & diagnoses — read on your device")
+                    Text("Sign in with MitID — pulled live to your device")
                         .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
                         .fixedSize(horizontal: false, vertical: true)
                 }

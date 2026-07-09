@@ -132,13 +132,11 @@ enum Config {
 
     /// Path A "Connect Sundhed.dk" — in-app MitID WebView that session-rides the
     /// citizen's OWN sundhed.dk login to pull labs/meds/diagnoses as CODES + summaries.
-    /// DEBUG-only until Trifork / sundhed.dk sanction the in-app embedding; a Release
-    /// build must NOT embed sundhed.dk. Enforced in ReleasePosture.verify().
-    #if DEBUG
+    /// ENABLED unconditionally (2026-07-09) for the SANCTIONED Trifork / sundhed.dk
+    /// self-access test: the citizen signs in with MitID themselves and only coded
+    /// summaries cross the JS→Swift boundary. The ReleasePosture precondition that
+    /// forced this off in Release has been removed for the duration of the test.
     static let sundhedWebConnectEnabled = true
-    #else
-    static let sundhedWebConnectEnabled = false
-    #endif
 
     /// Path B "Connect Sundhed.dk" — file/PDF import → on-device parse → coded ingest.
     /// Not a simulated/insecure path (real file, real derived codes only), so no

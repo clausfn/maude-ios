@@ -23,6 +23,9 @@
 //   • the sundhed.dk MitID cookie session — lives only inside this WKWebView.
 import SwiftUI
 import WebKit
+#if canImport(UIKit)
+import UIKit                                   // UIApplication.shared.open (MitID app hand-off)
+#endif
 
 // MARK: - Coded harvest (JS → Swift). Structured/coded only — no narrative.
 
@@ -177,6 +180,8 @@ extension SundhedWebHarvest {
 /// their data. Entirely inert unless `Config.sundhedWebConnectEnabled` is true.
 struct SundhedWebSessionView: View {
     @Environment(\.dismiss) private var dismiss
+    /// Recipient directory + grant creation for the covering-grant step (below).
+    @Environment(AppState.self) private var appState
 
     /// Shared ingest client (`appState.supabase as? SundhedIngesting`). When nil
     /// (mock/sandbox service), harvesting is disabled with an explanatory note.
@@ -302,6 +307,10 @@ struct SundhedWebSessionView: View {
         let body = harvest.toIngestBody(citizenID: citizenId)
         phase = .ingesting
         message = "Bringing your summary into Liviqa…"
+        // Inbound-import consent: /ingest/sundhed lands a DerivedShare only under an
+        // active grant whose scope covers the imported vars. Ensure one exists (once
+        // per citizen). Best-effort — never blocks the ingest below.
+        await ensureCoveringGrant()
         do {
             try await client.ingestSundhed(body)
             phase = .done
@@ -317,6 +326,35 @@ struct SundhedWebSessionView: View {
     private func fail(_ text: String) {
         phase = .failed
         message = text
+    }
+
+    /// Ensure an active consent grant covers the Sundhed metric groups (labs / meds /
+    /// conditions) so the ingest can land. Mirrors Path B (SundhedImport.swift): created
+    /// ONCE per citizen (a `UserDefaults` marker keeps re-imports from piling up grants);
+    /// re-runs land under it and the backend supersedes the prior share. Best-effort —
+    /// never blocks the ingest.
+    private func ensureCoveringGrant() async {
+        guard let sov = appState.sovereign,
+              let citizenId, !citizenId.isEmpty else { return }
+        let marker = "sundhed.coveringGrant.\(citizenId)"
+        if UserDefaults.standard.bool(forKey: marker) { return }
+        guard let recipients = try? await sov.fetchRecipients(),
+              let recipient = recipients.first(where: { $0.role == .clinicalNurse }) ?? recipients.first
+        else { return }
+        do {
+            _ = try await sov.createGrant(
+                recipientId: recipient.id,
+                role: .clinicalNurse,
+                scopeGroups: ["labs", "meds", "conditions"],   // cover all Sundhed groups once
+                purpose: "Import from Sundhed.dk",
+                granularity: nil,
+                expiry: Calendar.current.date(byAdding: .day, value: 365, to: Date()),
+                delivery: "snapshot"
+            )
+            UserDefaults.standard.set(true, forKey: marker)
+        } catch {
+            // Leave the marker unset so a later import retries; the ingest still runs.
+        }
     }
 }
 
@@ -451,6 +489,34 @@ private struct SundhedWebView: UIViewRepresentable {
             onHarvest(harvest)
         }
 
+        // MitID app hand-off. A navigationAction whose scheme is NOT http/https
+        // (mitid://, dk.mitid…://, any custom app scheme), or a known MitID app
+        // universal link, must open in the MitID app — never load in the WebView.
+        // The app authenticates and returns control to sundhed.dk in the WebView.
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.allow); return
+            }
+            let scheme = (url.scheme ?? "").lowercased()
+            let isWeb = (scheme == "http" || scheme == "https")
+            if !isWeb || Self.isMitIDAppLink(url) {
+                #if canImport(UIKit)
+                UIApplication.shared.open(url)
+                #endif
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
+
+        /// The universal-link host that launches the MitID app itself (distinct from
+        /// the in-WebView web fallback on www./broker.mitid.dk, which stays loaded).
+        private static func isMitIDAppLink(_ url: URL) -> Bool {
+            (url.host?.lowercased()) == "app.mitid.dk"
+        }
+
         // Navigation → refresh login state cheaply (the page also posts on load).
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             webView.evaluateJavaScript("window.__liviqaSundhedProbe && window.__liviqaSundhedProbe();", completionHandler: nil)
@@ -479,12 +545,17 @@ private struct SundhedWebView: UIViewRepresentable {
     // sends brand/description prose as narrative, and only ever calls SAME-ORIGIN
     // paths on www.sundhed.dk with the X-XSRF-TOKEN self-access header.
     //
-    // ── INTEGRATION POINT ─────────────────────────────────────────────────────
-    // The three endpoint paths + JSON field names below are placeholders shaped to
-    // the proven self-access extraction (memory: sundhed_ingest_live —
-    // svaroversigt / ordinationer + X-XSRF-TOKEN, catalog v0.3.0→0.4.0). Confirm
-    // each path and field against that runbook before enabling the flag; the
-    // reducer/aggregation logic and the postMessage shape do not change.
+    // ── LIVE SELF-ACCESS ENDPOINTS (proven; memory: sundhed_ingest_live) ───────
+    // Wired to the citizen's own self-access APIs. Auth for EVERY call is the same
+    // same-origin XSRF pattern: fetch(path, {credentials:"include",
+    //   headers:{ "X-XSRF-TOKEN": decodeURIComponent(
+    //     (document.cookie.match(/XSRF-TOKEN=([^;]+)/)||[])[1] || "") }}).
+    //   LABS  GET /app/proevesvarportal/api/v1/svaroversigt?fra=…&til=…&source=RegionaleProevesvar&omraade=Alle
+    //         → Svaroversigt.Laboratorieresultater[] (+ Svaroversigt.Analysetyper id→Titel)
+    //   MEDS  GET /app/medicinkort2borger/api/v1/ordinations/  → array of ordinations
+    //   COND  best-effort only (no proven diagnoser JSON) → conditions stays [].
+    // Aggregation runs IN PAGE to codes + numeric summaries; the postMessage shape
+    // (SundhedWebHarvest) is unchanged, and journal-fra-sygehus is NEVER fetched.
     // ──────────────────────────────────────────────────────────────────────────
     static let injectedReducerJS = #"""
     (function () {
@@ -499,34 +570,29 @@ private struct SundhedWebView: UIViewRepresentable {
       // --- self-access session helpers -----------------------------------------
       function xsrf() {
         // sundhed.dk self-access APIs require the XSRF token echoed as a header.
-        var m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-        return m ? decodeURIComponent(m[1]) : null;
+        return decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || "");
       }
-      function loggedIn() {
-        // Heuristic: presence of the session/XSRF cookie AND no login form.
-        // INTEGRATION POINT: tighten to a stable logged-in marker on the page.
-        return !!xsrf();
+      function authHeaders() {
+        var t = xsrf();
+        return t ? { "Accept": "application/json", "X-XSRF-TOKEN": t }
+                 : { "Accept": "application/json" };
+      }
+      function rawGET(path) {
+        // SAME-ORIGIN only. credentials:"include" rides the MitID cookie session.
+        return fetch(path, { method: "GET", credentials: "include", headers: authHeaders() });
       }
       function getJSON(path) {
-        // SAME-ORIGIN only. credentials:"include" rides the MitID cookie session.
-        var t = xsrf();
-        return fetch(path, {
-          method: "GET",
-          credentials: "include",
-          headers: t ? { "Accept": "application/json", "X-XSRF-TOKEN": t }
-                     : { "Accept": "application/json" }
-        }).then(function (r) {
+        return rawGET(path).then(function (r) {
           if (!r.ok) throw new Error(path + " → " + r.status);
           return r.json();
         });
       }
 
-      // --- probe: report login state to Swift ----------------------------------
-      window.__liviqaSundhedProbe = function () {
-        post({ type: "session", loggedIn: loggedIn() });
-      };
-
-      // --- reducers (CODES + AGGREGATES ONLY; no narrative) ---------------------
+      // --- date + number helpers -----------------------------------------------
+      function isoNow() { return new Date().toISOString(); }
+      function isoYearsAgo(y) {
+        var d = new Date(); d.setFullYear(d.getFullYear() - y); return d.toISOString();
+      }
       function num(v) {
         if (v === null || v === undefined) return null;
         // Danish decimals use comma; keep only the numeric part of "7,4".
@@ -534,119 +600,201 @@ private struct SundhedWebView: UIViewRepresentable {
         var f = parseFloat(s);
         return isNaN(f) ? null : f;
       }
-      function specimenFrom(s) {
-        if (!s) return null;
-        var m = String(s).match(/;([PBU])\b/); // "Hæmoglobin;B" → "B"
-        return m ? m[1] : null;
-      }
-
-      function reduceLabs(rows) {
-        // Group per component(+specimen); emit latest/mean/n/unit — never values-per-day.
-        var by = {};
-        (rows || []).forEach(function (row) {
-          // INTEGRATION POINT: map to the real svaroversigt field names.
-          var comp = row.component || row.analysisName || row.name;
-          if (!comp) return;
-          var spec = row.specimen || specimenFrom(comp);
-          var key = comp + "|" + (spec || "");
-          var val = num(row.value != null ? row.value : row.result);
-          var date = row.date || row.drawnAt || row.rekvisitionDate || null;
-          var b = by[key] || (by[key] = {
-            component: String(comp).replace(/;([PBU])\b/, "").trim(),
-            specimen: spec || null,
-            unit: row.unit || null,
-            _sum: 0, _n: 0, latest: null, latestDate: null
+      // Defensive fallback: find the first array of objects that look like lab
+      // results (a value-ish key + a date-ish key) anywhere in a JSON tree.
+      function scanForResultArray(node, depth) {
+        if (!node || depth > 6) return null;
+        if (Array.isArray(node)) {
+          var looksLike = node.length > 0 && node.every(function (x) {
+            if (!x || typeof x !== "object") return false;
+            var keys = Object.keys(x).join("|").toLowerCase();
+            return /vaerdi|value|result|resultat/.test(keys) && /dato|date/.test(keys);
           });
-          if (val != null) { b._sum += val; b._n += 1; }
-          if (date && (!b.latestDate || date > b.latestDate)) {
-            b.latestDate = date;
-            if (val != null) b.latest = val;
+          if (looksLike) return node;
+          for (var i = 0; i < node.length; i++) {
+            var r = scanForResultArray(node[i], depth + 1);
+            if (r) return r;
           }
-        });
-        return Object.keys(by).map(function (k) {
-          var b = by[k];
-          return {
-            component: b.component,
-            specimen: b.specimen,
-            unit: b.unit,
-            latest: b.latest,
-            mean: b._n ? Math.round((b._sum / b._n) * 1000) / 1000 : null,
-            n: b._n,
-            latestDate: b.latestDate
-          };
-        });
+          return null;
+        }
+        if (typeof node === "object") {
+          for (var k in node) {
+            if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+            var rr = scanForResultArray(node[k], depth + 1);
+            if (rr) return rr;
+          }
+        }
+        return null;
       }
 
-      function reduceMeds(rows) {
-        // One row per active substance; ATC crosswalk happens on-device in Swift.
-        var seen = {};
-        var out = [];
-        (rows || []).forEach(function (row) {
-          // INTEGRATION POINT: map to the real ordinationer/aktuel-medicin fields.
-          var brand = row.brand || row.name || "";
-          // Active substance is the parenthesised part: "Novorapid (Insulin aspart)".
-          var m = String(brand).match(/\(([^)]+)\)/);
-          var sub = (row.activeSubstance || (m ? m[1] : "") || "").trim();
-          var atc = row.atc || row.atcCode || null;
-          var key = (sub || brand).toLowerCase();
-          if (!key || seen[key]) return;
-          seen[key] = true;
-          out.push({
-            activeSubstance: sub || null,
-            brand: String(brand).replace(/\s*\([^)]*\)\s*/, "").trim() || null,
-            atc: atc,
-            form: row.form || row.strength || null,
-            startDate: row.startDate || row.start || null
+      // --- probe: report login via a lightweight AUTHED GET (200 ⇒ logged in) ---
+      var MEDS = "/app/medicinkort2borger/api/v1/ordinations/";
+      window.__liviqaSundhedProbe = function () {
+        rawGET(MEDS).then(function (r) {
+          post({ type: "session", loggedIn: r.status === 200 });
+        }).catch(function () {
+          post({ type: "session", loggedIn: false });
+        });
+      };
+
+      // --- LABS: svaroversigt → aggregate per Titel component -------------------
+      function harvestLabs() {
+        var url = "/app/proevesvarportal/api/v1/svaroversigt"
+          + "?fra=" + encodeURIComponent(isoYearsAgo(10))
+          + "&til=" + encodeURIComponent(isoNow())
+          + "&source=RegionaleProevesvar&omraade=Alle";
+        return getJSON(url).then(function (j) {
+          var sv = (j && (j.Svaroversigt || j.svaroversigt)) || j || {};
+          var results = sv.Laboratorieresultater || sv.laboratorieresultater
+                     || sv.Resultater || sv.resultater || sv.results || null;
+          var types = sv.Analysetyper || sv.analysetyper || {};
+          if (!Array.isArray(results) || !results.length) {
+            results = scanForResultArray(j, 0) || [];
+          }
+          // id → Titel lookup, tolerating a map {id:{Titel}} or an array.
+          function titelFor(id) {
+            if (id === null || id === undefined) return null;
+            var t = types[id] || types[String(id)];
+            if (!t && Array.isArray(types)) {
+              for (var i = 0; i < types.length; i++) {
+                var e = types[i];
+                var eid = (e && (e.AnalysetypeId != null ? e.AnalysetypeId : e.Id));
+                if (eid != null && String(eid) === String(id)) { t = e; break; }
+              }
+            }
+            if (!t) return null;
+            return t.Titel || t.titel || t.Navn || t.navn || null;
+          }
+          var by = {};
+          (results || []).forEach(function (row) {
+            if (!row || typeof row !== "object") return;
+            var id = (row.AnalysetypeId != null ? row.AnalysetypeId
+                    : (row.analysetypeId != null ? row.analysetypeId : row.TypeId));
+            var titel = titelFor(id)
+                      || row.Titel || row.titel || row.Analysenavn || row.Navn || row.name;
+            if (!titel) return;
+            // Titel like "Hæmoglobin;B" / "Alanintransaminase [ALAT];P" → split on ';'.
+            var parts = String(titel).split(";");
+            var component = parts[0].trim();
+            var specimen = parts.length > 1 ? (parts[1].trim() || null) : null;
+            var unit = row.Enhed || row.enhed || row.unit || null;
+            var val = num(row.Vaerdi != null ? row.Vaerdi
+                        : (row.vaerdi != null ? row.vaerdi : row.value));
+            var date = row.Resultatdato || row.resultatdato
+                     || row.Provetagningsdato || row.date || null;
+            var key = component + "|" + (specimen || "");
+            var b = by[key] || (by[key] = {
+              component: component, specimen: specimen, unit: unit,
+              _sum: 0, _num: 0, n: 0, latest: null, latestDate: null
+            });
+            if (!b.unit && unit) b.unit = unit;
+            b.n += 1;                                        // count every row (n)
+            if (val != null) { b._sum += val; b._num += 1; } // numerics into mean only
+            if (date && (!b.latestDate || String(date) > String(b.latestDate))) {
+              b.latestDate = date;
+              b.latest = val;                                // value at the newest date
+            }
+          });
+          return Object.keys(by).map(function (k) {
+            var b = by[k];
+            return {
+              component: b.component,
+              specimen: b.specimen,
+              unit: b.unit,
+              latest: b.latest,
+              mean: b._num ? Math.round((b._sum / b._num) * 1000) / 1000 : null,
+              n: b.n,
+              latestDate: b.latestDate
+            };
           });
         });
-        return out;
       }
 
+      // --- MEDS: ordinations → one row per active substance --------------------
+      function medStatusStr(row) {
+        var s = row.Status || row.status;
+        if (s == null) return null;
+        if (typeof s === "object") return s.EnumStr || s.enumStr || s.Value || s.value || null;
+        return String(s);
+      }
+      function harvestMeds() {
+        return getJSON(MEDS).then(function (j) {
+          var rows = Array.isArray(j) ? j
+                   : (j.items || j.results || j.data || j.ordinations || j.Ordinations || []);
+          var out = [];
+          var seen = {};
+          (rows || []).forEach(function (row) {
+            if (!row || typeof row !== "object") return;
+            var brand = row.DrugMedication || row.drugMedication || row.Laegemiddel || row.name || null;
+            var sub = row.ActiveSubstance || row.activeSubstance || null;
+            var strength = row.Strength || row.strength || row.Styrke || null;
+            var start = row.StartDate || row.startDate || row.Startdato || null;
+            // Only include active ordinations when a status makes activity explicit;
+            // otherwise include all (drop only clearly-inactive rows).
+            var st = medStatusStr(row);
+            if (st != null) {
+              var low = String(st).toLowerCase();
+              if (/seponer|ophoer|ophør|inaktiv|inactive|stopped|paused|annuller|afsluttet|expired/.test(low)) {
+                return;
+              }
+            }
+            if (!sub && !brand) return;
+            var key = ((sub || "") + "|" + (brand || "")).toLowerCase();
+            if (seen[key]) return;
+            seen[key] = true;
+            out.push({
+              activeSubstance: sub || null,
+              brand: brand || null,
+              atc: null,                       // resolved on-device from the substance
+              form: strength || null,
+              startDate: start || null
+            });
+          });
+          return out;
+        });
+      }
+
+      // --- CONDITIONS: codes only; best-effort (no proven diagnoser JSON) -------
       function reduceConditions(rows) {
-        // Codes only — drop descriptions/narrative. Distinct by ICD-10 (SKS).
         var seen = {};
         var out = [];
         (rows || []).forEach(function (row) {
-          // INTEGRATION POINT: map to the real aktuelle-diagnoser fields.
-          var icd = row.icd10 || row.sks || (row.codes && row.codes.icd10) || null;
-          var icpc = row.icpc2 || (row.codes && row.codes.icpc2) || null;
-          var key = (icd || icpc || "").toLowerCase();
+          if (!row || typeof row !== "object") return;
+          var icd = row.icd10 || row.ICD10 || row.sks || row.SKS
+                  || (row.codes && (row.codes.icd10 || row.codes.ICD10)) || null;
+          var icpc = row.icpc2 || row.ICPC2 || (row.codes && row.codes.icpc2) || null;
+          var key = String(icd || icpc || "").toLowerCase();
           if (!key || seen[key]) return;
           seen[key] = true;
-          out.push({ icd10: icd, icpc2: icpc, debut: row.debut || row.onset || null });
+          out.push({ icd10: icd || null, icpc2: icpc || null, debut: row.debut || row.onset || null });
         });
         return out;
       }
+      function harvestConditions() {
+        // No sanctioned diagnoser self-access JSON is proven, so this stays a
+        // best-effort probe that resolves to [] on any failure — it must NEVER
+        // sink the harvest. journal-fra-sygehus free text is NOT fetched (rule 4).
+        return getJSON("/app/diagnoser/api/v1/diagnoser/").then(function (j) {
+          var rows = Array.isArray(j) ? j : (j.items || j.results || j.data || []);
+          return reduceConditions(rows);
+        }).catch(function () { return []; });
+      }
 
-      // --- harvest: fetch → reduce → post --------------------------------------
+      // --- harvest: fetch → reduce → post (each section isolated) ---------------
       window.__liviqaSundhedHarvest = function () {
-        if (!loggedIn()) { postErr("not signed in"); return; }
-        // INTEGRATION POINT: replace with the proven self-access paths.
-        var LABS  = "/global/rest/selvbetjening/svaroversigt";
-        var MEDS  = "/global/rest/selvbetjening/ordinationer";
-        var DIAGS = "/global/rest/selvbetjening/diagnoser";
-        // NOTE: journal-fra-sygehus is intentionally NOT fetched (deferred, rule 4).
-
-        function safe(p, reduce) {
-          return getJSON(p).then(function (j) {
-            // Endpoints may wrap rows under .items/.results/.data — normalise.
-            var rows = Array.isArray(j) ? j : (j.items || j.results || j.data || []);
-            return reduce(rows);
-          }).catch(function () { return []; }); // one section failing must not sink the rest
-        }
-
+        // Each section has its own catch so one failing never aborts the others.
         Promise.all([
-          safe(LABS, reduceLabs),
-          safe(MEDS, reduceMeds),
-          safe(DIAGS, reduceConditions)
+          harvestLabs().catch(function () { return []; }),
+          harvestMeds().catch(function () { return []; }),
+          harvestConditions().catch(function () { return []; })
         ]).then(function (res) {
           post({
             type: "harvest",
             payload: {
               asOf: new Date().toISOString(),
-              labs: res[0],
-              meds: res[1],
-              conditions: res[2]
+              labs: res[0] || [],
+              meds: res[1] || [],
+              conditions: res[2] || []
             }
           });
         }).catch(function (e) { postErr(e && e.message); });

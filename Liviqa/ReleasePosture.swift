@@ -27,10 +27,6 @@ enum ReleasePosture {
         precondition(Config.nationalIDLoginEnabled == false,
                      "Release posture violation: national-eID simulated login enabled")
 
-        // Path A Connect Sundhed.dk embeds sundhed.dk in an in-app WebView — never in Release.
-        precondition(Config.sundhedWebConnectEnabled == false,
-                     "Release posture violation: in-app Sundhed.dk WebView enabled")
-
         // All rails ride the sovereign prod backend — no sandbox detour (T1).
         precondition(Config.walletRailBaseURL == nil,
                      "Release posture violation: wallet rail routed off the main backend")

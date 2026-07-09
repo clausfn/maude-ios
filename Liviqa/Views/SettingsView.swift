@@ -61,7 +61,12 @@ struct SettingsView: View {
         #endif
         .navigationDestination(isPresented: $showDataSources)    { DataSourcesView() }
         .navigationDestination(isPresented: $showHealthPassport) { HealthPassportView() }
-        .navigationDestination(isPresented: $showSundhedImport)  { SundhedImportView() }
+        .navigationDestination(isPresented: $showSundhedImport)  {
+            SundhedWebSessionView(
+                ingest: appState.supabase as? SundhedIngesting,
+                citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
+            )
+        }
         .navigationDestination(isPresented: $showConsentLedger)  { ConsentLedgerView() }
         .navigationDestination(isPresented: $showNudgeSettings)  { NotificationSettingsView() }
         .navigationDestination(isPresented: $showPrivacy)        { InAppPrivacyView() }
