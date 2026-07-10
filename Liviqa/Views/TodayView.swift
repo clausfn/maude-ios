@@ -108,6 +108,13 @@ struct TodayView: View {
                             .padding(.top, 14)
                     }
 
+                    // Once anything is imported, a visible, discoverable entry to VIEW
+                    // and screenshot the record (labs / diagnoses / medicine).
+                    if hasImportedRecord {
+                        healthRecordCard
+                            .padding(.top, 10)
+                    }
+
                     // Calm, affirming lead (not an alert) — the everyday day-good
                     // state. On a genuinely empty cold start (Release, no Health
                     // readings yet) the honest baseline card replaces it.
@@ -165,6 +172,55 @@ struct TodayView: View {
             }
         }
         #endif
+    }
+
+    // MARK: — Your health record (view/screenshot imported labs, diagnoses, medicine)
+
+    private var hasImportedRecord: Bool {
+        !appState.healthObservations.isEmpty
+            || !appState.healthConditions.isEmpty
+            || !appState.healthMedications.isEmpty
+    }
+
+    private var recordSummaryLine: String {
+        let l = appState.healthObservations.count
+        let d = appState.healthConditions.count
+        let m = appState.healthMedications.count
+        var parts: [String] = []
+        if l > 0 { parts.append("\(l) lab result\(l == 1 ? "" : "s")") }
+        if d > 0 { parts.append("\(d) diagnos\(d == 1 ? "is" : "es")") }
+        if m > 0 { parts.append("\(m) medicine\(m == 1 ? "" : "s")") }
+        return parts.isEmpty
+            ? "Labs, diagnoses & medicine — kept on this device"
+            : parts.joined(separator: " · ") + " — tap to view or share"
+    }
+
+    private var healthRecordCard: some View {
+        Button { appState.showHealthRecord = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "list.clipboard.fill")
+                    .font(.system(size: 17)).foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(LiviqaTheme.ink2)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your health record")
+                        .font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text(recordSummaryLine)
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right")
+                    .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: — Connect Sundhed.dk (prominent, health-records import)

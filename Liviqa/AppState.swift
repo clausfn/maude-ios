@@ -127,6 +127,10 @@ final class AppState {
     var showProfileSheet = false
     /// Set by the ✨ Ask button in the app bar; MainTabView presents the assistant.
     var showAssistant = false
+    /// Set from Home + the Sundhed import success; MainTabView presents the Health
+    /// Passport (where imported labs / diagnoses / medicine live) as a sheet, so the
+    /// citizen can always reach — and screenshot — their record.
+    var showHealthRecord = false
     /// >0 while a full-screen detail (chat, consult, a pushed screen) is on top —
     /// MainTabView hides the floating tab bar so it can't overlap the content.
     var detailDepth = 0

@@ -109,17 +109,25 @@ extension SundhedWebHarvest {
         // latest value; SundhedPayloadBuilder re-summarises into by_variable.
         var labMeasurements: [SundhedLabMeasurement] = []
         for lab in labs {
-            guard let catalogVar = SundhedParsers.catalogVar(forComponent: lab.component) else { continue }
             guard let reported = lab.latest ?? lab.mean else { continue }
+            // Keep EVERY analyte the citizen has. Known Danish components map to their
+            // canonical catalog var (LOINC/MPC-ready); UNKNOWN ones are kept for DISPLAY
+            // under their own readable name — NEVER silently dropped. (The old
+            // `guard let catalogVar … else { continue }` discarded ~90% of a 156-analyte
+            // record because the crosswalk only knows ~15 analytes — the "labs
+            // disappear" bug.) Passthrough rows carry scale 1.0 and are excluded from
+            // the research payload downstream (they have no catalog code yet).
+            let mapped = SundhedParsers.catalogVar(forComponent: lab.component)
+            let scopeKey = mapped ?? lab.component        // readable name for unmapped
             var value = reported
             var unit = lab.unit ?? ""
-            if catalogVar == "hba1c", unit.lowercased().contains("mmol/mol") {
+            if mapped == "hba1c", unit.lowercased().contains("mmol/mol") {
                 value = SundhedParsers.hba1cIFCCtoNGSP(reported)
                 unit = "%"
             }
-            let scale = SundhedParsers.scaleFactor(for: catalogVar)
+            let scale = mapped.map { SundhedParsers.scaleFactor(for: $0) } ?? 1.0
             labMeasurements.append(SundhedLabMeasurement(
-                catalogVar: catalogVar,
+                catalogVar: scopeKey,
                 component: lab.component,
                 specimen: lab.specimen,
                 unit: unit,
@@ -332,6 +340,29 @@ struct SundhedWebSessionView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canHarvest)
+
+            // After a successful import, the direct path to VIEW / screenshot the record
+            // (labs, diagnoses, medicine). Closes this screen, then opens the Health
+            // Passport (slight delay so the sheet swap doesn't race).
+            if phase == .done {
+                Button {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        appState.showHealthRecord = true
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "list.clipboard").font(.system(size: 13))
+                        Text("See your health record").font(.lato(13.5, .bold))
+                        Image(systemName: "arrow.right").font(.system(size: 11))
+                    }
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .frame(maxWidth: .infinity).padding(.vertical, 11)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(LiviqaTheme.moss2))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(16)
     }

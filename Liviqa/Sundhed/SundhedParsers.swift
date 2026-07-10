@@ -428,6 +428,11 @@ public enum SundhedParsers {
     /// populate when a catalog var's canonical unit differs from the DK report unit.
     static let scaleFactors: [String: Double] = [:]
 
+    /// The catalog vars the crosswalk can produce — used to tell a canonical, coded
+    /// observation (LOINC/MPC-ready, research-eligible) from a display-only passthrough
+    /// row (an analyte kept for the citizen's view but with no catalog code yet).
+    static let knownCatalogVars: Set<String> = Set(componentToCatalogVar.values)
+
     static func catalogVar(forComponent component: String) -> String? {
         componentToCatalogVar[normalizeKey(component)]
     }

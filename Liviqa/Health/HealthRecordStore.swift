@@ -280,7 +280,12 @@ struct HealthStore {
     /// this to the existing `SundhedIngesting` client. The backend re-checks k_floor /
     /// covering-grant guardrails on receipt.
     func researchPayload(citizenId: String, asOf: Date = Date()) -> SundhedIngestBody {
-        let labs: [SundhedLabMeasurement] = latestObservations().map { o in
+        // Only CODED observations (real catalog vars) go to research/MPC — display-only
+        // passthrough rows (analytes kept under their readable name, no catalog code)
+        // are shown to the citizen but never leave the device as research data.
+        let labs: [SundhedLabMeasurement] = latestObservations()
+            .filter { SundhedParsers.knownCatalogVars.contains($0.scopeKey) }
+            .map { o in
             let scale = SundhedParsers.scaleFactor(for: o.scopeKey)
             return SundhedLabMeasurement(
                 catalogVar: o.scopeKey,

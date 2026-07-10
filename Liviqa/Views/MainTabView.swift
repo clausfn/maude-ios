@@ -194,6 +194,12 @@ struct MainTabView: View {
             ChatView(nudges: appState.nudges)
         }
         .sheet(isPresented: Binding(
+            get: { appState.showHealthRecord },
+            set: { appState.showHealthRecord = $0 }
+        )) {
+            HealthPassportView(showsCloseButton: true)
+        }
+        .sheet(isPresented: Binding(
             get: { showProfile || appState.showProfileSheet },
             set: { open in
                 if !open {
