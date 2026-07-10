@@ -52,7 +52,22 @@ final class AppState {
 
     // On-device SwiftData store (samples never leave the device). Optional so a
     // schema/store failure can never crash launch — the feed still works.
-    private let modelContainer: ModelContainer? = try? LiviqaStore.makeContainer()
+    //
+    // NEVER a bare `try?`: a nil container silently turns every ingest into a no-op
+    // (guard-let → return), which reads as "data came in, then disappeared." If the
+    // on-disk store can't open (e.g. a schema migration between builds), we log it
+    // loudly and fall back to an in-memory container so the app keeps functioning this
+    // session — a visible, understood failure instead of silent data loss.
+    private let modelContainer: ModelContainer? = AppState.openStore()
+
+    private static func openStore() -> ModelContainer? {
+        do {
+            return try LiviqaStore.makeContainer()
+        } catch {
+            print("‼️ LiviqaStore: on-disk container failed to open (\(error)). Falling back to in-memory for this session.")
+            return try? LiviqaStore.makeContainer(inMemory: true)
+        }
+    }
 
     /// The canonical, source-agnostic health record repository (labs/diagnoses/meds
     /// from ANY source). On-device only. `nil` only if the store failed to open.

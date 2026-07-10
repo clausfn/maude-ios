@@ -197,7 +197,16 @@ struct MainTabView: View {
             get: { appState.showHealthRecord },
             set: { appState.showHealthRecord = $0 }
         )) {
-            HealthPassportView(showsCloseButton: true)
+            // NavigationStack so the passport's own drill-down links (consent log,
+            // data sources) push correctly when it's opened as a sheet; Done closes it.
+            NavigationStack {
+                HealthPassportView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { appState.showHealthRecord = false }
+                        }
+                    }
+            }
         }
         .sheet(isPresented: Binding(
             get: { showProfile || appState.showProfileSheet },

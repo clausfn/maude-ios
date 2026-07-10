@@ -118,7 +118,11 @@ extension SundhedWebHarvest {
             // disappear" bug.) Passthrough rows carry scale 1.0 and are excluded from
             // the research payload downstream (they have no catalog code yet).
             let mapped = SundhedParsers.catalogVar(forComponent: lab.component)
-            let scopeKey = mapped ?? lab.component        // readable name for unmapped
+            // Unmapped rows keep the SPECIMEN in the key so plasma vs urine
+            // (Glukose;P / Glukose;U) stay DISTINCT — otherwise summarise() groups by
+            // key and averages across specimens, silently merging/dropping one (the
+            // exact loss this "keep everything" change is meant to prevent).
+            let scopeKey = mapped ?? (lab.specimen.map { "\(lab.component);\($0)" } ?? lab.component)
             var value = reported
             var unit = lab.unit ?? ""
             if mapped == "hba1c", unit.lowercased().contains("mmol/mol") {

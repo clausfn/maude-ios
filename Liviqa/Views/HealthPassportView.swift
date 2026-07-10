@@ -3,10 +3,6 @@
 import SwiftUI
 
 struct HealthPassportView: View {
-    /// When presented as a sheet (from Home / the import-success screen) show an
-    /// explicit close control; when pushed from Settings the nav stack handles back.
-    var showsCloseButton: Bool = false
-    @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
     @State private var showConsentLedger = false
     @State private var showDataSources   = false
@@ -225,22 +221,6 @@ struct HealthPassportView: View {
                     .padding(.horizontal, 20)
                 }
             }
-        .overlay(alignment: .topTrailing) {
-            if showsCloseButton {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(LiviqaTheme.ink2)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(LiviqaTheme.paper2))
-                        .overlay(Circle().stroke(LiviqaTheme.line2, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 16)
-                .padding(.top, 8)
-                .accessibilityLabel("Close")
-            }
-        }
         .background(LiviqaTheme.paper.ignoresSafeArea())
         .navigationTitle("Health Passport")
         #if os(iOS)
