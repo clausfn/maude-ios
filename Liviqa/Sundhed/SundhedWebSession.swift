@@ -202,21 +202,23 @@ struct SundhedWebSessionView: View {
 
     enum Phase: Equatable { case idle, harvesting, ingesting, done, failed }
 
-    /// A section row in the "what's coming in" checklist.
-    enum SecState { case pending, active, done }
+    /// A section row in the "what's coming in" checklist. `.empty` = we checked this
+    /// data type and nothing came back (shown distinctly, never as a green tick).
+    enum SecState { case pending, active, done, empty }
     struct SectionRow: Identifiable { let key: String; let title: String; let icon: String; var id: String { key } }
 
-    /// Walk order = the order the coordinator drives the WebView through. Keys match
-    /// the JS interceptor's `progress` section names (journal capture reports as
-    /// "conditions", so its checklist tick lands when the walk finishes).
+    /// The checklist rows. Only THREE — Medicine / Lab results / Diagnoses — because
+    /// those are the data types we actually produce. The walk also visits the
+    /// hospital-journal page, but only to harvest extra ICD-10 CODES into Diagnoses
+    /// (its free-text narrative is never captured), so it doesn't get its own row it
+    /// could never honestly tick.
     static let sectionRows: [SectionRow] = [
-        .init(key: "meds",       title: "Medicine",         icon: "pills"),
-        .init(key: "labs",       title: "Lab results",      icon: "testtube.2"),
-        .init(key: "conditions", title: "Diagnoses",        icon: "list.bullet.clipboard"),
-        .init(key: "journal",    title: "Hospital journal", icon: "cross.case"),
+        .init(key: "meds",       title: "Medicine",    icon: "pills"),
+        .init(key: "labs",       title: "Lab results", icon: "testtube.2"),
+        .init(key: "conditions", title: "Diagnoses",   icon: "list.bullet.clipboard"),
     ]
     static var freshSecState: [String: SecState] {
-        ["meds": .pending, "labs": .pending, "conditions": .pending, "journal": .pending]
+        ["meds": .pending, "labs": .pending, "conditions": .pending]
     }
 
     var body: some View {
@@ -270,23 +272,20 @@ struct SundhedWebSessionView: View {
     }
 
     /// Relay the interceptor's section progress + the coordinator's walk cursor into
-    /// the visible checklist. `ok == true` ⇒ a capture landed for `section`;
-    /// `ok == false` ⇒ the coordinator just started navigating to `section` (mark it
-    /// active and everything before it done). `__walkdone__` ⇒ tick everything.
+    /// the visible checklist. `ok == true` ⇒ a REAL capture landed for `section` (only
+    /// this ticks a row green). `ok == false` ⇒ the coordinator just started
+    /// navigating to `section` (show it in-progress). We deliberately never mark a row
+    /// done just because the walk passed it — the final honest state is set from the
+    /// actual harvest counts in `ingest(_:)`, so the checklist can't claim data it
+    /// didn't get (that was the "4 green ticks + nothing came back" bug).
     @MainActor
     private func handleProgress(_ section: String, _ ok: Bool) {
-        if section == "__walkdone__" {
-            for k in secState.keys { secState[k] = .done }
-            return
-        }
         if ok {
             if secState[section] != nil { secState[section] = .done }
             return
         }
-        var reached = false
-        for r in Self.sectionRows {
-            if r.key == section { reached = true; secState[r.key] = .active }
-            else if !reached, secState[r.key] != .done { secState[r.key] = .done }
+        if secState[section] != nil, secState[section] != .done {
+            secState[section] = .active
         }
     }
 
@@ -310,9 +309,17 @@ struct SundhedWebSessionView: View {
                 .font(.lato(12)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink3)
 
-            // Manual assemble+ingest — the "I'm done, bring it in" control. Works even
-            // if the auto-walk stalls: it assembles whatever caps have accumulated.
-            Button { harvestNonce += 1; phase = .harvesting; message = "Reading your Sundhed.dk data on this device…" } label: {
+            // The single consented pull. Tapping it drives the WebView through the
+            // Min Sundhedsjournal pages (Medicine → Lab results → Diagnoses → Hospital
+            // journal), capturing only summaries + codes, then stores on-device. Takes
+            // ~30s because the lab portal is slow to query; the checklist shows live
+            // progress. Re-tapping re-runs a fresh pull.
+            Button {
+                secState = Self.freshSecState
+                harvestNonce += 1
+                phase = .harvesting
+                message = "Opening your Sundhed.dk pages and reading only summaries and codes… this takes about half a minute."
+            } label: {
                 HStack(spacing: 8) {
                     if phase == .harvesting || phase == .ingesting { ProgressView().tint(.white) }
                     else { Image(systemName: "arrow.down.heart").font(.system(size: 14)) }
@@ -341,6 +348,7 @@ struct SundhedWebSessionView: View {
                         case .done:    Image(systemName: "checkmark.circle.fill").foregroundStyle(LiviqaTheme.moss)
                         case .active:  ProgressView().scaleEffect(0.7)
                         case .pending: Image(systemName: "circle").foregroundStyle(LiviqaTheme.ink4)
+                        case .empty:   Image(systemName: "minus.circle").foregroundStyle(LiviqaTheme.ink4)
                         }
                     }
                     .font(.system(size: 15))
@@ -350,8 +358,12 @@ struct SundhedWebSessionView: View {
                         .foregroundStyle(LiviqaTheme.ink3)
                         .frame(width: 18)
                     Text(row.title)
-                        .font(.lato(13, st == .pending ? .regular : .bold))
-                        .foregroundStyle(st == .pending ? LiviqaTheme.ink3 : LiviqaTheme.ink)
+                        .font(.lato(13, st == .done ? .bold : .regular))
+                        .foregroundStyle(st == .done ? LiviqaTheme.ink : LiviqaTheme.ink3)
+                    if st == .empty {
+                        Text("none found")
+                            .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
+                    }
                     Spacer()
                 }
             }
@@ -396,9 +408,14 @@ struct SundhedWebSessionView: View {
             fail("Sign in to Liviqa first, then try again.")
             return
         }
-        // Nothing coded came back → don't call the backend (no covering-grant churn).
+        // Honest per-section state from what actually came back (green tick only for
+        // data types that yielded rows; the rest show "none found", never a tick).
+        secState["meds"]       = harvest.meds.isEmpty ? .empty : .done
+        secState["labs"]       = harvest.labs.isEmpty ? .empty : .done
+        secState["conditions"] = harvest.conditions.isEmpty ? .empty : .done
+        // Only bail if EVERYTHING is empty; otherwise store whatever landed.
         guard !(harvest.labs.isEmpty && harvest.meds.isEmpty && harvest.conditions.isEmpty) else {
-            fail("Nothing came back yet. Make sure you're signed in above and have opened Min Sundhedsjournal (Laboratoriesvar / Medicinkortet), then tap again.")
+            fail("Couldn't read any data this time. Open Min Sundhedsjournal so you can see your Laboratoriesvar and Medicinkortet on screen, then tap again. Lab results in particular can take several seconds to load.")
             return
         }
         phase = .ingesting
@@ -566,12 +583,12 @@ private struct SundhedWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // Fire the assemble+harvest exactly once per nonce bump (and cancel the
-        // auto-walk — a manual "bring it in" supersedes it).
+        // Each nonce bump (the "Bring my data into Liviqa" tap) starts a FRESH walk
+        // that drives the WebView through the sections and assembles+ingests at the
+        // end. A fresh walk supersedes any prior one, so re-taps re-run cleanly.
         if harvestNonce != context.coordinator.lastHarvestNonce {
             context.coordinator.lastHarvestNonce = harvestNonce
-            context.coordinator.cancelWalk()
-            context.coordinator.runHarvest()
+            context.coordinator.startHarvestWalk()
         }
         // Clear the transient caps exactly once per clear-nonce bump.
         if clearNonce != context.coordinator.lastClearNonce {
@@ -600,21 +617,48 @@ private struct SundhedWebView: UIViewRepresentable {
         private let onError: (String) -> Void
         private static let decoder = JSONDecoder()
 
-        // CHANGE 3 — SECTION WALK. Once login is detected, drive the WebView through
-        // the four Min Sundhedsjournal sections in order (full navigations, so the
+        // SECTION WALK. The "Bring my data into Liviqa" button drives the WebView
+        // through the Min Sundhedsjournal sections in order (full navigations, so the
         // documentStart interceptor re-arms on each and the SPA fires its own gated
-        // calls, which we capture). Generous per-section dwell; a monotonically
-        // increasing generation cancels stale timers when the walk is superseded.
-        private static let walkSections: [(key: String, url: String)] = [
-            ("meds",       "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/medicinkortet/"),
-            ("labs",       "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/laboratoriesvar/"),
-            ("conditions", "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/diagnoser/"),
-            ("journal",    "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/journal-fra-sygehus/"),
-        ]
-        private static let sectionDwell: TimeInterval = 5.5
+        // calls, which we capture). We do NOT auto-walk on login — the citizen taps
+        // the button to consent to the pull, and only then does data get read/stored.
+        // A monotonically increasing generation cancels stale timers when superseded.
+        private var walk: [(key: String, url: String)] = []
         private var walkStarted = false
         private var walkIndex = -1
         private var walkGeneration = 0
+
+        /// Build the walk. The labs page is pre-armed with its query: a bare
+        /// `/laboratoriesvar/` shows only a filter shell and NEVER fires the
+        /// `svaroversigt` request, so nothing is there to intercept. Adding
+        /// `action=skema` + the full date range makes the SPA run the query and render,
+        /// which IS the request we observe. (Direct re-fetch of svaroversigt answers
+        /// 200 {}, so intercepting the SPA's own call is the only path that works.)
+        private static func makeWalk() -> [(key: String, url: String)] {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.dateFormat = "dd-MM-yyyy"
+            let today = df.string(from: Date())
+            let base = "https://www.sundhed.dk/borger/min-side/min-sundhedsjournal/"
+            let labs = base + "laboratoriesvar/?action=skema&datoFra=01-01-2010&datoTil=\(today)&labtype=Alle"
+            return [
+                ("meds",       base + "medicinkortet/"),
+                ("labs",       labs),
+                ("conditions", base + "diagnoser/"),
+                ("journal",    base + "journal-fra-sygehus/"),
+            ]
+        }
+
+        /// Per-section dwell before advancing. Labs is slow (the proevesvar SPA
+        /// auth-checks, queries, then renders ~1MB); diagnoser needs time to expand
+        /// each diagnosis so its "ICD 10:" line renders for the code scan.
+        private func dwell(forKey key: String) -> TimeInterval {
+            switch key {
+            case "labs":       return 12.0
+            case "conditions": return 8.0
+            default:           return 6.0
+            }
+        }
 
         init(onSessionChange: @escaping (Bool) -> Void,
              onProgress: @escaping (String, Bool) -> Void,
@@ -641,35 +685,38 @@ private struct SundhedWebView: UIViewRepresentable {
 
         // MARK: Section walk
 
-        /// Start the section walk once, the first time we see a logged-in session.
-        func beginWalkIfNeeded() {
-            guard !walkStarted else { return }
-            walkStarted = true
+        /// Start (or restart) the walk, ending in assemble+ingest. Triggered by the
+        /// "Bring my data into Liviqa" button. A fresh generation cancels any prior
+        /// walk so re-taps re-run cleanly from the first section.
+        func startHarvestWalk() {
             walkGeneration += 1
+            walkStarted = true
+            walk = Self.makeWalk()
             loadWalkSection(0, generation: walkGeneration)
         }
 
-        /// Cancel any in-flight walk (manual harvest supersedes it).
+        /// Cancel any in-flight walk.
         func cancelWalk() { walkGeneration += 1 }
 
         private func loadWalkSection(_ i: Int, generation: Int) {
             guard generation == walkGeneration else { return }
-            guard i < Self.walkSections.count else { finishWalk(generation: generation); return }
+            guard i < walk.count else { finishWalk(generation: generation); return }
             walkIndex = i
-            let s = Self.walkSections[i]
-            onProgress(s.key, false)                       // mark this row active
+            let s = walk[i]
+            onProgress(s.key, false)                       // mark this row in-progress
             if let url = URL(string: s.url) { webView?.load(URLRequest(url: url)) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.sectionDwell) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + dwell(forKey: s.key)) { [weak self] in
                 guard let self, generation == self.walkGeneration, self.walkIndex == i else { return }
                 self.loadWalkSection(i + 1, generation: generation)
             }
         }
 
         private func finishWalk(generation: Int) {
-            // Let the last section's captures settle, tick everything, then assemble.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            // Let the last section's captures settle, then assemble + post the harvest
+            // (which the view reduces on-device and stores). The view sets the final
+            // honest checklist from the actual harvest counts.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 guard let self, generation == self.walkGeneration else { return }
-                self.onProgress("__walkdone__", true)
                 self.runHarvest()
             }
         }
@@ -694,9 +741,9 @@ private struct SundhedWebView: UIViewRepresentable {
 
             switch kind {
             case "session":
-                let inNow = (dict["loggedIn"] as? Bool) ?? false
-                onSessionChange(inNow)
-                if inNow { beginWalkIfNeeded() }         // auto-walk once, on first login
+                // Report login for the UI; do NOT auto-walk. The citizen taps
+                // "Bring my data into Liviqa" to consent, which starts the walk.
+                onSessionChange((dict["loggedIn"] as? Bool) ?? false)
             case "progress":
                 onProgress((dict["section"] as? String) ?? "", (dict["ok"] as? Bool) ?? false)
             case "error":
@@ -1137,20 +1184,37 @@ private struct SundhedWebView: UIViewRepresentable {
           // One last DOM scan in case we're sitting on a code page right now.
           try { if (onCodePage()) window.__liviqaSundhedScan(); } catch (e) {}
 
-          var labs = [], meds = [];
-          var labText = ssGet(CAP.labs);
-          if (labText) { try { labs = reduceSvaroversigt(JSON.parse(labText)) || []; } catch (e) {} }
+          // Assemble labs (from the intercepted svaroversigt cap) + conditions (coded)
+          // + whatever meds we resolve, then post the harvest.
+          function assemble(meds) {
+            var labs = [];
+            var labText = ssGet(CAP.labs);
+            if (labText) { try { labs = reduceSvaroversigt(JSON.parse(labText)) || []; } catch (e) {} }
+            var conditions = ssCodes().map(function (c) {
+              return { icd10: c, icpc2: null, debut: null };
+            });
+            post({
+              type: "harvest",
+              payload: { asOf: new Date().toISOString(), labs: labs, meds: meds || [], conditions: conditions }
+            });
+          }
+
+          // MEDS are robust two ways: prefer the intercepted cap, but if it's empty
+          // fall back to a DIRECT authed GET of the medicine-card API. Unlike labs'
+          // svaroversigt (which answers {} to a re-fetch), the ordinations endpoint
+          // returns the full list to a same-origin authed fetch — so meds land even
+          // if the walk's medicinkortet dwell missed the SPA's own call.
           var medText = ssGet(CAP.meds);
+          var meds = [];
           if (medText) { try { meds = reduceMedsJSON(JSON.parse(medText)) || []; } catch (e) {} }
-
-          var conditions = ssCodes().map(function (c) {
-            return { icd10: c, icpc2: null, debut: null };
-          });
-
-          post({
-            type: "harvest",
-            payload: { asOf: new Date().toISOString(), labs: labs, meds: meds, conditions: conditions }
-          });
+          if (meds.length) { assemble(meds); return; }
+          rawGET(MEDS).then(function (r) { return (r && r.ok) ? r.text() : ""; })
+            .then(function (t) {
+              var m = [];
+              if (t) { try { keepBiggest(CAP.meds, t); m = reduceMedsJSON(JSON.parse(t)) || []; } catch (e) {} }
+              assemble(m);
+            })
+            .catch(function () { assemble([]); });
         } catch (e) { postErr(e && e.message); }
       };
 

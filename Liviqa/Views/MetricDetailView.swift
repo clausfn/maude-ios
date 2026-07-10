@@ -22,7 +22,7 @@ enum WellnessPillar: String, Hashable, CaseIterable {
     }
     var bigValue: String {
         switch self {
-        case .sleep: "7h 02"; case .glucose: "68%"; case .recovery: "42 ms"; case .heart: "58 bpm"
+        case .sleep: "6h 52"; case .glucose: "68%"; case .recovery: "42 ms"; case .heart: "58 bpm"
         }
     }
     var delta: String {
@@ -205,7 +205,7 @@ struct MetricDetailView: View {
         case .glucose:  return sig.inRange == "—" ? nil : sig.inRange
         case .recovery: return sig.hrv == "—" ? nil : sig.hrv + " ms"
         case .heart:    return sig.rhr == "—" ? nil : sig.rhr + " bpm"
-        case .sleep:    return nil   // handled by liveSleep above
+        case .sleep:    return sig.sleep == "—" ? nil : sig.sleep   // liveSleep took priority above; else match Home
         }
     }
     private var hasRealValue: Bool { realValue != nil }

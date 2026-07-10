@@ -480,7 +480,7 @@ struct TodayView: View {
     private var signalRow: some View {
         HStack(spacing: 8) {
             NavigationLink(value: WellnessPillar.sleep) {
-                signalChip(String(localized: "Sleep"), "moon.fill", signals?.sleep ?? seedValue("6h52"), clay: false, spark: spark(\.sleepWeek, .sleep))
+                signalChip(String(localized: "Sleep"), "moon.fill", sleepHeadline, clay: false, spark: spark(\.sleepWeek, .sleep))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
                 signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? seedValue("61%"), clay: signals?.inRangeIsClay ?? !coldStart, spark: spark(\.inRangeWeek, .glucose))
@@ -493,6 +493,17 @@ struct TodayView: View {
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
+    }
+
+    /// Sleep headline for Home — derived from the SAME source the pillar detail uses
+    /// (real last-night sleep from HealthKit, `appState.sleepSummary`) so the front
+    /// page can't disagree with the detail (the "front page doesn't match the actual
+    /// data" report). Falls back to the signals value, then the honest seed.
+    private var sleepHeadline: String {
+        if let s = appState.sleepSummary {
+            return "\(s.asleepMinutes / 60)h \(String(format: "%02d", s.asleepMinutes % 60))"
+        }
+        return signals?.sleep ?? seedValue("6h 52")
     }
 
     /// Demo seed values render only outside the honest cold start; a genuinely
