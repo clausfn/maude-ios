@@ -42,7 +42,14 @@ public nonisolated enum TodaySignalsDeriver {
 
         let stats = PassportStatsDeriver.derive(from: s, tirLowMmol: tirLowMmol, tirHighMmol: tirHighMmol)
 
-        let sleep = stats.avgSleepHours > 0 ? formatSleep(stats.avgSleepHours) : "—"
+        // Sleep chip = LAST NIGHT's asleep total — the same figure the Sleep pillar
+        // detail shows, and consistent with the "latest reading" semantic of the HRV/
+        // RHR chips below. Previously this used the multi-night AVERAGE
+        // (stats.avgSleepHours), which read ~54 min off from the detail's last-night
+        // value (Home 4h12 vs detail 5h06) — the "front page doesn't match" bug. The
+        // average still lives in PassportStats where an average is actually intended.
+        let lastNightHours = SleepDeriver.derive(from: s).map { Double($0.asleepMinutes) / 60.0 } ?? 0
+        let sleep = lastNightHours > 0 ? formatSleep(lastNightHours) : "—"
         let tir = stats.glucoseTimeInRange
         let inRange = s.glucose.isEmpty ? "—" : "\(tir)%"
         let hrv = latest(s.hrv).map { String(Int($0.rounded())) } ?? "—"
