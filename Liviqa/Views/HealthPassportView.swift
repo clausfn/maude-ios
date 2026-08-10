@@ -341,7 +341,7 @@ struct HealthPassportView: View {
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(LiviqaTheme.clay2).clipShape(Capsule())
                     if let d = c.onsetDate {
-                        Text("since \(String(Calendar.current.component(.year, from: d)))")
+                        Text(HealthDisplay.sinceText(d))
                             .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
                     }
                 }

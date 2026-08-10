@@ -351,7 +351,7 @@ struct HealthStore {
             for c in conds {
                 let tag = HealthDataSource(rawValue: c.source)?.displayLabel ?? c.source
                 let name = (c.label?.isEmpty == false) ? c.label! : HealthDisplay.conditionName(for: c.icd10)
-                let since = c.onsetDate.map { " · since \(Calendar.current.component(.year, from: $0))" } ?? ""
+                let since = c.onsetDate.map { " · \(HealthDisplay.sinceText($0))" } ?? ""
                 lines.append("  \(name) (\(c.icd10))\(since)  ·  \(tag)")
             }
         }
@@ -417,81 +417,96 @@ enum HealthDisplay {
     /// 3) so subdivisions inherit their category name; anything unknown falls back
     /// to a readable chapter description — a code NEVER renders bare.
     private static let icd10Names: [String: String] = [
-        // Endocrine / metabolic (E)
+        // Endocrine / metabolic (E) — everyday name first, clinical in parentheses.
         "E10": "Type 1 diabetes",
         "E102": "Type 1 diabetes with kidney complications",
         "E103": "Type 1 diabetes with eye complications",
         "E104": "Type 1 diabetes with nerve complications",
         "E105": "Type 1 diabetes with circulation complications",
-        "E107": "Type 1 diabetes with multiple complications",
+        "E107": "Type 1 diabetes with several complications",
         "E108": "Type 1 diabetes with other complications",
         "E109": "Type 1 diabetes without complications",
         "E11": "Type 2 diabetes",
         "E114": "Type 2 diabetes with nerve complications",
         "E119": "Type 2 diabetes without complications",
-        "E03": "Underactive thyroid (hypothyroidism)",
-        "E05": "Overactive thyroid (hyperthyroidism)",
-        "E66": "Obesity",
-        "E78": "Raised cholesterol / blood-fat disorder",
+        "E03": "Low metabolism (underactive thyroid)",
+        "E05": "High metabolism (overactive thyroid)",
+        "E66": "Overweight (obesity)",
+        "E78": "High cholesterol",
         // Blood (D5x–D8x, WHO)
-        "D50": "Iron-deficiency anaemia",
-        "D51": "Vitamin B12-deficiency anaemia",
+        "D50": "Low iron (iron-deficiency anaemia)",
+        "D51": "Vitamin B12 deficiency",
         // Cancer / tumours (C)
+        "C18": "Bowel cancer",
+        "C34": "Lung cancer",
+        "C43": "Melanoma (skin cancer)",
+        "C44": "Skin cancer (non-melanoma)",
         "C50": "Breast cancer",
         "C61": "Prostate cancer",
-        "C759": "Tumour of endocrine gland (unspecified)",
-        "C75": "Tumour of endocrine gland",
+        "C759": "Tumour of a hormone gland (unspecified)",
+        "C75": "Tumour of a hormone gland",
         // Mental health (F)
+        "F17": "Smoking dependence",
         "F32": "Depression",
-        "F41": "Anxiety disorder",
+        "F41": "Anxiety",
         // Nervous system (G)
         "G40": "Epilepsy",
         "G43": "Migraine",
+        "G45": "Mini-stroke (TIA)",
         "G47": "Sleep disorder",
-        "G62": "Polyneuropathy (nerve condition)",
-        "G632": "Diabetic polyneuropathy (nerve damage)",
-        "G63": "Polyneuropathy (nerve condition)",
-        // Eye (H0x–H5x)
-        "H25": "Cataract (age-related)",
-        "H26": "Cataract",
-        "H360": "Diabetic retinopathy (eye complication)",
-        "H36": "Retinal disorder",
-        // Circulatory (I)
-        "I10": "High blood pressure (hypertension)",
-        "I20": "Angina pectoris",
-        "I21": "Heart attack (myocardial infarction)",
-        "I25": "Chronic coronary heart disease",
-        "I48": "Atrial fibrillation / flutter",
-        "I489": "Atrial fibrillation",
+        "G62": "Nerve damage in arms/legs (polyneuropathy)",
+        "G632": "Diabetic nerve damage (polyneuropathy)",
+        "G63": "Nerve damage in arms/legs (polyneuropathy)",
+        // Eye / ear (H)
+        "H25": "Cataract (clouded lens)",
+        "H26": "Cataract (clouded lens)",
+        "H360": "Diabetic eye damage (retinopathy)",
+        "H36": "Retinal damage (eye complication)",
+        "H90": "Hearing loss",
+        "H91": "Hearing loss",
+        // Heart / circulation (I)
+        "I10": "High blood pressure",
+        "I20": "Chest pain from the heart (angina)",
+        "I21": "Heart attack",
+        "I25": "Narrowed coronary arteries (chronic heart disease)",
+        "I48": "Irregular heartbeat (atrial fibrillation)",
+        "I489": "Irregular heartbeat (atrial fibrillation)",
         "I50": "Heart failure",
-        "I63": "Stroke (cerebral infarction)",
+        "I63": "Stroke",
         "I83": "Varicose veins",
-        // Respiratory (J)
-        "J44": "COPD (chronic obstructive pulmonary disease)",
+        // Lungs (J)
+        "J18": "Pneumonia",
+        "J30": "Hay fever (allergic rhinitis)",
+        "J44": "COPD (smoker's lungs)",
         "J45": "Asthma",
-        // Digestive (K)
-        "K21": "Acid reflux (GERD)",
+        // Digestion (K)
+        "K21": "Heartburn / acid reflux",
         "K25": "Stomach ulcer",
-        "K29": "Gastritis",
-        "K42": "Umbilical hernia",
-        "K429": "Umbilical hernia",
-        "K57": "Diverticular disease",
+        "K29": "Inflamed stomach lining (gastritis)",
+        "K42": "Hernia at the navel (umbilical hernia)",
+        "K429": "Hernia at the navel (umbilical hernia)",
+        "K57": "Pouches in the bowel wall (diverticular disease)",
+        "K58": "Irritable bowel (IBS)",
         "K64": "Haemorrhoids",
         "K80": "Gallstones",
-        // Musculoskeletal (M)
-        "M16": "Osteoarthritis of the hip",
-        "M17": "Osteoarthritis of the knee",
-        "M42": "Spinal osteochondrosis (back condition)",
-        "M420": "Juvenile spinal osteochondrosis (Scheuermann's)",
+        // Muscles / bones / joints (M)
+        "M06": "Rheumatoid arthritis",
+        "M10": "Gout",
+        "M16": "Worn hip joint (osteoarthritis)",
+        "M17": "Worn knee joint (osteoarthritis)",
+        "M42": "Scheuermann's / spinal wear (osteochondrosis)",
+        "M420": "Scheuermann's disease (curved upper back)",
         "M54": "Back pain",
-        "M79": "Muscle / soft-tissue pain",
-        "M81": "Osteoporosis",
+        "M79": "Muscle and soft-tissue pain",
+        "M81": "Brittle bones (osteoporosis)",
         // Kidney / urinary (N)
         "N18": "Chronic kidney disease",
-        "N39": "Urinary tract condition",
+        "N20": "Kidney stones",
+        "N390": "Urinary tract infection",
+        "N39": "Bladder / urinary condition",
         // Skin (L)
+        "L20": "Eczema (atopic)",
         "L40": "Psoriasis",
-        "L20": "Atopic eczema",
     ]
 
     /// Readable chapter fallback (first letter of the WHO code) so unknown codes
@@ -517,6 +532,19 @@ enum HealthDisplay {
         "S": "Injury", "T": "Injury or external cause",
         "Z": "Contact / administrative code",
     ]
+
+    /// "since Apr 2019" when the onset carries month detail, "since 2019" for a
+    /// year-only onset (parsed as 1 Jan — treated as year precision).
+    static func sinceText(_ d: Date) -> String {
+        let cal = Calendar.current
+        let y = cal.component(.year, from: d)
+        if cal.component(.month, from: d) == 1 && cal.component(.day, from: d) == 1 {
+            return "since \(String(y))"
+        }
+        let df = DateFormatter()
+        df.dateFormat = "MMM yyyy"
+        return "since \(df.string(from: d))"
+    }
 
     /// Plain-language name for an ICD-10 (or Danish SKS) code.
     static func conditionName(for icd10: String) -> String {

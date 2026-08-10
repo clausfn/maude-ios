@@ -173,17 +173,40 @@ extension SundhedWebHarvest {
         return (labMeasurements, medItems, diagnoses)
     }
 
-    /// Diagnosis start dates (year precision) keyed by normalised ICD-10 code —
-    /// read from each diagnosis's own detail block. Display/provenance metadata
-    /// only; the coded wire body stays codes-only.
+    /// Parse a debut string as the page/JSON emit it: "30.04.2019", "04.2019",
+    /// "2019", or ISO "2019-04-30". Missing parts default to 1 (so a bare year
+    /// parses as 1 Jan — the display layer renders that as year-only).
+    static func parseDebutDate(_ s: String) -> Date? {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        var year: Int?; var month = 1; var day = 1
+        if t.range(of: #"^(19|20)\d{2}-\d{1,2}-\d{1,2}"#, options: .regularExpression) != nil {
+            let parts = t.prefix(10).split(separator: "-").compactMap { Int($0) }
+            if parts.count >= 3 { year = parts[0]; month = parts[1]; day = parts[2] }
+        } else {
+            let nums = t.split(whereSeparator: { ".-/ ".contains($0) }).compactMap { Int($0) }
+            if let yIdx = nums.firstIndex(where: { (1900...2100).contains($0) }) {
+                year = nums[yIdx]
+                let rest = Array(nums[..<yIdx])          // dd.mm.YYYY → [dd, mm]
+                if rest.count == 2 { day = rest[0]; month = rest[1] }
+                else if rest.count == 1 { month = rest[0] }
+            }
+        }
+        guard let y = year, (1...12).contains(month) else { return nil }
+        if !(1...31).contains(day) { day = 1 }
+        var comps = DateComponents(); comps.year = y; comps.month = month; comps.day = day
+        return Calendar.current.date(from: comps)
+    }
+
+    /// Diagnosis start dates (year-month precision when the source has it) keyed by
+    /// normalised ICD-10 code — read from each diagnosis's own detail block or JSON
+    /// object. Display/provenance metadata only; the coded wire body stays codes-only.
     func conditionOnsets() -> [String: Date] {
         var out: [String: Date] = [:]
         for c in conditions {
-            guard let raw = c.icd10, let debut = c.debut else { continue }
+            guard let raw = c.icd10, let debut = c.debut,
+                  let date = Self.parseDebutDate(debut) else { continue }
             let code = raw.replacingOccurrences(of: ".", with: "").uppercased()
-            guard let year = Int(debut.suffix(4)), (1900...2100).contains(year) else { continue }
-            var comps = DateComponents(); comps.year = year; comps.month = 1; comps.day = 1
-            if let d = Calendar.current.date(from: comps) { out[code] = d }
+            out[code] = date
         }
         return out
     }
@@ -623,7 +646,8 @@ struct SundhedWebSessionView: View {
             guard !existingCondNames.contains(code.lowercased()),
                   !existingCondNames.contains(name.lowercased()) else { continue }
             existingCondNames.insert(name.lowercased())
-            let year = c.debut.flatMap { Int($0.suffix(4)) }
+            let year = c.debut.flatMap { SundhedWebHarvest.parseDebutDate($0) }
+                .map { Calendar.current.component(.year, from: $0) }
             appState.healthContext.conditions.append(
                 ConditionEntry(name: name, diagnosedYear: year, notes: "Sundhed.dk · ICD-10 \(code)")
             )
@@ -1059,28 +1083,42 @@ private struct SundhedWebView: UIViewRepresentable {
         while ((m = reSks.exec(text)) !== null) out.push(m[1]);
         return out;
       }
-      // JSON-aware code walk: find diagnosis codes in coded FIELDS (keys containing
-      // kode/sks/icd/icpc—value shaped like a code) anywhere in an API response tree.
-      // Much safer than regexing raw JSON text (a bare D-code regex can false-positive
-      // on base64/ids) and matches the ejournal/diagnoser response shapes
-      // ("SKSKode":"DE104", "Icd10Kode":"E10.4", "DiagnoseKode":…). Codes only.
-      function collectCodesFromJSON(node, depth, out) {
+      // JSON-aware walk: find diagnosis codes in coded FIELDS (keys containing
+      // kode/sks/icd — value shaped like a code) anywhere in an API response tree,
+      // AND pair each code with the date field of the SAME object (Debutdato /
+      // Startdato preferred, any *dato/date/oprettet/registreret as fallback) so a
+      // diagnosis gets its start date at full JSON precision (year-month-day).
+      // Much safer than regexing raw JSON text; matches the ejournal/diagnoser
+      // shapes ("SKSKode":"DE104", "Debutdato":"2019-04-30"). Codes + dates only.
+      function collectEntriesFromJSON(node, depth, out) {
         if (!node || depth > 8) return out;
         if (Array.isArray(node)) {
-          for (var i = 0; i < node.length; i++) collectCodesFromJSON(node[i], depth + 1, out);
+          for (var i = 0; i < node.length; i++) collectEntriesFromJSON(node[i], depth + 1, out);
           return out;
         }
         if (typeof node === "object") {
+          var codes = [], preferred = null, fallback = null;
           for (var k in node) {
             if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
             var v = node[k];
-            if (typeof v === "string" && /kode|sks|icd/i.test(k) && !/icpc/i.test(k)) {
+            if (typeof v === "string") {
               var s = v.trim();
-              if (/^[A-Za-z]{1,2}\d{2}[0-9A-Za-z\.]{0,5}$/.test(s)) out.push(s);
+              if (/kode|sks|icd/i.test(k) && !/icpc/i.test(k) &&
+                  /^[A-Za-z]{1,2}\d{2}[0-9A-Za-z\.]{0,5}$/.test(s)) {
+                codes.push(s);
+              } else {
+                var dm = s.match(/\d{4}-\d{2}-\d{2}|\d{1,2}[.\-\/]\d{1,2}[.\-\/](?:19|20)\d{2}|^(?:19|20)\d{2}$/);
+                if (dm) {
+                  if (/debut|start/i.test(k)) { if (!preferred) preferred = dm[0]; }
+                  else if (/dato|date|oprettet|registreret/i.test(k)) { if (!fallback) fallback = dm[0]; }
+                }
+              }
             } else if (v && typeof v === "object") {
-              collectCodesFromJSON(v, depth + 1, out);
+              collectEntriesFromJSON(v, depth + 1, out);
             }
           }
+          var when = preferred || fallback;
+          for (var j = 0; j < codes.length; j++) out.push({ c: codes[j], y: when });
         }
         return out;
       }
@@ -1120,13 +1158,13 @@ private struct SundhedWebView: UIViewRepresentable {
           // Numeric/coded API JSON — stash transiently, biggest wins.
           if (keepBiggest(CAP[key], text)) post({ type: "progress", section: key, ok: true });
         } else if (key === "codesJSON") {
-          // Diagnoser/ejournal JSON: extract ICD-10 CODES only, never store the raw
-          // (may contain journal narrative — rule 3). Prefer the JSON-aware walk of
-          // coded fields; fall back to the labelled-text regex for non-JSON bodies.
-          var codes = [];
-          try { codes = collectCodesFromJSON(JSON.parse(text), 0, []); } catch (e) {}
-          if (!codes.length) codes = collectCodes(text);
-          addConditionCodes(codes);
+          // Diagnoser/ejournal JSON: extract ICD-10 CODES + their start dates only,
+          // never store the raw (may contain journal narrative — rule 3). Prefer the
+          // JSON-aware walk; fall back to the labelled-text regex for non-JSON bodies.
+          var entries = [];
+          try { entries = collectEntriesFromJSON(JSON.parse(text), 0, []); } catch (e) {}
+          if (entries.length) addConditionEntries(entries);
+          else addConditionCodes(collectCodes(text));
         }
       }
       (function patchFetch() {
@@ -1209,11 +1247,22 @@ private struct SundhedWebView: UIViewRepresentable {
       function onCodePage() {
         return /diagnoser/.test(location.pathname) || /journal-fra-sygehus/.test(location.pathname);
       }
-      // Start-year of a diagnosis from ITS detail block ("Forløbstartdato 30.04.2019",
-      // "Debut: 2019", "Diagnosedato…"). Year only — never a narrative.
-      function yearNear(text) {
-        var m = text.match(/(?:forl(?:ø|oe)bstart|debut|diagnosedato|startdato|registreret)[^0-9]{0,25}(?:\d{1,2}[.\-\/]\d{1,2}[.\-\/])?((?:19|20)\d{2})/i);
-        return m ? m[1] : null;
+      // Start date of a diagnosis from ITS detail block. Prefers a LABELLED date
+      // ("Forløbstartdato 30.04.2019", "Debut: 2019", "Diagnosedato…") at full
+      // precision; if the block has no label, falls back to the EARLIEST dd.mm.yyyy
+      // in the block (diagnosis rows list dates; the earliest ≈ the start). Date
+      // strings only — never a narrative.
+      function dateNear(text) {
+        var m = text.match(/(?:forl(?:ø|oe)bstart|debut|diagnosedato|startdato|registreret|f(?:ø|oe)rste)[^0-9]{0,25}((?:\d{1,2}[.\-\/]){0,2}(?:19|20)\d{2})/i);
+        if (m) return m[1];
+        var all = text.match(/\b\d{1,2}[.\-\/]\d{1,2}[.\-\/](?:19|20)\d{2}\b/g);
+        if (!all || !all.length) return null;
+        function key(s) {
+          var p = s.split(/[.\-\/]/);   // dd, mm, yyyy → yyyymmdd for comparison
+          return p[2] + ("0" + p[1]).slice(-2) + ("0" + p[0]).slice(-2);
+        }
+        all.sort(function (a, b) { return key(a) < key(b) ? -1 : 1; });
+        return all[0];
       }
       // Read ONLY codes (+ start year) from the rendered text — never the prose.
       window.__liviqaSundhedScan = function () {
@@ -1230,7 +1279,7 @@ private struct SundhedWebView: UIViewRepresentable {
             if (!/ICD[\s\-]?10|Diagnosekode/i.test(t)) continue;
             var codes = collectCodes(t);
             if (!codes.length) continue;
-            var y = yearNear(t);
+            var y = dateNear(t);
             for (var j = 0; j < codes.length; j++) entries.push({ c: codes[j], y: y });
           }
           if (entries.length) addConditionEntries(entries);
