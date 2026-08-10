@@ -330,7 +330,7 @@ struct SundhedWebSessionView: View {
                 secState = Self.freshSecState
                 harvestNonce += 1
                 phase = .harvesting
-                message = "Opening your Sundhed.dk pages and reading only summaries and codes… this takes about half a minute."
+                message = "Opening your Sundhed.dk pages and reading only summaries and codes… this takes about a minute. Diagnoses are read from each entry's detail view, so that step is the slowest."
             } label: {
                 HStack(spacing: 8) {
                     if phase == .harvesting || phase == .ingesting { ProgressView().tint(.white) }
@@ -685,12 +685,17 @@ private struct SundhedWebView: UIViewRepresentable {
         }
 
         /// Per-section dwell before advancing. Labs is slow (the proevesvar SPA
-        /// auth-checks, queries, then renders ~1MB); diagnoser needs time to expand
-        /// each diagnosis so its "ICD 10:" line renders for the code scan.
+        /// auth-checks, queries, then renders ~1MB). Diagnoser is slower still: the
+        /// list must load, then each row is EXPANDED (real click events) and its
+        /// detail — the only place the "ICD 10:" code renders — loads async per row.
+        /// The hospital journal's own API (filtervalg → forloebsoversigt) is stateful
+        /// and slow to fire too. These dwells trade ~45s of total pull time for the
+        /// codes actually being on screen when the scan runs.
         private func dwell(forKey key: String) -> TimeInterval {
             switch key {
             case "labs":       return 12.0
-            case "conditions": return 8.0
+            case "conditions": return 14.0
+            case "journal":    return 10.0
             default:           return 6.0
             }
         }
@@ -909,7 +914,8 @@ private struct SundhedWebView: UIViewRepresentable {
         cur.forEach(function (c) { set[c] = true; });
         codes.forEach(function (c) {
           if (!c) return;
-          var up = String(c).toUpperCase().replace(/\s+/g, "");
+          // Normalise: uppercase, strip whitespace AND dots ("E10.4" → "E104").
+          var up = String(c).toUpperCase().replace(/[\s\.]+/g, "");
           if (up && !set[up]) { set[up] = true; cur.push(up); added++; }
         });
         if (added) { ssSet(CAP.conditions, JSON.stringify(cur)); post({ type: "progress", section: "conditions", ok: true }); }
@@ -920,10 +926,37 @@ private struct SundhedWebView: UIViewRepresentable {
       function collectCodes(text) {
         if (!text) return [];
         var out = [], m;
-        var reLabel = /(?:ICD[\s\-]?10|Diagnosekode)\s*[:：]?\s*([A-Za-z]{1,2}\d{2}[0-9A-Za-z]{0,4})/gi;
+        // Labelled codes, dotted or not: "ICD 10: DE10.4" / "ICD-10: E104" /
+        // "Diagnosekode: DE104" (the dot is stripped on add).
+        var reLabel = /(?:ICD[\s\-]?10|Diagnosekode)\s*[:：]?\s*([A-Za-z]{1,2}\d{2}[0-9A-Za-z\.]{0,5})/gi;
         while ((m = reLabel.exec(text)) !== null) out.push(m[1]);
-        var reSks = /\bD[A-Z]\d{2}[0-9A-Z]{0,4}\b/g;   // uppercase SKS in coded JSON fields
+        var reSks = /\bD[A-Z]\d{2}[0-9A-Z]{0,4}\b/g;   // bare uppercase SKS in rendered text
         while ((m = reSks.exec(text)) !== null) out.push(m[1]);
+        return out;
+      }
+      // JSON-aware code walk: find diagnosis codes in coded FIELDS (keys containing
+      // kode/sks/icd/icpc—value shaped like a code) anywhere in an API response tree.
+      // Much safer than regexing raw JSON text (a bare D-code regex can false-positive
+      // on base64/ids) and matches the ejournal/diagnoser response shapes
+      // ("SKSKode":"DE104", "Icd10Kode":"E10.4", "DiagnoseKode":…). Codes only.
+      function collectCodesFromJSON(node, depth, out) {
+        if (!node || depth > 8) return out;
+        if (Array.isArray(node)) {
+          for (var i = 0; i < node.length; i++) collectCodesFromJSON(node[i], depth + 1, out);
+          return out;
+        }
+        if (typeof node === "object") {
+          for (var k in node) {
+            if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+            var v = node[k];
+            if (typeof v === "string" && /kode|sks|icd/i.test(k) && !/icpc/i.test(k)) {
+              var s = v.trim();
+              if (/^[A-Za-z]{1,2}\d{2}[0-9A-Za-z\.]{0,5}$/.test(s)) out.push(s);
+            } else if (v && typeof v === "object") {
+              collectCodesFromJSON(v, depth + 1, out);
+            }
+          }
+        }
         return out;
       }
 
@@ -948,8 +981,10 @@ private struct SundhedWebView: UIViewRepresentable {
         if (!url) return null;
         if (url.indexOf("/proevesvarportal/api/v1/svaroversigt") !== -1) return "labs";
         if (url.indexOf("/medicinkort2borger/api/v1/ordinations") !== -1) return "meds";
-        if (/diagnoser\/api\//i.test(url) && /diagnoser/i.test(url)) return "codesJSON";
-        if (/ejournal|sygehusjournal|journal-fra-sygehus\/api/i.test(url)) return "codesJSON";
+        // ANY API response from the diagnoser / ejournal / hospital-journal sub-apps
+        // (their exact sub-app paths vary, so match loosely on the topic keyword) —
+        // codes-only extraction below makes a broad match safe.
+        if (/\/api\//i.test(url) && /(diagnos|ejournal|sygehusjournal|forloeb|journal)/i.test(url)) return "codesJSON";
         return null;
       }
       function capture(url, text) {
@@ -961,8 +996,12 @@ private struct SundhedWebView: UIViewRepresentable {
           if (keepBiggest(CAP[key], text)) post({ type: "progress", section: key, ok: true });
         } else if (key === "codesJSON") {
           // Diagnoser/ejournal JSON: extract ICD-10 CODES only, never store the raw
-          // (may contain journal narrative — rule 3).
-          addConditionCodes(collectCodes(text));
+          // (may contain journal narrative — rule 3). Prefer the JSON-aware walk of
+          // coded fields; fall back to the labelled-text regex for non-JSON bodies.
+          var codes = [];
+          try { codes = collectCodesFromJSON(JSON.parse(text), 0, []); } catch (e) {}
+          if (!codes.length) codes = collectCodes(text);
+          addConditionCodes(codes);
         }
       }
       (function patchFetch() {
@@ -1004,9 +1043,17 @@ private struct SundhedWebView: UIViewRepresentable {
       // --- CHANGE 4: DOM FALLBACK for diagnoser + journal-fra-sygehus ------------
       // Their APIs are gated like labs', but the RENDERED DOM carries the codes.
       var _clicked = (typeof WeakSet !== "undefined") ? new WeakSet() : null;
+      // Angular/SPA components often ignore programmatic el.click(); dispatch the
+      // full pointer/mouse sequence so their handlers actually fire.
+      function fireClick(el) {
+        try {
+          ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach(function (t) {
+            try { el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })); } catch (e) {}
+          });
+        } catch (e) { try { el.click(); } catch (e2) {} }
+      }
       function expandDetails() {
-        // Click each "Vis diagnose detaljer" (and generic "vis detaljer/forløb")
-        // control ONCE to reveal the code lines; WeakSet stops re-toggling.
+        // Pass 1 — text-matched expanders ("Vis diagnose detaljer" etc.), once each.
         var re = /vis diagnose detaljer|vis detaljer|se detaljer|vis forl(ø|oe)b/i;
         var els = document.querySelectorAll('button,[role="button"],a,li');
         Array.prototype.forEach.call(els, function (b) {
@@ -1015,8 +1062,22 @@ private struct SundhedWebView: UIViewRepresentable {
             var t = (b.textContent || "").trim();
             if (t.length > 0 && t.length < 60 && re.test(t)) {
               if (_clicked) _clicked.add(b);
-              if (typeof b.click === "function") b.click();
+              fireClick(b);
             }
+          } catch (e) {}
+        });
+        // Pass 2 — collapsed accordion headers (aria-expanded="false"), the standard
+        // markup for the diagnoser rows' expanders regardless of their visible text.
+        // Buttons/role=button only (never links — a link could navigate away).
+        var acc = document.querySelectorAll('button[aria-expanded="false"],[role="button"][aria-expanded="false"]');
+        var opened = 0;
+        Array.prototype.forEach.call(acc, function (b) {
+          try {
+            if (opened >= 60) return;                 // safety cap
+            if (_clicked && _clicked.has(b)) return;
+            if (_clicked) _clicked.add(b);
+            fireClick(b);
+            opened++;
           } catch (e) {}
         });
       }
@@ -1038,7 +1099,7 @@ private struct SundhedWebView: UIViewRepresentable {
         var iv = setInterval(function () {
           tries++;
           window.__liviqaSundhedScan();
-          if (tries >= 8) clearInterval(iv);   // ~5.6s of re-scan as details expand
+          if (tries >= 18) clearInterval(iv);  // ~12.6s: SPA list load → expand → detail render
         }, 700);
       }
 
