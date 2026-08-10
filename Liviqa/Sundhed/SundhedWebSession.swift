@@ -205,6 +205,21 @@ struct SundhedWebSessionView: View {
     @State private var loggedIn = false
     @State private var phase: Phase = .idle
     @State private var message: String?
+    /// The user tapped Update/Import while not signed in yet — start the pull
+    /// automatically the moment the MitID session appears (they already consented
+    /// by tapping; this is NOT the removed unsolicited auto-walk).
+    @State private var pendingPull = false
+    /// Persisted record of the last successful pull (per citizen) — drives the
+    /// returning-user "Connected · last updated …" state instead of replaying the
+    /// whole first-time experience on every visit.
+    @State private var lastPull: LastPull?
+
+    struct LastPull: Codable {
+        var date: Date
+        var labs: Int
+        var conditions: Int
+        var meds: Int
+    }
     /// Bumped to ask the WebView coordinator to assemble + run the in-page harvest.
     @State private var harvestNonce = 0
     /// Bumped after a successful ingest to clear the transient sessionStorage caps.
@@ -265,6 +280,44 @@ struct SundhedWebSessionView: View {
         }
         .background(LiviqaTheme.paper)
         .liviqaDetail()
+        .onAppear { loadLastPull() }
+    }
+
+    // MARK: Last-pull persistence (returning-user state)
+
+    private var lastPullKey: String { "sundhed.lastPull.\(citizenId ?? "anon")" }
+
+    private func loadLastPull() {
+        guard let data = UserDefaults.standard.data(forKey: lastPullKey),
+              let lp = try? JSONDecoder().decode(LastPull.self, from: data) else { return }
+        lastPull = lp
+    }
+
+    private func saveLastPull(_ lp: LastPull) {
+        lastPull = lp
+        if let data = try? JSONEncoder().encode(lp) {
+            UserDefaults.standard.set(data, forKey: lastPullKey)
+        }
+    }
+
+    /// The single entry point for both first import and update. Gates the walk on a
+    /// live session: if signed in, start now; if not, arm `pendingPull` so the walk
+    /// starts automatically right after MitID sign-in — no more walking four
+    /// login-redirect pages "like you have logged in" when the session has expired.
+    private func startPull() {
+        secState = Self.freshSecState
+        if loggedIn {
+            pendingPull = false
+            phase = .harvesting
+            harvestNonce += 1
+            message = lastPull == nil
+                ? "Opening your Sundhed.dk pages and reading only summaries and codes… this takes about a minute. Diagnoses are read from each entry's detail view, so that step is the slowest."
+                : "Updating from Sundhed.dk… about a minute. Only changes are merged in — nothing is duplicated."
+        } else {
+            pendingPull = true
+            phase = .idle
+            message = "Sign in with MitID above — your \(lastPull == nil ? "import" : "update") starts automatically right after."
+        }
     }
 
     // MARK: Web stage
@@ -273,7 +326,17 @@ struct SundhedWebSessionView: View {
         SundhedWebView(
             harvestNonce: harvestNonce,
             clearNonce: clearNonce,
-            onSessionChange: { loggedIn = $0 },
+            onSessionChange: { inNow in
+                loggedIn = inNow
+                // The user already consented by tapping Update/Import — the session
+                // just arrived, so start the pull they asked for.
+                if inNow, pendingPull {
+                    pendingPull = false
+                    phase = .harvesting
+                    harvestNonce += 1
+                    message = "Signed in — reading your Sundhed.dk data now… about a minute."
+                }
+            },
             onProgress: { section, ok in handleProgress(section, ok) },
             onHarvest: { harvest in Task { await ingest(harvest) } },
             onError: { fail($0) }
@@ -305,6 +368,24 @@ struct SundhedWebSessionView: View {
 
     private var controlBar: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Returning user: a compact "already connected" summary instead of the
+            // first-time experience. Shows what's on device and when it last updated.
+            if let lp = lastPull, phase == .idle || phase == .failed {
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 15)).foregroundStyle(LiviqaTheme.moss)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Connected to Sundhed.dk")
+                            .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
+                        Text("Last updated \(lp.date.formatted(date: .abbreviated, time: .shortened)) · \(lp.labs) labs · \(lp.conditions) diagnoses · \(lp.meds) medicines")
+                            .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    Spacer()
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 10).fill(LiviqaTheme.moss2.opacity(0.5)))
+            }
+
             if let message {
                 Text(message)
                     .font(.lato(12.5)).lineSpacing(2)
@@ -316,22 +397,17 @@ struct SundhedWebSessionView: View {
             if loggedIn { checklist }
 
             Text(loggedIn
-                 ? "You're signed in to Sundhed.dk. Liviqa is opening your Medicine, Lab results, Diagnoses and Hospital-journal pages and reading only summaries and codes. Your journal text is never read."
+                 ? (lastPull == nil
+                    ? "You're signed in to Sundhed.dk. Liviqa is opening your Medicine, Lab results, Diagnoses and Hospital-journal pages and reading only summaries and codes. Your journal text is never read."
+                    : "You've imported before — updating re-reads your Sundhed.dk pages and merges only what's new. Nothing is duplicated, and everything stays on this device.")
                  : "Sign in with MitID above. Liviqa never sees or stores your MitID login — that happens directly with Sundhed.dk.")
                 .font(.lato(12)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink3)
 
-            // The single consented pull. Tapping it drives the WebView through the
-            // Min Sundhedsjournal pages (Medicine → Lab results → Diagnoses → Hospital
-            // journal), capturing only summaries + codes, then stores on-device. Takes
-            // ~30s because the lab portal is slow to query; the checklist shows live
-            // progress. Re-tapping re-runs a fresh pull.
-            Button {
-                secState = Self.freshSecState
-                harvestNonce += 1
-                phase = .harvesting
-                message = "Opening your Sundhed.dk pages and reading only summaries and codes… this takes about a minute. Diagnoses are read from each entry's detail view, so that step is the slowest."
-            } label: {
+            // The single consented pull (first import AND updates). Gated on a live
+            // session via startPull(): signed in → walk starts now; signed out → the
+            // walk arms and fires automatically right after MitID sign-in.
+            Button { startPull() } label: {
                 HStack(spacing: 8) {
                     if phase == .harvesting || phase == .ingesting { ProgressView().tint(.white) }
                     else { Image(systemName: "arrow.down.heart").font(.system(size: 14)) }
@@ -418,8 +494,10 @@ struct SundhedWebSessionView: View {
         switch phase {
         case .harvesting: return "Reading on device…"
         case .ingesting:  return "Bringing it in…"
-        case .done:       return "Bring in updated data"
-        default:          return "Bring my data into Liviqa"
+        case .done:       return "Update again"
+        default:
+            if pendingPull { return "Waiting for MitID sign-in…" }
+            return lastPull == nil ? "Bring my data into Liviqa" : "Update from Sundhed.dk"
         }
     }
 
@@ -468,6 +546,14 @@ struct SundhedWebSessionView: View {
         clearNonce += 1
         phase = .done
         message = "Saved to your device — nothing was uploaded."
+        // Record the successful pull (per citizen) — counts are the MERGED on-device
+        // totals after reload, so the returning-user card reflects what's stored.
+        saveLastPull(LastPull(
+            date: Date(),
+            labs: appState.healthObservations.count,
+            conditions: appState.healthConditions.count,
+            meds: appState.healthMedications.count
+        ))
     }
 
     /// Reduce a harvest to the flat parser model types (thin wrapper over the
