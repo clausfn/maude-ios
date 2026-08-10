@@ -173,6 +173,21 @@ extension SundhedWebHarvest {
         return (labMeasurements, medItems, diagnoses)
     }
 
+    /// Diagnosis start dates (year precision) keyed by normalised ICD-10 code —
+    /// read from each diagnosis's own detail block. Display/provenance metadata
+    /// only; the coded wire body stays codes-only.
+    func conditionOnsets() -> [String: Date] {
+        var out: [String: Date] = [:]
+        for c in conditions {
+            guard let raw = c.icd10, let debut = c.debut else { continue }
+            let code = raw.replacingOccurrences(of: ".", with: "").uppercased()
+            guard let year = Int(debut.suffix(4)), (1900...2100).contains(year) else { continue }
+            var comps = DateComponents(); comps.year = year; comps.month = 1; comps.day = 1
+            if let d = Calendar.current.date(from: comps) { out[code] = d }
+        }
+        return out
+    }
+
     /// Build the canonical coded wire body via the shared builder.
     func toIngestBody(citizenID: String) -> SundhedIngestBody {
         let r = toParseResults()
@@ -539,7 +554,8 @@ struct SundhedWebSessionView: View {
         // (those functions stay in this file for the EXPLICIT share/research path).
         let r = toParseResults(from: harvest)
         let summary = SundhedPayloadBuilder.summarise(labs: r.labs, meds: r.meds, diagnoses: r.diagnoses)
-        appState.ingestHealthRecord(summary, source: .sundhedLive)
+        appState.ingestHealthRecord(summary, source: .sundhedLive,
+                                    conditionOnsets: harvest.conditionOnsets())
         // Also surface into the self-declared HealthContext (local display) as before.
         mergeForDisplay(harvest)
         // Clear the transient sessionStorage caps now that the summary is stored.
@@ -594,18 +610,22 @@ struct SundhedWebSessionView: View {
                                 frequency: "Sundhed.dk")
             )
         }
-        // Conditions — one entry per coded ICD-10 diagnosis (codes only).
+        // Conditions — plain-language name (on-device ICD-10 crosswalk) + start year;
+        // the code moves to the notes line. Dedup by code AND by name so re-imports
+        // from before the naming change don't double up.
         var existingCondNames = Set(appState.healthContext.conditions.map {
             $0.name.lowercased().trimmingCharacters(in: .whitespaces)
         })
         for c in h.conditions {
             let code = (c.icd10 ?? "").trimmingCharacters(in: .whitespaces).uppercased()
             guard !code.isEmpty else { continue }
-            let key = code.lowercased()
-            guard !existingCondNames.contains(key) else { continue }
-            existingCondNames.insert(key)
+            let name = HealthDisplay.conditionName(for: code)
+            guard !existingCondNames.contains(code.lowercased()),
+                  !existingCondNames.contains(name.lowercased()) else { continue }
+            existingCondNames.insert(name.lowercased())
+            let year = c.debut.flatMap { Int($0.suffix(4)) }
             appState.healthContext.conditions.append(
-                ConditionEntry(name: code, diagnosedYear: nil, notes: "Sundhed.dk (ICD-10)")
+                ConditionEntry(name: name, diagnosedYear: year, notes: "Sundhed.dk · ICD-10 \(code)")
             )
         }
         // TODO: surface imported labs (h.labs) via the passport-stats (derived)
@@ -989,22 +1009,41 @@ private struct SundhedWebView: UIViewRepresentable {
         if (!prev || text.length > prev.length) { ssSet(k, text); return true; }
         return false;
       }
-      function ssCodes() {
-        try { var a = JSON.parse(ssGet(CAP.conditions) || "[]"); return Array.isArray(a) ? a : []; }
-        catch (e) { return []; }
+      // Conditions cap = array of {c: "DE104", y: "2019"|null} entries (code + the
+      // diagnosis START YEAR read from the same detail block). Tolerates the legacy
+      // plain-string shape so an in-flight session upgrades cleanly.
+      function ssEntries() {
+        try {
+          var a = JSON.parse(ssGet(CAP.conditions) || "[]");
+          if (!Array.isArray(a)) return [];
+          return a.map(function (e) {
+            if (typeof e === "string") return { c: e, y: null };
+            return { c: (e && (e.c || e.code)) || "", y: (e && e.y) || null };
+          }).filter(function (e) { return !!e.c; });
+        } catch (e) { return []; }
       }
-      // Uppercase + dedupe ICD-10 (SKS) codes into the conditions cap.
-      function addConditionCodes(codes) {
-        if (!codes || !codes.length) return;
-        var cur = ssCodes(), set = {}, added = 0;
-        cur.forEach(function (c) { set[c] = true; });
-        codes.forEach(function (c) {
-          if (!c) return;
+      // Merge entries into the cap: new codes append; a known code gains its year
+      // when a later scan finds one (never overwritten with null).
+      function addConditionEntries(entries) {
+        if (!entries || !entries.length) return;
+        var cur = ssEntries(), byCode = {}, added = 0, updated = 0;
+        cur.forEach(function (e) { byCode[e.c] = e; });
+        entries.forEach(function (e) {
+          if (!e || !e.c) return;
           // Normalise: uppercase, strip whitespace AND dots ("E10.4" → "E104").
-          var up = String(c).toUpperCase().replace(/[\s\.]+/g, "");
-          if (up && !set[up]) { set[up] = true; cur.push(up); added++; }
+          var code = String(e.c).toUpperCase().replace(/[\s\.]+/g, "");
+          if (!code) return;
+          var ex = byCode[code];
+          if (!ex) { byCode[code] = { c: code, y: e.y || null }; cur.push(byCode[code]); added++; }
+          else if (e.y && !ex.y) { ex.y = e.y; updated++; }
         });
-        if (added) { ssSet(CAP.conditions, JSON.stringify(cur)); post({ type: "progress", section: "conditions", ok: true }); }
+        if (added || updated) {
+          ssSet(CAP.conditions, JSON.stringify(cur));
+          if (added) post({ type: "progress", section: "conditions", ok: true });
+        }
+      }
+      function addConditionCodes(codes) {
+        addConditionEntries((codes || []).map(function (c) { return { c: c, y: null }; }));
       }
       // Pull ICD-10 codes out of arbitrary text — labelled ("ICD 10: dm420",
       // "Diagnosekode: DE104") or bare D-prefixed SKS ("DM420"). Codes only; used on
@@ -1170,11 +1209,32 @@ private struct SundhedWebView: UIViewRepresentable {
       function onCodePage() {
         return /diagnoser/.test(location.pathname) || /journal-fra-sygehus/.test(location.pathname);
       }
-      // Read ONLY codes from the rendered text — never store the narrative prose.
+      // Start-year of a diagnosis from ITS detail block ("Forløbstartdato 30.04.2019",
+      // "Debut: 2019", "Diagnosedato…"). Year only — never a narrative.
+      function yearNear(text) {
+        var m = text.match(/(?:forl(?:ø|oe)bstart|debut|diagnosedato|startdato|registreret)[^0-9]{0,25}(?:\d{1,2}[.\-\/]\d{1,2}[.\-\/])?((?:19|20)\d{2})/i);
+        return m ? m[1] : null;
+      }
+      // Read ONLY codes (+ start year) from the rendered text — never the prose.
       window.__liviqaSundhedScan = function () {
         try {
           if (!onCodePage()) return;
           expandDetails();
+          // Container-scoped pass: pair each ICD-10 code with the start year found in
+          // the SAME small detail block, so years attach to the right diagnosis.
+          var nodes = document.querySelectorAll("div,li,section,article,tr,dl");
+          var entries = [];
+          for (var i = 0; i < nodes.length; i++) {
+            var t = nodes[i].innerText || "";
+            if (!t || t.length > 1500) continue;             // detail blocks only
+            if (!/ICD[\s\-]?10|Diagnosekode/i.test(t)) continue;
+            var codes = collectCodes(t);
+            if (!codes.length) continue;
+            var y = yearNear(t);
+            for (var j = 0; j < codes.length; j++) entries.push({ c: codes[j], y: y });
+          }
+          if (entries.length) addConditionEntries(entries);
+          // Whole-body fallback still catches codes outside small blocks (no year).
           var body = document.body ? (document.body.innerText || document.body.textContent || "") : "";
           addConditionCodes(collectCodes(body));
         } catch (e) {}
@@ -1372,8 +1432,8 @@ private struct SundhedWebView: UIViewRepresentable {
             var labs = [];
             var labText = ssGet(CAP.labs);
             if (labText) { try { labs = reduceSvaroversigt(JSON.parse(labText)) || []; } catch (e) {} }
-            var conditions = ssCodes().map(function (c) {
-              return { icd10: c, icpc2: null, debut: null };
+            var conditions = ssEntries().map(function (e) {
+              return { icd10: e.c, icpc2: null, debut: e.y };
             });
             post({
               type: "harvest",

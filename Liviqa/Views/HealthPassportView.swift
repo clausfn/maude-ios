@@ -326,13 +326,25 @@ struct HealthPassportView: View {
     }
 
     private func diagnosisRow(_ c: HealthCondition) -> some View {
-        HStack(spacing: 10) {
-            Text(c.icd10)
-                .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(LiviqaTheme.clay2).clipShape(Capsule())
-            if let label = c.label, !label.isEmpty {
-                Text(label).font(.lato(13)).foregroundStyle(LiviqaTheme.ink2).lineLimit(1)
+        // Name leads (plain language), the code + start year are the small print —
+        // a citizen reads "Type 1 diabetes with nerve complications · since 2019",
+        // not a bare "DE104".
+        let name = (c.label?.isEmpty == false) ? c.label! : HealthDisplay.conditionName(for: c.icd10)
+        return HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.lato(13.5, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text(c.icd10)
+                        .font(.liviqaMono(10.5)).foregroundStyle(LiviqaTheme.ink3)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(LiviqaTheme.clay2).clipShape(Capsule())
+                    if let d = c.onsetDate {
+                        Text("since \(String(Calendar.current.component(.year, from: d)))")
+                            .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
             }
             Spacer()
             sourceChip(c.source)

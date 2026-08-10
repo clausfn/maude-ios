@@ -532,9 +532,17 @@ final class AppState {
     /// `SundhedDerivedSummary` (Sundhed live/PDF today; OCR/HealthKit later) reuses
     /// this single entry point.
     @MainActor
-    func ingestHealthRecord(_ summary: SundhedDerivedSummary, source: HealthDataSource) {
+    func ingestHealthRecord(_ summary: SundhedDerivedSummary, source: HealthDataSource,
+                            conditionOnsets: [String: Date] = [:]) {
         guard let store = healthStore else { return }
         let rows = HealthStore.canonicalize(summary, source: source)
+        // Attach diagnosis start dates (year precision) when the source read them —
+        // display metadata only; the coded research body is unaffected.
+        if !conditionOnsets.isEmpty {
+            for cond in rows.cond {
+                if let d = conditionOnsets[cond.icd10] { cond.onsetDate = d }
+            }
+        }
         store.ingest(observations: rows.obs, conditions: rows.cond,
                      medications: rows.med, source: source)
         reloadHealthRecord()

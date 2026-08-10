@@ -167,6 +167,7 @@ struct HealthStore {
                 $0.source == src && $0.icd10 == incoming.icd10
             }) {
                 if let l = incoming.label { match.label = l }
+                if let d = incoming.onsetDate { match.onsetDate = d }   // a later pull may add the year
                 match.sourceDetail = incoming.sourceDetail
                 match.importedAt = now
             } else {
@@ -349,8 +350,9 @@ struct HealthStore {
         } else {
             for c in conds {
                 let tag = HealthDataSource(rawValue: c.source)?.displayLabel ?? c.source
-                let label = c.label.map { " — \($0)" } ?? ""
-                lines.append("  \(c.icd10)\(label)  ·  \(tag)")
+                let name = (c.label?.isEmpty == false) ? c.label! : HealthDisplay.conditionName(for: c.icd10)
+                let since = c.onsetDate.map { " · since \(Calendar.current.component(.year, from: $0))" } ?? ""
+                lines.append("  \(name) (\(c.icd10))\(since)  ·  \(tag)")
             }
         }
         lines.append("")
@@ -404,5 +406,132 @@ enum HealthDisplay {
 
     static func number(_ v: Double) -> String {
         v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v)
+    }
+
+    // MARK: Condition names (ICD-10 → plain language, on-device)
+
+    /// Citizen-friendly names for ICD-10 codes. A static classification lookup —
+    /// bundled on device, no journal text involved, so codes-only discipline holds.
+    /// Danish records use SKS codes (WHO ICD-10 prefixed with `D`, e.g. DE104 =
+    /// E10.4); the lookup normalises that away. Longest-prefix match (4 chars, then
+    /// 3) so subdivisions inherit their category name; anything unknown falls back
+    /// to a readable chapter description — a code NEVER renders bare.
+    private static let icd10Names: [String: String] = [
+        // Endocrine / metabolic (E)
+        "E10": "Type 1 diabetes",
+        "E102": "Type 1 diabetes with kidney complications",
+        "E103": "Type 1 diabetes with eye complications",
+        "E104": "Type 1 diabetes with nerve complications",
+        "E105": "Type 1 diabetes with circulation complications",
+        "E107": "Type 1 diabetes with multiple complications",
+        "E108": "Type 1 diabetes with other complications",
+        "E109": "Type 1 diabetes without complications",
+        "E11": "Type 2 diabetes",
+        "E114": "Type 2 diabetes with nerve complications",
+        "E119": "Type 2 diabetes without complications",
+        "E03": "Underactive thyroid (hypothyroidism)",
+        "E05": "Overactive thyroid (hyperthyroidism)",
+        "E66": "Obesity",
+        "E78": "Raised cholesterol / blood-fat disorder",
+        // Blood (D5x–D8x, WHO)
+        "D50": "Iron-deficiency anaemia",
+        "D51": "Vitamin B12-deficiency anaemia",
+        // Cancer / tumours (C)
+        "C50": "Breast cancer",
+        "C61": "Prostate cancer",
+        "C759": "Tumour of endocrine gland (unspecified)",
+        "C75": "Tumour of endocrine gland",
+        // Mental health (F)
+        "F32": "Depression",
+        "F41": "Anxiety disorder",
+        // Nervous system (G)
+        "G40": "Epilepsy",
+        "G43": "Migraine",
+        "G47": "Sleep disorder",
+        "G62": "Polyneuropathy (nerve condition)",
+        "G632": "Diabetic polyneuropathy (nerve damage)",
+        "G63": "Polyneuropathy (nerve condition)",
+        // Eye (H0x–H5x)
+        "H25": "Cataract (age-related)",
+        "H26": "Cataract",
+        "H360": "Diabetic retinopathy (eye complication)",
+        "H36": "Retinal disorder",
+        // Circulatory (I)
+        "I10": "High blood pressure (hypertension)",
+        "I20": "Angina pectoris",
+        "I21": "Heart attack (myocardial infarction)",
+        "I25": "Chronic coronary heart disease",
+        "I48": "Atrial fibrillation / flutter",
+        "I489": "Atrial fibrillation",
+        "I50": "Heart failure",
+        "I63": "Stroke (cerebral infarction)",
+        "I83": "Varicose veins",
+        // Respiratory (J)
+        "J44": "COPD (chronic obstructive pulmonary disease)",
+        "J45": "Asthma",
+        // Digestive (K)
+        "K21": "Acid reflux (GERD)",
+        "K25": "Stomach ulcer",
+        "K29": "Gastritis",
+        "K42": "Umbilical hernia",
+        "K429": "Umbilical hernia",
+        "K57": "Diverticular disease",
+        "K64": "Haemorrhoids",
+        "K80": "Gallstones",
+        // Musculoskeletal (M)
+        "M16": "Osteoarthritis of the hip",
+        "M17": "Osteoarthritis of the knee",
+        "M42": "Spinal osteochondrosis (back condition)",
+        "M420": "Juvenile spinal osteochondrosis (Scheuermann's)",
+        "M54": "Back pain",
+        "M79": "Muscle / soft-tissue pain",
+        "M81": "Osteoporosis",
+        // Kidney / urinary (N)
+        "N18": "Chronic kidney disease",
+        "N39": "Urinary tract condition",
+        // Skin (L)
+        "L40": "Psoriasis",
+        "L20": "Atopic eczema",
+    ]
+
+    /// Readable chapter fallback (first letter of the WHO code) so unknown codes
+    /// still say SOMETHING a citizen understands.
+    private static let icd10Chapters: [Character: String] = [
+        "A": "Infectious disease", "B": "Infectious disease",
+        "C": "Tumour / cancer-related condition",
+        "D": "Blood or immune condition",
+        "E": "Hormonal or metabolic condition",
+        "F": "Mental-health condition",
+        "G": "Nervous-system condition",
+        "H": "Eye or ear condition",
+        "I": "Heart or circulatory condition",
+        "J": "Respiratory condition",
+        "K": "Digestive condition",
+        "L": "Skin condition",
+        "M": "Muscle, bone or joint condition",
+        "N": "Kidney or urinary condition",
+        "O": "Pregnancy-related condition",
+        "P": "Newborn-period condition",
+        "Q": "Congenital condition",
+        "R": "Symptom or clinical finding",
+        "S": "Injury", "T": "Injury or external cause",
+        "Z": "Contact / administrative code",
+    ]
+
+    /// Plain-language name for an ICD-10 (or Danish SKS) code.
+    static func conditionName(for icd10: String) -> String {
+        var code = icd10.uppercased().replacingOccurrences(of: ".", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        // SKS = WHO code with a leading 'D' (DE104 → E104). Strip it only when the
+        // NEXT char is a letter (so WHO's own D-chapter codes like D509 survive).
+        if code.count >= 3, code.first == "D",
+           let second = code.dropFirst().first, second.isLetter {
+            code = String(code.dropFirst())
+        }
+        // Longest-prefix match: 4 chars, then 3.
+        if code.count >= 4, let n = icd10Names[String(code.prefix(4))] { return n }
+        if code.count >= 3, let n = icd10Names[String(code.prefix(3))] { return n }
+        if let first = code.first, let chapter = icd10Chapters[first] { return chapter }
+        return "Diagnosis"
     }
 }
