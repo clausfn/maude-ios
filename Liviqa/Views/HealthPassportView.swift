@@ -12,6 +12,8 @@ struct HealthPassportView: View {
     @State private var shareItem: HealthShareItem? = nil
     @State private var isContributing = false
     @State private var researchNote: String? = nil
+    /// Secondary diagnoses group (past/minor/admin codes) — collapsed by default.
+    @State private var showMinorDiagnoses = false
 
     var body: some View {
         ScrollView {
@@ -255,15 +257,53 @@ struct HealthPassportView: View {
                     }
                 }
 
-                // Diagnoses
+                // Diagnoses — tiered: ongoing/major conditions lead; injuries,
+                // one-off infections, symptom codes and administrative codes sit in
+                // a collapsed secondary group so they don't crowd the main record.
                 if !conds.isEmpty {
+                    let major = conds.filter { HealthDisplay.conditionTier(for: $0.icd10) == .major }
+                    let other = conds.filter { HealthDisplay.conditionTier(for: $0.icd10) != .major }
+
                     LiviqaSectionHeader(label: "Diagnoses")
-                    recordCard {
-                        ForEach(Array(conds.enumerated()), id: \.element.persistentModelID) { i, c in
-                            if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
-                            diagnosisRow(c)
+                    if !major.isEmpty {
+                        recordCard {
+                            ForEach(Array(major.enumerated()), id: \.element.persistentModelID) { i, c in
+                                if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
+                                diagnosisRow(c)
+                            }
                         }
                     }
+
+                    if !other.isEmpty {
+                        Button { withAnimation { showMinorDiagnoses.toggle() } } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: showMinorDiagnoses ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(LiviqaTheme.ink3)
+                                Text("Past, minor & administrative entries (\(other.count))")
+                                    .font(.lato(12.5, .semibold)).foregroundStyle(LiviqaTheme.ink2)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 4).padding(.vertical, 9)
+                        }
+                        .buttonStyle(.plain)
+                        if showMinorDiagnoses {
+                            recordCard {
+                                ForEach(Array(other.enumerated()), id: \.element.persistentModelID) { i, c in
+                                    if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
+                                    diagnosisRow(c)
+                                }
+                            }
+                        }
+                    }
+
+                    // The one explainer every diagnoses list needs — journal codes,
+                    // not a statement of what's active today.
+                    Text(HealthDisplay.diagnosesExplainer)
+                        .font(.lato(11)).lineSpacing(2)
+                        .foregroundStyle(LiviqaTheme.ink4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8).padding(.horizontal, 2)
                 }
 
                 // Medicine
@@ -344,6 +384,14 @@ struct HealthPassportView: View {
                         Text(HealthDisplay.sinceText(d))
                             .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
                     }
+                }
+                // Calming context for entries that make people wonder (old findings,
+                // coded complications, admin codes). nil for self-explanatory majors.
+                if let ctx = HealthDisplay.conditionContext(for: c.icd10) {
+                    Text(ctx)
+                        .font(.lato(11)).lineSpacing(1.5)
+                        .foregroundStyle(LiviqaTheme.ink4)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer()

@@ -642,6 +642,10 @@ struct SundhedWebSessionView: View {
         for c in h.conditions {
             let code = (c.icd10 ?? "").trimmingCharacters(in: .whitespaces).uppercased()
             guard !code.isEmpty else { continue }
+            // Only ongoing/major conditions belong in the self-declared About-You
+            // profile — injuries, one-off infections and admin codes stay in the
+            // passport's secondary group only.
+            guard HealthDisplay.conditionTier(for: code) == .major else { continue }
             let name = HealthDisplay.conditionName(for: code)
             guard !existingCondNames.contains(code.lowercased()),
                   !existingCondNames.contains(name.lowercased()) else { continue }

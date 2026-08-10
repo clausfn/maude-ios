@@ -348,12 +348,22 @@ struct HealthStore {
         if conds.isEmpty {
             lines.append("  (none imported yet)")
         } else {
-            for c in conds {
+            func line(_ c: HealthCondition) -> String {
                 let tag = HealthDataSource(rawValue: c.source)?.displayLabel ?? c.source
                 let name = (c.label?.isEmpty == false) ? c.label! : HealthDisplay.conditionName(for: c.icd10)
                 let since = c.onsetDate.map { " · \(HealthDisplay.sinceText($0))" } ?? ""
-                lines.append("  \(name) (\(c.icd10))\(since)  ·  \(tag)")
+                return "  \(name) (\(c.icd10))\(since)  ·  \(tag)"
             }
+            // Same grouping as the passport: major conditions lead; past/minor and
+            // administrative codes follow under their own heading.
+            let major = conds.filter { HealthDisplay.conditionTier(for: $0.icd10) == .major }
+            let other = conds.filter { HealthDisplay.conditionTier(for: $0.icd10) != .major }
+            for c in major { lines.append(line(c)) }
+            if !other.isEmpty {
+                lines.append("  — Past, minor & administrative entries —")
+                for c in other { lines.append(line(c)) }
+            }
+            lines.append("  Note: \(HealthDisplay.diagnosesExplainer)")
         }
         lines.append("")
 
@@ -546,16 +556,87 @@ enum HealthDisplay {
         return "since \(df.string(from: d))"
     }
 
-    /// Plain-language name for an ICD-10 (or Danish SKS) code.
-    static func conditionName(for icd10: String) -> String {
+    // MARK: Condition tiers (major vs past/minor vs administrative)
+
+    /// Display tier for a diagnosis code. Drives the passport grouping: ongoing /
+    /// major conditions lead; injuries, one-off infections, symptom codes and
+    /// administrative contact codes live in a collapsed secondary group so they
+    /// don't crowd (or alarm) the main record.
+    enum ConditionTier { case major, pastMinor, admin }
+
+    static func conditionTier(for icd10: String) -> ConditionTier {
+        let code = normalizedWHO(icd10)
+        guard let first = code.first else { return .pastMinor }
+        switch first {
+        case "Z", "U":            return .admin      // contact / administrative
+        case "S", "T":            return .pastMinor  // injuries, external causes
+        case "R":                 return .pastMinor  // symptoms & findings, not diseases
+        case "A", "B":            return .pastMinor  // acute infections
+        default: break
+        }
+        // Acute respiratory infections (common cold → acute bronchitis) are episodic.
+        if code.hasPrefix("J"), let n = Int(code.dropFirst().prefix(2)), n <= 22 { return .pastMinor }
+        if code.hasPrefix("N39") { return .pastMinor }   // UTI / bladder episodes
+        if code.hasPrefix("H6")  { return .pastMinor }   // ear infections
+        if code.hasPrefix("K52") { return .pastMinor }   // gastroenteritis
+        return .major
+    }
+
+    /// A short, calming context line for entries that can make a citizen wonder.
+    /// Specific notes for known codes; otherwise a tier-generic explanation for the
+    /// secondary group. Major, self-explanatory conditions return nil.
+    static func conditionContext(for icd10: String) -> String? {
+        let code = normalizedWHO(icd10)
+        if code.count >= 4, let n = conditionNotes[String(code.prefix(4))] { return n }
+        if code.count >= 3, let n = conditionNotes[String(code.prefix(3))] { return n }
+        switch conditionTier(for: icd10) {
+        case .admin:
+            return "An administrative or contact code from the journal — not an illness."
+        case .pastMinor:
+            return "A record of a past, usually short-lived issue. Not necessarily active today."
+        case .major:
+            return nil
+        }
+    }
+
+    /// Specific notes for codes that commonly cause "wait, what is this?" moments.
+    private static let conditionNotes: [String: String] = [
+        "M420": "A growth-related curvature of the upper back that typically starts in the teenage years — usually an old finding.",
+        "M42":  "A wear-related spinal finding — often historical.",
+        "C759": "A coded tumour record where the detail lives in the journal — often historical work-up. Ask your doctor what it refers to.",
+        "K429": "A hernia at the navel — often repaired or harmless.",
+        "K42":  "A hernia at the navel — often repaired or harmless.",
+        "I489": "A heart-rhythm record — can reflect a single documented episode.",
+        "E102": "A coded complication entry linked to your diabetes care.",
+        "E103": "A coded complication entry linked to your diabetes care.",
+        "E104": "A coded complication entry linked to your diabetes care.",
+        "E105": "A coded complication entry linked to your diabetes care.",
+        "E107": "A coded complication entry linked to your diabetes care.",
+        "E108": "A coded complication entry linked to your diabetes care.",
+        "G632": "A coded complication entry linked to your diabetes care.",
+        "H360": "A coded complication entry linked to your diabetes care.",
+    ]
+
+    /// The one explainer every diagnoses list should carry — these are journal
+    /// codes, not a statement of what's active today.
+    static let diagnosesExplainer =
+        "These entries are coded records from your hospital and GP journal, including past and closed episodes — a diagnosis listed here is not necessarily active today. The full story behind each entry is in your journal on sundhed.dk. Ask your doctor if something looks unfamiliar."
+
+    /// Normalise to the WHO-style code: uppercase, dots stripped, SKS `D` prefix
+    /// removed (DE104 → E104) while preserving WHO's own D-chapter codes.
+    private static func normalizedWHO(_ icd10: String) -> String {
         var code = icd10.uppercased().replacingOccurrences(of: ".", with: "")
             .trimmingCharacters(in: .whitespaces)
-        // SKS = WHO code with a leading 'D' (DE104 → E104). Strip it only when the
-        // NEXT char is a letter (so WHO's own D-chapter codes like D509 survive).
         if code.count >= 3, code.first == "D",
            let second = code.dropFirst().first, second.isLetter {
             code = String(code.dropFirst())
         }
+        return code
+    }
+
+    /// Plain-language name for an ICD-10 (or Danish SKS) code.
+    static func conditionName(for icd10: String) -> String {
+        let code = normalizedWHO(icd10)
         // Longest-prefix match: 4 chars, then 3.
         if code.count >= 4, let n = icd10Names[String(code.prefix(4))] { return n }
         if code.count >= 3, let n = icd10Names[String(code.prefix(3))] { return n }
