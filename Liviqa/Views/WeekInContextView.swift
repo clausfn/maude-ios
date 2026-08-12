@@ -6,7 +6,6 @@ import SwiftUI
 struct WeekInContextView: View {
 
     @Environment(AppState.self) private var appState
-    @AppStorage("liquidGlass") private var glassOn = true
     /// PR-100 promotion #2 — graded deviation ramp instead of the 2-state moss/clay
     /// fill. SIGNED OFF by CN, now live by default (still a flag for instant revert).
     @AppStorage("gradedHeatmap") private var gradedHeatmap = true
@@ -22,9 +21,13 @@ struct WeekInContextView: View {
     /// (AppState derives it in refreshFromHealth), the demo grid otherwise.
     private var week: CorrelationWeek { appState.correlationWeek }
 
+    // A7.2 delta (DWeek is a 6-row grid): WEATHER — permanently noData with no
+    // source on the roadmap-visible horizon — is hidden rather than rendered as
+    // an eternal empty row. SPENDING/CALENDAR stay: honest coming-soon rows the
+    // design keeps. The deriver still emits all 7 columns; display trims the last.
     private let metricLabels = [
         "GLUCOSE", "SLEEP", "HRV", "EXERCISE",
-        "SPENDING", "CALENDAR", "WEATHER"
+        "SPENDING", "CALENDAR"
     ]
 
     // Real derived series only — no presentation seeds. A fresh user must never
@@ -112,16 +115,16 @@ struct WeekInContextView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
 
-                    // Liquid Glass "Your day" detail (flagged): scrub your day on a
-                    // glass timeline over an ambient field. Pushes an additive screen.
-                    if glassOn {
-                        NavigationLink {
-                            DayTimelineView()
-                        } label: { dayScrubEntry }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-                    }
+                    // "Replay your day" — the editorial scrub-your-day detail
+                    // (Area ② rebuild). No longer gated behind the liquidGlass
+                    // flag: the screen is editorial anatomy now, not a glass
+                    // exploration.
+                    NavigationLink {
+                        DayTimelineView()
+                    } label: { dayScrubEntry }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
 
                     // 2b. Recovery & stress (HRV) — descriptive, no stress score/verdict
                     recoveryCard
@@ -239,8 +242,8 @@ struct WeekInContextView: View {
         HStack(spacing: 12) {
             Image(systemName: "hand.draw").font(.system(size: 18)).foregroundStyle(LiviqaTheme.moss)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Scrub your day").font(.lato(15, .semibold)).foregroundStyle(LiviqaTheme.ink)
-                Text("Move through today's readings on a glass timeline")
+                Text("Replay your day").font(.lato(15, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                Text("Drag the line to relive any moment of today")
                     .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
             }
             Spacer()
@@ -575,7 +578,8 @@ struct WeekInContextView: View {
                 .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("This is a pattern in your own data — not a medical finding. Worth discussing with your care team if it repeats.")
+                // A7.2 delta: aligned to the canvas's exact disclaimer wording.
+                Text("Liviqa describes patterns in your own data. It does not diagnose or treat.")
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink2)
                     .lineSpacing(1.5)
@@ -625,9 +629,11 @@ struct WeekInContextView: View {
         if series.count >= 2, let first = series.first, let last = series.last {
             let avg = series.reduce(0, +) / Double(series.count)
             let d = last - first
+            // Down-weeks are information, not alarms: no red/rust off the
+            // clinical glucose surface (red = clinical TIR only).
             WeeklyMetricCard(value: value(avg), unit: unit, label: label,
                              deltaLabel: delta(d),
-                             deltaColor: d >= 0 ? LiviqaTheme.moss : LiviqaTheme.rust)
+                             deltaColor: d >= 0 ? LiviqaTheme.moss : LiviqaTheme.ink2)
         } else {
             WeeklyMetricCard(value: "—", unit: "", label: label,
                              deltaLabel: "No data yet",

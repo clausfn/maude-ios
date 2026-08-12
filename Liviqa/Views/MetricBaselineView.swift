@@ -1,7 +1,13 @@
-// MetricBaselineView.swift — Personal-baseline metric detail (Design v2 · the
-// Aperture arc hero). "Your normal, never a percentile": the moss arc IS your
-// range, today's dot sits on it, and the all-clear state gets some warmth.
-// Source: explorations/04-baseline.html (Alternative B).
+// MetricBaselineView.swift — "Your usual" per-domain baseline detail, restyled to
+// the A7 editorial anatomy (serif verdict → RangeBand with today's marker →
+// 14-day BaselineSpark → "How it's learned" card). UC-08: your normal, never a
+// percentile — the band is always the user's OWN learned range.
+//
+// A7.2 Area ④: the pre-A7 arc-gauge hero (EvidenceComponents.ApertureArcGauge —
+// retired Aperture-era naming) is no longer used here. DATA: when a real
+// `BaselineDeriver` baseline exists for this domain (appState.baselines), it
+// REPLACES the caller's demo values — the demo BaselineMetric renders only in
+// demo sessions. Sentences are fixed descriptive templates (FR-NDG-06 rail).
 import SwiftUI
 
 struct BaselineMetric: Identifiable {
@@ -18,8 +24,28 @@ struct BaselineMetric: Identifiable {
 struct MetricBaselineView: View {
     let metric: BaselineMetric
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
 
-    private var inRange: Bool { metric.value >= metric.normalLow && metric.value <= metric.normalHigh }
+    /// The real learned baseline for this domain, when the deriver has one.
+    private var live: DomainBaseline? {
+        switch metric.short {
+        case "Sleep": return appState.baselines?.entry(.sleep)
+        case "HRV":   return appState.baselines?.entry(.hrv)
+        case "RHR":   return appState.baselines?.entry(.rhr)
+        default:      return nil
+        }
+    }
+
+    // Displayed figures: real when learned, else the caller's (demo) values —
+    // and the demo values only in a demo session (never demo-over-real).
+    private var value: Double { live?.latest ?? metric.value }
+    private var band: ClosedRange<Double> {
+        live?.band ?? (metric.normalLow...metric.normalHigh)
+    }
+    private var unit: String { live?.unit ?? metric.unit }
+    private var hasFigures: Bool { live != nil || appState.isDemoData }
+
+    private var inRange: Bool { band.contains(value) }
 
     private func num(_ v: Double) -> String {
         v.rounded() == v ? String(Int(v)) : String(format: "%.1f", v)
@@ -27,84 +53,173 @@ struct MetricBaselineView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
 
                 NavBackHeader(onBack: { dismiss() }) {
                     Text(metric.short)
                         .font(.lato(15, .black)).foregroundStyle(LiviqaTheme.ink)
                 }
                 .padding(.top, 6)
+                .padding(.horizontal, 20)
 
-                Text(metric.name.uppercased())
-                    .font(.liviqaMono(11)).tracking(1.4)
-                    .foregroundStyle(LiviqaTheme.ink3)
-
-                ApertureArcGauge(
-                    value: metric.value, unit: metric.unit,
-                    normalLow: metric.normalLow, normalHigh: metric.normalHigh
-                )
-                .frame(height: 240)
-                .frame(maxWidth: .infinity)
-
-                Text("your normal \(num(metric.normalLow))–\(num(metric.normalHigh)) \(metric.unit)")
-                    .font(.liviqaMono(11))
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Text(metric.warm)
-                    .font(.lato(15)).lineSpacing(2)
-                    .foregroundStyle(LiviqaTheme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 4)
-
-                VStack(spacing: 4) {
-                    // Metric quick-log and the 90-day baseline history are
-                    // follow-up wiring — honest, disabled stubs until they exist.
-                    Button { } label: {   // HONEST-STUB (disabled + SOON chip)
-                        HStack(spacing: 8) {
-                            Text("Log what's working")
-                                .font(.lato(15, .bold))
-                                .foregroundStyle(LiviqaTheme.ink)
-                            Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
-                                .padding(.horizontal, 7).padding(.vertical, 3)
-                                .background(Capsule().fill(LiviqaTheme.moss2))
-                                .foregroundStyle(LiviqaTheme.moss)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(LiviqaTheme.paper2)
-                        .clipShape(RoundedRectangle(cornerRadius: 13))
-                        .overlay(RoundedRectangle(cornerRadius: 13)
-                            .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                if hasFigures {
+                    header
+                    bandCard
+                    if let series = live?.series, series.count >= 2 {
+                        sparkCard(series)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(true)
-                    Button { } label: {   // HONEST-STUB (disabled + SOON chip)
-                        HStack(spacing: 8) {
-                            Text("See your 90-day baseline ›")
-                                .font(.lato(14, .bold))
-                                .foregroundStyle(LiviqaTheme.ink3)
-                            Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
-                                .padding(.horizontal, 7).padding(.vertical, 3)
-                                .background(Capsule().fill(LiviqaTheme.moss2))
-                                .foregroundStyle(LiviqaTheme.moss)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(true)
+                    howCard
+                    stubs
+                } else {
+                    emptyState
                 }
-                .padding(.top, 6)
 
                 Spacer(minLength: 12)
             }
-            .padding(.horizontal, 20)
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    // MARK: - Header (kicker → serif verdict → big number)
+
+    private var verdictText: String {
+        if inRange { return "Right in your usual range." }
+        return value > band.upperBound
+            ? "A little above your usual range."
+            : "A little below your usual range."
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(metric.name.uppercased())
+                .font(.liviqaKicker(10.5)).tracking(LiviqaTheme.Tracking.kicker)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text(verdictText)
+                .font(.liviqaSerif(22)).kerning(-0.2).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 8)
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text(num(value))
+                    .font(.liviqaSerif(40, .bold, relativeTo: .largeTitle))
+                    .foregroundStyle(LiviqaTheme.ink)
+                Text(unit)
+                    .font(.lato(15, .semibold))
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            .padding(.top, 8)
+            // The warm line: real sessions get a fixed descriptive template;
+            // the canned copy renders only alongside the demo figures.
+            Text(live != nil
+                 ? (inRange ? "Steady inside the range Liviqa has learned from your own days."
+                            : "Off your own learned range today — one day is a data point, not a story.")
+                 : metric.warm)
+                .font(.lato(14)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+        }
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Cards
+
+    private var bandCard: some View {
+        MetricDCard(kicker: "Your usual", headline: nil) {
+            VStack(alignment: .leading, spacing: 8) {
+                RangeBandView(band: band, value: value, color: LiviqaTheme.moss)
+                Text("your usual \(num(band.lowerBound))–\(num(band.upperBound)) \(unit) · today \(num(value))")
+                    .font(.liviqaMono(11))
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func sparkCard(_ series: [Double]) -> some View {
+        MetricDCard(kicker: "Last 14 days",
+                    headline: nil,
+                    foot: "The soft band is your own learned range; the dot is the latest day.") {
+            BaselineSpark(data: series, band: band, color: LiviqaTheme.moss, height: 44)
+        }
+    }
+
+    private var howCard: some View {
+        MetricDCard(kicker: "How it's learned",
+                    headline: "From your own days — no percentile, no chart of other people.") {
+            Text(live != nil
+                 ? "Liviqa takes your last \(live!.learnedFromDays) days of this signal on this phone, finds their middle, and adds their usual spread (one standard deviation each way). That's the band. It re-learns as new days arrive, and it never compares you to anyone else."
+                 : "Liviqa takes your recent days of this signal on this phone, finds their middle, and adds their usual spread (one standard deviation each way). That's the band. It re-learns as new days arrive, and it never compares you to anyone else.")
+                .font(.lato(12.5)).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - Honest empty state (real session, nothing learned yet)
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(metric.name.uppercased())
+                .font(.liviqaKicker(10.5)).tracking(LiviqaTheme.Tracking.kicker)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text("Still learning your usual.")
+                .font(.liviqaSerif(21)).kerning(-0.2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 9)
+            Text("A learned range needs at least five days of your own data. Keep wearing your tracker and this page will fill in by itself — from your days, nobody else's.")
+                .font(.lato(13.5)).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .padding(.top, 10)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Follow-up wiring stubs (honest, disabled + SOON chips)
+
+    private var stubs: some View {
+        VStack(spacing: 4) {
+            Button { } label: {   // HONEST-STUB (disabled + SOON chip)
+                HStack(spacing: 8) {
+                    Text("Log what's working")
+                        .font(.lato(15, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Capsule().fill(LiviqaTheme.moss2))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 13))
+                .overlay(RoundedRectangle(cornerRadius: 13)
+                    .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            }
+            .buttonStyle(.plain)
+            .disabled(true)
+            Button { } label: {   // HONEST-STUB (disabled + SOON chip)
+                HStack(spacing: 8) {
+                    Text("See your 90-day baseline ›")
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                    Text("SOON").font(.liviqaKicker(8.5)).tracking(1)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Capsule().fill(LiviqaTheme.moss2))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+            }
+            .buttonStyle(.plain)
+            .disabled(true)
+        }
+        .padding(.top, 2)
+        .padding(.horizontal, 20)
     }
 }

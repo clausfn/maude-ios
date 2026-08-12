@@ -42,18 +42,19 @@ struct TodayView: View {
         return df.string(from: Date())
     }
 
+    // A7.2 delta (screen-home.jsx): the design greets in full — "Good morning,
+    // Clara." — not the clipped "Morning, N".
     private var greeting: String {
         switch Calendar.current.component(.hour, from: Date()) {
-        case 5..<12:  return String(localized: "Morning")
-        case 12..<17: return String(localized: "Afternoon")
-        case 17..<21: return String(localized: "Evening")
-        default:      return String(localized: "Late")
+        case 5..<12:  return String(localized: "Good morning")
+        case 12..<17: return String(localized: "Good afternoon")
+        default:      return String(localized: "Good evening")
         }
     }
 
     private var greetingLine: String {
-        if let n = displayName, !n.isEmpty { return "\(greeting), \(n)" }
-        return greeting
+        if let n = displayName, !n.isEmpty { return "\(greeting), \(n)." }
+        return "\(greeting)."
     }
 
     var body: some View {
@@ -61,6 +62,9 @@ struct TodayView: View {
         if let p = ProcessInfo.processInfo.environment["LIVIQA_OPEN_PILLAR"],
            let pillar = WellnessPillar(rawValue: p) {
             MetricDetailView(pillar: pillar)
+        } else if ProcessInfo.processInfo.environment["LIVIQA_OPEN_TRENDS"] == "1" {
+            // Snapshot hook (FR-TOD-06): open the Trends surface headlessly.
+            TrendsView()
         } else { mainBody }
         #else
         mainBody
@@ -86,10 +90,12 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
+                // A7.2 calibrating delta (ScrTodayCalibrating): the honesty chip
+                // reads "Sample data" — the design's term for the marked seeds.
                 LiviqaAppBar(
                     title: "Liviqa",
                     showMark: true,
-                    chipLabel: isDemoData ? "Demo data" : nil
+                    chipLabel: isDemoData ? String(localized: "Sample data") : nil
                 )
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -197,9 +203,11 @@ struct TodayView: View {
                             .padding(.top, 14)
 
                         // ONE earned attention card — or the quiet all-clear line.
+                        // Calibrating keeps the design's lock note ("…just keep
+                        // wearing your devices.") instead of silence.
                         Group {
                             if coldStart {
-                                EmptyView()
+                                calibratingQuietNote
                             } else if !nudges.isEmpty {
                                 attentionCard
                             } else {
@@ -207,6 +215,13 @@ struct TodayView: View {
                             }
                         }
                         .padding(.top, 16)
+
+                        // InsightCompare (screen-home.jsx) — this month's sleep vs
+                        // last, derived; renders only when the change is real.
+                        if !coldStart, let cmp = appState.trends?.compare {
+                            insightCompareCard(cmp)
+                                .padding(.top, 16)
+                        }
 
                         // Zoom out from today → the full week (correlation view).
                         weekCard
@@ -217,10 +232,17 @@ struct TodayView: View {
                             .padding(.top, 14)
                     }
 
-                    colophon
-                        .padding(.top, 22)
-                        .padding(.bottom, 28)
-                        .id("home-bottom")
+                    // Colophon + (per the canvas) the quiet research one-liner
+                    // beneath it — the invitation's designed low-key placement.
+                    VStack(spacing: 12) {
+                        colophon
+                        if appState.researchOpportunity != nil {
+                            researchFootnote
+                        }
+                    }
+                    .padding(.top, 22)
+                    .padding(.bottom, 28)
+                    .id("home-bottom")
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
@@ -497,6 +519,28 @@ struct TodayView: View {
         .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
+    /// Calibrating lock note (ScrTodayCalibrating): the quiet all-clear with the
+    /// design's "just keep wearing your devices" tail — shown instead of silence
+    /// while the baseline builds.
+    private var calibratingQuietNote: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "lock")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(LiviqaTheme.moss)
+                .padding(.top, 1)
+            Text("Nothing needs your attention today. Just keep wearing your devices.")
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.moss2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+
     // MARK: — Earned attention card / quiet all-clear (A7.2: at most ONE per day)
 
     private var attentionCard: some View {
@@ -585,6 +629,37 @@ struct TodayView: View {
         return "Calmest when dinner's before 20:30."
     }
 
+    // MARK: — InsightCompare (this month's sleep vs last — derived, quiet)
+
+    /// screen-home.jsx InsightCompare: one sentence over two labelled bars.
+    /// Figures come from TrendsDeriver's period comparison — the card simply
+    /// doesn't render when either window is thin or the change is noise.
+    private func insightCompareCard(_ cmp: TrendsPeriodCompare) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(String(localized: "Sleep · month to month").uppercased())
+                .font(.liviqaKicker(10)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text(cmp.sentence)
+                .font(.liviqaSerif(17)).kerning(-0.2).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+            InsightCompareBars(
+                currentLabel: cmp.currentLabel, currentText: cmp.currentText,
+                currentValue: cmp.currentHours,
+                previousLabel: cmp.previousLabel, previousText: cmp.previousText,
+                previousValue: cmp.previousHours)
+                .padding(.top, 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+        .accessibilityElement(children: .combine)
+    }
+
     // MARK: — This week (zoom-out teaser → the full week / correlation view)
 
     // Restores the "This week" card that was dropped from Home in the PR-51 reframe
@@ -657,7 +732,9 @@ struct TodayView: View {
                 SignalCardView(rule: LiviqaTheme.accentSleep, icon: "moon.fill",
                                domain: String(localized: "Sleep"),
                                verdict: sleepVerdict, value: sleepHeadline, unit: nil,
-                               spark: spark(\.sleepWeek, .sleep))
+                               spark: spark(\.sleepWeek, .sleep),
+                               band: usualBand(\.sleepWeek),
+                               skeleton: coldStart)
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
                 SignalCardView(rule: LiviqaTheme.accentGlucose, icon: "drop.fill",
@@ -666,14 +743,18 @@ struct TodayView: View {
                                value: signals?.inRange ?? seedValue("61%"),
                                unit: String(localized: "in range"),
                                spark: spark(\.inRangeWeek, .glucose),
-                               chip: String(localized: "Zones & TIR"))
+                               band: usualBand(\.inRangeWeek),
+                               chip: String(localized: "Zones & TIR"),
+                               skeleton: coldStart)
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.recovery) {
                 SignalCardView(rule: LiviqaTheme.accentRecovery, icon: "waveform.path.ecg",
                                domain: String(localized: "Recovery"),
                                verdict: recoveryVerdict,
                                value: signals?.hrv ?? seedValue("48"), unit: nil,
-                               spark: spark(\.hrvWeek, .recovery))
+                               spark: spark(\.hrvWeek, .recovery),
+                               band: usualBand(\.hrvWeek),
+                               skeleton: coldStart)
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.heart) {
                 SignalCardView(rule: LiviqaTheme.accentHeart, icon: "heart.fill",
@@ -681,10 +762,26 @@ struct TodayView: View {
                                verdict: heartVerdict,
                                value: signals?.rhr ?? seedValue("58"),
                                unit: String(localized: "resting"),
-                               spark: spark(\.rhrWeek, .heart))
+                               spark: spark(\.rhrWeek, .heart),
+                               band: usualBand(\.rhrWeek),
+                               skeleton: coldStart)
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
+    }
+
+    /// "Your usual" band for a signal sparkline — mean ± 1σ of the user's OWN
+    /// real week series (never a clinical range). nil on seeds/thin/flat data,
+    /// so the band only ever appears over genuine readings.
+    private func usualBand(_ keyPath: KeyPath<TodaySignals, [Double]>) -> ClosedRange<Double>? {
+        guard let s = signals else { return nil }
+        let series = s[keyPath: keyPath]
+        guard series.count >= 4 else { return nil }
+        let mean = series.reduce(0, +) / Double(series.count)
+        let sd = (series.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+                  / Double(series.count)).squareRoot()
+        guard sd > 0 else { return nil }
+        return (mean - sd)...(mean + sd)
     }
 
     // Verdict words — plain, allow-listed, baseline-relative states (no clinical
@@ -860,11 +957,24 @@ struct TodayView: View {
         let labels: [String]
     }
 
-    /// Real data: the 7-day HRV series we actually hold (labelled as such).
-    /// A true 30-day series awaits a deriver extension; the demo seeds show
-    /// the full month the design intends.
+    /// Real 30-day HRV series via TrendsDeriver (the FR-TOD-05 deriver
+    /// extension, landed with Area ②) — the designed month trend for real
+    /// users. Falls back to the honest 7-day series when the month is thin,
+    /// and to the demo seed only in demo mode.
     private var recoveryTrend: RecoveryTrend? {
         if coldStart { return nil }
+        if let month = appState.trends?.month, month.hrvDaily.count >= 8 {
+            let data = month.hrvDaily
+            let avg = data.reduce(0, +) / Double(data.count)
+            let df = DateFormatter(); df.dateFormat = "d MMM"
+            let cal = Calendar.current
+            let labels = [-29, -15, 0].compactMap { off in
+                cal.date(byAdding: .day, value: off, to: Date()).map(df.string(from:))
+            }
+            return RecoveryTrend(data: data, avg: avg,
+                                 kicker: String(localized: "Recovery · Last 30 days"),
+                                 labels: labels)
+        }
         if let s = signals, s.hrvWeek.count >= 5 {
             let avg = s.hrvWeek.reduce(0, +) / Double(s.hrvWeek.count)
             return RecoveryTrend(data: s.hrvWeek, avg: avg,
@@ -1002,7 +1112,10 @@ struct TodayView: View {
                     .fixedSize()
                 }
             }
-            NavigationLink(destination: WeekInContextView()) {
+            // FR-TOD-06: Trends is its own surface, pushed from Today (the
+            // design's back-link reads "Today"). The full week keeps its own
+            // doorway via the week card below.
+            NavigationLink(destination: TrendsView()) {
                 Text("See the trend →")
                     .font(.lato(12.5, .semibold))
                     .foregroundStyle(LiviqaTheme.moss)
@@ -1090,6 +1203,22 @@ struct TodayView: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
     }
+
+    /// The canvas's quiet research one-liner under the colophon (b-insights):
+    /// "One study is inviting people like you." — a whisper, not a banner. The
+    /// actionable card above remains the deliberate primary entry.
+    private var researchFootnote: some View {
+        Button { appState.showStudyConsent = true } label: {
+            (Text("One study is inviting people like you. ")
+                .foregroundStyle(LiviqaTheme.ink3)
+             + Text("Read the invitation →")
+                .foregroundStyle(LiviqaTheme.moss))
+                .font(.lato(11.5))
+                .multilineTextAlignment(.center)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+    }
 }
 
 // MARK: - A7.2 signal card (verdict word first, number after, baseline sparkline)
@@ -1102,7 +1231,13 @@ private struct SignalCardView: View {
     let value: String
     let unit: String?
     var spark: [Double] = []
+    /// The user's own usual band drawn under the sparkline (A7.2 delta —
+    /// BaselineSpark always supported it; the card now passes it).
+    var band: ClosedRange<Double>? = nil
     var chip: String? = nil
+    /// Calibrating state (ScrTodayCalibrating): quiet skeleton rows instead of
+    /// values — nothing is faked, the shape just says "filling in".
+    var skeleton: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1115,6 +1250,18 @@ private struct SignalCardView: View {
                     .foregroundStyle(LiviqaTheme.ink3)
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
+            if skeleton {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(LiviqaTheme.line2)
+                    .frame(width: 64, height: 20)
+                    .padding(.top, 9)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(LiviqaTheme.line2)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 8)
+                    .padding(.top, 9)
+                    .accessibilityHidden(true)
+            } else {
             Text(verdict)
                 .font(.liviqaSerif(15)).kerning(-0.1)
                 .foregroundStyle(LiviqaTheme.ink)
@@ -1134,10 +1281,11 @@ private struct SignalCardView: View {
             }
             .padding(.top, 4)
             if spark.count > 1 {
-                BaselineSpark(data: spark, color: rule, height: 26)
+                BaselineSpark(data: spark, band: band, color: rule, height: 26)
                     .padding(.top, 7)
             }
-            if let chip {
+            }
+            if let chip, !skeleton {
                 HStack(spacing: 3) {
                     Text(chip)
                     Text("→")

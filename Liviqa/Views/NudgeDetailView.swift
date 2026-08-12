@@ -14,6 +14,8 @@ struct NudgeDetailView: View {
     @AppStorage("liquidGlass") private var glassOn = true
     @State private var showDepth = false
     @State private var showShare = false
+    /// UC-19 / FR-PMS-01 — the report-a-wrong-nudge sheet.
+    @State private var showReport = false
 
     private var ev: NudgeEvidence? { nudge.evidence }
 
@@ -33,6 +35,8 @@ struct NudgeDetailView: View {
                 }
 
                 discussInAssistant
+
+                reportAffordance
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 28)
@@ -40,6 +44,9 @@ struct NudgeDetailView: View {
         .background(LiviqaTheme.paper)
         .sheet(isPresented: $showShare) {
             ShareWithClinicianView(nudge: nudge, onDismiss: { showShare = false })
+        }
+        .sheet(isPresented: $showReport) {
+            ReportNudgeView(nudge: nudge)
         }
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
@@ -65,6 +72,26 @@ struct NudgeDetailView: View {
         }
         .buttonStyle(.plain)
         .padding(.top, 2)
+    }
+
+    // MARK: — Report this insight (UC-19 / FR-PMS-01 — the PMS entry point)
+
+    /// Quiet, always-present affordance: if an insight felt wrong or unsafe,
+    /// reporting it must never be hard to find — and never look like an alarm.
+    private var reportAffordance: some View {
+        Button { showReport = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "flag")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Report this insight")
+                    .font(.lato(12.5, .semibold))
+            }
+            .foregroundStyle(LiviqaTheme.ink3)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(Text("Tell Liviqa's safety monitoring this insight felt wrong or unsafe"))
     }
 
     // MARK: — Asserted (gated / emerging)

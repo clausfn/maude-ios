@@ -848,6 +848,9 @@ struct ScoreRing: View {
     var score: Int
     var segments: [ScoreSegment]
     var size: CGFloat = 96
+    /// A7.2 Area ④: the sleep hero draws the ring on a tinted band — the centre
+    /// number needs white there. Default keeps every existing call site.
+    var textColor: Color = LiviqaTheme.ink
 
     private let gapDeg = 14.0
 
@@ -867,7 +870,7 @@ struct ScoreRing: View {
             }
             Text("\(score)")
                 .font(.liviqaSerif(26))
-                .foregroundStyle(LiviqaTheme.ink)
+                .foregroundStyle(textColor)
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)

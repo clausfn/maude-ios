@@ -43,7 +43,7 @@ struct AppLockSetupView: View {
                 .padding(.top, 12)
                 .accessibilityHidden(true)
 
-            Text("Your health lives on this phone — so only you should open it. Liviqa asks for Face ID each time it wakes. No passcode leaves the device.")
+            Text("Your health lives on this phone — so it opens only for you. Liviqa asks for Face ID each time it wakes. No passcode leaves the device.")
                 .font(.lato(14))
                 .lineSpacing(4)
                 .foregroundStyle(LiviqaTheme.ink2)
