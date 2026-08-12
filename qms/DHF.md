@@ -2,6 +2,20 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-08-12 (later) — A7.2 "Electric Ink" adopted as the visual system of record (PR-105)
+
+- **Decision.** A7.2 (round-4 palette of the Claude Design redesign, carrying
+  Christel Friis Conrad's review rounds — 52/57 threads resolved by the
+  package) supersedes the v03 "Morning Edition" plaster skin. CN approved the
+  five gate decisions 2026-08-12: rose heart substitute, amber renewal, TIR
+  colour-safety ramp, notifications v1 scope, Bevel absorb list.
+- **Two documented deviations from the package** (both a11y/safety-driven):
+  heart rose `0xD9486B` instead of red `0xE62E3D` (RK-ALARM-01); `ink4`
+  darkened to `0x7E88B0` (package value failed the 3:1 floor).
+- **Deferred:** app-icon cobalt GRADIENT ground (solid mid-cobalt shipped;
+  gradient via Icon Composer GUI later); screenshot QA against the package
+  canvases; the A7.2 canonical register row in 00_Canonical/REGISTER.md.
+
 ## 2026-08-12 — Sundhed.dk on-device record wave (PR-104, dated catch-up) + A7 skin record
 
 _Catch-up entry: the decisions below were taken 2026-07-07→2026-08-10 without

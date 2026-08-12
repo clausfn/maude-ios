@@ -2,6 +2,19 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-105 — A7.2 "Electric Ink" reskin (2026-08-12, branch `claude/a72-electric-ink`; CN approved the 5 gate decisions same day)
+
+Skin only — IA/copy/navigation unchanged; dark "Evening" args untouched except the two documented exceptions. Source: the A7.2 design handoff (`design_handoff_liviqa_a7`, revised package) — the outcome of Christel's review rounds 3–4 (52 of 57 threads resolved by the package; 5 partial → copy pass / feature backlog).
+
+- **feat(theme) — Theme.swift v04.** Full A7.2 light-token swap: electric paper `0xE9F1FA`, softened-cobalt ink `0x2A4FAE` (+stepped inks), fjord teal `0x077E77` (text/buttons) + NEW graphic-only `fjordBright 0x00B5AC`, cool hairlines, saturated domain accents, cobalt invert + DfG cobalt. Amber deliberately MODE-SPLIT (light `0xFFC533` / dark stays `0xFFB703`).
+- **APPROVED DEVIATIONS (CN 2026-08-12):** (1) `accentHeart` = rose-punch `0xD9486B` (dark lift `0xF07E9B`), NOT the package's `0xE62E3D` — a second saturated red would collide with the red-is-clinical-glucose-only lock (RK-ALARM-01; see RISK PR-105). (2) `ink4` darkened `0x8C96BB → 0x7E88B0` — the package value fails even the 3:1 large-text floor.
+- **feat(safety-viz) — TIR colour-safety ramp + overlays.** The clinical ramp is replaced (plum/red-rose/green/amber/sienna, dark lifts verified ≥3:1 on plate) and bands are never colour-alone: HATCH on very-low, DOTS on very-high, in-band text labels (GlucoseCurveView) — closes the deuteranopia hazard flagged in the A7 direction review.
+- **feat(assets).** AccentColor (was empty) light/dark set; LaunchBackground → paper/marine; DfG colour logo from the package; LiviqaMark → cobalt+`00B5AC`; reversed marks + WatchMark → white+`00E0D0`; AppIcon.icon → mid-cobalt ground (gradient refinement deferred to Icon Composer GUI), white iris, `00E0D0` ring.
+- **feat(ui) — structural patterns.** Solid icon squares + white glyphs (Settings source/nav rows, DataSources rows; Journal vault → neutral solid ink); masthead iris wears the app-icon badge tile (cobalt gradient, white iris @72%); tab-bar inactive icons `.medium` + labels `.semibold` (colour already solid ink3 — 5.45:1 verified); off-state sweep found nothing left to fix.
+- **feat(watch).** WatchTheme A6 navy/honeydew/Frosted-Blue → A7.2 marine/plate/off-white/lifted-teal; watch amber stays `0xFFB703`.
+- **Verification:** build green after every commit; WCAG recomputed for all key pairs (ink 6.52:1 paper / 7.43:1 card; ink3 5.45:1; clayText 6.72:1 on amber2; teal text 4.93:1 on cards — teal text stays OFF bare paper by rule); screenshot QA vs package canvases pending in this branch's QA pass.
+- **Known/accepted:** light amber now aliases `tirHigh` exactly (accepted with the amber renewal); `fjordBright`/recovery solid squares are sub-3:1 by design → adjacent text labels are mandatory (all converted rows have them).
+
 ## PR-104 — Sundhed.dk on-device record wave (builds 10.71→10.98) + Phase 0 robustness (2026-08-12, `feat/sundhed-connect` → develop `f115739`; fixes `530b32d`)
 
 **Dated catch-up notice (QMS integrity):** the 10.71→10.98 wave was developed 2026-07-08→2026-08-10 and merged 2026-08-12 WITHOUT contemporaneous QMS entries — a violation of the repo's own RTM-row-before-merge rule, found by the 2026-08-12 external-testing audit. This entry, the PR-104 rows in `RTM.md`, the PR-104 hazards in `RISK.md`, and the DHF entry are the after-the-fact record; the gap itself is part of the record.

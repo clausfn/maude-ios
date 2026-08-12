@@ -41,7 +41,17 @@ struct LiviqaAppBar: View {
     var body: some View {
         HStack(spacing: 10) {
             if showMark {
-                LiviqaApertureMark(size: 26)
+                // A7.2 pattern 2: the masthead iris wears the app-icon badge — a
+                // cobalt-gradient tile (28% corner radius) with the white iris at
+                // ~72% of tile size. Bare marks elsewhere keep the flat asset.
+                ZStack {
+                    RoundedRectangle(cornerRadius: 26 * 0.28, style: .continuous)
+                        .fill(LinearGradient(colors: [Color(hex: 0x3059C2), Color(hex: 0x1A3696)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 26, height: 26)
+                    LiviqaApertureMark(size: 26 * 0.72, reversed: true)
+                }
+                .accessibilityHidden(true)
                 Text("Liviqa")
                     .font(.lato(17, .black))
                     .kerning(-0.3)

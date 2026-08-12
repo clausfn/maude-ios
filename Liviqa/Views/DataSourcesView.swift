@@ -230,14 +230,14 @@ struct DataSourcesView: View {
     private func sourceRow(_ source: DataSourceConnection) -> some View {
         HStack(spacing: 12) {
 
-            // Icon
+            // Icon — A7.2 pattern 1: SOLID square + white glyph (name label adjacent).
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(source.iconColor.opacity(0.12))
+                    .fill(source.iconColor)
                     .frame(width: 32, height: 32)
                 Image(systemName: source.icon)
                     .font(.lato(14))
-                    .foregroundStyle(source.iconColor)
+                    .foregroundStyle(.white)
             }
 
             // Name + status

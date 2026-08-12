@@ -2,6 +2,31 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-105 — A7.2 "Electric Ink" reskin: colour-semantic decisions (2026-08-12, CN sign-offs recorded)
+
+- **RK-ALARM-01 — amber attention semantic RENEWED for A7.2.** The attention
+  amber moves `0xFFB703 → 0xFFC533` in light mode (dark/watch keep `0xFFB703`).
+  Hue family and all controls unchanged (one earned card/day, words stay ink,
+  never amber small text). Residual risk accepted with eyes open: light amber
+  now exactly aliases the TIR "high" band — an attention card could weakly read
+  as glycaemic when it is sleep/recovery-derived; mitigation: attention cards
+  always carry their domain icon + worded headline, TIR amber renders only
+  inside the labelled glucose chart. CN sign-off 2026-08-12.
+- **Heart accent: the package's saturated red REJECTED, rose adopted.** A7.2
+  proposed `accentHeart = 0xE62E3D`; adopting a second saturated red would
+  dilute red-means-clinical-glucose salience (colour-meaning collision, and
+  inverse dulling of true alarm red). DECISION (CN 2026-08-12): substitute
+  rose-punch `0xD9486B` (dark `0xF07E9B`, ≥3:1 on plate) — A7.2 saturation,
+  unmistakably rose. No new hazard; the lock holds.
+- **TIR ramp replacement — hazard REMOVED.** The old ramp's target-green vs
+  low-red pair computed 1.05:1 luminance (deuteranopia trap, flagged in the A7
+  direction review). The frozen A7.2 ramp + mandatory non-colour signals
+  (hatch on very-low, dots on very-high, in-band labels, y-axis values) make
+  the clinical bands legible without hue discrimination. Dark lifts verified
+  ≥3:1 on plate (3.33/6.37/8.80/10.78/4.99). CN sign-off 2026-08-12.
+- **No other clinical surface touched:** nudge engine, units (mmol/L, OD-07),
+  AFib lane, provenance handling all unchanged; the reskin is presentation-only.
+
 ## PR-104 — Sundhed.dk on-device record wave + Phase 0 robustness (2026-08-12, dated catch-up — see CHANGELOG PR-104 notice)
 
 - **RK-SUND-01 — in-app session-ride: terms/lawfulness grey zone + extraction

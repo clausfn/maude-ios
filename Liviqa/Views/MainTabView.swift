@@ -315,10 +315,12 @@ struct MainTabView: View {
     @ViewBuilder private func tabCell(_ item: LiviqaTab) -> some View {
         let active = tab == item
         VStack(spacing: 3) {
+            // A7.2 pattern 3: inactive items are SOLID ink3 (5.45:1 on paper — never
+            // ink-at-low-opacity), icon stroke one weight up, labels semibold.
             Image(systemName: active ? item.symbolFilled : item.symbol)
-                .font(.lato(19))
+                .font(.lato(19, .medium))
             Text(item.title)
-                .font(.lato(10, active ? .bold : .regular))
+                .font(.lato(10, active ? .bold : .semibold))
                 .tracking(0.2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)

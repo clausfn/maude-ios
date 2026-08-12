@@ -886,13 +886,14 @@ struct JournalView: View {
 
     private func documentCard(_ doc: VaultDocument) -> some View {
         HStack(spacing: 14) {
+            // A7.2 pattern 1: neutral document squares are SOLID ink + white glyph.
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(vaultColor(doc.type.colorKey).opacity(0.12))
+                    .fill(LiviqaTheme.ink)
                     .frame(width: 40, height: 40)
                 Image(systemName: doc.type.icon)
                     .font(.lato(16))
-                    .foregroundStyle(vaultColor(doc.type.colorKey))
+                    .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 3) {
