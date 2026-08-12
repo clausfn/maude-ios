@@ -10,6 +10,8 @@ import Network
 
 struct PreVisitCheckView: View {
     var recipientName: String
+    var recipientId: String? = nil
+    @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @AppStorage("consultShareConsent") private var shareConsent = false
 
@@ -18,7 +20,24 @@ struct PreVisitCheckView: View {
     @State private var mic: Check = .checking
     @State private var net: Check = .checking
 
+    // FR-PRO-01: ticking the box on the sovereign backend ARMS a real per-consult
+    // expiring grant + derived summary (the payload Liviqa PRO renders).
+    @State private var arming = false
+    @State private var armed = false
+    @State private var armError: String?
+    @State private var enterWaiting: ScheduledConsult?
+
     private var ready: Bool { shareConsent && cam == .ok && mic == .ok }
+
+    /// A consult inside the join window (−15…+30 min) this check can flow into —
+    /// the designed "Enter waiting room" CTA only appears when this is real.
+    private var joinable: ScheduledConsult? {
+        let window = appState.scheduledConsults.filter {
+            let t = $0.at.timeIntervalSinceNow
+            return t < 15 * 60 && t > -30 * 60 && $0.status == "scheduled"
+        }
+        return window.first(where: { $0.recipientName == recipientName }) ?? window.first
+    }
 
     var body: some View {
         ScrollView {
@@ -35,7 +54,7 @@ struct PreVisitCheckView: View {
 
                 // 1 — per-visit share consent
                 kicker("What you'll share").padding(.top, 6)
-                Button { shareConsent.toggle() } label: {
+                Button { Task { await toggleShare() } } label: {
                     HStack(alignment: .top, spacing: 12) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 6).fill(shareConsent ? LiviqaTheme.moss : Color.clear)
@@ -59,6 +78,17 @@ struct PreVisitCheckView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(shareConsent ? LiviqaTheme.moss3 : LiviqaTheme.line, lineWidth: shareConsent ? 1 : 0.5))
                 }
                 .buttonStyle(.plain)
+                .disabled(arming)
+
+                // Honest status of the per-consult grant (sovereign backend only —
+                // in demo mode the tick stays local and nothing is transmitted).
+                if arming {
+                    shareStatus("Preparing your consented summary…")
+                } else if armed {
+                    shareStatus("Shared for this consult · expires automatically in 24 hours · listed in your consent record.")
+                } else if let armError {
+                    Text(armError).font(.lato(11.5)).foregroundStyle(LiviqaTheme.rust)
+                }
 
                 // 2 — device & connection test
                 kicker("Your camera, mic & connection").padding(.top, 6)
@@ -73,11 +103,13 @@ struct PreVisitCheckView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
 
-                // ready banner
+                // ready banner — "You're ready to join." only when there is a
+                // genuinely joinable consult; otherwise the honest waiting phrasing.
                 HStack(spacing: 9) {
                     Image(systemName: ready ? "checkmark.circle.fill" : "hourglass")
                         .font(.system(size: 15)).foregroundStyle(ready ? LiviqaTheme.moss : LiviqaTheme.ink4)
-                    Text(ready ? "You're ready — we'll bring you in when your clinician starts."
+                    Text(ready ? (joinable != nil ? "You're ready to join."
+                                                  : "You're ready — we'll bring you in when your clinician starts.")
                                : "Tick the share box and allow camera & mic to be ready.")
                         .font(.lato(12.5, .bold)).foregroundStyle(ready ? LiviqaTheme.ink : LiviqaTheme.ink3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -90,17 +122,64 @@ struct PreVisitCheckView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(ready ? LiviqaTheme.moss3 : LiviqaTheme.line, lineWidth: ready ? 1 : 0.5))
                 .padding(.top, 4)
 
-                Button { dismiss() } label: {
-                    Text("Done").font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.invertFG)
-                        .frame(maxWidth: .infinity).padding(.vertical, 15)
-                        .background(LiviqaTheme.invertBG).clipShape(RoundedRectangle(cornerRadius: 13))
+                if ready, let sc = joinable {
+                    // A7 canvas CTA — flows straight into the waiting room.
+                    Button { enterWaiting = sc } label: {
+                        Text("Enter waiting room").font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.invertFG)
+                            .frame(maxWidth: .infinity).padding(.vertical, 15)
+                            .background(LiviqaTheme.invertBG).clipShape(RoundedRectangle(cornerRadius: 13))
+                    }
+                    .buttonStyle(.plain).padding(.top, 8)
+                } else {
+                    Button { dismiss() } label: {
+                        Text("Done").font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.invertFG)
+                            .frame(maxWidth: .infinity).padding(.vertical, 15)
+                            .background(LiviqaTheme.invertBG).clipShape(RoundedRectangle(cornerRadius: 13))
+                    }
+                    .buttonStyle(.plain).padding(.top, 8)
                 }
-                .buttonStyle(.plain).padding(.top, 8)
             }
             .padding(.horizontal, 20).padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
         .task { await runChecks() }
+        .fullScreenCover(item: $enterWaiting) { sc in
+            WaitingRoomView(scheduled: sc)
+        }
+    }
+
+    // MARK: - Per-consult share gate (FR-PRO-01)
+
+    private func shareStatus(_ text: String) -> some View {
+        Text(text)
+            .font(.lato(11.5)).lineSpacing(2)
+            .foregroundStyle(LiviqaTheme.ink3)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Consent-first: the tick IS the consent. On the sovereign backend it arms a
+    /// short-lived summaries-only grant + derived summary push; un-ticking before
+    /// the call revokes the grant this screen created. Off the sovereign backend
+    /// (demo/mock) the tick stays local and nothing leaves the device.
+    private func toggleShare() async {
+        if shareConsent {
+            shareConsent = false
+            armed = false
+            armError = nil
+            if let rid = recipientId { await appState.disarmConsultShare(recipientId: rid) }
+            return
+        }
+        shareConsent = true
+        armError = nil
+        guard let rid = recipientId, appState.sovereign != nil else { return }
+        arming = true
+        armed = await appState.armConsultShare(recipientId: rid)
+        if !armed {
+            // Never claim a share that didn't happen — revert the tick honestly.
+            shareConsent = false
+            armError = appState.lastError ?? "Couldn't prepare the consult share — please try again."
+        }
+        arming = false
     }
 
     // MARK: - Rows & helpers

@@ -1,8 +1,13 @@
-// ConsentLedgerView.swift — Read-only consent audit trail · v01 2026-05-22
-// T1 TestProd wave (2026-07-07): per-event "Evidence receipt" — the consent-
-// engine receipt (id + short hash) recorded on the DATA for GOOD consent
-// ledger. Display + copyable id only; on-device cryptographic verification of
-// the receipt signature (P7) is a flagged follow-up.
+// ConsentLedgerView.swift — the consent record · v02 2026-08-12 (A7.2 register)
+// "Consent record — the plain list of every choice you've made" (A7.2 copy
+// authority, b-sharing.jsx:195). T1 TestProd wave (2026-07-07): per-event
+// "Evidence receipt" — the consent-engine receipt (id + short hash) recorded on
+// the DATA for GOOD consent ledger. Display + copyable id only; on-device
+// cryptographic verification of the receipt signature (P7) is a flagged follow-up.
+//
+// CE-STUB RAIL (FR-WAL-09): while the backend runs CE_MODE=stub, events carry
+// no evidentiary receipt — the append-only claim SOFTENS ("designed so…") and
+// the verified chip + evidence block render only on evidentiary events. T-WAL-09.
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -13,14 +18,27 @@ struct ConsentLedgerView: View {
     /// Receipt id most recently copied to the pasteboard (drives the ✓ affordance).
     @State private var copiedReceiptID: String? = nil
 
+    /// FR-WAL-09 claim gating (testable): the strong append-only claim renders
+    /// only when at least one event carries REAL consent-engine evidence;
+    /// stub-mode records make a design-intent statement, not an evidence claim.
+    static func headerClaim(hasEvidence: Bool) -> String {
+        hasEvidence
+            ? String(localized: "Nobody can edit this — not even us.")
+            : String(localized: "It is designed so nobody can edit it — not even us.")
+    }
+
+    private var hasEvidence: Bool {
+        appState.walletEvents.contains { $0.ce?.isEvidentiary == true }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
                 // ── Reassurance (does the trust work in one sentence) ──
-                Text("Every access to your data is recorded here. ")
+                Text("The plain list of every choice you've made — every share, stop, and view of your data is recorded here. ")
                     .font(.lato(13.5)).foregroundStyle(LiviqaTheme.ink2)
-                + Text("Nobody can edit this — not even us.")
+                + Text(Self.headerClaim(hasEvidence: hasEvidence))
                     .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.moss)
 
                 // ── Plain-language timeline (Design v2 · Alternative A) ──
@@ -57,7 +75,7 @@ struct ConsentLedgerView: View {
             .padding(.bottom, 32)
         }
         .background(LiviqaTheme.paper)
-        .navigationTitle("Privacy Record")
+        .navigationTitle("Consent record")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -73,7 +91,7 @@ struct ConsentLedgerView: View {
             Text("No decisions on record yet.")
                 .font(.lato(15, .bold))
                 .foregroundStyle(LiviqaTheme.ink)
-            Text("Your first grant or refusal will appear here.")
+            Text("Your first share or refusal will appear here.")
                 .font(.lato(13))
                 .foregroundStyle(LiviqaTheme.ink3)
                 .multilineTextAlignment(.center)
@@ -111,9 +129,10 @@ struct ConsentLedgerView: View {
                 HStack(spacing: 7) {
                     Text(relativeDate(event.occurredAt))
                         .font(.liviqaMono(10.5)).foregroundStyle(LiviqaTheme.ink3)
-                    // "verified" is only claimed when the event actually carries
-                    // ledger evidence (honesty: no receipt, no verified chip).
-                    if event.ce?.receiptId != nil {
+                    // "verified" is only claimed when the event carries REAL
+                    // (evidentiary) ledger evidence — receipt id + event hash.
+                    // Stub-mode receipts never earn the chip (FR-WAL-09).
+                    if event.ce?.isEvidentiary == true {
                         HStack(spacing: 3) {
                             Image(systemName: "checkmark.seal.fill").font(.system(size: 9))
                             Text("verified").font(.liviqaMono(10))
@@ -121,7 +140,7 @@ struct ConsentLedgerView: View {
                         .foregroundStyle(LiviqaTheme.moss)
                     }
                 }
-                if let ce = event.ce, let receiptId = ce.receiptId {
+                if let ce = event.ce, ce.isEvidentiary, let receiptId = ce.receiptId {
                     evidenceReceipt(ce, receiptId: receiptId)
                         .padding(.top, 6)
                 }
@@ -135,14 +154,16 @@ struct ConsentLedgerView: View {
     // MARK: - Evidence receipt (CE seam · display-only, T1)
 
     /// The consent-engine receipt behind an event: receipt id (tap to copy),
-    /// short event hash, and where it is anchored. No on-device crypto
-    /// verification in this wave — the receipt id is deep-copyable so it can
-    /// be verified against the consent contract's public key elsewhere.
+    /// short event hash, and where it is anchored. Renders ONLY on evidentiary
+    /// events (caller gates on `ce.isEvidentiary`). Brass hairline — the A7.2
+    /// consent/witness accent, reserved for exactly these moments. No on-device
+    /// crypto verification in this wave — the receipt id is deep-copyable so it
+    /// can be verified against the consent contract's public key elsewhere.
     private func evidenceReceipt(_ ce: CEEvidence, receiptId: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(String(localized: "Evidence receipt").uppercased())
                 .font(.liviqaKicker(8.5)).tracking(1)
-                .foregroundStyle(LiviqaTheme.moss)
+                .foregroundStyle(LiviqaTheme.brass)
 
             Button {
                 #if os(iOS)
@@ -176,9 +197,9 @@ struct ConsentLedgerView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(LiviqaTheme.moss2.opacity(0.6))
+        .background(LiviqaTheme.brass2)
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.brass.opacity(0.5), lineWidth: 1))
     }
 
     private func pinColor(_ event: WalletEvent) -> Color {
@@ -199,7 +220,7 @@ struct ConsentLedgerView: View {
         case .consentGranted:
             return scope.isEmpty ? "You granted \(who) access." : "You shared \(scope) with \(who)."
         case .consentRevoked:
-            return "You paused \(who)'s access."
+            return "You stopped \(who)'s access."
         case .accessRequest:
             return event.decision == .denied ? "You refused \(who)'s request."
                  : event.decision == .pending ? "\(who) requested access — awaiting your decision."

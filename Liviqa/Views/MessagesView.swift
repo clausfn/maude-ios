@@ -1,13 +1,40 @@
-// MessagesView.swift — citizen care-team surface: active consults to join +
-// secure message threads. Per Video_and_OAuth_Contract_v01. Messaging is NOT
-// health content. No trust chips on content (NFR-PRIV-05).
+// MessagesView.swift — citizen care-team surface (A7.2 Care tab): live consult
+// hero + scheduled + inline message threads. Per Video_and_OAuth_Contract_v01.
+// Messaging is NOT health content. No trust chips on content (NFR-PRIV-05).
 import SwiftUI
+
+/// The safety footer shared by the Care tab and the message thread (A7 canvas —
+/// same string in both frames). Safety copy: keep or strengthen, never soften.
+struct CareUrgencyNote: View {
+    static let copy = String(localized: "Messaging isn't for urgent or clinical advice. For anything urgent, contact your care team or emergency services.")
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 13))
+                .foregroundStyle(LiviqaTheme.ink3)
+                .padding(.top, 1)
+            Text(Self.copy)
+                .font(.lato(11.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.paper2.opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+    }
+}
 
 struct MessagesView: View {
     @Environment(AppState.self) private var appState
     @State private var loading = false
     @State private var showPlan = false
     @State private var waitingFor: ScheduledConsult?
+    #if DEBUG
+    @State private var debugConsult: ConsultSummary?
+    @State private var debugPreVisit = false
+    #endif
 
     private var careTeamName: String {
         appState.careThreads.first?.recipientName
@@ -25,14 +52,16 @@ struct MessagesView: View {
                         researchInviteCard
                             .padding(.bottom, 14)
                     }
+                    liveHeroSection
                     planCard
                     if appState.careConnect == nil && appState.careThreads.isEmpty {
                         emptyStateCard("Secure messaging with your care team becomes available once you're connected on the Liviqa network.")
                     } else {
-                        consultsSection
                         scheduledSection
-                        messagesEntry
+                        messagesSection
                     }
+                    CareUrgencyNote()
+                        .padding(.top, 16)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -48,9 +77,97 @@ struct MessagesView: View {
         .fullScreenCover(item: $waitingFor) { sc in
             WaitingRoomView(scheduled: sc)
         }
+        #if DEBUG
+        // Headless screenshot hooks — joins the LIVIQA_* family:
+        // LIVIQA_TAB=care LIVIQA_OPEN_CARE=<hero|plan|previsit|waiting|incoming|consult>
+        .task {
+            switch ProcessInfo.processInfo.environment["LIVIQA_OPEN_CARE"] {
+            case "hero":     appState.activeConsults = [MockData.demoActiveConsult]
+            case "plan":     showPlan = true
+            case "previsit": debugPreVisit = true
+            case "waiting":  waitingFor = MockData.demoScheduledConsult
+            case "incoming": appState.incomingConsult = MockData.demoActiveConsult
+            case "consult":  debugConsult = MockData.demoActiveConsult
+            default: break
+            }
+        }
+        .sheet(isPresented: $debugPreVisit) {
+            PreVisitCheckView(recipientName: careTeamName,
+                              recipientId: appState.careThreads.first?.recipientId)
+        }
+        .fullScreenCover(item: $debugConsult) { c in
+            NavigationStack { ConsultView(consult: c) }
+        }
+        #endif
     }
 
-    // MARK: - Plan a consultation (patient-side scheduling)
+    // MARK: - Live consult hero (A7 canvas: gradient card + white join pill)
+
+    // The hero is a call surface with white text on a FIXED fjord gradient (same
+    // face in Paper and Midnight, like the app-bar tile) — never theme `ink`.
+    @ViewBuilder private var liveHeroSection: some View {
+        if Config.videoConsultEnabled, !appState.activeConsults.isEmpty {
+            VStack(spacing: 10) {
+                ForEach(appState.activeConsults) { consult in
+                    NavigationLink {
+                        ConsultView(consult: consult)
+                    } label: {
+                        liveHeroCard(consult)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+        }
+    }
+
+    private func liveHeroCard(_ c: ConsultSummary) -> some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.16))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "video.fill")
+                        .font(.system(size: 17))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Live now".uppercased())
+                        .font(.liviqaKicker(10)).tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("\(c.recipientName) is ready for you")
+                        .font(.liviqaSerif(16.5)).kerning(-0.1)
+                        .foregroundStyle(.white)
+                }
+                Spacer(minLength: 0)
+            }
+            Text("Join secure consultation")
+                .font(.lato(14.5, .bold))
+                .foregroundStyle(Color(hex: 0x077E77))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(.white))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .background(
+            LinearGradient(colors: [Color(hex: 0x00B5AC), Color(hex: 0x077E77)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
+        .overlay(alignment: .topTrailing) {
+            // Iris watermark (locked asset, never redrawn) — quiet, clipped.
+            LiviqaApertureMark(size: 130, reversed: true)
+                .opacity(0.16)
+                .offset(x: 34, y: -40)
+                .accessibilityHidden(true)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: Color(hex: 0x0F3C46).opacity(0.35), radius: 15, y: 7)
+    }
+
+    // MARK: - Research invite (kept — the canvas omits it, the app has it)
 
     // A research invitation copied into Care (mirrors the push notification). Tap → consent flow.
     private var researchInviteCard: some View {
@@ -75,6 +192,8 @@ struct MessagesView: View {
         }
         .buttonStyle(.plain)
     }
+
+    // MARK: - Plan a consultation (patient-side scheduling)
 
     private var planCard: some View {
         Button { showPlan = true } label: {
@@ -235,113 +354,19 @@ struct MessagesView: View {
         return "in \(max(days, 1)) days"
     }
 
-    // MARK: - Active consults
+    // MARK: - Messages (inline on the Care tab — A7 canvas; the quiet nested
+    // "Messages" door retired 2026-08-12 with the A7.2 Care rebuild)
 
-    @ViewBuilder private var consultsSection: some View {
-        // Live video consult is on (self-hosted EU Jitsi). An active consult shows
-        // here as a "ready to talk" card → tap to join. Secure messaging below too.
-        if Config.videoConsultEnabled, !appState.activeConsults.isEmpty {
-            LiviqaSectionHeader(label: "In progress")
-            VStack(spacing: 10) {
-                ForEach(appState.activeConsults) { consult in
-                    NavigationLink {
-                        ConsultView(consult: consult)
-                    } label: {
-                        consultCard(consult)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.bottom, 4)
-        }
-    }
-
-    private func consultCard(_ c: ConsultSummary) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(LiviqaTheme.moss).frame(width: 38, height: 38)
-                Image(systemName: "video.fill")
-                    .font(.lato(15)).foregroundStyle(.white)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(c.recipientName) is ready to talk")
-                    .font(.lato(14.5, .semibold))
-                    .foregroundStyle(LiviqaTheme.ink)
-                Text(c.recipientOrg ?? "Tap to join the secure consultation")
-                    .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
-            }
-            Spacer()
-            Text("Join")
-                .font(.lato(13, .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14).padding(.vertical, 7)
-                .background(Capsule().fill(LiviqaTheme.moss))
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.moss2))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
-    }
-
-    // MARK: - Messages entry (quiet — the care-team list left the front page
-    // per CN 2026-06-11; secure messaging keeps one discreet door)
-
-    private var unreadCount: Int { appState.careThreads.reduce(0) { $0 + $1.unread } }
-
-    @ViewBuilder private var messagesEntry: some View {
-        if appState.careConnect != nil, !appState.careThreads.isEmpty {
-            NavigationLink {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        LiviqaAppBar(title: "Messages", showMark: false)
-                        VStack(alignment: .leading, spacing: 0) { threadsSection }
-                            .padding(.horizontal, 16)
-                    }
-                }
-                .background(LiviqaTheme.paper)
-            } label: {
-                HStack(spacing: 12) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(LiviqaTheme.paper2)
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "envelope")
-                            .font(.lato(14))
-                            .foregroundStyle(LiviqaTheme.ink3)
-                    }
-                    Text("Messages")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(LiviqaTheme.ink)
-                    Spacer()
-                    if unreadCount > 0 {
-                        Text("\(unreadCount)")
-                            .font(.lato(11, .bold))
-                            .foregroundStyle(LiviqaTheme.invertFG)
-                            .padding(.horizontal, 7).padding(.vertical, 2)
-                            .background(Capsule().fill(LiviqaTheme.clay))
-                    }
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(LiviqaTheme.line)
-                }
-                .padding(12)
-                .background(LiviqaTheme.paper2)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 0.5))
-                .padding(.top, 10)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Threads
-
-    @ViewBuilder private var threadsSection: some View {
-        LiviqaSectionHeader(label: "Your care team")
+    @ViewBuilder private var messagesSection: some View {
+        LiviqaSectionHeader(label: "Messages")
         if appState.careThreads.isEmpty {
             infoNote("No conversations yet. When a clinician or coach you've shared with sends you a message, it'll appear here.")
         } else {
-            VStack(spacing: 10) {
-                ForEach(appState.careThreads) { thread in
+            VStack(spacing: 0) {
+                ForEach(Array(appState.careThreads.enumerated()), id: \.element.id) { idx, thread in
+                    if idx > 0 {
+                        Divider().background(LiviqaTheme.line2).padding(.leading, 64)
+                    }
                     NavigationLink {
                         MessageThreadView(recipientId: thread.recipientId,
                                           title: thread.recipientName,
@@ -352,39 +377,45 @@ struct MessagesView: View {
                     .buttonStyle(.plain)
                 }
             }
+            .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.paper2))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
         }
     }
 
     private func threadRow(_ t: CareThread) -> some View {
         HStack(spacing: 12) {
             ZStack {
-                Circle().fill(LiviqaTheme.invertBG).frame(width: 38, height: 38)
+                RoundedRectangle(cornerRadius: 12).fill(LiviqaTheme.moss2).frame(width: 38, height: 38)
                 Text(initials(t.recipientName))
-                    .font(.lato(13, .semibold))
-                    .foregroundStyle(LiviqaTheme.invertFG)
+                    .font(.lato(12, .bold))
+                    .foregroundStyle(LiviqaTheme.moss)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.recipientName)
-                    .font(.lato(14.5, .semibold))
+                    .font(.lato(14, .semibold))
                     .foregroundStyle(LiviqaTheme.ink)
-                if let org = t.recipientOrg {
-                    Text(org).font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+                if let preview = t.lastMessagePreview ?? t.recipientOrg {
+                    Text(preview)
+                        .font(.lato(12))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .lineLimit(1)
                 }
             }
             Spacer()
             if t.unread > 0 {
                 Text("\(t.unread)")
                     .font(.lato(11, .bold)).foregroundStyle(.white)
-                    .frame(minWidth: 18, minHeight: 18)
-                    .background(Circle().fill(LiviqaTheme.moss))
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(Capsule().fill(LiviqaTheme.moss))
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.lato(12, .semibold))
+                    .foregroundStyle(LiviqaTheme.ink4)
             }
-            Image(systemName: "chevron.right")
-                .font(.lato(12, .semibold))
-                .foregroundStyle(LiviqaTheme.ink4)
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.paper2))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+        .padding(.horizontal, 13)
+        .padding(.vertical, 12)
     }
 
     private func infoNote(_ text: String) -> some View {
@@ -448,6 +479,14 @@ struct MessageThreadView: View {
         VStack(spacing: 0) {
             LiviqaAppBar(title: title, showMark: false, showsAvatar: false)
                 .padding(.horizontal, 16)
+            if let subtitle {
+                // A7 canvas: org · role dateline directly under the name.
+                Text(subtitle)
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.ink3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 38).padding(.trailing, 16)
+            }
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -461,7 +500,15 @@ struct MessageThreadView: View {
                                 .padding(.vertical, 28)
                                 .accessibilityLabel("Loading messages")
                         }
-                        ForEach(messages) { m in bubble(m).id(m.id) }
+                        ForEach(Array(messages.enumerated()), id: \.element.id) { idx, m in
+                            if idx == 0 || !Calendar.current.isDate(m.createdAt, inSameDayAs: messages[idx - 1].createdAt) {
+                                dateDivider(m.createdAt)
+                            }
+                            bubble(m).id(m.id)
+                            if m.id == lastMineReadId {
+                                readReceipt(m)
+                            }
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
@@ -483,10 +530,41 @@ struct MessageThreadView: View {
                 }
             }
 
+            CareUrgencyNote()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             composer
         }
         .background(LiviqaTheme.paper)
         .liviqaDetail()
+    }
+
+    // MARK: Thread furniture (A7 canvas: date divider · read receipt)
+
+    /// "TODAY · 09:12" centred kicker at each day boundary, from `createdAt`.
+    private func dateDivider(_ d: Date) -> some View {
+        let day = Calendar.current.isDateInToday(d) ? String(localized: "Today")
+                : Calendar.current.isDateInYesterday(d) ? String(localized: "Yesterday")
+                : d.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        return Text("\(day) · \(d.formatted(date: .omitted, time: .shortened))".uppercased())
+            .font(.liviqaKicker(9.5)).tracking(1.2)
+            .foregroundStyle(LiviqaTheme.ink3)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 6).padding(.bottom, 8)
+    }
+
+    /// The receipt sits under YOUR final message, only once it's genuinely read
+    /// (`readAt` from the backend) — never a fabricated "Delivered".
+    private var lastMineReadId: String? {
+        guard let lastMine = messages.last(where: { $0.isMine }), lastMine.readAt != nil else { return nil }
+        return lastMine.id
+    }
+
+    private func readReceipt(_ m: CareMessage) -> some View {
+        Text("Read · \(m.readAt?.formatted(date: .omitted, time: .shortened) ?? "")")
+            .font(.lato(10.5))
+            .foregroundStyle(LiviqaTheme.ink3)
+            .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private func bubble(_ m: CareMessage) -> some View {

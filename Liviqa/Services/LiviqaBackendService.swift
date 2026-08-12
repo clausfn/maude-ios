@@ -49,6 +49,12 @@ protocol SovereignSharing: Sendable {
     /// (`PUT /shares/{grantId}`). Body produced by DerivedShareBuilder.
     func pushDerivedShare(grantId: String, _ request: DerivedShareRequest) async throws
 
+    /// Revoke a grant by its BACKEND id (one-way; the backend writes the
+    /// consentRevoked ledger event). Used by the per-consult share gate to
+    /// withdraw the expiring consult grant when the citizen un-ticks the
+    /// pre-visit box before the call.
+    func revokeGrant(backendGrantId: String) async throws
+
     /// Issue a Liviqa Share Receipt (UC-21) for an active grant into the citizen's
     /// My DfG wallet. Provenance-only; returns the wallet offer URL (haip-vci deep
     /// link) to render as a QR / open on-device. `verified` is the on-device
@@ -436,6 +442,11 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         _ = try await put("/shares/\(grantId)", body: request, as: IdDTO.self)
     }
 
+    func revokeGrant(backendGrantId: String) async throws {
+        let resp = try await post("/grants/\(backendGrantId)/revoke", body: EmptyBody(), as: RevokedDTO.self)
+        guard resp.revoked else { throw SupabaseError.serverError("Revoke failed.") }
+    }
+
     func issueShareReceipt(for grant: WalletGrant, verified: String? = nil) async throws -> URL {
         guard let backendID = backendID(for: grant.id) else {
             throw SupabaseError.serverError("Reload your wallet, then try again.")
@@ -531,7 +542,8 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         return dtos.map {
             CareThread(recipientId: $0.recipientId, recipientName: $0.recipientName,
                        recipientOrg: $0.recipientOrg, unread: $0.unread ?? 0,
-                       lastMessageAt: BackendMapping.parseDate($0.lastMessageAt))
+                       lastMessageAt: BackendMapping.parseDate($0.lastMessageAt),
+                       lastMessagePreview: $0.lastMessagePreview)
         }
     }
 
@@ -792,6 +804,9 @@ private struct ThreadDTO: Decodable {
     let recipientOrg: String?
     let unread: Int?
     let lastMessageAt: String?
+    /// Optional — decodes nil until the backend adds a newest-message preview
+    /// to `GET /threads` (A7 Care-tab thread rows; console contract gap).
+    let lastMessagePreview: String?
 }
 private struct MessageDTO: Decodable {
     let id: String

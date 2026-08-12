@@ -135,8 +135,13 @@ struct ReleasePostureTests {
         try expectDebugGated(file: "Liviqa/Views/JournalView.swift", marker: "VaultDocument.demo")
     }
 
-    @Test func privacyDemoGrantsAreDebugGated() throws {
-        try expectDebugGated(file: "Liviqa/Views/InAppPrivacyView.swift", marker: "PrivacyGrant.demo")
+    @Test func privacyProofSheetHasNoDemoGrants() throws {
+        // Area ⑥ (2026-08-12) upgraded the posture: the proof sheet mirrors the
+        // REAL grant store — the DEBUG-only demo grants are gone entirely. Guard
+        // the stronger invariant: the demo type must never come back here.
+        let src = try source("Liviqa/Views/InAppPrivacyView.swift")
+        #expect(!src.contains("PrivacyGrant.demo"),
+                "InAppPrivacyView must mirror real grants — no demo-grant seeds, even DEBUG-gated")
     }
 
     @Test func providerForcingIsDebugGated() throws {

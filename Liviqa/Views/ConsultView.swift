@@ -2,9 +2,18 @@
 // same deterministic EU-sovereign room as the console (`liviqa-consult-<id>`)
 // and owns the recording consent (FR-WAL / Video_and_OAuth_Contract_v01).
 //
-// The consented, derived data the recipient sees is summarised beside the call;
-// raw HealthKit samples never leave the device. No US-parented video provider on
-// this PII path (NFR-SEC-07): live media only when an EU Jitsi domain is set.
+// A7.2 (2026-08-12): rebuilt from a light card page into the designed full-bleed
+// call stage (#0A0E12): live media fills the screen, the recording-consent
+// banner floats OVER the stage, the summaries-only consent note is pinned above
+// the controls, and mic/camera/hang-up stay Jitsi-toolbar-provided inside the
+// webview (the room URL strips the toolbar to exactly those three) plus a native
+// leave. The connecting shell keeps the FB 10.39 fix — who you're talking to
+// (name · organisation) is always visible before media is up.
+//
+// The consented, derived data the recipient sees is summarised in the pinned
+// note; raw HealthKit samples never leave the device. No US-parented video
+// provider on this PII path (NFR-SEC-07): live media only when an EU Jitsi
+// domain is set.
 import SwiftUI
 import WebKit
 
@@ -16,6 +25,11 @@ struct ConsultView: View {
     @State private var recordingConsent: Bool
     @State private var working = false
     @State private var error: String?
+
+    // Call-surface palette (fixed — a call stage never follows the page theme).
+    private let stage = Color(hex: 0x0A0E12)
+    private let brass = Color(hex: 0xC9A96A)
+    private let warmInk = Color(hex: 0xF0EAE0)
 
     init(consult: ConsultSummary) {
         self.consult = consult
@@ -51,161 +65,137 @@ struct ConsultView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            LiviqaAppBar(title: "Consultation", showMark: false, showsAvatar: false)
-                .padding(.horizontal, 16)
+        ZStack {
+            stage.ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    videoStage
-                    participantsCard
-                    recordingCard
-                    if let error {
-                        Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)
+            VStack(spacing: 0) {
+                // ── the stage: live media, or the secure connecting shell ──
+                ZStack(alignment: .top) {
+                    if let url = roomURL {
+                        ConsultWebView(url: url)
+                            .ignoresSafeArea(edges: .top)
+                    } else {
+                        secureShell
                     }
-                    Text("\(consult.recipientName)\(consult.recipientOrg.map { " · \($0)" } ?? "") can see only the summary you've consented to share — not your raw data, which stays on your device.")
-                        .font(.lato(12)).lineSpacing(2)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                    leaveButton
+
+                    VStack(spacing: 8) {
+                        if consult.recordingRequested || recordingConsent {
+                            recordingBanner
+                        }
+                        if let error {
+                            Text(error)
+                                .font(.lato(12))
+                                .foregroundStyle(warmInk.opacity(0.85))
+                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x0B1B26).opacity(0.7)))
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
                 }
-                .padding(16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // ── consent note + controls, pinned on the stage floor ──
+                VStack(spacing: 12) {
+                    Text("\(consult.recipientName) can see only the summary you've consented to share — not your raw data, which stays on your device.")
+                        .font(.lato(11)).lineSpacing(2)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(warmInk.opacity(0.5))
+                        .padding(.horizontal, 20)
+
+                    // Mic/camera/hang-up live in the Jitsi toolbar inside the
+                    // webview; this native control leaves the consult screen.
+                    Button { dismiss() } label: {
+                        ZStack {
+                            Circle().fill(Color(hex: 0xC13B34)).frame(width: 54, height: 54)
+                            Image(systemName: "phone.down.fill")
+                                .font(.system(size: 21, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Leave consultation")
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+                .background(stage)
             }
         }
-        .background(LiviqaTheme.paper)
         .task {
             _ = try? await appState.careConnect?.joinConsult(id: consult.id)
         }
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
         .liviqaDetail()
     }
 
-    // MARK: - Video stage
-
-    private var videoStage: some View {
-        VStack(spacing: 0) {
-            if let url = roomURL {
-                ConsultWebView(url: url)
-                    .frame(height: 320)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            } else {
-                secureShell
-            }
-        }
-    }
+    // MARK: - Connecting shell (no EU room configured yet — honest, secure)
 
     private var secureShell: some View {
         ZStack {
-            // Always-dark video stage (a call surface) — never the theme `ink`,
-            // which is light in Midnight and would make the white text vanish.
-            RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x0B1B26))
-            VStack(spacing: 10) {
+            RadialGradient(colors: [Color(hex: 0x1A2733), stage],
+                           center: .init(x: 0.5, y: 0.3), startRadius: 40, endRadius: 420)
+                .ignoresSafeArea(edges: .top)
+            // Who you're talking to — name · organisation (FB 10.39), before media.
+            VStack(spacing: 0) {
                 ZStack {
-                    Circle().fill(Color.white.opacity(0.12)).frame(width: 76, height: 76)
+                    Circle().fill(brass.opacity(0.2)).frame(width: 74, height: 74)
+                    Circle().stroke(brass.opacity(0.5), lineWidth: 1.5).frame(width: 74, height: 74)
                     Text(String(consult.recipientName.prefix(2)).uppercased())
-                        .font(.lato(26, .heavy))
-                        .foregroundStyle(.white)
+                        .font(.liviqaSerif(26))
+                        .foregroundStyle(brass)
                 }
-                Text("Connecting to \(consult.recipientName)…")
-                    .font(.lato(13, .semibold)).foregroundStyle(.white)
-                Text("Secure consultation · live video activates when your clinic's EU video room is configured.")
+                Text(consult.recipientName)
+                    .font(.liviqaSerif(18))
+                    .foregroundStyle(warmInk)
+                    .padding(.top, 12)
+                if let org = consult.recipientOrg {
+                    Text(org)
+                        .font(.lato(12))
+                        .foregroundStyle(warmInk.opacity(0.5))
+                        .padding(.top, 3)
+                }
+                Text("Connecting · secure EU room")
+                    .font(.lato(12))
+                    .foregroundStyle(warmInk.opacity(0.5))
+                    .padding(.top, 3)
+                Text("Live video activates when your clinic's EU video room is configured.")
                     .font(.lato(11)).multilineTextAlignment(.center)
-                    .foregroundStyle(LiviqaTheme.ink4)
-                    .padding(.horizontal, 24)
+                    .foregroundStyle(warmInk.opacity(0.35))
+                    .padding(.top, 14).padding(.horizontal, 40)
             }
-            .padding(.vertical, 28)
         }
-        .frame(height: 320)
     }
 
-    // MARK: - Who's in the call (care team)
-    // FB (build 10.39): "Care team not showing on citizen video call" — the call
-    // only carried a generic "Care team" tile. Surface who the citizen is actually
-    // speaking with: role · organisation, with a live presence dot. Role over name
-    // (roles persist, people change) — same principle as the care-team model.
+    // MARK: - Recording consent (citizen-owned, floating over the stage)
 
-    private var participantsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("In this call")
-                .font(.liviqaKicker(10.5)).tracking(0.6)
-                .foregroundStyle(LiviqaTheme.ink3)
-
-            HStack(spacing: 10) {
-                ZStack {
-                    Circle().fill(LiviqaTheme.moss2).frame(width: 36, height: 36)
-                    Text(String(consult.recipientName.prefix(2)).uppercased())
-                        .font(.lato(13, .heavy))
-                        .foregroundStyle(LiviqaTheme.moss)
+    private var recordingBanner: some View {
+        HStack(spacing: 9) {
+            Image(systemName: recordingConsent ? "record.circle.fill" : "record.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(brass)
+            Text(recordingConsent
+                 ? "Recording on — you allowed it. You can stop any time; it's logged either way."
+                 : "\(consult.recipientName) asked to record this call. Only you can allow it — and you can stop any time.")
+                .font(.lato(11)).lineSpacing(2)
+                .foregroundStyle(warmInk.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            if working {
+                ProgressView().tint(brass)
+            } else {
+                Button { Task { await toggleRecording() } } label: {
+                    Text(recordingConsent ? "Stop" : "Allow")
+                        .font(.lato(12, .bold))
+                        .foregroundStyle(brass)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(consult.recipientName)
-                        .font(.lato(14, .semibold))
-                        .foregroundStyle(LiviqaTheme.ink)
-                    if let org = consult.recipientOrg {
-                        Text(org)
-                            .font(.lato(12))
-                            .foregroundStyle(LiviqaTheme.ink3)
-                    }
-                }
-                Spacer()
-                HStack(spacing: 5) {
-                    Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
-                    Text("In the room")
-                        .font(.lato(11, .semibold))
-                        .foregroundStyle(LiviqaTheme.moss)
-                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(LiviqaTheme.paper2))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
-    }
-
-    // MARK: - Recording consent (citizen-owned)
-
-    private var recordingCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: recordingConsent ? "record.circle.fill" : "record.circle")
-                    .foregroundStyle(recordingConsent ? LiviqaTheme.rust : LiviqaTheme.ink3)
-                Text(recordingConsent ? "Recording on — you allowed it" : "Recording is off")
-                    .font(.lato(14, .semibold))
-                    .foregroundStyle(LiviqaTheme.ink)
-                Spacer()
-                if working { ProgressView() }
-            }
-            Text(consult.recordingRequested && !recordingConsent
-                 ? "\(consult.recipientName) asked to record this call. Only you can allow it — and you can stop any time."
-                 : "Only you can allow recording. You can withdraw at any time; it's logged either way.")
-                .font(.lato(12)).lineSpacing(2)
-                .foregroundStyle(LiviqaTheme.ink3)
-            Button { Task { await toggleRecording() } } label: {
-                Text(recordingConsent ? "Stop recording" : "Allow recording")
-                    .font(.lato(13.5, .bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(RoundedRectangle(cornerRadius: 12)
-                        .fill(recordingConsent ? LiviqaTheme.rust : LiviqaTheme.moss))
-            }
-            .buttonStyle(.plain)
-            .disabled(working)
-        }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14)
-            .fill(recordingConsent ? LiviqaTheme.rust2 : LiviqaTheme.paper2))
-        .overlay(RoundedRectangle(cornerRadius: 14)
-            .stroke(recordingConsent ? LiviqaTheme.rust : LiviqaTheme.line, lineWidth: 1))
-    }
-
-    private var leaveButton: some View {
-        Button { dismiss() } label: {
-            Text("Leave consultation")
-                .font(.lato(14, .bold))
-                .foregroundStyle(LiviqaTheme.ink)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(LiviqaTheme.line2))
-        }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: 0x0B1B26).opacity(0.7)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(brass.opacity(0.4), lineWidth: 1))
     }
 
     private func toggleRecording() async {
@@ -234,6 +224,7 @@ private struct ConsultWebView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         let web = WKWebView(frame: .zero, configuration: config)
         web.isOpaque = false
+        web.backgroundColor = UIColor(rgb: 0x0A0E12)
         web.scrollView.isScrollEnabled = false
         web.uiDelegate = context.coordinator        // grants getUserMedia (camera/mic)
         web.load(URLRequest(url: url))
