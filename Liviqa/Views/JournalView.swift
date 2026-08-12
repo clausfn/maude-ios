@@ -194,6 +194,11 @@ struct JournalView: View {
                let first = journalEntries.first {
                 issueProvenanceReceipt(for: first)
             }
+            // A7.2 Area ⑧ snapshot hook: LIVIQA_TAB=journal LIVIQA_OPEN_VOICE=1
+            // → the full-screen voice recorder.
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_VOICE"] == "1" {
+                showVoiceNote = true
+            }
         }
         #endif
         .sheet(item: $provenanceOffer) { off in
@@ -224,11 +229,22 @@ struct JournalView: View {
                 withAnimation { vaultDocs.insert(doc, at: 0) }
             }
         }
-        .sheet(isPresented: $showVoiceNote) {
-            VoiceNoteView { transcription in
-                // Create a journal entry from the voice note transcription
-                var entry = JournalEntry(body: transcription, tags: ["Voice"])
+        // A7.2 Area ⑧ (FR-JRN-04): the voice recorder is the designed focused
+        // FULL-SCREEN from Journal (was a half sheet). Real on-device capture —
+        // transcript into the entry body, audio filename into the entry (the
+        // file itself stays in the protected VoiceNoteAudioStore).
+        .fullScreenCover(isPresented: $showVoiceNote) {
+            VoiceNoteView { transcript, audioFilename in
+                var entry = JournalEntry(
+                    // Honest body when transcription wasn't available on-device:
+                    // never a fake transcript.
+                    body: transcript.isEmpty
+                        ? String(localized: "Voice note recorded on this phone.")
+                        : transcript,
+                    tags: ["Voice"]
+                )
                 entry.metrics = nil
+                entry.audioFilename = audioFilename
                 withAnimation {
                     journalEntries.insert(entry, at: 0)
                     showVoiceNote = false
@@ -236,8 +252,6 @@ struct JournalView: View {
             } onDismiss: {
                 showVoiceNote = false
             }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.hidden)
         }
 #endif
     }

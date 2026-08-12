@@ -139,6 +139,10 @@ final class AppState {
     var vitalsDetail: VitalsDetail? = nil
     /// Per-domain learned "your usual" baselines (UC-08) for the baseline sheet.
     var baselines: BaselineBook? = nil
+    /// A7.2 Area ⑨ — up-to-60-day HRV aggregation for the two-tier knowledge
+    /// screen + the assistant's explain-a-drop template (same honesty rule:
+    /// nil ⇒ still-learning framing, never fabricated figures).
+    var hrvLearn: HRVLearnDetail? = nil
 
     /// Trends surface derivation (FR-TOD-06, Area ②): week/month/quarter TIR
     /// trend vs the user's own usual band, gate-passed correlations, aggregate
@@ -213,6 +217,11 @@ final class AppState {
         // (without forcing the consent sheet open; the tap path does that).
         NotificationCenter.default.addObserver(forName: .liviqaResearchReceived, object: nil, queue: .main) { _ in
             Task { @MainActor [weak self] in self?.handleResearchReceived() }
+        }
+        // Declared health profile (About you) — restore the device-local store so
+        // ProfileSheet edits survive relaunch (A7.2 Area ⑧; saved on Save there).
+        if let stored = HealthContextStore.load() {
+            healthContext = stored
         }
     }
 
@@ -446,8 +455,13 @@ final class AppState {
     /// Keychain session token, and Liviqa's UserDefaults leftovers — then sign
     /// out and reset the in-memory surfaces to first-launch demo seeds. Each
     /// step is best-effort so one failing store can never block the others.
+    ///
+    /// `keepDocuments` (A7.2 Area ⑧, ScrDeleteData "Keep documents, erase the
+    /// rest"): spares ONLY the encrypted document vault (step 2d) — the saved
+    /// letters and results stay sealed on this phone; everything else erases
+    /// exactly as the full path does.
     @MainActor
-    func deleteAllData() async {
+    func deleteAllData(keepDocuments: Bool = false) async {
         // 1. On-device SwiftData store — every sample/source entity (OD-09).
         if let container = modelContainer {
             let context = container.mainContext
@@ -464,6 +478,17 @@ final class AppState {
         //     data too; the erase must not leave them behind.
         if let pmsURL = PMSOutboxStore.defaultURL() {
             try? FileManager.default.removeItem(at: pmsURL)
+        }
+        // 2c. Declared health profile store + voice-note audio (A7.2 Area ⑧,
+        //     FR-JRN-04) — both device-local, both personal data.
+        HealthContextStore.delete()
+        VoiceNoteAudioStore.deleteAll()
+        // 2d. Encrypted document store ("Health data space", FR-ING-15) — the
+        //     blobs and their metadata index are removed from disk. The
+        //     "Keep documents, erase the rest" path (ScrDeleteData, Area ⑧)
+        //     branches around exactly this line — and nothing else.
+        if !keepDocuments {
+            (try? HealthVaultStore(keyVault: .shared, userScope: LocalUserScope.current()))?.clear()
         }
         // 3. Encrypted HealthKit sync anchors for this local scope (FR-ING-03/04).
         (try? EncryptedAnchorStore(keyVault: .shared, userScope: LocalUserScope.current()))?.clear()
@@ -492,6 +517,7 @@ final class AppState {
         bodyDetail      = nil
         vitalsDetail    = nil
         baselines       = nil
+        hrvLearn        = nil
         workoutMerges   = []
         passportStats   = ColdStart.passportStats
         correlationWeek = ColdStart.correlationWeek
@@ -520,8 +546,12 @@ final class AppState {
     /// behind a "deleted" confirmation the user already saw. Returns false
     /// (with `eraseServerError` set) when the server step fails — nothing
     /// local is touched then, and the flow offers retry.
+    ///
+    /// `keepDocuments` (Area ⑧, "Keep documents, erase the rest"): the SERVER
+    /// erase is identical — the server never holds documents (no upload path,
+    /// FR-ING-15) — only the local wipe spares the encrypted vault.
     @MainActor
-    func eraseEverythingServerFirst() async -> Bool {
+    func eraseEverythingServerFirst(keepDocuments: Bool = false) async -> Bool {
         eraseServerError = nil
         if session != nil, let rights = dataRights {
             do { try await rights.eraseMyData() }
@@ -530,7 +560,7 @@ final class AppState {
                 return false
             }
         }
-        await deleteAllData()
+        await deleteAllData(keepDocuments: keepDocuments)
         return true
     }
 
@@ -775,7 +805,8 @@ final class AppState {
                     activity: ActivityDeriver.derive(from: samples),
                     body: BodyTrendDeriver.derive(from: samples),
                     vitals: VitalsDeriver.derive(from: samples),
-                    baselines: BaselineDeriver.derive(from: samples))
+                    baselines: BaselineDeriver.derive(from: samples),
+                    hrvLearn: HRVLearnDeriver.derive(from: samples))
             }.value
             // With REAL data, trust the engine even when it finds nothing — clear
             // any demo seeds so fabricated nudges are never shown as the user's own
@@ -818,6 +849,7 @@ final class AppState {
             bodyDetail = d.body
             vitalsDetail = d.vitals
             baselines = d.baselines
+            hrvLearn = d.hrvLearn
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }
@@ -1072,4 +1104,6 @@ private struct DerivedHealth: Sendable {
     let body: BodyTrendDetail?
     let vitals: VitalsDetail?
     let baselines: BaselineBook?
+    // A7.2 Area ⑨ — knowledge-tier / explain-template HRV aggregation.
+    let hrvLearn: HRVLearnDetail?
 }

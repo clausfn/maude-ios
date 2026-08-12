@@ -7,18 +7,22 @@ import Foundation
 
 enum ChatSuggestions {
 
-    // Topic question sets — descriptive only.
+    // Topic question sets — descriptive only. The A7.2 Area ⑨ canvas prompts
+    // (b-learn.jsx AIExplain / AITranslate) are quoted verbatim where they pass
+    // the guard; they route to the designed intent templates.
     private static let sleep    = ["What was my average sleep this week?",
                                    "Which nights did I sleep the least?"]
     private static let glucose  = ["How much of my week was glucose in range?",
-                                   "What was my average glucose this week?"]
-    private static let hrv      = ["What was my average HRV this week?"]
+                                   "Explain my glucose like I'm new to this."]
+    private static let hrv      = ["What is HRV and why did mine drop?",
+                                   "What was my average HRV this week?"]
     private static let activity = ["How many steps did I average this week?"]
 
     /// Shown when there are no nudges to key off.
     static let defaults = ["What was my average glucose last week?",
+                           "Explain my glucose like I'm new to this.",
                            "How much did I sleep on average?",
-                           "How much of my week was glucose in range?"]
+                           "What is HRV and why did mine drop?"]
 
     /// Build follow-up questions from the user's current nudges. Cardiac / heart-rhythm
     /// nudges are route-to-clinician — they get NO questions (never invite interpretation).

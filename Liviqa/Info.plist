@@ -14,7 +14,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Liviqa uses your camera only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Liviqa uses your microphone only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise.</string>
+	<string>Liviqa uses your microphone only when you start it yourself: recording a voice note for your private journal (kept on this device), or joining a video consultation with your own clinician or coach over an EU‑sovereign connection. It is never used otherwise.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Liviqa transcribes your voice notes on this device only. Your audio and words never leave your iPhone.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Liviqa can lock itself to your face, so only you can open your health edition. Face ID runs entirely on this device.</string>
 	<key>NSHealthShareUsageDescription</key>

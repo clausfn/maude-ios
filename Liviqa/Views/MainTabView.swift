@@ -79,6 +79,9 @@ struct MainTabView: View {
     #if DEBUG
     @State private var debugOpenChat = false
     @State private var debugOpenThread = false
+    @State private var debugOpenSources = false   // LIVIQA_OPEN_SOURCES=1 (Area ⑦ screenshots)
+    @State private var debugOpenVault = false     // LIVIQA_OPEN_VAULT=1
+    @State private var debugOpenLearn: LearnTopic? = nil   // LIVIQA_OPEN_LEARN=hrv (Area ⑨)
     #endif
 
     /// The connect-Apple-Health hint, plus a DEBUG-only force flag so the banner
@@ -169,6 +172,11 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: appState.incomingConsult?.id)
+        // A tapped edition note (FR-NOT-02 local morning/evening loop) deep-links
+        // to its surface — Home IS the edition.
+        .onReceive(NotificationCenter.default.publisher(for: .liviqaOpenEdition)) { _ in
+            tab = .home
+        }
         #if DEBUG
         .sheet(isPresented: $debugOpenChat) { ChatView(nudges: appState.nudges) }
         .fullScreenCover(isPresented: $debugOpenThread) {
@@ -176,9 +184,31 @@ struct MainTabView: View {
                 MessageThreadView(recipientId: "care-nurse", title: "Diabetes nurse", subtitle: "Endocrinology")
             }
         }
+        // Area ⑦ headless-screenshot hooks: open Data sources / the Health data
+        // space directly (LIVIQA_OPEN_VAULT wins when both are set).
+        .fullScreenCover(isPresented: $debugOpenSources) {
+            NavigationStack { DataSourcesView() }
+                .environment(appState)   // covers don't inherit the env automatically
+        }
+        .fullScreenCover(isPresented: $debugOpenVault) {
+            NavigationStack { HealthVaultView() }
+                .environment(appState)
+        }
+        // Area ⑨ headless-screenshot hook: open a two-tier knowledge article
+        // directly (LIVIQA_OPEN_LEARN=hrv; add LIVIQA_LEARN_TIER=clinical for tier B).
+        .sheet(item: $debugOpenLearn) { topic in
+            LearnArticleView(
+                topic: topic, appState: appState,
+                startTier: ProcessInfo.processInfo.environment["LIVIQA_LEARN_TIER"] == "clinical"
+                    ? .clinical : nil)
+        }
         .task {
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_CHAT"] == "1" { debugOpenChat = true }
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_THREAD"] == "1" { debugOpenThread = true }
+            if let raw = ProcessInfo.processInfo.environment["LIVIQA_OPEN_LEARN"],
+               let topic = LearnTopic(rawValue: raw) { debugOpenLearn = topic }
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_VAULT"] == "1" { debugOpenVault = true }
+            else if ProcessInfo.processInfo.environment["LIVIQA_OPEN_SOURCES"] == "1" { debugOpenSources = true }
             // UC-RSCH deterministic screenshots: SHOW_RESEARCH=1 → Home card (s09);
             // OPEN_STUDY=1 → consent (s10); OPEN_STUDY=joined → joined (s11).
             let study = ProcessInfo.processInfo.environment["LIVIQA_OPEN_STUDY"]

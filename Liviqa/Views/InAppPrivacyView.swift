@@ -162,7 +162,9 @@ struct InAppPrivacyView: View {
                     Text("IMPORTANT")
                         .font(.liviqaKicker(10)).tracking(1.2)
                         .foregroundStyle(LiviqaTheme.clay)
-                    Text("Liviqa is a personal wellness application, not a medical device. It does not diagnose, treat, monitor, or manage any medical condition. Patterns are generated from your own data for your own awareness. Always consult a qualified healthcare professional before changing your care, medication, or treatment.")
+                    // FR-REG-01 — canonical MDR notice (RegulatoryCopy; this
+                    // long-form wording is the source both surfaces render).
+                    Text(RegulatoryCopy.mdrNotice)
                         .font(.lato(13)).lineSpacing(2.5)
                         .foregroundStyle(LiviqaTheme.ink2)
                         .fixedSize(horizontal: false, vertical: true)

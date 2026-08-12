@@ -42,6 +42,9 @@ struct ProfileSheet: View {
     @State private var expanded: Section? = nil
     @State private var draft: HealthContext = .demo
     @State private var showChat = false
+    /// Which condition is open for editing — collapsed conditions render as
+    /// display chips (A7.2 f-missing ScrProfileSheet delta), tap to edit.
+    @State private var editingConditionID: UUID? = nil
 
     // MARK: - Body
 
@@ -167,6 +170,9 @@ struct ProfileSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         appState.healthContext = draft
+                        // Device-local persistence (A7.2 Area ⑧): edits must
+                        // survive relaunch — "stays on device" now includes disk.
+                        HealthContextStore.save(draft)
                         dismiss()
                     }
                     .font(.lato(15, .semibold))
@@ -296,42 +302,90 @@ struct ProfileSheet: View {
 
     // MARK: — Conditions
 
+    // A7.2 delta (f-missing ScrProfileSheet): conditions render as display
+    // CHIPS ("Type 2 diabetes · since 2019") with "+ Add a condition"; tapping
+    // a chip opens the full edit-field card for that entry only.
     private var conditionsContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach($draft.conditions) { $entry in
-                VStack(alignment: .leading, spacing: 8) {
-                    profileField("Condition", text: $entry.name)
-                    HStack(spacing: 12) {
-                        Text("Diagnosed")
-                            .font(.caption)
-                            .foregroundStyle(LiviqaTheme.ink3)
-                            .frame(width: 80, alignment: .leading)
-                        TextField("Year", text: intBinding($entry.diagnosedYear))
-                            .textFieldStyle(.plain)
-                            .font(.lato(14))
-                            .foregroundStyle(LiviqaTheme.ink)
-                            .keyboardType(.numberPad)
+                if editingConditionID == entry.id {
+                    VStack(alignment: .leading, spacing: 8) {
+                        profileField("Condition", text: $entry.name)
+                        HStack(spacing: 12) {
+                            Text("Diagnosed")
+                                .font(.caption)
+                                .foregroundStyle(LiviqaTheme.ink3)
+                                .frame(width: 80, alignment: .leading)
+                            TextField("Year", text: intBinding($entry.diagnosedYear))
+                                .textFieldStyle(.plain)
+                                .font(.lato(14))
+                                .foregroundStyle(LiviqaTheme.ink)
+                                .keyboardType(.numberPad)
+                        }
+                        profileField("Notes (optional)", text: Binding(
+                            get: { entry.notes ?? "" },
+                            set: { entry.notes = $0.isEmpty ? nil : $0 }
+                        ))
+                        Button {
+                            withAnimation { editingConditionID = nil }
+                        } label: {
+                            Text("Done")
+                                .font(.lato(13.5, .medium))
+                                .foregroundStyle(LiviqaTheme.moss)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    profileField("Notes (optional)", text: Binding(
-                        get: { entry.notes ?? "" },
-                        set: { entry.notes = $0.isEmpty ? nil : $0 }
-                    ))
+                    .padding(12)
+                    .background(LiviqaTheme.paper2)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 0.5))
+                } else {
+                    Button {
+                        withAnimation { editingConditionID = entry.id }
+                    } label: {
+                        conditionChip(entry)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(12)
-                .background(LiviqaTheme.paper2)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 0.5))
             }
 
             Button {
-                withAnimation { draft.conditions.append(ConditionEntry(name: "")) }
+                withAnimation {
+                    let new = ConditionEntry(name: "")
+                    draft.conditions.append(new)
+                    editingConditionID = new.id      // open the fresh entry for editing
+                }
             } label: {
-                Label("Add condition", systemImage: "plus.circle")
+                Text("+ Add a condition")
                     .font(.lato(13.5, .medium))
                     .foregroundStyle(LiviqaTheme.moss)
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// Display chip: name + a quiet qualifier ("since 2019" / first note words).
+    private func conditionChip(_ entry: ConditionEntry) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(entry.name.isEmpty ? String(localized: "New condition") : entry.name)
+                .font(.lato(13.5, .semibold))
+                .foregroundStyle(LiviqaTheme.ink)
+            if let year = entry.diagnosedYear {
+                Text("since \(String(year))")
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.ink3)
+            } else if let notes = entry.notes, !notes.isEmpty {
+                Text(notes)
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.ink3)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .background(LiviqaTheme.moss2.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 11))
+        .overlay(RoundedRectangle(cornerRadius: 11).stroke(LiviqaTheme.line, lineWidth: 1))
     }
 
     // MARK: — Targets

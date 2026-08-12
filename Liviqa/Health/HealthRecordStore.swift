@@ -414,6 +414,11 @@ enum HealthDisplay {
         "sodium":            "Sodium",
         "crp":               "CRP",
         "tsh":               "TSH",
+        // Manual-entry keys (Data sources → "Type readings in yourself").
+        "weight":            "Weight",
+        "systolic_bp":       "Blood pressure (systolic)",
+        "diastolic_bp":      "Blood pressure (diastolic)",
+        "sleep_hours":       "Sleep",
     ]
 
     static func labName(for scopeKey: String) -> String {

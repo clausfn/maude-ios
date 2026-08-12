@@ -338,6 +338,25 @@ struct SundhedWebSessionView: View {
         }
     }
 
+    /// Read-only view of the persisted returning-user record — lets Data sources
+    /// render an honest "Connected · last updated" row without touching the
+    /// session's interception or storage semantics. Same key + payload the
+    /// session itself persists above.
+    static func lastPullSummary(citizenId: String?) -> (date: Date, labs: Int, conditions: Int, meds: Int)? {
+        let key = "sundhed.lastPull.\(citizenId ?? "anon")"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let lp = try? JSONDecoder().decode(LastPull.self, from: data) else { return nil }
+        return (lp.date, lp.labs, lp.conditions, lp.meds)
+    }
+
+    /// "Disconnect" for the Data-sources sheet: forgets the returning-user record
+    /// (so nothing new is read and the connected row disappears). Already-imported
+    /// data stays on the phone until the user deletes it — exactly what the
+    /// disconnect copy promises.
+    static func forgetConnection(citizenId: String?) {
+        UserDefaults.standard.removeObject(forKey: "sundhed.lastPull.\(citizenId ?? "anon")")
+    }
+
     /// The single entry point for both first import and update. Gates the walk on a
     /// live session: if signed in, start now; if not, arm `pendingPull` so the walk
     /// starts automatically right after MitID sign-in — no more walking four
@@ -485,35 +504,45 @@ struct SundhedWebSessionView: View {
         .padding(16)
     }
 
-    /// The section checklist shown while connected: one row per data type, ticking
-    /// pending → active (spinner) → done (check) as the walk + interceptor progress.
+    /// The section checklist shown while connected: one row per data type,
+    /// pending → active (spinner) → done (check) as the walk + interceptor
+    /// progress. Row dress per the A7 canvas (f-sundhed.jsx ChecklistRow): a
+    /// 26pt rounded-square icon tile that fills fjord when done, with a trailing
+    /// check / spinner / "waiting". The `.empty` "none found" state is an
+    /// honesty feature the canvas lacks — kept (never shown as a green tick).
     private var checklist: some View {
         VStack(alignment: .leading, spacing: 7) {
             ForEach(Self.sectionRows) { row in
                 let st = secState[row.key] ?? .pending
-                HStack(spacing: 10) {
-                    Group {
-                        switch st {
-                        case .done:    Image(systemName: "checkmark.circle.fill").foregroundStyle(LiviqaTheme.moss)
-                        case .active:  ProgressView().scaleEffect(0.7)
-                        case .pending: Image(systemName: "circle").foregroundStyle(LiviqaTheme.ink4)
-                        case .empty:   Image(systemName: "minus.circle").foregroundStyle(LiviqaTheme.ink4)
-                        }
+                HStack(spacing: 9) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(st == .done ? LiviqaTheme.moss : LiviqaTheme.ink.opacity(0.10))
+                        Image(systemName: row.icon)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(st == .done ? .white : LiviqaTheme.ink)
                     }
-                    .font(.system(size: 15))
-                    .frame(width: 20, height: 20)
-                    Image(systemName: row.icon)
-                        .font(.system(size: 12))
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .frame(width: 18)
+                    .frame(width: 26, height: 26)
                     Text(row.title)
-                        .font(.lato(13, st == .done ? .bold : .regular))
-                        .foregroundStyle(st == .done ? LiviqaTheme.ink : LiviqaTheme.ink3)
-                    if st == .empty {
+                        .font(.lato(13, .semibold))
+                        .foregroundStyle(st == .done ? LiviqaTheme.moss
+                                         : st == .active ? LiviqaTheme.ink
+                                         : LiviqaTheme.ink3)
+                    Spacer()
+                    switch st {
+                    case .done:
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(LiviqaTheme.moss)
+                    case .active:
+                        ProgressView().scaleEffect(0.7)
+                    case .pending:
+                        Text("waiting")
+                            .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
+                    case .empty:
                         Text("none found")
                             .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
                     }
-                    Spacer()
                 }
             }
         }
@@ -535,7 +564,9 @@ struct SundhedWebSessionView: View {
         case .done:       return "Update again"
         default:
             if pendingPull { return "Waiting for MitID sign-in…" }
-            return lastPull == nil ? "Bring my data into Liviqa" : "Update from Sundhed.dk"
+            // First-import label aligned to the A7 canvas (f-sundhed.jsx A1);
+            // the returning-user label already matched.
+            return lastPull == nil ? "Import from Sundhed.dk" : "Update from Sundhed.dk"
         }
     }
 
@@ -752,7 +783,7 @@ private struct SundhedWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // Each nonce bump (the "Bring my data into Liviqa" tap) starts a FRESH walk
+        // Each nonce bump (the "Import from Sundhed.dk" tap) starts a FRESH walk
         // that drives the WebView through the sections and assembles+ingests at the
         // end. A fresh walk supersedes any prior one, so re-taps re-run cleanly.
         if harvestNonce != context.coordinator.lastHarvestNonce {
@@ -786,7 +817,7 @@ private struct SundhedWebView: UIViewRepresentable {
         private let onError: (String) -> Void
         private static let decoder = JSONDecoder()
 
-        // SECTION WALK. The "Bring my data into Liviqa" button drives the WebView
+        // SECTION WALK. The "Import from Sundhed.dk" button drives the WebView
         // through the Min Sundhedsjournal sections in order (full navigations, so the
         // documentStart interceptor re-arms on each and the SPA fires its own gated
         // calls, which we capture). We do NOT auto-walk on login — the citizen taps
@@ -860,7 +891,7 @@ private struct SundhedWebView: UIViewRepresentable {
         // MARK: Section walk
 
         /// Start (or restart) the walk, ending in assemble+ingest. Triggered by the
-        /// "Bring my data into Liviqa" button. A fresh generation cancels any prior
+        /// "Import from Sundhed.dk" button. A fresh generation cancels any prior
         /// walk so re-taps re-run cleanly from the first section.
         func startHarvestWalk() {
             walkGeneration += 1
@@ -916,7 +947,7 @@ private struct SundhedWebView: UIViewRepresentable {
             switch kind {
             case "session":
                 // Report login for the UI; do NOT auto-walk. The citizen taps
-                // "Bring my data into Liviqa" to consent, which starts the walk.
+                // "Import from Sundhed.dk" to consent, which starts the walk.
                 onSessionChange((dict["loggedIn"] as? Bool) ?? false)
             case "progress":
                 onProgress((dict["section"] as? String) ?? "", (dict["ok"] as? Bool) ?? false)

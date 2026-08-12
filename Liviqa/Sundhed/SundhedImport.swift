@@ -217,6 +217,7 @@ public struct SundhedImportView: View {
                     case .idle, .parsing:
                         howToCard
                         pickCard
+                        onDeviceRow   // canvas B1: standing chip + plain promise
                     case .review, .saving: reviewCard
                     case .done: doneCard
                     }
@@ -452,6 +453,18 @@ public struct SundhedImportView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
     }
 
+    /// Canvas B1 delta: the standing on-device chip (tappable proof surface)
+    /// beside the plain one-line promise.
+    private var onDeviceRow: some View {
+        HStack(spacing: 8) {
+            OnDeviceChip()
+            Text("The file is read on this device.")
+                .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 2)
+    }
+
     private var unavailableCard: some View {
         Text("Sundhed.dk import isn't available in this build yet.")
             .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
@@ -473,10 +486,15 @@ public struct SundhedImportView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
+    /// Stage-aware privacy footer. The review/saving stages carry the canvas B2
+    /// line — the stronger on-device promise, and the accurate one now that the
+    /// automatic upload is removed: approving SAVES to this device, full stop.
     private var privacyNote: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "lock.shield").font(.system(size: 14)).foregroundStyle(LiviqaTheme.moss)
-            Text("Your file is read on this device. Raw notes and document text never leave your phone — only coded results (catalog variables, ATC and ICD-10 codes) and derived numbers are shared.")
+            Text(stage == .review || stage == .saving
+                 ? "Only this coded summary is saved. The file itself, and anything Liviqa couldn't recognise, is discarded."
+                 : "Your file is read on this device. Raw notes and document text never leave your phone — only coded results (catalog variables, ATC and ICD-10 codes) and derived numbers are kept.")
                 .font(.caption).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
         }

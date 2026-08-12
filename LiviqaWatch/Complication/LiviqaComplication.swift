@@ -47,7 +47,11 @@ struct LiviqaComplicationView: View {
         case .accessoryCorner:
             Text(entry.inRange).font(.system(size: 15, weight: .heavy).monospacedDigit())
                 .widgetLabel("In range")
-        default: // accessoryRectangular / inline
+        case .accessoryInline:
+            // Inline gets its own single-line branch (design: "In range 68%") —
+            // the rectangular HStack flattens unpredictably in inline slots.
+            Text("In range \(entry.inRange)")
+        default: // accessoryRectangular
             HStack(spacing: 6) {
                 Image(systemName: "drop.fill")
                 VStack(alignment: .leading, spacing: 0) {
