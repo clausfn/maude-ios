@@ -38,6 +38,28 @@ struct WeekInContextView: View {
     private var hrvValues: [Double] { sig?.hrvWeek ?? [] }
     private var hasRealTIR: Bool { tirValues.count >= 2 }
     private var hasRealHRV: Bool { hrvValues.count >= 2 }
+
+    // MARK: - The week's day axis (one column per day, labelled from its date)
+
+    /// The 7 calendar days the grid shows, ascending. `CorrelationDay.dateOffset`
+    /// gives each column a real date, so this is the same axis the heatmap uses.
+    private var weekDates: [Date] {
+        week.days.map(\.dayDate).sorted()
+    }
+
+    private var dayLetters: [String] {
+        weekDates.map { $0.formatted(.dateTime.weekday(.narrow)) }
+    }
+
+    /// Place a week series on that axis. A series holds one value per day WITH
+    /// data, so its length is not a day count — before this, 4 values were drawn
+    /// against 7 day letters and every value read under the wrong day. `nil`
+    /// means the series can't be placed (values only, and short), and the caller
+    /// drops the day labels rather than guessing.
+    private func weekSlots(_ series: TodaySignals.WeekSeries) -> [DaySlot]? {
+        guard let sig, !weekDates.isEmpty else { return nil }
+        return sig.slots(for: series, over: weekDates)
+    }
     private var tirHeadline: String { sig?.inRange ?? "—" }
     private var hrvHeadline: String { (sig?.hrv).map { $0 + " ms" } ?? "—" }
 
@@ -214,6 +236,7 @@ struct WeekInContextView: View {
             }
         }
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: chrome dissolves into the trend feed
+        .liviqaScrollEdge()       // every device: paper fades under the status bar
         .background(LiviqaTheme.paper.ignoresSafeArea())
         .sheet(isPresented: $showShare) {
             // The real multi-step share flow (same presentation as Settings).
@@ -314,8 +337,10 @@ struct WeekInContextView: View {
                 }
             }
             if hasRealTIR {
+                let slots = weekSlots(.inRange)
                 AreaTrendChart(values: tirValues, tint: LiviqaTheme.moss,
-                               xTicks: week.days.map { $0.localizedDayLetter }, unit: "%")
+                               xTicks: slots == nil ? [] : dayLetters, unit: "%",
+                               daySlots: slots)
             } else {
                 emptyTrendState("No glucose data yet",
                                 detail: "Connect a data source and your week in range appears here.")
@@ -345,8 +370,10 @@ struct WeekInContextView: View {
                 }
             }
             if hasRealHRV {
+                let slots = weekSlots(.hrv)
                 AreaTrendChart(values: hrvValues, tint: LiviqaTheme.moss,
-                               xTicks: week.days.map { $0.localizedDayLetter }, unit: " ms")
+                               xTicks: slots == nil ? [] : dayLetters, unit: " ms",
+                               daySlots: slots)
                 Text(hrvNarrative)
                     .font(.lato(12.5)).lineSpacing(2)
                     .foregroundStyle(LiviqaTheme.ink2)

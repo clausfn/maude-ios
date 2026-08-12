@@ -2,6 +2,104 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Ingestion — HR-in-interval + intra-night sleep (2026-08-13, branch claude/a72-electric-ink)
+
+Two ingestion gaps closed (T-FIT-01 workout heart-rate; sleep segment start
+times + the AWAKE stage). Both are READ-side only — the HealthKit share/write
+set stays empty (FR-ARCH-04) and no new output surface is created. Three
+safety-relevant consequences, each with its control:
+
+- **Nudge INPUT changes (nightly sleep totals).** Sleep is now bucketed by the
+  night's END day (`HealthKitService.nightDay`, boundary 18:00) and the nightly
+  union is taken over the segments' REAL start times. Previously every segment
+  of a night shared one start-of-day instant, so `mergedAsleepHours` collapsed a
+  fragmented night to its longest fragment, and a night spanning midnight was
+  split into two half-nights. Both made the engine's "Short night" comparison
+  read off a wrong nightly total. This is a correction toward the true value,
+  not a new claim: `NudgeEngine`'s baseline arithmetic, its thresholds and its
+  allow-listed output are untouched (`NudgeEngineTests`, `SleepMergeTests`,
+  `SleepDeriverTests` all green). No new hazard; RK-NDG-* controls unchanged.
+- **Heart-rate zones could have imported a population scale.** They do not:
+  every zone edge is a fraction of the citizen's OWN observed maximum in the
+  window, the card's foot prints that number and the words "not a population
+  scale, and not a target", and `WorkoutHeartRateIngestionTests` asserts both
+  the derived value (own max, not 220−age) and the copy. Guards the
+  personal-baseline-only rail and the FR-FIT-01 no-targets designation.
+- **AWAKE is now ingested.** Every asleep total in the app filters on the asleep
+  stage set, so awake minutes can never inflate a sleep duration —
+  asserted directly (`SleepNightShapeTests.awakeNeverInflatesAsleepTotals`).
+
+`provenance` handling is unchanged: the new `HeartRateSample` carries it as a
+data field only, and `scripts/guard_provenance.sh` stays green.
+
+**RK-CTX-04 control widened (FR-CTX-04, designated interaction rule).** Demo
+`PatternEngine` findings were appended to the feed AFTER `NudgeEngine` had run,
+so they bypassed the context-flag suppression gate: on a day the citizen had
+marked "travelling / unwell / off routine", the feed could still grow. The
+append is now gated on the same flag (`AppState.refreshFromHealth`:
+`if !real, !markedToday`), preserving the one rule the flag exists to keep — a
+flag can only ever REMOVE cards, never add or re-rank one. Proven by
+`HealthReadOutcomeTests.markedDaySuppressesDemoPatternFindings` (output on a
+marked day ⊆ output unmarked). These cards remain DEBUG + mock-provider only.
+
+**No hazard introduced by the inferred-denial cue.** The new screen states only
+what the app can observe (a read completed and brought back nothing) and
+explicitly says the two possible causes cannot be told apart from inside the
+app — HealthKit does not report read authorisation. Asserting a denial would
+have been a claim the software cannot substantiate.
+
+## Care & sharing — device-sweep fixes (2026-08-13, branch claude/a72-electric-ink)
+
+**RK-CONSULT-STAGE-01 (NEW) — the in-call stage said nothing when it had no
+picture.** The device sweep captured `ConsultView`'s stage as a fully black
+rectangle: the room webview had produced no frame (no camera on the simulator,
+and an EU room that the device could not reach) and the app drew nothing over
+it. Hazard: a citizen sitting in front of a black rectangle cannot tell whether
+they are connected, muted, unseen, or waiting — and a call surface that implies
+a live connection it does not have is a trust failure on a consultation path.
+Controls now in place:
+
+- The room webview reports its REAL load state (`WKNavigationDelegate`:
+  finished / failed / content-process died). Anything short of loaded content is
+  covered by `CallStagePlaceholder` — the brass witness ring, who you are
+  talking to (name · organisation, FB 10.39), and one honest line.
+- **Every line is derived by `CallStageDeriver` (pure Foundation) and asserted**
+  (`CallStageDeriverTests`): `.live` is the only phase that prints nothing (the
+  video provider owns the surface and Liviqa claims nothing); a stage with no
+  configured room may not say "connecting"; an unreachable room says "Not
+  connected" and offers a retry; "Waiting for your camera" is sayable only while
+  a connection is actually being attempted.
+- The self tile reports a LOCAL device fact — "No camera on this device" /
+  "Camera off" — read from `AVCaptureDevice` hardware + already-answered
+  authorisation. Neither call raises a permission dialog; camera/mic capture
+  consent is unchanged and still the webview's own getUserMedia prompt.
+- `CallStagePlaceholderRenderTests` renders the placeholder off-screen and
+  counts lit pixels, so the blank-rectangle failure mode itself is under test.
+- **Safety copy untouched**: the citizen-owned recording-consent banner and the
+  summaries-only note are byte-identical. No new consent affordance, no change
+  to what leaves the device. Residual: LOW — once media is up the provider owns
+  the surface, so a remote participant who turns their camera off mid-call still
+  gets the provider's own avatar treatment, not ours (accepted: reading the
+  provider's track state would need the Jitsi iframe API on this path).
+
+**RK-SHARE-04 (NEW) — the "summaries only" guarantee rested on a default two
+layers below the consent surface.** Found while hardening T-PRO-01. Hazard: the
+share screens promise summaries only, but `AppState.createGrantAndShare` passes
+`granularity: nil` and the value that actually goes on the wire comes from
+`LiviqaBackendService.createGrant`'s `?? "summary"` default. The promise is true
+today (asserted on the wire by `ConsultShareTests.theWireBodyCarriesSummariesOnlyGranularity`),
+but a refactor of that default would widen **every** share silently, with no
+screen changing a word. Mitigations landed: `ShareGranularity` (pure Foundation)
+names the map once; `ShareWithClinicianView` states it explicitly
+(`requestedGranularity`) and DERIVES its consent copy from it, so a wider detail
+level would strip the "summaries only" wording from the screen instead of
+leaving a false promise (`ShareGranularityTests`). **OPEN (one line, AppState —
+not owned by this change): `AppState.swift:1056` should pass
+`granularity: ShareGranularity.summariesOnly(for: scopeGroups)` instead of `nil`,
+after which `ConsultShareTests.swift:135` flips from expecting `nil` to expecting
+the explicit map.** Until then the wire value is correct but implicit. Residual:
+LOW (behaviour unchanged today), tracked on FR-SHARE-02 / FR-PRO-01.
+
 ## FR-XPL-01 — universal "See why" + published method notes (Bevel absorb ②, 2026-08-13)
 
 This change adds a new user-facing generated-text surface on top of **every**
@@ -335,6 +433,15 @@ suppress a safety route or hide a reading. Controls:
   overclaiming across days the user told us were atypical. **No red anywhere**:
   the tint is `accentFinance` (slate/context); `clinRed` and the `tir*` ramp are
   untouched and stay exclusive to clinical glucose.
+- **The Trends TIR chart now carries the same neutrality (2026-08-13).** It could
+  not before: `TrendsRange.tirDaily` was a bare `[Double]`, so no bar knew its
+  date and "which bar is Tuesday" was unanswerable. With `tirDailyDates` +
+  `TrendsRange.tirSlots` each bar sits on its own calendar day, and
+  `TrendsView.markedDates` hands the chart the marked days by date. A marked bar
+  takes the same flat `accentFinance` tint + `ZoneHatch` as the week grid — never
+  the deviation ramp, never the "today" emphasis colour — while its height stays
+  exactly the recorded value. The marked-days annotation strip stays: the chart
+  says what the flag did *and* did not change.
 - **Copy through the guard.** Every string the feature introduces is a fixed
   template selected by enum — never assembled from readings and never from the
   user's note. `T-CTX-04k` runs all of them through `NudgeGuard.check`.
@@ -356,6 +463,51 @@ day it is active, the entry row reads "tap when you're back to your routine", an
 Settings → "Days you've marked" shows the open stretch with its start date. No
 automatic expiry was added: silently un-marking a user's declared trip would be a
 second, worse surprise.
+
+## Chart day-axis alignment — a value read against the wrong day (2026-08-13)
+
+Latent defect found and closed on the reading surfaces (Today · Insights/Week ·
+Trends). It is a **presentation-integrity** hazard, not a new feature, so it gets
+a row: the numbers were always right; the day they were drawn under was not.
+
+Hazard: **RK-CHART-01 — the user reads their own value against the wrong day.**
+Daily series (`TrendsRange.tirDaily`/`hrvDaily`, `TodaySignals.*Week`) carry one
+entry per day THAT HAS DATA. Charts drew them at evenly spaced x-positions and
+labelled the axis from a *separately* computed list of calendar days. The two
+only agree when every day of the window has a reading — one missing day (watch on
+the charger, sensor warm-up) shifted every later value one column, so a Saturday
+number appeared under Sunday's letter, and the Trends hero's "lately…" tail could
+describe a day well back in the window. Nothing in the type system objected,
+because both sides were plain arrays. Consequence class: the user draws a
+conclusion about the wrong day of their own life, and may repeat it to a
+clinician. No clinical *decision* logic was affected — the nudge engine, the
+evidence gate and every aggregate always worked from dated samples, never from
+these display arrays.
+
+Controls now in place:
+
+- **Dates travel with values.** `TrendsRange` carries `tirDailyDates` /
+  `hrvDailyDates` plus `windowStart`/`windowEnd`; `TodaySignals` carries a date
+  array per week series. The deriver builds value and date in one pass, so they
+  cannot desync.
+- **One alignment primitive, unit tested.** `Liviqa/Intelligence/DaySeries.swift`
+  (pure Foundation) turns a dated series into one `DaySlot` per calendar day.
+  Axis labels derive from those slot dates, so a chart cannot claim a span its
+  data does not cover.
+- **Refuse to guess.** `DaySeries.aligned` places a dateless series only when it
+  holds exactly one value per day of the window (unambiguous). A short dateless
+  series returns `nil` and the view drops the day labels rather than mislabelling
+  them — the same refuse-to-assert stance the evidence gate takes.
+- **A gap renders as a gap.** A day with no reading draws no bar, no dot and no
+  line through it. Never a zero (which would assert 0% in range), never an
+  interpolated segment (which would assert an observation nobody made).
+- **Regression tests that fail on the defect.** `LiviqaTests/DayAxisAlignmentTests`
+  (14 tests). Verified by re-introducing index alignment inside `DaySeries.slots`:
+  5 tests fail; restored, 14/14 pass.
+
+Residual: sparklines with no day axis (Home signal chips, the "This week" teaser)
+still draw a compacted series. They carry no day labels and make no per-day
+claim, so nothing can be misread onto a date; left as-is deliberately.
 
 ## A7.2 Area ⑨ — Knowledge base & AI behaviours (branch claude/a72-electric-ink, 2026-08-12)
 

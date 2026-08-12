@@ -27,6 +27,12 @@ struct WalletView: View {
     // UC-11 — create a consent grant ("Share with someone new").
     @State private var showNewShare = false
 
+    #if DEBUG
+    // Screenshot hook only: opens the share FORM directly (LIVIQA_OPEN_NEWSHARE
+    // lands on CreateGrantView's recipient chooser, which is a step earlier).
+    @State private var debugShareForm = false
+    #endif
+
     // Programmatic pushes (env screenshot hooks land here too).
     @State private var pushResearch = false
     @State private var pushTokens = false
@@ -202,7 +208,12 @@ struct WalletView: View {
             }
             // Deterministic screenshot of the receipt flow (LIVIQA_DEMO_RECEIPT=1):
             // a real offer for the first active grant, else a representative one.
-            if ProcessInfo.processInfo.environment["LIVIQA_DEMO_RECEIPT"] == "1", receiptOffer == nil {
+            // LIVIQA_RECEIPT_OFFER=1 implies it: that hook expands the demoted
+            // wallet offer INSIDE the sheet, so it needs the sheet open to mean
+            // anything — on its own it captured this screen unchanged.
+            if ProcessInfo.processInfo.environment["LIVIQA_DEMO_RECEIPT"] == "1"
+                || ProcessInfo.processInfo.environment["LIVIQA_RECEIPT_OFFER"] == "1",
+               receiptOffer == nil {
                 await appState.loadWallet()   // override demo mock grants with real backend grants
                 if let g = appState.grants.first(where: { $0.isActive }),
                    let url = await appState.issueShareReceipt(for: g, verified: "Time in range ≥ 70% · last 90 days") {
@@ -223,6 +234,10 @@ struct WalletView: View {
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_NEWSHARE"] == "1" { showNewShare = true }
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_RESEARCH"] == "1" { pushResearch = true }
             if ProcessInfo.processInfo.environment["LIVIQA_OPEN_TOKENS"]   == "1" { pushTokens = true }
+            // LIVIQA_SHARE_PHASE=preview|done — the share form's own hook only
+            // fires once the form is on screen, so open it here (Privacy is the
+            // headless entry point: LIVIQA_TAB=privacy).
+            if ProcessInfo.processInfo.environment["LIVIQA_SHARE_PHASE"] != nil { debugShareForm = true }
             #endif
         }
         .navigationDestination(isPresented: $pushResearch) { ResearchHubView() }
@@ -237,6 +252,13 @@ struct WalletView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        #if DEBUG
+        .sheet(isPresented: $debugShareForm) {
+            ShareWithClinicianView(nudge: nil, onDismiss: { debugShareForm = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        #endif
         .sheet(isPresented: $showReactivate) {
             ReactivateConsentsSheet { n in
                 guard n > 0 else { return }

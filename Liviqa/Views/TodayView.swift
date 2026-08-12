@@ -52,12 +52,33 @@ struct TodayView: View {
 
     // A7.2 delta (screen-home.jsx): the design greets in full — "Good morning,
     // Clara." — not the clipped "Morning, N".
-    private var greeting: String {
-        switch Calendar.current.component(.hour, from: Date()) {
+    private var greeting: String { greeting(forHour: greetingHour) }
+
+    private func greeting(forHour hour: Int) -> String {
+        switch hour {
         case 5..<12:  return String(localized: "Good morning")
         case 12..<17: return String(localized: "Good afternoon")
         default:      return String(localized: "Good evening")
         }
+    }
+
+    /// The hour the greeting should speak from. Release: the real clock, always.
+    ///
+    /// DEBUG only: when `LIVIQA_EDITION` forces an edition for snapshot QA, the
+    /// greeting follows the FORCED edition instead of the wall clock, so a frame
+    /// captured at 22:00 with `LIVIQA_EDITION=day` doesn't open with "Good
+    /// evening" above a day-edition layout. Forcing `day` at an actual daytime
+    /// hour keeps the true hour (morning stays morning, afternoon stays
+    /// afternoon) — only an hour that contradicts the forced edition is moved.
+    private var greetingHour: Int {
+        let real = Calendar.current.component(.hour, from: Date())
+        #if DEBUG
+        if let e = ProcessInfo.processInfo.environment["LIVIQA_EDITION"] {
+            if e == "evening" { return 21 }
+            if e == "day" { return (real >= 21 || real < 5) ? 9 : real }
+        }
+        #endif
+        return real
     }
 
     private var greetingLine: String {
@@ -284,6 +305,7 @@ struct TodayView: View {
             }
         }
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: title dissolves into the feed
+        .liviqaScrollEdge()       // every device: paper fades under the status bar
         .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
@@ -1175,6 +1197,11 @@ struct TodayView: View {
         let avg: Double
         let kicker: String
         let labels: [String]
+        /// One entry per calendar day of the labelled span, nil where nothing
+        /// was recorded. The card's edge labels are real dates, so the line has
+        /// to be placed by date — `data` alone only says how many readings
+        /// exist, not which days they belong to.
+        var slots: [Double?]? = nil
     }
 
     /// Real 30-day HRV series via TrendsDeriver (the FR-TOD-05 deriver
@@ -1187,16 +1214,22 @@ struct TodayView: View {
             let data = month.hrvDaily
             let avg = data.reduce(0, +) / Double(data.count)
             let df = DateFormatter(); df.dateFormat = "d MMM"
-            let cal = Calendar.current
-            let labels = [-29, -15, 0].compactMap { off in
-                cal.date(byAdding: .day, value: off, to: Date()).map(df.string(from:))
-            }
+            // Edge labels come from the window the slots actually span, so the
+            // dates under the line are the line's own first and last columns.
+            let slots = month.hrvSlots
+            let labelDates = [slots.first?.date,
+                              slots.count > 1 ? slots[slots.count / 2].date : nil,
+                              slots.last?.date]
+            let labels = labelDates.compactMap { $0.map(df.string(from:)) }
             return RecoveryTrend(data: data, avg: avg,
                                  kicker: String(localized: "Recovery · Last 30 days"),
-                                 labels: labels)
+                                 labels: labels,
+                                 slots: slots.map(\.value))
         }
         if let s = signals, s.hrvWeek.count >= 5 {
             let avg = s.hrvWeek.reduce(0, +) / Double(s.hrvWeek.count)
+            // No dated axis is drawn on the 7-day fallback (no edge labels), so
+            // the compacted series is placed as-is.
             return RecoveryTrend(data: s.hrvWeek, avg: avg,
                                  kicker: String(localized: "Recovery · Last 7 days"), labels: [])
         }
@@ -1224,7 +1257,7 @@ struct TodayView: View {
                 .padding(.top, 5).padding(.bottom, 10)
             MonthTrendLine(data: trend.data, avg: trend.avg,
                            color: LiviqaTheme.clay, color2: LiviqaTheme.accentSleep,
-                           height: 92, labels: trend.labels)
+                           height: 92, labels: trend.labels, slots: trend.slots)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 17).padding(.top, 15).padding(.bottom, 12)

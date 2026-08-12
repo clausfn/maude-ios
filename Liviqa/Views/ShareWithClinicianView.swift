@@ -100,6 +100,14 @@ struct ShareWithClinicianView: View {
         return g
     }
 
+    /// The detail level this consent surface REQUESTS, stated explicitly here
+    /// rather than inferred from a backend default two layers down. Every
+    /// "summaries only" line on this screen is derived from this map, so screen
+    /// and payload cannot drift apart (see ShareGranularity for the full note).
+    private var requestedGranularity: [String: String] {
+        ShareGranularity.summariesOnly(for: scopeGroups)
+    }
+
     private var selectedAreas: [String] {
         var items: [String] = []
         if shareGlucose  { items.append(String(localized: "Glucose")) }
@@ -171,22 +179,29 @@ struct ShareWithClinicianView: View {
             }
         }
         .task {
-            if recipients.isEmpty, let sov = appState.sovereign,
-               let directory = try? await sov.fetchRecipients() {
-                recipients = roleFilter.map { f in directory.filter { $0.role == f } } ?? directory
-            }
             #if DEBUG
             // Headless screenshot hook: LIVIQA_SHARE_PHASE=preview|done jumps the
-            // sheet to a later phase with a representative selection.
+            // sheet to a later phase with a representative selection. It runs
+            // BEFORE the directory fetch on purpose — behind that await the hook
+            // used to sit for the whole network timeout on a backend build, which
+            // is why the sweep captured the plain form instead of the phase.
+            // WalletView opens this sheet for the same variable (headless: set
+            // LIVIQA_TAB=privacy LIVIQA_SHARE_PHASE=preview).
             if let jump = ProcessInfo.processInfo.environment["LIVIQA_SHARE_PHASE"] {
                 shareGlucose = true; shareSleep = true
-                if !liveSharing, recipientName.isEmpty {
+                if recipientName.isEmpty {
+                    // Free-text name also backs `resolvedRecipientName` on the
+                    // live path, where no directory row is selected yet.
                     recipientName = "Mette Holm"; recipientRole = "Diabetes nurse"
                 }
                 if jump == "preview" { phase = .preview }
                 if jump == "done"    { phase = .done }
             }
             #endif
+            if recipients.isEmpty, let sov = appState.sovereign,
+               let directory = try? await sov.fetchRecipients() {
+                recipients = roleFilter.map { f in directory.filter { $0.role == f } } ?? directory
+            }
         }
     }
 
@@ -505,7 +520,10 @@ struct ShareWithClinicianView: View {
                 previewRow("Recipient", resolvedRecipientName +
                            (selectedRecipient == nil && !recipientRole.isEmpty ? " — \(recipientRole)" : ""))
                 Divider().background(LiviqaTheme.line2)
-                previewRow("Areas", selectedAreas.joined(separator: " · ") + " — summaries only")
+                previewRow("Areas", selectedAreas.joined(separator: " · ")
+                           + ShareGranularity.areaSuffix(requestedGranularity))
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Detail level", ShareGranularity.label(requestedGranularity))
                 Divider().background(LiviqaTheme.line2)
                 previewRow("Data window", "Last \(selectedDuration.rangeDays) days")
                 Divider().background(LiviqaTheme.line2)
@@ -574,6 +592,17 @@ struct ShareWithClinicianView: View {
     /// Perform the share. On the sovereign backend this creates a real consent
     /// grant (group scope) and pushes the derived, scoped package
     /// (PUT /shares/{grantId}); on mock/demo it advances to the confirmation.
+    ///
+    /// OPEN — the last link in the explicit-consent chain (owned by AppState):
+    /// `AppState.createGrantAndShare` still passes `granularity: nil`, so what
+    /// actually goes on the wire relies on `LiviqaBackendService.createGrant`'s
+    /// `?? summary` default rather than on what this screen promised. The screen
+    /// now names the map (`requestedGranularity`); the wire should carry the same
+    /// one. One line, AppState.swift:1056:
+    ///     granularity: ShareGranularity.summariesOnly(for: scopeGroups),
+    /// (`scopeGroups` is already a parameter of that function.) Then
+    /// LiviqaTests/ConsultShareTests.swift:135 flips from expecting `nil` to
+    /// expecting the explicit summaries map.
     @MainActor
     private func send() async {
         sendError = nil
@@ -627,7 +656,8 @@ struct ShareWithClinicianView: View {
             VStack(spacing: 0) {
                 previewRow("Recipient", resolvedRecipientName)
                 Divider().background(LiviqaTheme.line2)
-                previewRow("Areas", selectedAreas.joined(separator: " · ") + " — summaries only")
+                previewRow("Areas", selectedAreas.joined(separator: " · ")
+                           + ShareGranularity.areaSuffix(requestedGranularity))
                 Divider().background(LiviqaTheme.line2)
                 previewRow("Access", selectedDuration.summaryLabel)
                 Divider().background(LiviqaTheme.line2)

@@ -56,17 +56,31 @@ public struct DailyMetric: Provenanced, Sendable {
 }
 
 public struct SleepReading: Provenanced, Sendable {
+    /// The NIGHT this segment belongs to (a start-of-day bucket). A night is
+    /// labelled by the day it ends on, so a 23:04→06:14 night is one bucket
+    /// rather than two half-nights split at midnight (`HealthKitService.nightDay`).
     public let date: Date
     public let stage: SleepStage
     public let hours: Double
+    /// The segment's wall-clock START, when the source retained it. Optional
+    /// because older/aggregated sources only carry (night, stage, hours) — the
+    /// intra-night surfaces (depth chart, wake-up moment, bedtime) render only
+    /// when this is present, and stay honestly absent when it is not.
+    public let start: Date?
     public let source: String
     public let tier: DataTier
     public let provenance: Provenance
-    public init(date: Date, stage: SleepStage, hours: Double,
+    public init(date: Date, stage: SleepStage, hours: Double, start: Date? = nil,
                 source: String, tier: DataTier, provenance: Provenance) {
-        self.date = date; self.stage = stage; self.hours = hours
+        self.date = date; self.stage = stage; self.hours = hours; self.start = start
         self.source = source; self.tier = tier; self.provenance = provenance
     }
+
+    /// Wall-clock start of the segment's interval. Falls back to the night
+    /// bucket for sources that carry no intra-night times.
+    public nonisolated var intervalStart: Date { start ?? date }
+    /// Wall-clock end of the segment's interval.
+    public nonisolated var intervalEnd: Date { intervalStart.addingTimeInterval(hours * 3600) }
 }
 
 public extension SleepReading {
@@ -82,13 +96,15 @@ public extension SleepReading {
     /// in hours. Overlapping segments from different sources count exactly once.
     ///
     /// Pure Foundation, no side effects (unit-testable, Android-portable).
-    static func mergedAsleepHours(_ segments: [SleepReading],
-                                  asleep: Set<SleepStage>) -> Double {
+    /// `nonisolated`: every caller is a pure deriver that runs OFF the main
+    /// actor (AppState's detached deriver chain, the background nudge loop).
+    nonisolated static func mergedAsleepHours(_ segments: [SleepReading],
+                                              asleep: Set<SleepStage>) -> Double {
         // Intervals in seconds; drop non-asleep stages and empty/negative spans.
         let intervals = segments
             .filter { asleep.contains($0.stage) && $0.hours > 0 }
             .map { seg -> (start: TimeInterval, end: TimeInterval) in
-                let start = seg.date.timeIntervalSinceReferenceDate
+                let start = seg.intervalStart.timeIntervalSinceReferenceDate
                 return (start, start + seg.hours * 3600)
             }
             .sorted { $0.start < $1.start }
@@ -126,6 +142,31 @@ public struct WorkoutReading: Provenanced, Sendable {
                 source: String, tier: DataTier, provenance: Provenance) {
         self.start = start; self.end = end; self.type = type; self.durMin = durMin
         self.kcal = kcal; self.distKm = distKm
+        self.source = source; self.tier = tier; self.provenance = provenance
+    }
+}
+
+/// One timestamped heart-rate reading taken INSIDE a workout interval (bpm).
+///
+/// T-FIT-01: the daily `heartRate` DailyMetric is a per-day mean and can say
+/// nothing about a single session, so the Fitness screen's per-workout average
+/// and its time-in-zone need the raw beats. These are read only for the recent
+/// workout window (`HealthKitService.hrWindowDays`) — enough for the four-week
+/// load buckets and this week's zone card, and bounded so a 90-day backfill
+/// can't pull tens of thousands of samples into memory.
+///
+/// Zones derived from these are always fractions of the citizen's OWN observed
+/// maximum in the window — never an age formula, never a population scale, and
+/// never a target.
+public struct HeartRateSample: Provenanced, Sendable {
+    public let ts: Date
+    public let bpm: Double
+    public let source: String
+    public let tier: DataTier
+    public let provenance: Provenance
+    public init(ts: Date, bpm: Double,
+                source: String, tier: DataTier, provenance: Provenance) {
+        self.ts = ts; self.bpm = bpm
         self.source = source; self.tier = tier; self.provenance = provenance
     }
 }
@@ -209,6 +250,9 @@ public struct HealthSamples: Sendable {
     // Full-HealthKit capture (additive; defaulted so existing callers/tests are
     // unaffected). `heartExtras` carries the extended heart/respiratory kinds.
     public var heartExtras: [DailyMetric]
+    /// Raw beats inside the recent workout intervals (T-FIT-01) — per-workout
+    /// average HR and time-in-zone come from here, nothing else does.
+    public var workoutHeartRate: [HeartRateSample]
     public var insulin: [InsulinReading]
     public var bloodPressure: [BloodPressureReading]
     public var afib: [AFibReading]
@@ -218,13 +262,16 @@ public struct HealthSamples: Sendable {
                 restingHR: [DailyMetric] = [], steps: [DailyMetric] = [],
                 activeEnergy: [DailyMetric] = [], sleep: [SleepReading] = [],
                 workouts: [WorkoutReading] = [],
-                heartExtras: [DailyMetric] = [], insulin: [InsulinReading] = [],
+                heartExtras: [DailyMetric] = [],
+                workoutHeartRate: [HeartRateSample] = [],
+                insulin: [InsulinReading] = [],
                 bloodPressure: [BloodPressureReading] = [], afib: [AFibReading] = [],
                 bodyComposition: [BodyCompositionReading] = []) {
         self.glucose = glucose; self.hrv = hrv; self.restingHR = restingHR
         self.steps = steps; self.activeEnergy = activeEnergy
         self.sleep = sleep; self.workouts = workouts
-        self.heartExtras = heartExtras; self.insulin = insulin
+        self.heartExtras = heartExtras; self.workoutHeartRate = workoutHeartRate
+        self.insulin = insulin
         self.bloodPressure = bloodPressure; self.afib = afib
         self.bodyComposition = bodyComposition
     }
@@ -234,8 +281,8 @@ public struct HealthSamples: Sendable {
     public nonisolated var isEmpty: Bool {
         glucose.isEmpty && hrv.isEmpty && restingHR.isEmpty && steps.isEmpty
             && activeEnergy.isEmpty && sleep.isEmpty && workouts.isEmpty
-            && heartExtras.isEmpty && insulin.isEmpty && bloodPressure.isEmpty
-            && afib.isEmpty && bodyComposition.isEmpty
+            && heartExtras.isEmpty && workoutHeartRate.isEmpty && insulin.isEmpty
+            && bloodPressure.isEmpty && afib.isEmpty && bodyComposition.isEmpty
     }
 
     /// All daily-metric streams flattened — handy for arbitration/derivation.

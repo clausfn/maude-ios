@@ -422,6 +422,14 @@ struct DailyBarsChart: View {
     var unit: String = ""
     var goal: Double? = nil
     var goalLabel: String? = nil
+    /// OPTIONAL day axis (same contract as `AreaTrendChart.daySlots`, 2026-08-13):
+    /// one COLUMN PER DAY, each value on its own date, and a day with no reading
+    /// draws NO bar — never a zero-height bar (which would assert a real 0) and
+    /// never a shifted neighbour (which would read as the wrong day).
+    var daySlots: [DaySlot]? = nil
+
+    /// Columns actually drawn: the day axis when supplied, else the bare values.
+    private var columns: [Double?] { daySlots.map { $0.map(\.value) } ?? values.map { $0 } }
 
     private var lo: Double { min(values.min() ?? 0, goal ?? .infinity) }
     private var hi: Double { max(values.max() ?? 1, goal ?? 0) }
@@ -435,16 +443,22 @@ struct DailyBarsChart: View {
         VStack(spacing: 6) {
             GeometryReader { geo in
                 let W = geo.size.width, H = geo.size.height
-                let n = max(values.count, 1)
+                let cols = columns
+                let n = max(cols.count, 1)
                 let slot = W / CGFloat(n)
                 let bw = min(slot * 0.55, 26)
+                // The most recent day that actually HAS a reading carries the
+                // emphasis — not the last column, which may be an empty day.
+                let lastFilled = cols.lastIndex(where: { $0 != nil })
                 ZStack(alignment: .topLeading) {
-                    ForEach(Array(values.enumerated()), id: \.offset) { i, v in
-                        let h = H * CGFloat((v - floorV) / (ceilV - floorV))
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(tint.opacity(i == values.count - 1 ? 0.95 : 0.55))
-                            .frame(width: bw, height: max(h, 3))
-                            .position(x: slot * (CGFloat(i) + 0.5), y: H - max(h, 3) / 2)
+                    ForEach(Array(cols.enumerated()), id: \.offset) { i, v in
+                        if let v {
+                            let h = H * CGFloat((v - floorV) / (ceilV - floorV))
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(tint.opacity(i == lastFilled ? 0.95 : 0.55))
+                                .frame(width: bw, height: max(h, 3))
+                                .position(x: slot * (CGFloat(i) + 0.5), y: H - max(h, 3) / 2)
+                        }
                     }
                     if let g = goal {
                         let gy = H * (1 - CGFloat((g - floorV) / (ceilV - floorV)))
@@ -484,25 +498,45 @@ struct AreaTrendChart: View {
     var showBaselineBand: Bool = true
     /// Show the left y-axis scale (max / min value labels).
     var showAxis: Bool = true
+    /// OPTIONAL day axis. When set, the chart plots one COLUMN PER DAY and each
+    /// value sits on its own date — days with no reading leave a gap and the
+    /// curve breaks there rather than being drawn through absent data. `values`
+    /// is then ignored for positioning (it stays the source of the y-scale and
+    /// the personal band). Without it the chart falls back to evenly spaced
+    /// points, which is only correct when the caller has no day axis to honour.
+    var daySlots: [DaySlot]? = nil
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var shown = false
 
     private var t: Double { LiviqaMotion.reduced(systemReduceMotion) ? 1 : (shown ? 1 : 0) }
 
+    /// The plotted values — from the day axis when there is one, so the y-scale
+    /// and the drawn points can never disagree.
+    private var plotted: [Double] { daySlots.map { $0.compactMap(\.value) } ?? values }
+    /// Number of x columns: calendar days when placed on a day axis.
+    private var columns: Int { daySlots?.count ?? values.count }
+    /// (columnIndex, value) for every recorded point.
+    private var placed: [(i: Int, v: Double)] {
+        if let slots = daySlots {
+            return slots.enumerated().compactMap { i, s in s.value.map { (i, $0) } }
+        }
+        return values.enumerated().map { ($0.offset, $0.element) }
+    }
+
     // Display range padded ~8% beyond the data so the curve and band breathe.
-    private var dataLo: Double { values.min() ?? 0 }
-    private var dataHi: Double { values.max() ?? 1 }
+    private var dataLo: Double { plotted.min() ?? 0 }
+    private var dataHi: Double { plotted.max() ?? 1 }
     private var lo: Double { let p = (dataHi - dataLo) * 0.08; return dataLo - max(p, 0.0001) }
     private var hi: Double { let p = (dataHi - dataLo) * 0.08; return dataHi + max(p, 0.0001) }
 
-    private var mean: Double { values.isEmpty ? 0 : values.reduce(0, +) / Double(values.count) }
+    private var mean: Double { plotted.isEmpty ? 0 : plotted.reduce(0, +) / Double(plotted.count) }
     private var sd: Double {
-        guard values.count >= 2 else { return 0 }
+        guard plotted.count >= 2 else { return 0 }
         let m = mean
-        return (values.reduce(0) { $0 + ($1 - m) * ($1 - m) } / Double(values.count)).squareRoot()
+        return (plotted.reduce(0) { $0 + ($1 - m) * ($1 - m) } / Double(plotted.count)).squareRoot()
     }
-    private var hasBand: Bool { showBaselineBand && values.count >= 3 && sd > 0.0001 }
+    private var hasBand: Bool { showBaselineBand && plotted.count >= 3 && sd > 0.0001 }
 
     private func y(_ v: Double, _ h: CGFloat) -> CGFloat {
         let span = max(0.0001, hi - lo)
@@ -510,10 +544,26 @@ struct AreaTrendChart: View {
         return h - CGFloat(min(1.05, max(-0.05, norm))) * (h * 0.84) - h * 0.08
     }
     private func x(_ i: Int, _ w: CGFloat) -> CGFloat {
-        values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
+        columns <= 1 ? 0 : CGFloat(i) / CGFloat(columns - 1) * w
+    }
+    /// Contiguous stretches of recorded days. One path per stretch, so a missing
+    /// day breaks the curve instead of being interpolated across.
+    private func segments(_ w: CGFloat, _ h: CGFloat) -> [[CGPoint]] {
+        var out: [[CGPoint]] = []
+        var cur: [CGPoint] = []
+        var prevIndex: Int? = nil
+        for p in placed {
+            if let prev = prevIndex, p.i != prev + 1, !cur.isEmpty {
+                out.append(cur); cur = []
+            }
+            cur.append(CGPoint(x: x(p.i, w), y: y(p.v, h)))
+            prevIndex = p.i
+        }
+        if !cur.isEmpty { out.append(cur) }
+        return out
     }
     private func points(_ w: CGFloat, _ h: CGFloat) -> [CGPoint] {
-        values.enumerated().map { CGPoint(x: x($0.offset, w), y: y($0.element, h)) }
+        placed.map { CGPoint(x: x($0.i, w), y: y($0.v, h)) }
     }
 
     var body: some View {
@@ -546,16 +596,28 @@ struct AreaTrendChart: View {
     private var plotAndLabels: some View {
         VStack(spacing: 0) {
             plot.frame(height: height)
-            if !xTicks.isEmpty {
-                HStack {
-                    ForEach(Array(xTicks.enumerated()), id: \.offset) { idx, tck in
-                        Text(tck).font(.liviqaKicker(9)).foregroundStyle(LiviqaTheme.ink4)
-                        if idx != xTicks.count - 1 { Spacer() }
-                    }
-                }
-                .padding(.top, 6)
+            if !xTicks.isEmpty { tickRow.padding(.top, 6) }
+        }
+    }
+
+    /// Ticks are positioned with the SAME x-map as the data points. Laying them
+    /// out with an HStack + spacers (as this did) only lines up when the tick
+    /// count happens to equal the point count — the exact assumption that broke
+    /// the day axis on a gapped week.
+    private var tickRow: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let n = max(xTicks.count, 1)
+            ForEach(Array(xTicks.enumerated()), id: \.offset) { idx, tck in
+                let xi = n <= 1 ? w / 2 : CGFloat(idx) / CGFloat(n - 1) * w
+                Text(tck)
+                    .font(.liviqaKicker(9))
+                    .foregroundStyle(LiviqaTheme.ink4)
+                    .fixedSize()
+                    .position(x: min(max(xi, 8), max(8, w - 8)), y: 6)
             }
         }
+        .frame(height: 12)
     }
 
     private var plot: some View {
@@ -583,23 +645,32 @@ struct AreaTrendChart: View {
                                 style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 }
 
-                if values.count > 1 {
+                if plotted.count > 1 {
                     let pts = points(w, h)
-                    // smoothed area + line
-                    smoothedArea(pts, h).fill(LinearGradient(
-                        colors: [tint.opacity(0.45), tint.opacity(0.06)],
-                        startPoint: .top, endPoint: .bottom))
-                    smoothedLine(pts).trimmedStroke(t: t, color: tint)
+                    // One smoothed area + line PER contiguous stretch: a day
+                    // with no reading is a break in the curve, not a straight
+                    // line drawn through data nobody recorded.
+                    ForEach(Array(segments(w, h).enumerated()), id: \.offset) { _, seg in
+                        if seg.count > 1 {
+                            smoothedArea(seg, h).fill(LinearGradient(
+                                colors: [tint.opacity(0.45), tint.opacity(0.06)],
+                                startPoint: .top, endPoint: .bottom))
+                            smoothedLine(seg).trimmedStroke(t: t, color: tint)
+                        }
+                    }
 
-                    // subtle data-point dots (reads as measured data)
+                    // subtle data-point dots (reads as measured data) — an
+                    // isolated day is drawn as exactly that: one dot.
                     ForEach(Array(pts.enumerated()), id: \.offset) { _, pt in
                         Circle().fill(tint.opacity(0.9)).frame(width: 3.5, height: 3.5)
                             .position(pt).opacity(t)
                     }
                     // emphasised latest point
-                    Circle().fill(tint).frame(width: 8, height: 8)
-                        .overlay(Circle().stroke(LiviqaTheme.paper2, lineWidth: 2))
-                        .position(pts[pts.count - 1]).opacity(t)
+                    if let lastPt = pts.last {
+                        Circle().fill(tint).frame(width: 8, height: 8)
+                            .overlay(Circle().stroke(LiviqaTheme.paper2, lineWidth: 2))
+                            .position(lastPt).opacity(t)
+                    }
                 }
             }
         }
@@ -612,7 +683,7 @@ struct AreaTrendChart: View {
 
     /// Spoken summary for VoiceOver — direction + endpoints + own-range, no clinical verdict.
     private var a11ySummary: String {
-        guard let first = values.first, let last = values.last, values.count > 1 else {
+        guard let first = plotted.first, let last = plotted.last, plotted.count > 1 else {
             return "Not enough data yet."
         }
         let fmt: (Double) -> String = { v in
@@ -623,7 +694,13 @@ struct AreaTrendChart: View {
         else if last < first * 0.98 { direction = "trending down" }
         else { direction = "steady" }
         let band = hasBand ? " Your typical range is about \(fmt(mean - sd)) to \(fmt(mean + sd))\(unit)." : ""
-        return "\(direction), from \(fmt(first)) to \(fmt(last))\(unit) over \(values.count) points.\(band)"
+        // On a day axis, say how many days actually carry a reading — a curve
+        // with holes should never be spoken as an unbroken run.
+        let gaps = daySlots.map { $0.count - plotted.count } ?? 0
+        let coverage = gaps > 0
+            ? " \(gaps) day\(gaps == 1 ? "" : "s") in this span have no reading."
+            : ""
+        return "\(direction), from \(fmt(first)) to \(fmt(last))\(unit) over \(plotted.count) points.\(band)\(coverage)"
     }
 
     // MARK: smoothing (uniform Catmull-Rom → cubic Bézier)
@@ -895,17 +972,36 @@ struct MonthTrendLine: View {
     var color2: Color? = nil
     var height: CGFloat = 92
     var labels: [String] = []
+    /// OPTIONAL day axis: one entry per calendar day of the labelled span, nil
+    /// where nothing was recorded. The edge labels on this card name real dates
+    /// ("29 days ago → today"), so without this the line stretches whatever
+    /// readings exist across the full width and every point lands on the wrong
+    /// day. With it, each reading sits on its date and gaps break the line.
+    var slots: [Double?]? = nil
+
+    /// (columnIndex, value) pairs actually drawn.
+    private var placed: [(i: Int, v: Double)] {
+        if let slots {
+            return slots.enumerated().compactMap { i, v in v.map { (i, $0) } }
+        }
+        return data.enumerated().map { ($0.offset, $0.element) }
+    }
+    private var plotted: [Double] { placed.map(\.v) }
+    private var columns: Int { slots?.count ?? data.count }
 
     var body: some View {
         VStack(spacing: 3) {
             GeometryReader { geo in
                 let w = geo.size.width, h = geo.size.height
-                if data.count > 1 {
-                    let lo = min(data.min() ?? 0, avg) - 3
-                    let hi = max(data.max() ?? 1, avg) + 3
+                if plotted.count > 1 {
+                    let lo = min(plotted.min() ?? 0, avg) - 3
+                    let hi = max(plotted.max() ?? 1, avg) + 3
                     let span = max(0.0001, hi - lo)
                     let y: (Double) -> CGFloat = { v in 4 + (1 - CGFloat((v - lo) / span)) * (h - 8) }
-                    let x: (Int) -> CGFloat = { i in 3 + CGFloat(i) / CGFloat(data.count - 1) * (w - 6) }
+                    let x: (Int) -> CGFloat = { i in
+                        columns <= 1 ? 3 : 3 + CGFloat(i) / CGFloat(columns - 1) * (w - 6)
+                    }
+                    let pts = placed
                     ZStack(alignment: .topLeading) {
                         // "your usual" — dashed reference at the period average
                         Path { p in
@@ -915,15 +1011,26 @@ struct MonthTrendLine: View {
                         .stroke(LiviqaTheme.ink3.opacity(0.55),
                                 style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
                         Path { p in
-                            p.move(to: CGPoint(x: x(0), y: y(data[0])))
-                            for i in 1..<data.count { p.addLine(to: CGPoint(x: x(i), y: y(data[i]))) }
+                            var prev: Int? = nil
+                            for pt in pts {
+                                let point = CGPoint(x: x(pt.i), y: y(pt.v))
+                                // Break the stroke across a missing day.
+                                if let prevIdx = prev, pt.i == prevIdx + 1 {
+                                    p.addLine(to: point)
+                                } else {
+                                    p.move(to: point)
+                                }
+                                prev = pt.i
+                            }
                         }
                         .stroke(
                             LinearGradient(colors: [color, color2 ?? color],
                                            startPoint: .leading, endPoint: .trailing),
                             style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                        Circle().fill(color2 ?? color).frame(width: 5, height: 5)
-                            .position(x: x(data.count - 1), y: y(data[data.count - 1]))
+                        if let last = pts.last {
+                            Circle().fill(color2 ?? color).frame(width: 5, height: 5)
+                                .position(x: x(last.i), y: y(last.v))
+                        }
                     }
                 }
             }

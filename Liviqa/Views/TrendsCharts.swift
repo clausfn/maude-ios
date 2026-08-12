@@ -9,21 +9,55 @@ import SwiftUI
 // MARK: - 30-day TIR bar trend vs "your usual" band (ScrTrends hero)
 
 /// Daily time-in-range bars over the window, drawn against the user's OWN usual
-/// band (dashed lines + soft fill), last bar emphasised, with a "today" annotation.
+/// band (dashed lines + soft fill), today emphasised, with a "today" annotation.
+///
+/// The x-axis is CALENDAR DAYS, not "one column per value I have". Every bar
+/// sits on its own date (`DaySlot`) and a day with no reading draws no bar —
+/// a gap, never a zero-height bar (which would claim 0% in range) and never a
+/// neighbour slid over to fill the space (which is what the old `[Double]`
+/// version did: a week with one missing day re-labelled every remaining bar).
 struct TIRTrendBarChart: View {
-    var daily: [Double]                 // 0…100, oldest → today
+    /// One entry per calendar day of the charted span, oldest → newest.
+    var slots: [DaySlot]
     var bandLo: Double?                 // "your usual" (mean ± 1σ of own daily TIR)
     var bandHi: Double?
     var todayAnnotation: String?        // "84% today"
-    var startLabel: String              // "14 JUL"
-    var endLabel: String = String(localized: "TODAY")
+    /// FR-CTX-04 — days the user marked (travelling / unwell / off-routine).
+    /// Those bars render in the flat neutral treatment the week grid uses:
+    /// still drawn exactly as recorded, just never as a deviation.
+    var neutralDates: Set<Date> = []
     var height: CGFloat = 120
 
+    private var values: [Double] { slots.compactMap(\.value) }
+
     private var domain: (lo: Double, hi: Double) {
-        let dLo = daily.min() ?? 0, dHi = daily.max() ?? 100
+        let dLo = values.min() ?? 0, dHi = values.max() ?? 100
         let lo = max(0, min(dLo, bandLo ?? dLo) - 8)
         let hi = min(100, max(dHi, bandHi ?? dHi) + 8)
         return (lo, max(hi, lo + 1))
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_DK")
+        f.dateFormat = "d MMM"
+        return f
+    }()
+
+    /// Both edge labels come from the slot dates themselves, so the axis can
+    /// never claim a span the bars don't cover.
+    private var startLabel: String {
+        slots.first.map { Self.dayFormatter.string(from: $0.date).uppercased() } ?? ""
+    }
+    private var endLabel: String {
+        guard let last = slots.last else { return "" }
+        return DaySeries.calendar.isDateInToday(last.date)
+            ? String(localized: "TODAY")
+            : Self.dayFormatter.string(from: last.date).uppercased()
+    }
+
+    private func isNeutral(_ date: Date) -> Bool {
+        neutralDates.contains(DaySeries.calendar.startOfDay(for: date))
     }
 
     var body: some View {
@@ -34,7 +68,7 @@ struct TIRTrendBarChart: View {
                 let y: (Double) -> CGFloat = { v in
                     h - CGFloat((min(max(v, lo), hi) - lo) / (hi - lo)) * h
                 }
-                let bw = w / CGFloat(max(daily.count, 1))
+                let bw = w / CGFloat(max(slots.count, 1))
                 ZStack(alignment: .topLeading) {
                     // "Your usual" band — soft fjord fill + dashed edges.
                     if let bLo = bandLo, let bHi = bandHi {
@@ -55,17 +89,30 @@ struct TIRTrendBarChart: View {
                             .foregroundStyle(LiviqaTheme.moss)
                             .offset(x: 4, y: max(0, y(bHi) - 13))
                     }
-                    // Daily bars — last one emphasised.
-                    ForEach(Array(daily.enumerated()), id: \.offset) { i, v in
-                        let last = i == daily.count - 1
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(last ? LiviqaTheme.moss : LiviqaTheme.accentGlucose)
-                            .opacity(last ? 1 : 0.66)
-                            .frame(width: max(1.5, bw - 3), height: max(2, h - y(v)))
-                            .offset(x: CGFloat(i) * bw + 1.5, y: y(v))
+                    // Daily bars, one per calendar day. Days without a reading
+                    // draw nothing at all.
+                    ForEach(Array(slots.enumerated()), id: \.offset) { i, slot in
+                        if let v = slot.value {
+                            let isLast = i == slots.count - 1
+                            let neutral = isNeutral(slot.date)
+                            let barW = max(1.5, bw - 3)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(neutral ? LiviqaTheme.accentFinance.opacity(0.16)
+                                      : (isLast ? LiviqaTheme.moss : LiviqaTheme.accentGlucose))
+                                .opacity(neutral ? 1 : (isLast ? 1 : 0.66))
+                                .overlay {
+                                    if neutral {
+                                        ZoneHatch(color: LiviqaTheme.accentFinance.opacity(0.45))
+                                            .clipShape(RoundedRectangle(cornerRadius: 2))
+                                    }
+                                }
+                                .frame(width: barW, height: max(2, h - y(v)))
+                                .offset(x: CGFloat(i) * bw + 1.5, y: y(v))
+                        }
                     }
-                    // Today annotation above the last bar.
-                    if let note = todayAnnotation, let lastV = daily.last {
+                    // Today annotation above the final bar — only when today
+                    // actually carries a reading.
+                    if let note = todayAnnotation, let lastV = slots.last?.value {
                         Text(note)
                             .font(.lato(11, .bold))
                             .foregroundStyle(LiviqaTheme.moss)
@@ -84,7 +131,17 @@ struct TIRTrendBarChart: View {
             .foregroundStyle(LiviqaTheme.ink3)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Daily time in range over \(daily.count) days, drawn against your own usual band"))
+        .accessibilityLabel(Text(accessibilitySummary))
+    }
+
+    /// Says the span AND the coverage — a chart with holes should say so.
+    private var accessibilitySummary: String {
+        let recorded = values.count
+        let span = slots.count
+        if recorded == span {
+            return String(localized: "Daily time in range over \(span) days, drawn against your own usual band.")
+        }
+        return String(localized: "Daily time in range across \(span) days, with readings on \(recorded) of them, drawn against your own usual band. Days without a reading are left blank.")
     }
 }
 

@@ -32,6 +32,40 @@ final class AppState {
         didAttemptHealthFetch && dataProviderKind == .healthKit && !usingRealData
     }
 
+    /// What the last REAL Health read actually returned.
+    ///
+    /// WORDING RULE (deliberate): HealthKit does not report read authorisation —
+    /// `authorizationStatus(for:)` answers for WRITING only, and a denied read
+    /// is specified to look exactly like an empty one. So a denied read and a
+    /// brand-new watch with nothing recorded yet are indistinguishable from
+    /// here, and this app never claims access was denied. `.noReadings` means
+    /// precisely what it says: the request completed and every requested type
+    /// came back empty.
+    enum HealthReadOutcome: Sendable, Equatable {
+        case notAttempted
+        case readings                 // real samples arrived
+        case noReadings               // completed; every requested type empty
+        case failed(String)           // the request itself threw
+    }
+    private(set) var healthReadOutcome: HealthReadOutcome = .notAttempted
+
+    /// The pure truth table behind `healthReadOutcome`, so the cue can be
+    /// proved without a device: only a REAL Health read can produce a verdict —
+    /// a demo/mock session never says anything about Apple Health at all.
+    static func readOutcome(kind: DataProviderKind,
+                            samplesEmpty: Bool) -> HealthReadOutcome {
+        guard kind == .healthKit else { return .notAttempted }
+        return samplesEmpty ? .noReadings : .readings
+    }
+
+    /// The inferred-denial cue: a real Health read completed and brought back
+    /// nothing at all. Surfaces the honest "no readings came through" screen
+    /// instead of leaving the citizen in a silently empty app. NOT an assertion
+    /// that permission was refused — see `HealthReadOutcome`.
+    var healthReadReturnedNothing: Bool {
+        dataProviderKind == .healthKit && healthReadOutcome == .noReadings
+    }
+
     static func resolveProviderKind() -> DataProviderKind {
         let pi = ProcessInfo.processInfo
         return resolveProviderKind(arguments: pi.arguments,
@@ -547,6 +581,7 @@ final class AppState {
         //    (demo in DEBUG, EMPTY in Release — ColdStartSeeds.swift) so no trace
         //    of the erased data survives in the running session.
         usingRealData   = false
+        healthReadOutcome = .notAttempted
         rings           = ColdStart.rings
         nudges          = ColdStart.nudges
         todaySignals    = nil
@@ -868,6 +903,10 @@ final class AppState {
             // empty fetch (e.g. Simulator, or a device with no Health history)
             // keeps the demo seeds (DEBUG) / the honest empty state (Release).
             usingRealData = provider.kind == .healthKit && !samples.isEmpty
+            // Every requested type came back empty ⇒ the inferred-denial cue
+            // (which never accuses — see HealthReadOutcome).
+            let outcome = Self.readOutcome(kind: provider.kind, samplesEmpty: samples.isEmpty)
+            if outcome != .notAttempted { healthReadOutcome = outcome }
             if usingRealData {
                 Self.initialBackfillDone = true
                 markAppleHealthConnected()
@@ -927,7 +966,13 @@ final class AppState {
             // thresholds as the clinician console — one engine, any citizen).
             // Demo input until the summarisation pipeline computes PatternInput
             // from real device history (FR-PAT-02).
-            if !real, !d.patternFindings.isEmpty {   // DEBUG demo provider only
+            //
+            // FR-CTX-04: these are appended AFTER the engine, so they bypass the
+            // engine's suppression gate. On a day the citizen has marked, the
+            // feed must be quiet — a flag can only ever REMOVE cards, so the
+            // append is skipped entirely rather than filtered card-by-card.
+            let markedToday = ContextFlagDeriver.isMarked(Date(), in: contextWindows)
+            if !real, !markedToday, !d.patternFindings.isEmpty {   // DEBUG demo provider only
                 nudges.append(contentsOf: d.patternFindings.map { Nudge(finding: $0) })
             }
             // FR-NOT-02: a cold launch from an earned-attention alert lands here
@@ -963,6 +1008,9 @@ final class AppState {
             baselines = d.baselines
             hrvLearn = d.hrvLearn
         } catch {
+            if provider.kind == .healthKit {
+                healthReadOutcome = .failed(error.localizedDescription)
+            }
             lastError = error.localizedDescription   // keep existing nudges
         }
     }
@@ -1053,7 +1101,12 @@ final class AppState {
                 role: role,
                 scopeGroups: Array(scopeGroups),
                 purpose: purpose,
-                granularity: nil,
+                // Summaries-only is stated HERE, at the consent surface, rather
+                // than left to the backend client's `?? "summary"` default two
+                // layers down (T-PRO-01 finding, 2026-08-13): the wire body was
+                // already correct, but a refactor of that default would silently
+                // widen every share. The consent surface now says what it means.
+                granularity: ShareGranularity.summariesOnly(for: scopeGroups),
                 expiry: expiry,
                 delivery: "live_view"
             )

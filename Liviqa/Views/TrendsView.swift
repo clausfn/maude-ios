@@ -101,6 +101,8 @@ struct TrendsView: View {
             }
             .padding(.horizontal, 20)
         }
+        .liviqaScrollEdgeSoft()   // iOS 26 + flag: chrome dissolves into the feed
+        .liviqaScrollEdge()       // every device: paper fades under the status bar
         .background(LiviqaTheme.paper.ignoresSafeArea())
         .liviqaDetail()   // hide the floating tab bar while this detail is on top
         #if os(iOS)
@@ -156,6 +158,10 @@ struct TrendsView: View {
     private func tirHero(_ r: TrendsRange) -> some View {
         if r.tirDaily.count >= 2 {
             VStack(alignment: .leading, spacing: 0) {
+                // "N days" counts days WITH a reading — the chart below spans
+                // the calendar days between the first and today, so the two
+                // figures differ exactly when the window has gaps, and both
+                // are true.
                 Text(String(localized: "Glucose · time in range · \(r.tirDaily.count) days").uppercased())
                     .font(.liviqaKicker(9.5)).tracking(1)
                     .foregroundStyle(LiviqaTheme.ink3)
@@ -165,10 +171,10 @@ struct TrendsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 7).padding(.bottom, 10)
                 TIRTrendBarChart(
-                    daily: r.tirDaily,
+                    slots: r.tirSlots,
                     bandLo: r.tirBandLo, bandHi: r.tirBandHi,
                     todayAnnotation: r.tirTodayPct.map { String(localized: "\($0)% today") },
-                    startLabel: r.tirStartLabel)
+                    neutralDates: markedDates(r))
                 if markedCount(r) > 0 {
                     contextStrip(markedCount(r))
                         .padding(.top, 12)
@@ -204,6 +210,19 @@ struct TrendsView: View {
         return ContextFlagDeriver.markedCount(among: windowDays(r), in: windows)
     }
 
+    /// The marked days as DATES — handed to the chart so the right bars go
+    /// neutral. Now that each bar knows its own day, "which bar is Tuesday" is
+    /// answerable; before this it was not, which is why the chart could not
+    /// carry FR-CTX-04 at all.
+    private func markedDates(_ r: TrendsRange) -> Set<Date> {
+        let windows = appState.contextWindows
+        guard !windows.isEmpty else { return [] }
+        let cal = ContextWindow.calendar
+        return Set(windowDays(r)
+            .filter { ContextFlagDeriver.isMarked($0, in: windows) }
+            .map { cal.startOfDay(for: $0) })
+    }
+
     /// True when TODAY is marked. Used to hold back the "lately…" tail on the
     /// hero sentence — the only place that sentence makes a deviation claim,
     /// and it reads the last charted day, which is today exactly when
@@ -236,13 +255,24 @@ struct TrendsView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// "Lately" has to mean lately. The last CHARTED day is the last day with a
+    /// reading, which can sit well back in the window when a sensor has been
+    /// off; past two days the tail is dropped rather than dated wrongly.
+    private func lastChartedDayIsRecent(_ r: TrendsRange) -> Bool {
+        guard let last = r.tirDailyDates.max() else { return false }
+        let cal = DaySeries.calendar
+        let gap = cal.dateComponents([.day], from: cal.startOfDay(for: last),
+                                     to: cal.startOfDay(for: r.windowEnd)).day ?? 0
+        return gap <= 2
+    }
+
     /// Fixed descriptive templates only — the verdict tail renders only when a
     /// personal band exists to compare against.
     private func tirHeadline(_ r: TrendsRange) -> String {
         let pct = r.tirPeriodPct
         let period = range.periodWord
         guard let lo = r.tirBandLo, let hi = r.tirBandHi, let recent = r.tirDaily.last,
-              !todayIsMarked(r) else {
+              !todayIsMarked(r), lastChartedDayIsRecent(r) else {
             return String(localized: "In range \(pct)% of this \(period).")
         }
         if recent < lo {

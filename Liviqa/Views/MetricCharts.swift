@@ -721,10 +721,17 @@ struct SleepDepthSegment {
 /// gradient water fill, nautical "soundings" printing the stage totals in open
 /// water, the one wake-up breaking the surface.
 ///
-/// INGESTION HONESTY: sleep ingestion retains no intra-night times, so a REAL
-/// night cannot be drawn — this signature chart renders exclusively from the
-/// clearly-demo design seed (`SleepDetailView` gates it behind `isDemoData`).
+/// INGESTION: sleep segments carry their wall-clock start and the awake stage
+/// (HealthKitService v03), so a REAL night is drawn here whenever the source
+/// recorded one — `SleepDetailDeriver.nightShape` builds the segments and
+/// soundings. The clearly-demo design seed is still used when there is no
+/// derivation at all, and only in a demo-tagged session.
 struct SleepDepthChart: View {
+
+    /// Water depth per stage on this chart: 0 awake · 1 REM · 2 core · 3 deep.
+    /// Shared so a caller can place a sounding at the same depth as its stage.
+    static let stageDepth: [Double] = [-0.07, 0.24, 0.58, 0.94]
+
     var segments: [SleepDepthSegment]
     var soundings: [(t: Double, depth: Double, num: String, name: String)]
     var wakeT: Double? = nil
@@ -733,7 +740,7 @@ struct SleepDepthChart: View {
     var edgeEnd: String
     var height: CGFloat = 176
 
-    private let depths: [Double] = [-0.07, 0.24, 0.58, 0.94]   // awake pokes above
+    private var depths: [Double] { Self.stageDepth }   // awake pokes above
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {

@@ -258,6 +258,35 @@ struct MetricDetailView: View {
         return pillar.week
     }
 
+    /// The real day axis for this pillar's week series (2026-08-13, NFR-VIZ-DAY-01):
+    /// `weekValues` is COMPACTED — one entry per day that has data — so pairing it
+    /// with seven fixed letters read a value against the wrong day whenever a day
+    /// was missing. Slots place each value on its own date; nil means the series
+    /// cannot be placed honestly, and the caller then drops the day labels rather
+    /// than labelling them wrongly.
+    private var weekSlots: [DaySlot]? {
+        guard let sig else { return nil }
+        let series: TodaySignals.WeekSeries
+        switch pillar {
+        case .glucose:  series = .inRange
+        case .recovery: series = .hrv
+        case .heart:    series = .rhr
+        case .sleep:    series = .sleep
+        default:        return nil
+        }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let window = (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+        return sig.slots(for: series, over: window)
+    }
+
+    /// Day letters taken from the slot dates themselves — never a fixed M–S row.
+    private var slotDayLabels: [String] {
+        guard let weekSlots else { return [] }
+        let df = DateFormatter(); df.dateFormat = "EEEEE"
+        return weekSlots.map { df.string(from: $0.date) }
+    }
+
     private var trendCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("This week").font(.liviqaKicker(9.5)).tracking(0.8).foregroundStyle(LiviqaTheme.ink3)
@@ -267,14 +296,21 @@ struct MetricDetailView: View {
             // · RHR + HRV: deviation from the PERSONAL baseline is the signal →
             //   trend line inside the mean ±1σ band, tight y-domain (never from
             //   zero); single days de-emphasized — AreaTrendChart does exactly this.
+            // Day axis when the series can be placed on real dates; otherwise no
+            // day labels at all (demo pillar seeds keep the fixed M–S row, which
+            // is honest for a 7-of-7 seed).
+            let slots = weekSlots
+            let ticks = slots != nil ? slotDayLabels : (sig == nil ? dayLabels : [])
             switch pillar {
             case .sleep:
-                DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
+                DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: ticks,
+                               unit: pillar.unit, daySlots: slots)
             case .glucose:
-                DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit,
-                               goal: 70, goalLabel: "70% TARGET")
+                DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: ticks, unit: pillar.unit,
+                               goal: 70, goalLabel: "70% TARGET", daySlots: slots)
             default:   // recovery + heart today; Area-④ pillars never reach here
-                AreaTrendChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
+                AreaTrendChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: ticks,
+                               unit: pillar.unit, daySlots: slots)
             }
         }
         .padding(14).background(LiviqaTheme.paper2)

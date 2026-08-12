@@ -125,15 +125,21 @@ struct ConsultShareTests {
     }
 
     /// AppState never asks for a looser granularity than the default: it passes
-    /// none, so the sovereign client applies summaries-only for every group.
+    /// summaries-only for every requested group — stated AT the consent surface
+    /// since 2026-08-13, rather than inherited from the backend client's default.
     /// (The wire assertion is `theWireBodyCarriesSummariesOnlyGranularity`.)
     @Test func armingNeverRequestsAWiderGranularity() async {
         let svc = FakeSovereign()
         let state = makeState(svc)
         _ = await state.armConsultShare(recipientId: "rec-1")
 
-        #expect(svc.grantCalls.first?.granularity == nil,
-                "requesting an explicit granularity here could only ever widen it")
+        let granularity = svc.grantCalls.first?.granularity
+        #expect(granularity != nil,
+                "the consent surface must state summaries-only itself, not rely on a client default")
+        #expect(granularity?.values.allSatisfy { $0 == "summary" } == true,
+                "every requested group must be summaries-only — anything else widens the share")
+        #expect(granularity?.isEmpty == false,
+                "an empty map would fall back to the client default and defeat the point")
     }
 
     /// The share pushed under the grant is DERIVED: aggregate summaries and

@@ -17,6 +17,12 @@
 // sleep vs the 30 before) and the 30-day HRV series the evening month-trend card
 // needs (FR-TOD-05's named deriver extension).
 //
+// Every daily series leaves here with its DATES attached (`tirDailyDates`,
+// `hrvDailyDates`, plus `windowStart`/`windowEnd`). A series holds one entry per
+// day that HAS data, so its length says nothing about which days it covers —
+// charts must place it with `tirSlots` / `hrvSlots` (see DaySeries.swift) or
+// they will label a gapped week against the wrong days.
+//
 // NUMBERS + FIXED TEMPLATES ONLY: body sentences are assembled from a small fixed
 // set of descriptive templates filled with derived figures — nothing generated,
 // nothing prescriptive, no diagnosis framing (guard-checked in tests).
@@ -47,9 +53,21 @@ public nonisolated struct TrendsRange: Sendable, Equatable {
     /// ("based on N days"), important when the store holds less than a quarter.
     public let daysCovered: Int
 
+    /// The window's own calendar bounds (start of day, inclusive). Every chart
+    /// axis on this surface derives from these two dates rather than from the
+    /// LENGTH of a series — a series only covers the days that carry data.
+    public let windowStart: Date
+    public let windowEnd: Date
+
     // Daily TIR trend vs the user's own usual band.
     public let tirDaily: [Double]           // one per day WITH glucose, oldest→today
-    public let tirStartLabel: String        // "14 JUL" — first charted day
+    /// The day each `tirDaily` entry belongs to — parallel, same count, ascending.
+    /// Without this a gapped week silently re-labels every value (see DaySeries).
+    public let tirDailyDates: [Date]
+    /// "14 JUL" — the first charted day, for prose that names the span. The
+    /// CHART does not read this: it labels its axis from `tirSlots`' own dates,
+    /// so there is exactly one source of truth for where the bars start.
+    public let tirStartLabel: String
     public let tirPeriodPct: Int            // aggregate TIR over the window
     public let tirTodayPct: Int?            // today's own TIR, when today has glucose
     public let tirBandLo: Double?           // "your usual" band (mean ± 1σ of daily TIR)
@@ -68,24 +86,50 @@ public nonisolated struct TrendsRange: Sendable, Equatable {
 
     /// Daily HRV series over the window (evening month-trend card, FR-TOD-05).
     public let hrvDaily: [Double]
+    /// The day each `hrvDaily` entry belongs to — parallel, same count, ascending.
+    public let hrvDailyDates: [Date]
 
-    public init(windowDays: Int, daysCovered: Int, tirDaily: [Double],
+    public init(windowDays: Int, daysCovered: Int,
+                windowStart: Date, windowEnd: Date,
+                tirDaily: [Double], tirDailyDates: [Date],
                 tirStartLabel: String, tirPeriodPct: Int, tirTodayPct: Int?,
                 tirBandLo: Double?, tirBandHi: Double?,
                 correlations: [TrendCorrelation],
                 sleepAvgHours: Double?, sleepDeltaMin: Int?,
                 rhrAvg: Int?, rhrDeltaBpm: Int?,
                 activeMinPerDay: Int?, activeDeltaMin: Int?,
-                hrvDaily: [Double]) {
+                hrvDaily: [Double], hrvDailyDates: [Date]) {
         self.windowDays = windowDays; self.daysCovered = daysCovered
-        self.tirDaily = tirDaily; self.tirStartLabel = tirStartLabel
+        self.windowStart = windowStart; self.windowEnd = windowEnd
+        self.tirDaily = tirDaily; self.tirDailyDates = tirDailyDates
+        self.tirStartLabel = tirStartLabel
         self.tirPeriodPct = tirPeriodPct; self.tirTodayPct = tirTodayPct
         self.tirBandLo = tirBandLo; self.tirBandHi = tirBandHi
         self.correlations = correlations
         self.sleepAvgHours = sleepAvgHours; self.sleepDeltaMin = sleepDeltaMin
         self.rhrAvg = rhrAvg; self.rhrDeltaBpm = rhrDeltaBpm
         self.activeMinPerDay = activeMinPerDay; self.activeDeltaMin = activeDeltaMin
-        self.hrvDaily = hrvDaily
+        self.hrvDaily = hrvDaily; self.hrvDailyDates = hrvDailyDates
+    }
+
+    // MARK: - Day-axis projections (the only thing a chart should draw)
+
+    /// The TIR bars, one slot per calendar day from the FIRST charted day
+    /// through the end of the window. Days with no glucose come back `nil` and
+    /// are drawn as a gap — the axis stays honest ("14 JUL → TODAY") because the
+    /// span is calendar days, not "number of values I happen to have".
+    public var tirSlots: [DaySlot] {
+        guard let first = tirDailyDates.min() else { return [] }
+        let window = DaySeries.days(from: first, through: windowEnd)
+        return DaySeries.slots(values: tirDaily, dates: tirDailyDates, over: window)
+    }
+
+    /// The HRV series across the WHOLE window — the evening month-trend card
+    /// labels its axis "29 days ago → today", so it must draw 30 slots even
+    /// when only some of them carry a reading.
+    public var hrvSlots: [DaySlot] {
+        let window = DaySeries.days(from: windowStart, through: windowEnd)
+        return DaySeries.slots(values: hrvDaily, dates: hrvDailyDates, over: window)
     }
 }
 
@@ -163,6 +207,10 @@ public nonisolated enum TrendsDeriver {
 
         let tirSeries = windowDays.compactMap { d in tirByDay[d].map { (d, $0) } }
         let tirDaily = tirSeries.map(\.1)
+        let tirDates = tirSeries.map(\.0)
+        // Same treatment for HRV: value and day travel together, so the evening
+        // month-trend card can put each reading on its own date.
+        let hrvSeries = windowDays.compactMap { d in hrvByDay[d].map { (d, $0) } }
 
         // Aggregate TIR over the window (reading-weighted, matching the chips).
         let (inCount, totalCount) = tirCounts(s, days: windowDays, lo: lo, hi: hi)
@@ -222,7 +270,10 @@ public nonisolated enum TrendsDeriver {
         return TrendsRange(
             windowDays: days,
             daysCovered: covered.count,
+            windowStart: windowDays.first ?? today,
+            windowEnd: windowDays.last ?? today,
             tirDaily: tirDaily,
+            tirDailyDates: tirDates,
             tirStartLabel: startLabel,
             tirPeriodPct: periodPct,
             tirTodayPct: todayPct,
@@ -234,7 +285,7 @@ public nonisolated enum TrendsDeriver {
             rhrDeltaBpm: zip2(rhrAvg, rhrPrev).map { Int($0.rounded()) },
             activeMinPerDay: act.map { Int($0.rounded()) },
             activeDeltaMin: zip2(act, actPrev).map { Int($0.rounded()) },
-            hrvDaily: windowDays.compactMap { hrvByDay[$0] })
+            hrvDaily: hrvSeries.map(\.1), hrvDailyDates: hrvSeries.map(\.0))
     }
 
     private static func zip2(_ a: Double?, _ b: Double?) -> Double? {
