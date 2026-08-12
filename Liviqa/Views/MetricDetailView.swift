@@ -88,6 +88,11 @@ struct MetricDetailView: View {
     /// PR-100: clinical AGP TIR zones on the glucose chart — SIGNED OFF by CN, now
     /// live by default. (Still a flag so it stays one tap from revertible in Settings.)
     @AppStorage("clinicalTIRZones") private var clinicalTIRZones = true
+    /// FR-XPL-01 — the recovery hero's own decomposition.
+    @State private var seeWhy: SeeWhyExplanation? = nil
+    /// Area ⑨ entry point Learn could not reach from its own files: the HRV
+    /// method note, opened from the surface that actually shows HRV.
+    @State private var showHRVLearn = false
 
     private let dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
@@ -127,6 +132,9 @@ struct MetricDetailView: View {
                         // never a fabricated change next to the user's real number.
                         if !hasRealValue { StatusPill(text: pillar.delta, dot: nil) }
                     }
+                    // FR-XPL-01 — this hero opens like every other verdict.
+                    SeeWhyChip { seeWhy = recoveryWhy }
+                        .padding(.top, 6)
                 }
 
                 // Glucose leads with today's curve (CGM-style); sleep adds a stages
@@ -139,18 +147,70 @@ struct MetricDetailView: View {
                 }
                 trendCard
 
-                // Descriptive observation
-                Text(pillar.observation)
-                    .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
+                // Descriptive observation. HONESTY GATE (FR-XPL-01): this string
+                // is a canned narrative from the pre-A7 seeds ("higher meeting
+                // load and later meals") — it was rendering over REAL readings,
+                // where nothing behind it is derived. It now shows only alongside
+                // the illustrative values it was written for; a real session gets
+                // the decomposition instead, via "See why" above.
+                if !hasRealValue {
+                    Text(pillar.observation)
+                        .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
+                }
+
+                learnHRVRow
 
                 discussButton
             }
             .padding(.horizontal, 20).padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
+        .sheet(isPresented: $showHRVLearn) {
+            LearnArticleView(topic: .hrv, appState: appState)
+        }
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// Area ⑨ wiring: "What is HRV?" straight from the recovery detail.
+    private var learnHRVRow: some View {
+        Button { showHRVLearn = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "book")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("What is HRV?")
+                    .font(.lato(13.5, .bold))
+                Spacer(minLength: 6)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 11, weight: .bold))
+            }
+            .foregroundStyle(LiviqaTheme.moss)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The recovery hero's decomposition — the latest reading, the real days
+    /// behind it, and the own-usual band (mean ±1σ of the same week series the
+    /// chart draws). Sample sessions say so instead of inventing arithmetic.
+    private var recoveryWhy: SeeWhyExplanation {
+        let series = sig?.hrvWeek ?? []
+        var band: ClosedRange<Double>? = nil
+        if series.count >= 4 {
+            let mean = series.reduce(0, +) / Double(series.count)
+            let sd = (series.reduce(0) { $0 + ($1 - mean) * ($1 - mean) }
+                      / Double(series.count)).squareRoot()
+            if sd > 0 { band = (mean - sd)...(mean + sd) }
+        }
+        return SeeWhyExplainer.recoveryHero(
+            verdict: pillar.title, latest: displayBigValue,
+            band: band, seriesCount: series.count, hasRealValue: hasRealValue)
     }
 
     /// Glucose intraday curve: today's real readings when present; the demo curve

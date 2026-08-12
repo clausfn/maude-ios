@@ -3,12 +3,27 @@
 // v02 · 2026-08-12 · A7.2 Area ⑦: rebuilt to the ScrVault canvas
 // (b-integrations.jsx) over a REAL encrypted document store.
 //
+// v03 · 2026-08-13 · robustness: four named states, two honest failure classes.
+//
 // THE SPACE: the citizen's own document store — labs, clinical letters, scans,
 // photos. Every document is AES-256-GCM encrypted the moment it's added, with
 // the data key wrapped to this device's Secure Enclave (HealthVaultStore /
 // KeyVault). Add via Files or Photos; preview + delete inside. The old demo
 // folder seed (VaultSeed) and the "previews locked until the live production
 // test" alert are retired — storage is real now, so the claims can be too.
+//
+// FAILURE COPY IS A SAFETY SURFACE. `VaultAccess` gives this screen four states
+// and each gets its own sentence:
+//   • .ready                    — the list (or the empty invitation), add enabled
+//   • .lockedUntilDeviceUnlock  — a WAIT: the phone hasn't been unlocked yet
+//   • .keyUnavailable           — no key could be prepared; retryable
+//   • .sealedDataUnreadable     — the ONLY place the "unreadable" sentence may
+//                                 appear, and nothing is deleted or re-keyed
+// Telling a citizen their health documents are unreadable when the truth is
+// "wait a moment" invites a reinstall, which would actually destroy them.
+// The encryption sentence follows `KeyVault.protection` exactly: the Secure
+// Enclave is named only when the enclave really holds the key, and before any
+// key exists no key claim is made at all.
 //
 // CONSENT RAIL: nothing in this space enters any share by default. Financial
 // papers NEVER enter a clinician share — they live here, on this device, full
@@ -29,7 +44,9 @@ import UniformTypeIdentifiers
 struct HealthVaultView: View {
     @State private var store: HealthVaultStore?
     @State private var docs: [VaultDocumentMeta] = []
-    @State private var storeError: String?
+    /// nil while the first open is still in flight; then always one of the four
+    /// named states (see `VaultAccess`) — never a free-text error.
+    @State private var access: VaultAccess?
     @State private var note: String?
 
     @State private var showAddDialog = false
@@ -37,20 +54,25 @@ struct HealthVaultView: View {
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
     @State private var selected: VaultDocumentMeta?
+    @State private var showLabImport = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 verdictBand
                 explainerCard
-                if let storeError {
-                    errorCard(storeError)
-                } else if docs.isEmpty {
-                    emptyCard
-                } else {
-                    documentList
+                switch access {
+                case .sealedDataUnreadable?:
+                    unreadableCard
+                case .lockedUntilDeviceUnlock?:
+                    retryCard(String(localized: "This space opens once you've unlocked this phone. Nothing is lost — anything you've saved is still here, just out of reach until then."))
+                case .keyUnavailable?:
+                    retryCard(String(localized: "The encrypted space couldn't be prepared on this device just now. Nothing has been lost, and nothing was stored unencrypted."))
+                default:
+                    if docs.isEmpty { emptyCard } else { documentList }
                 }
                 addAffordance
+                readLabReportRow
                 if let note { noteRow(note) }
                 consentStrip
             }
@@ -90,25 +112,47 @@ struct HealthVaultView: View {
                 note = String(localized: "Deleted from this phone.")
             }
         }
+        .sheet(isPresented: $showLabImport) {
+            NavigationStack {
+                LabReportImportView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showLabImport = false; reload() }
+                        }
+                    }
+            }
+        }
     }
 
     // MARK: Store plumbing
 
+    /// One attempt to open the space. Every outcome — including "no key could be
+    /// prepared" and "the phone hasn't been unlocked yet" — lands in a named
+    /// state; only genuinely unreadable documents get the unreadable message.
     private func openStore() {
-        guard store == nil else { return }
-        do {
-            store = try HealthVaultStore(keyVault: .shared, userScope: LocalUserScope.current())
-            reload()
-        } catch {
-            storeError = String(localized: "The encrypted space couldn't be opened on this device. Your documents are unreadable without this device's key — nothing was lost, but nothing can be shown right now.")
-        }
+        guard access == nil else { return }
+        let session = HealthVaultSession.open(keyVault: .shared, userScope: LocalUserScope.current())
+        store = session.store
+        docs = session.documents
+        access = session.access
+    }
+
+    /// Re-open from scratch — used by the retry affordance, and after a change.
+    private func retry() {
+        access = nil
+        store = nil
+        note = nil
+        openStore()
     }
 
     private func reload() {
         guard let store else { return }
-        do { docs = try store.documents() }
-        catch {
-            storeError = String(localized: "The document list couldn't be read. It is stored encrypted — a failed integrity check is shown as an error, never as wrong content.")
+        do {
+            docs = try store.documents()
+            access = .ready
+        } catch {
+            docs = []
+            access = KeyFailure.isDeviceLocked(error) ? .lockedUntilDeviceUnlock : .sealedDataUnreadable
         }
     }
 
@@ -191,13 +235,21 @@ struct HealthVaultView: View {
     }
 
     /// The canvas line, with the key-protection clause kept honest: name the
-    /// Secure Enclave only when the key really is hardware-backed (simulators
-    /// fall back to a software device key — KeyVault records which path is live).
+    /// Secure Enclave only when the key really is enclave-held, say "never
+    /// leaves this device" when it is a software device key, and — before any
+    /// key has been provisioned — make no key claim at all.
     private var explainerText: AttributedString {
-        let enclave = KeyVault.shared.isHardwareBacked
-            ? String(localized: "the key is held by this device's Secure Enclave.")
-            : String(localized: "the key never leaves this device.")
-        var s = AttributedString(String(localized: "Lab results, letters, scans — stored with AES-256 encryption, readable only on your unlocked device. Nothing is uploaded, and \(enclave)"))
+        let opening = String(localized: "Lab results, letters, scans — stored with AES-256 encryption, readable only on your unlocked device.")
+        let sentence: String
+        switch KeyVault.shared.protection {
+        case .secureEnclave:
+            sentence = opening + " " + String(localized: "Nothing is uploaded, and the key is held by this device's Secure Enclave.")
+        case .softwareDeviceKey:
+            sentence = opening + " " + String(localized: "Nothing is uploaded, and the key never leaves this device.")
+        case .notProvisioned:
+            sentence = opening + " " + String(localized: "Nothing is uploaded.")
+        }
+        var s = AttributedString(sentence)
         if let r = s.range(of: "AES-256") {
             s[r].font = .lato(12.5, .bold)
         }
@@ -292,7 +344,51 @@ struct HealthVaultView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(store == nil)
+        // Enabled whenever adding is actually possible: a prepared key AND an
+        // index this key can open (adding on top of an unreadable index would
+        // overwrite the only record of the documents already on disk).
+        .disabled(!canAdd)
+        .opacity(canAdd ? 1 : 0.45)
+    }
+
+    private var canAdd: Bool {
+        guard access?.canAddDocuments == true, let store else { return false }
+        return store.canAddDocuments
+    }
+
+    /// Entry point to the any-lab importer (FR-REC-03). A document in this space
+    /// is opaque bytes; this is the way to turn the RESULTS printed on it into
+    /// coded rows in the health record — reviewed first, saved only on approval.
+    private var readLabReportRow: some View {
+        Button { showLabImport = true } label: {
+            HStack(spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(LiviqaTheme.moss2)
+                        .frame(width: 34, height: 34)
+                    Image(systemName: "doc.text.viewfinder")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Read the results off a lab report")
+                        .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text("Any lab · read here, reviewed by you before saving")
+                        .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var consentStrip: some View {
@@ -308,6 +404,36 @@ struct HealthVaultView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(LiviqaTheme.moss2)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// The genuinely unreadable case, and the only place this sentence may
+    /// appear: documents ARE on this phone, sealed to key material this device
+    /// no longer holds. Nothing is deleted and nothing is re-keyed — which is
+    /// also why adding is refused here rather than quietly replacing the index.
+    private var unreadableCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            errorCard(String(localized: "The encrypted space couldn't be opened on this device. Your documents are unreadable without this device's key — nothing was lost, and nothing has been deleted or re-encrypted."))
+            Text("This happens when the key that sealed them is gone from this phone — after a restore onto new hardware, for instance. The documents stay exactly as they are.")
+                .font(.lato(11.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The recoverable classes: a wait or a retry, never a claim of lost data.
+    private func retryCard(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            errorCard(message)
+            Button { retry() } label: {
+                Text("Try again")
+                    .font(.lato(13, .bold))
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .padding(.vertical, 9).padding(.horizontal, 16)
+                    .background(LiviqaTheme.moss2)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private func errorCard(_ message: String) -> some View {
@@ -461,10 +587,7 @@ private struct VaultDocumentSheet: View {
             metaRow(String(localized: "Size"),
                     ByteCountFormatter.string(fromByteCount: Int64(meta.byteSize), countStyle: .file))
             Divider().background(LiviqaTheme.line2)
-            metaRow(String(localized: "Protection"),
-                    KeyVault.shared.isHardwareBacked
-                        ? String(localized: "AES-256 · key held by the Secure Enclave")
-                        : String(localized: "AES-256 · key held by this device"))
+            metaRow(String(localized: "Protection"), Self.protectionLine)
         }
         .background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -493,6 +616,16 @@ private struct VaultDocumentSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+    }
+
+    /// Follows the live key path exactly — the enclave is named only when the
+    /// enclave really holds the key. This document is open, so a key exists.
+    private static var protectionLine: String {
+        switch KeyVault.shared.protection {
+        case .secureEnclave:     return String(localized: "AES-256 · key held by the Secure Enclave")
+        case .softwareDeviceKey: return String(localized: "AES-256 · key held by this device")
+        case .notProvisioned:    return String(localized: "AES-256 · on this device")
+        }
     }
 
     private static let dayFormatter: DateFormatter = {

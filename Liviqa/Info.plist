@@ -4,6 +4,21 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- FR-NOT-02 · earned-attention micro-loop. The app asks iOS for an
+	     opportunistic wake so the SAME on-device nudge engine can decide, off
+	     session, whether one thing today earned an interruption. Background
+	     fetch is the only mode requested; nothing is uploaded or downloaded —
+	     the wake reads HealthKit on this device and may post one local
+	     notification. Identifier is kept in step with BackgroundRefresh.swift
+	     by expanding the bundle id here rather than hard-coding it. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

@@ -17,6 +17,8 @@ import SwiftUI
 struct BodyDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// FR-XPL-01 — the hero verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: BodyTrendDetail? { appState.bodyDetail }
 
@@ -34,6 +36,7 @@ struct BodyDetailView: View {
                                stat: model.stat,
                                unit: "kg",
                                sub: model.sub)
+                    SeeWhyHeroRow { seeWhy = bodyWhy(model) }
                     if model.weight.count >= 2 { weightCard(model) }
                     if model.fat.count >= 2 { fatCard(model) }
                     MetricDiscussButton { appState.showAssistant = true }
@@ -44,9 +47,23 @@ struct BodyDetailView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed — a difference across the window, inside the
+    /// user's OWN corridor. No goal weight and no body-mass class, said plainly.
+    private func bodyWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.bodyHero(
+            verdict: m.verdict,
+            deltaKg: detail?.weightDeltaKg,
+            sinceMonth: detail?.sinceMonthName ?? m.kicker,
+            corridor: m.weightCorridor,
+            pointCount: m.weight.count,
+            source: detail?.source,
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model

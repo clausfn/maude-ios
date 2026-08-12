@@ -30,6 +30,14 @@ struct TodayView: View {
 
     @State private var connectHintDismissed = false
     @State private var showSundhedImport = false
+    /// FR-CTX-04 — the set/clear sheet for the user's own context flag.
+    @State private var showContextFlag = false
+    /// FR-XPL-01 — the open "See why" disclosure (one sheet, every verdict here).
+    @State private var seeWhy: SeeWhyExplanation? = nil
+    /// Signal-card navigation. The cards used to BE NavigationLinks; they now
+    /// carry two tap targets (open the pillar · see why), so the push is driven
+    /// from state instead of a link wrapped round the whole card.
+    @State private var pushedPillar: WellnessPillar? = nil
     /// PR-100 promotion #3: domain icon on the nudge hero (sparkline half deferred —
     /// needs a numeric series on Nudge). On by default; toggle in Settings.
     @AppStorage("visualNudge") private var visualNudge = true
@@ -154,8 +162,16 @@ struct TodayView: View {
                     // quiet/attention · tomorrow hook. Cold start always keeps the honest
                     // calibrating card in the hero slot.
                     if isEveningEdition && !coldStart {
-                        closingNote
-                            .padding(.top, 16)
+                        // FR-CTX-04: a marked day closes on the calibrating
+                        // register, not on a verdict about a day the user
+                        // already told us was atypical.
+                        Group {
+                            if let flag = contextFlag { contextHero(flag) } else { closingNote }
+                        }
+                        .padding(.top, 16)
+
+                        contextEntryRow
+                            .padding(.top, 12)
 
                         if let items = momentumItems {
                             momentumStrip(items)
@@ -177,7 +193,13 @@ struct TodayView: View {
                             .padding(.top, 14)
 
                         Group {
-                            if !nudges.isEmpty { attentionCard } else { quietLine }
+                            if let flag = contextFlag, !hasClinicianRoute {
+                                contextQuietNote(flag)
+                            } else if !nudges.isEmpty {
+                                attentionCard
+                            } else {
+                                quietLine
+                            }
                         }
                         .padding(.top, 16)
 
@@ -187,11 +209,20 @@ struct TodayView: View {
                         Group {
                             if coldStart {
                                 baselineBuildingCard
+                            } else if let flag = contextFlag {
+                                contextHero(flag)
                             } else {
                                 heroBlock
                             }
                         }
                         .padding(.top, 16)
+
+                        // FR-CTX-04 entry affordance — a quiet row, never a
+                        // second attention card (the ONE-card rule holds).
+                        if !coldStart {
+                            contextEntryRow
+                                .padding(.top, 12)
+                        }
 
                         // Since last week — momentum vs the user's own baseline.
                         if let items = momentumItems {
@@ -208,6 +239,10 @@ struct TodayView: View {
                         Group {
                             if coldStart {
                                 calibratingQuietNote
+                            } else if let flag = contextFlag, !hasClinicianRoute {
+                                // Marked day: the calm stand-in replaces the
+                                // attention slot — it never sits beside it.
+                                contextQuietNote(flag)
                             } else if !nudges.isEmpty {
                                 attentionCard
                             } else {
@@ -249,6 +284,7 @@ struct TodayView: View {
             }
         }
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: title dissolves into the feed
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showSundhedImport) {
@@ -259,7 +295,123 @@ struct TodayView: View {
                 )
             }
         }
+        .sheet(isPresented: $showContextFlag) { ContextFlagSheet() }
         #endif
+    }
+
+    // MARK: — Context flag (FR-CTX-04 · Bevel absorb ③)
+
+    /// The flag the user has put on today, if any.
+    private var contextFlag: ContextFlag? { appState.activeContextFlag }
+
+    /// A surviving route-to-clinician nudge (D9 cardiac lane). Suppression never
+    /// touches that lane, so when one is present the attention card still wins
+    /// over the calm context note — safety outranks calm.
+    private var hasClinicianRoute: Bool { nudges.contains { $0.accent == .cardiac } }
+
+    /// Verdict surface while a day is marked: the calibrating register instead
+    /// of deviation language. Same anatomy as the day/evening hero so the page
+    /// keeps its shape — kicker, serif line, rule, sentence, arc.
+    private func contextHero(_ flag: ContextFlag) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 5) {
+                    Image(systemName: flag.kind.systemImage)
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(String(localized: "Marked · \(flag.kind.label)").uppercased())
+                        .font(.liviqaKicker(10)).tracking(1.2)
+                }
+                .foregroundStyle(LiviqaTheme.accentFinance)
+
+                Text(flag.kind.todayHeadline)
+                    .font(.liviqaSerif(23)).kerning(-0.2).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(LiviqaTheme.accentFinance)
+                    .frame(width: 44, height: 3)
+                    .padding(.vertical, 10)
+                Text(flag.kind.todayDetail)
+                    .font(.lato(13.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                // FR-XPL-01: even a declared verdict shows its work — here that
+                // work is "you told us", plus what marking does and doesn't do.
+                SeeWhyChip { seeWhy = contextWhy(flag) }
+                    .padding(.top, 12)
+            }
+            Spacer(minLength: 0)
+            IrisDayArc(progress: dayProgress, size: 76)
+        }
+    }
+
+    private func contextWhy(_ flag: ContextFlag) -> SeeWhyExplanation {
+        let df = DateFormatter(); df.dateFormat = "d MMM"
+        return SeeWhyExplainer.markedDay(
+            verdict: flag.kind.todayHeadline,
+            kindLabel: flag.kind.label,
+            startedText: df.string(from: flag.startedOn),
+            isOpen: flag.isOpen)
+    }
+
+    /// The set/clear affordance. Quiet by design — a row, not a card, so the
+    /// page still has exactly one card that asks for attention.
+    private var contextEntryRow: some View {
+        Button { showContextFlag = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: contextFlag?.kind.systemImage
+                      ?? "point.topleft.down.to.point.bottomright.curvepath")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(LiviqaTheme.accentFinance)
+                    .frame(width: 22)
+                Text(contextEntryLabel)
+                    .font(.lato(12.5))
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(Text("Mark days as travelling, unwell or off routine"))
+    }
+
+    private var contextEntryLabel: String {
+        if let flag = contextFlag {
+            return String(localized: "Marked as \(flag.kind.label.lowercased()) — tap when you're back to your routine")
+        }
+        return String(localized: "Travelling, unwell or off routine? Mark these days.")
+    }
+
+    /// Stands in for the attention slot on a marked day — calm, honest, and
+    /// explicit that nothing is being hidden.
+    private func contextQuietNote(_ flag: ContextFlag) -> some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "moon.zzz")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(LiviqaTheme.accentFinance)
+                .padding(.top, 1)
+            Text(flag.kind.quietNote)
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.accentFinance.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14)
+            .stroke(LiviqaTheme.accentFinance.opacity(0.28), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: — Degraded-store banner (in-memory fallback engaged)
@@ -419,10 +571,24 @@ struct TodayView: View {
                     .font(.lato(13.5)).lineSpacing(2)
                     .foregroundStyle(LiviqaTheme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
+                // FR-XPL-01 — the front-page verdict opens to its own arithmetic.
+                SeeWhyChip { seeWhy = heroWhy(affirmHeadline) }
+                    .padding(.top, 12)
             }
             Spacer(minLength: 0)
             IrisDayArc(progress: dayProgress, size: 76)
         }
+    }
+
+    /// The decomposition behind the front-page verdict — same tone decision, same
+    /// thresholds (`SeeWhyExplainer` owns both), so the two cannot drift apart.
+    private func heroWhy(_ verdict: String) -> SeeWhyExplanation {
+        SeeWhyExplainer.todayHero(
+            tone: weekTone, verdict: verdict,
+            tirWeek: signals?.inRangeWeek ?? [],
+            sleepWeek: signals?.sleepWeek ?? [],
+            hasRealSignals: signals != nil,
+            coldStart: coldStart)
     }
 
     /// Fraction of today elapsed — drives the day-arc fill.
@@ -435,31 +601,28 @@ struct TodayView: View {
     // heuristics on the real 7-day series — never a verdict, never medical).
     // No signals yet (demo seeds) keeps the original steady copy; the genuine
     // cold start is covered by the honest baseline card above.
-    private enum WeekTone { case steady, improving, uneven }
-
-    private var weekTone: WeekTone {
+    /// FR-XPL-01: the register AND its thresholds now live in
+    /// `SeeWhyExplainer` (pure, tested), so the sentence Home prints and the
+    /// arithmetic the "See why" sheet prints are chosen by one function.
+    private var weekTone: TodayTone {
         guard let s = signals else { return .steady }          // seeds → original copy
-        if s.inRangeIsClay { return .uneven }                  // the one flagged deviation
-        if tirImproving || sleepImproving { return .improving }
-        return .steady
+        return SeeWhyExplainer.todayTone(tirIsClay: s.inRangeIsClay,
+                                         tirWeek: s.inRangeWeek,
+                                         sleepWeek: s.sleepWeek)
     }
 
     /// Second-half average vs first-half average of a real 7-day series.
     private func trendingUp(_ series: [Double], by delta: Double) -> Bool {
-        guard series.count >= 4 else { return false }
-        let half = series.count / 2
-        let early = series.prefix(half), late = series.suffix(series.count - half)
-        return late.reduce(0, +) / Double(late.count)
-             - early.reduce(0, +) / Double(early.count) >= delta
+        SeeWhyExplainer.trendingUp(series, by: delta)
     }
 
     private var tirImproving: Bool {
         guard let s = signals else { return false }
-        return trendingUp(s.inRangeWeek, by: 5)                // ≥5 points more in range
+        return trendingUp(s.inRangeWeek, by: SeeWhyExplainer.tirTrendPoints)
     }
     private var sleepImproving: Bool {
         guard let s = signals else { return false }
-        return trendingUp(s.sleepWeek, by: 0.4)                // ≥ ~25 min longer nights
+        return trendingUp(s.sleepWeek, by: SeeWhyExplainer.sleepTrendHours)
     }
 
     private var affirmHeadline: String {
@@ -728,46 +891,68 @@ struct TodayView: View {
     private var signalsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
                   spacing: 10) {
-            NavigationLink(value: WellnessPillar.sleep) {
-                SignalCardView(rule: LiviqaTheme.accentSleep, icon: "moon.fill",
-                               domain: String(localized: "Sleep"),
-                               verdict: sleepVerdict, value: sleepHeadline, unit: nil,
-                               spark: spark(\.sleepWeek, .sleep),
-                               band: usualBand(\.sleepWeek),
-                               skeleton: coldStart)
-            }.buttonStyle(.plain)
-            NavigationLink(value: WellnessPillar.glucose) {
-                SignalCardView(rule: LiviqaTheme.accentGlucose, icon: "drop.fill",
-                               domain: String(localized: "Glucose"),
-                               verdict: glucoseVerdict,
-                               value: signals?.inRange ?? seedValue("61%"),
-                               unit: String(localized: "in range"),
-                               spark: spark(\.inRangeWeek, .glucose),
-                               band: usualBand(\.inRangeWeek),
-                               chip: String(localized: "Zones & TIR"),
-                               skeleton: coldStart)
-            }.buttonStyle(.plain)
-            NavigationLink(value: WellnessPillar.recovery) {
-                SignalCardView(rule: LiviqaTheme.accentRecovery, icon: "waveform.path.ecg",
-                               domain: String(localized: "Recovery"),
-                               verdict: recoveryVerdict,
-                               value: signals?.hrv ?? seedValue("48"), unit: nil,
-                               spark: spark(\.hrvWeek, .recovery),
-                               band: usualBand(\.hrvWeek),
-                               skeleton: coldStart)
-            }.buttonStyle(.plain)
-            NavigationLink(value: WellnessPillar.heart) {
-                SignalCardView(rule: LiviqaTheme.accentHeart, icon: "heart.fill",
-                               domain: String(localized: "Heart"),
-                               verdict: heartVerdict,
-                               value: signals?.rhr ?? seedValue("58"),
-                               unit: String(localized: "resting"),
-                               spark: spark(\.rhrWeek, .heart),
-                               band: usualBand(\.rhrWeek),
-                               skeleton: coldStart)
-            }.buttonStyle(.plain)
+            SignalCardView(rule: LiviqaTheme.accentSleep, icon: "moon.fill",
+                           domain: String(localized: "Sleep"),
+                           verdict: sleepVerdict, value: sleepHeadline, unit: nil,
+                           spark: spark(\.sleepWeek, .sleep),
+                           band: usualBand(\.sleepWeek),
+                           skeleton: coldStart,
+                           onOpen: { pushedPillar = .sleep },
+                           onWhy: { seeWhy = signalWhy(.sleep, verdict: sleepVerdict,
+                                                       value: sleepHeadline,
+                                                       series: \.sleepWeek) })
+            SignalCardView(rule: LiviqaTheme.accentGlucose, icon: "drop.fill",
+                           domain: String(localized: "Glucose"),
+                           verdict: glucoseVerdict,
+                           value: signals?.inRange ?? seedValue("61%"),
+                           unit: String(localized: "in range"),
+                           spark: spark(\.inRangeWeek, .glucose),
+                           band: usualBand(\.inRangeWeek),
+                           chip: String(localized: "Zones & TIR"),
+                           skeleton: coldStart,
+                           onOpen: { pushedPillar = .glucose },
+                           onWhy: { seeWhy = signalWhy(.glucose, verdict: glucoseVerdict,
+                                                       value: signals?.inRange ?? seedValue("61%"),
+                                                       series: \.inRangeWeek) })
+            SignalCardView(rule: LiviqaTheme.accentRecovery, icon: "waveform.path.ecg",
+                           domain: String(localized: "Recovery"),
+                           verdict: recoveryVerdict,
+                           value: signals?.hrv ?? seedValue("48"), unit: nil,
+                           spark: spark(\.hrvWeek, .recovery),
+                           band: usualBand(\.hrvWeek),
+                           skeleton: coldStart,
+                           onOpen: { pushedPillar = .recovery },
+                           onWhy: { seeWhy = signalWhy(.recovery, verdict: recoveryVerdict,
+                                                       value: (signals?.hrv ?? seedValue("48")) + " ms",
+                                                       series: \.hrvWeek) })
+            SignalCardView(rule: LiviqaTheme.accentHeart, icon: "heart.fill",
+                           domain: String(localized: "Heart"),
+                           verdict: heartVerdict,
+                           value: signals?.rhr ?? seedValue("58"),
+                           unit: String(localized: "resting"),
+                           spark: spark(\.rhrWeek, .heart),
+                           band: usualBand(\.rhrWeek),
+                           skeleton: coldStart,
+                           onOpen: { pushedPillar = .heart },
+                           onWhy: { seeWhy = signalWhy(.heart, verdict: heartVerdict,
+                                                       value: (signals?.rhr ?? seedValue("58")) + " bpm",
+                                                       series: \.rhrWeek) })
         }
-        .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
+        .navigationDestination(item: $pushedPillar) { MetricDetailView(pillar: $0) }
+    }
+
+    /// FR-XPL-01 — one signal card's decomposition: its number, the real days
+    /// behind it, the own-usual band the sparkline already draws, and the rule
+    /// that picked the verdict word.
+    private func signalWhy(_ domain: SeeWhyExplainer.SignalDomain,
+                           verdict: String, value: String,
+                           series keyPath: KeyPath<TodaySignals, [Double]>) -> SeeWhyExplanation {
+        SeeWhyExplainer.signalCard(
+            domain: domain, verdict: verdict, value: value,
+            series: signals?[keyPath: keyPath] ?? [],
+            band: usualBand(keyPath),
+            hasRealSignals: signals != nil,
+            coldStart: coldStart)
     }
 
     /// "Your usual" band for a signal sparkline — mean ± 1σ of the user's OWN
@@ -798,11 +983,23 @@ struct TodayView: View {
     private var recoveryVerdict: String {
         if coldStart { return "—" }
         guard let s = signals else { return String(localized: "Steady") }
-        return trendingUp(s.hrvWeek, by: 2) ? String(localized: "On the way up")
-                                            : String(localized: "Steady")
+        return trendingUp(s.hrvWeek, by: SeeWhyExplainer.hrvTrendMs)
+            ? String(localized: "On the way up") : String(localized: "Steady")
     }
+    /// FR-XPL-01 honesty fix: this word used to be the constant "Calm" whatever
+    /// the reading said — a verdict that cannot be explained because it was never
+    /// computed. It now reads off the SAME own-usual band the card already draws
+    /// under the sparkline (mean ±1σ of the user's real week — no new
+    /// derivation), and falls back to "Calm" only while no band exists, matching
+    /// the pre-existing behaviour for anyone without four days of readings.
     private var heartVerdict: String {
-        coldStart ? "—" : String(localized: "Calm")
+        if coldStart { return "—" }
+        guard let s = signals, let band = usualBand(\.rhrWeek), let latest = s.rhrWeek.last else {
+            return String(localized: "Calm")
+        }
+        if band.contains(latest) { return String(localized: "Calm") }
+        return latest > band.upperBound
+            ? String(localized: "Above your usual") : String(localized: "Below your usual")
     }
 
     /// Sleep headline for Home — derived from the SAME source the pillar detail uses
@@ -861,6 +1058,10 @@ struct TodayView: View {
                 Text("Sleep well — tomorrow's edition arrives with your morning readings.")
                     .font(.lato(13.5)).lineSpacing(3)
                     .foregroundStyle(LiviqaTheme.ink2)
+                // The evening verdict is the same register as the morning one, so
+                // it opens the same way (FR-XPL-01).
+                SeeWhyChip { seeWhy = heroWhy(closingHeadline) }
+                    .padding(.top, 12)
             }
             Spacer(minLength: 8)
             IrisDayArc(progress: dayProgress, size: 76)
@@ -881,33 +1082,42 @@ struct TodayView: View {
     /// night vs an 8 h reference, glucose is today's time in range, recovery is
     /// today's HRV vs the user's OWN week mean. No model, no opacity — the
     /// legend shows the exact arithmetic (the anti-score-opacity stance).
+    /// The real legs, from the single source that also writes the arithmetic into
+    /// the "See why" sheet (`SeeWhyExplainer.dayScoreLegs`). nil ⇒ seeds/absent.
+    private var dayScoreLegs: [DayScoreLeg]? {
+        if coldStart { return nil }
+        guard let s = signals else { return nil }
+        let priorMean: Double? = s.hrvWeek.count >= 4
+            ? s.hrvWeek.dropLast().reduce(0, +) / Double(s.hrvWeek.count - 1)
+            : nil
+        let legs = SeeWhyExplainer.dayScoreLegs(
+            sleepHours: s.sleepWeek.last,
+            tirPct: s.inRangeWeek.last,
+            hrvLatest: s.hrvWeek.count >= 4 ? s.hrvWeek.last : nil,
+            hrvPriorMean: priorMean)
+        return legs.count >= 2 ? legs : nil   // one domain alone isn't a "day"
+    }
+
+    private func legColor(_ kind: DayScoreLeg.Kind) -> Color {
+        switch kind {
+        case .sleep:    return LiviqaTheme.accentSleep
+        case .glucose:  return LiviqaTheme.accentGlucose
+        case .recovery: return LiviqaTheme.accentRecovery
+        }
+    }
+
     private var dayScoreSegments: [ScoreSegment]? {
         if coldStart { return nil }
-        guard let s = signals else {
+        guard signals != nil else {
             return isDemoData
                 ? [ScoreSegment(name: String(localized: "Sleep"),    val: 42, max: 50, color: LiviqaTheme.accentSleep),
                    ScoreSegment(name: String(localized: "Glucose"),  val: 24, max: 30, color: LiviqaTheme.accentGlucose),
                    ScoreSegment(name: String(localized: "Recovery"), val: 15, max: 20, color: LiviqaTheme.accentRecovery)]
                 : nil
         }
-        var segs: [ScoreSegment] = []
-        if let hours = s.sleepWeek.last {
-            segs.append(ScoreSegment(name: String(localized: "Sleep"),
-                                     val: min(hours / 8, 1) * 50, max: 50,
-                                     color: LiviqaTheme.accentSleep))
+        return dayScoreLegs?.map {
+            ScoreSegment(name: $0.name, val: $0.points, max: $0.max, color: legColor($0.kind))
         }
-        if let tir = s.inRangeWeek.last {
-            segs.append(ScoreSegment(name: String(localized: "Glucose"),
-                                     val: tir / 100 * 30, max: 30,
-                                     color: LiviqaTheme.accentGlucose))
-        }
-        if s.hrvWeek.count >= 4, let hrv = s.hrvWeek.last {
-            let mean = s.hrvWeek.dropLast().reduce(0, +) / Double(s.hrvWeek.count - 1)
-            segs.append(ScoreSegment(name: String(localized: "Recovery"),
-                                     val: min(hrv / max(mean, 1), 1) * 20, max: 20,
-                                     color: LiviqaTheme.accentRecovery))
-        }
-        return segs.count >= 2 ? segs : nil   // one domain alone isn't a "day"
     }
 
     private func scoreCard(_ segs: [ScoreSegment]) -> some View {
@@ -934,6 +1144,16 @@ struct TodayView: View {
                     }
                     .padding(.top, 3)
                 }
+                // The legend already showed the fractions; FR-XPL-01 unifies the
+                // treatment — the same chip as every other verdict, opening the
+                // full arithmetic and naming the 8-hour reference out loud.
+                SeeWhyChip {
+                    seeWhy = SeeWhyExplainer.dayScore(
+                        legs: dayScoreLegs ?? [],
+                        verdict: scoreHeadline(segs, score),
+                        fromRealSignals: signals != nil && dayScoreLegs != nil)
+                }
+                .padding(.top, 9)
             }
         }
         .padding(.horizontal, 17).padding(.vertical, 16)
@@ -1238,8 +1458,42 @@ private struct SignalCardView: View {
     /// Calibrating state (ScrTodayCalibrating): quiet skeleton rows instead of
     /// values — nothing is faked, the shape just says "filling in".
     var skeleton: Bool = false
+    /// Open the pillar detail. The card body is the tap target; the "See why"
+    /// row below it is a SIBLING button, never nested inside this one — nesting
+    /// a control inside a NavigationLink label is exactly how the second target
+    /// stops being reachable.
+    var onOpen: () -> Void = {}
+    /// FR-XPL-01 — open this card's decomposition.
+    var onWhy: () -> Void = {}
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: onOpen) { cardBody }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Opens the \(domain) detail"))
+            // No verdict on a calibrating card ⇒ nothing to explain, so the
+            // affordance stays off rather than opening an empty panel.
+            if !skeleton {
+                SeeWhyChip(action: onWhy)
+                    .padding(.top, 9)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .padding(.top, 12).padding(.bottom, 12)
+        .padding(.leading, 15).padding(.trailing, 11)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(rule)
+                .frame(width: 3)
+                .padding(.vertical, 12)
+        }
+        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 4)
+    }
+
+    private var cardBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
@@ -1298,17 +1552,6 @@ private struct SignalCardView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-        .padding(.top, 12).padding(.bottom, 12)
-        .padding(.leading, 15).padding(.trailing, 11)
-        .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(rule)
-                .frame(width: 3)
-                .padding(.vertical, 12)
-        }
-        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 4)
+        .contentShape(Rectangle())
     }
 }

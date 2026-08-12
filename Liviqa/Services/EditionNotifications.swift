@@ -11,10 +11,13 @@
 //     (UNCalendarNotificationTrigger, daily). Content is a FIXED template below —
 //     built on this phone, carries NO health data, checked against the FR-NDG-06
 //     guard in tests. Tapping deep-links to Today (the edition surface).
-//   • Earned attention → preference stored; NO alert is scheduled. The nudge
-//     engine runs at app refresh (foreground) — there is no background picker
-//     yet, so scheduling one would be theatre. FR-NDG-06 cadence ("at most one a
-//     day") is enforced by the engine when the loop lands (RTM T-NOT-02 open).
+//   • Earned attention → REAL as of 2026-08-13, and lives next door in
+//     EarnedAttention + BackgroundRefresh, not here. It is the one loop that
+//     fires because the numbers earned it rather than because of the clock, so
+//     it needs a background wake (BGAppRefreshTask), a picker and a one-per-day
+//     ledger — none of which belong in this clock-loop file. iOS decides whether
+//     the app is woken at all, so the loop CAN go quiet; every failure mode is
+//     silence, never a stale or invented alert. See BackgroundRefresh's header.
 //   • Care messages / study & consent activity → preference stored; delivery
 //     rides remote push (not APNs-provisioned yet). The study pref IS live in one
 //     real place: PushNotifications gates the foreground banner of research/study

@@ -51,6 +51,8 @@ struct SettingsView: View {
     @State private var showShare          = false
     @State private var showAccount        = false
     @State private var showDelete         = false
+    /// FR-CTX-04 — review/clear the user's own context flags.
+    @State private var showContextFlags   = false
 
     var body: some View {
         ScrollView {
@@ -88,6 +90,9 @@ struct SettingsView: View {
         .sheet(isPresented: $showShare) {
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
+        // FR-CTX-04 — review / end the days marked as travelling, unwell or
+        // off-routine (same surface as the Today entry affordance).
+        .sheet(isPresented: $showContextFlags) { ContextFlagSheet() }
         #if DEBUG
         // Snapshot hooks (A7.2 Area ⑧): with LIVIQA_TAB=settings —
         // LIVIQA_OPEN_ACCOUNT=1 → Account & security; LIVIQA_OPEN_NOTIFS=1 →
@@ -294,6 +299,21 @@ struct SettingsView: View {
                     color: LiviqaTheme.fjordBright,
                     label: String(localized: "Account & security"),
                     detail: appState.session?.email ?? String(localized: "Demo session")
+                )
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            // Context flags (FR-CTX-04) — the days the user marked as
+            // travelling / unwell / off-routine, reviewable and clearable here.
+            Button { showContextFlags = true } label: {
+                settingsNavRow(
+                    icon: "point.topleft.down.to.point.bottomright.curvepath",
+                    color: LiviqaTheme.accentFinance,
+                    label: String(localized: "Days you've marked"),
+                    detail: contextFlagDetail
                 )
                 .background(LiviqaTheme.paper2)
                 .cornerRadius(12)
@@ -747,6 +767,15 @@ struct SettingsView: View {
                 .foregroundStyle(LiviqaTheme.ink3)
                 .kerning(1)
         }
+    }
+
+    /// Honest right-hand detail on the context-flag row: the open flag if there
+    /// is one, else the count of stretches on record, else nothing marked.
+    private var contextFlagDetail: String {
+        if let open = appState.openContextFlags.first { return open.kind.label }
+        let n = appState.contextFlags.count
+        if n == 0 { return String(localized: "None") }
+        return n == 1 ? String(localized: "1 past") : String(localized: "\(n) past")
     }
 
     private var initials: String {

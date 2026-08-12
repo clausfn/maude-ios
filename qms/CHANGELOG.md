@@ -2,6 +2,32 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-108 — Bevel absorb build + vault data-loss fixes + test-debt closure (2026-08-13 overnight, branch `claude/a72-electric-ink`)
+
+CN approved the Bevel absorbs 2026-08-13 (which also cleared FR-REC-03's doc-first gate). Built overnight while CN slept; every decision reserved for CN was left untouched and written up instead. **418 tests / 62 suites PASS** (was 282/51); build green; provenance guard green.
+
+### Two data-loss defects found and fixed in the shipped vault (headline)
+Sent to explain why the sweep saw the vault's failure state, the investigation instead found defects reachable on real devices — both present in build 10.99:
+- **Silent destruction of the document index.** `add()`/`delete()` loaded the encrypted metadata index with `try?` and then saved: a key that could not open the index would start a FRESH one and write it over the old — erasing the only record of the citizen's stored documents. Triggerable on any transient key-read failure (e.g. before first unlock).
+- **Vault relocation.** `LocalUserScope.current()` re-minted an ephemeral UUID per call whenever the Keychain was unusable, so the storage folder moved each launch and documents disappeared from view.
+- **Root cause of the observed symptom** was NOT the Secure Enclave: unsigned QA builds carry no entitlements, so every Keychain call returns `errSecMissingEntitlement (-34018)`. The designed fallback keyed on `SecureEnclave.isAvailable` (true even on simulator, where enclave ops genuinely succeed), so it could never fire — the failure was key STORAGE, not key TYPE.
+- **Fix:** key type (enclave → software P-256) separated from key storage (Keychain → file-based `DeviceKeyFileStore`, atomic, `NSFileProtectionComplete`, backup-excluded, hashed names), chosen once per provisioning so device key and wrapped DEK can never come from different stores. **Never re-keys**; refuses to write over an unreadable index. Four honest access states (`ready` / `lockedUntilDeviceUnlock` / `keyUnavailable` / `sealedDataUnreadable`) — the "unreadable" message now appears ONLY when sealed data genuinely cannot be opened, and the UI's encryption sentence follows `KeyVault.protection` exactly (no key claim at all before provisioning). RISK: **RK-VAULT-02**.
+- **Deliberate dead end, for CN:** `sealedDataUnreadable` cannot add documents, because auto-re-keying would destroy data. Recommend an explicit, consented "start a new encrypted space" action behind a two-step confirm — NOT built (destructive; needs CN's design call + a QMS row).
+
+### App-switcher privacy leak (found by writing T-SEC-07)
+The lock engaged on `.background` only, so the snapshot iOS takes on `.inactive` could contain the citizen's readings in the app switcher. Added `AppPrivacyCover` on `.inactive` — a cover, never a prompt, so a system alert or share sheet costs no Face ID round-trip; the real lock still runs on background→active. Pinned by `inactiveCoversTheAppSwitcherSnapshotWithoutPrompting`.
+
+### Bevel absorbs (CN-approved top-5)
+- **③ FR-CTX-04 context status flag** — travelling / unwell / off-routine, stored on device, wiped by erase. `NudgeEngine` gate suppresses baseline-deviation streams while marked; **tests prove the marked-day output is a strict SUBSET of the unmarked output**, so the flag can never create or escalate a nudge. AFib route-to-clinician and the resting-HR number deliberately survive suppression. Today shows an honest "calibrating around your trip" register instead of a second card; marked days render NEUTRAL (flat slate + hatch) in the week grid and are excluded from the cluster-day pick. 13 tests (T-CTX-04). RISK: RK-CTX-01.
+- **④ FR-REC-03 any-lab import** — PDFKit text layer first, Vision OCR fallback, conservative analyte allow-list with explicit refusal (never guesses), unit normalisation to canonical units, review-before-save, and framing against the citizen's OWN prior value — never a population reference range (that would be a `clinicalNormality` violation). 20 tests.
+- **② FR-XPL-01 universal see-why + method notes** — `SeeWhyHeroRow`/`seeWhySheet` across the metric screens with the decomposition in the user's own terms; published method notes in the Learn tier; the HRV learn entry points Area ⑨ could not reach are now wired.
+- **⑤ FR-NOT-02 micro-loops** — content stays allow-listed and built on device.
+- **① FR-WID-01** — source + `LiviqaWidgets/SETUP.md` prepared; `project.pbxproj` untouched per repo rule, so the two Widget-Extension targets remain a short Xcode-GUI task for CN.
+
+### Test debt closed (49 new tests, every assertion mutation-checked)
+`SundhedSinkTests` (T-SUND-01, 8) · `HealthRecordStoreTests` (T-REC-01/02, 12) · `ResearchContributionTests` (T-RSCH-05, 8) · `AppLockTests` (T-SEC-07, 12) · `ConsultShareTests` (T-PRO-01, 9) + shared `SourceLint` helpers that skip comments (the Sundhed files *document* the removed upload path — a naive grep would match its own history). The source was broken five ways to confirm each test fails, then reverted byte-exact. **All five guarantees held.** Two fragilities surfaced and are now guarded: `ensureCoveringGrant` is dead code one `await` from restoring automatic upload; the consult share's summaries-only granularity comes from a `??` default two layers below the consent surface (holds on the wire, asserted via a `URLProtocol` stub, but the consent surface should state it explicitly).
+- **Release chain hardened:** `scripts/archive_upload.sh` did not run `guard_provenance.sh` — the release path was weaker than the dev path. Added as a blocking pre-archive step; verified that `archive_upload_isolated.sh` (the real headless path) delegates to it, so the shipping chain is now covered.
+- `qms/VnV.md` updated; the stale "gaps to author" list is superseded.
 ## RELEASE build 10.99 — A7.2 full-screen app to TestFlight (2026-08-13, develop `6255b06` + version bump; CN directive "ship 10.99")
 
 First TestFlight build carrying the complete A7.2 designed application (PR-105 reskin + PR-106 Home/Insights anatomy + PR-107 waves 1–4, all nine areas). Supersedes 10.70 as the newest internal build; the 10.71–10.98 wave never reached TestFlight.

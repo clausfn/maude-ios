@@ -177,3 +177,31 @@ Named test gaps recorded in RTM (PR-104 rows, to author): **T-SUND-01**
 (extraction fixtures), **T-REC-01** (record-store ingest/dedup), **T-REC-02**
 (tiering presentation-only), **T-RSCH-05** (contribution explicit-only) — plus
 the still-open PR-102 gaps (T-DEL-01, T-RSCH-01, T-CONSENT-REACT-01).
+
+## 2026-08-13 — named test gaps CLOSED (PR-107 overnight)
+
+The four PR-104 gaps above are **authored and green**, together with two ids
+promised by the A7.2 build waves: `SundhedSinkTests` (T-SUND-01, 8),
+`HealthRecordStoreTests` (T-REC-01/02, 12), `ResearchContributionTests`
+(T-RSCH-05, 8), `AppLockTests` (T-SEC-07, 12), `ConsultShareTests`
+(T-PRO-01, 9) — 49 new tests, plus `SourceLint.swift` shared helpers whose
+code-line walker skips comments (the Sundhed files *document* the removed
+upload path, so a naive grep would have matched its own history).
+
+**Every assertion was mutation-checked**: the source was broken five ways
+(covering grant restored to the import save; `source` dropped from the dedup
+predicate; client granularity default `summary`→`raw`; `.deviceOwnerAuthentication`
+→ biometrics-only; contribution added to an `.onAppear`), the intended tests
+were confirmed to FAIL, then the source was reverted byte-exact and re-run green.
+**All five guarantees held** — no gap was papered over.
+
+Residual, kept honest: T-SUND-01 covers the terminal SINK, not the extraction
+fixtures (FR-ING-14 row still open on that); FR-REC-01's store-open fallback is
+covered by construction + the Home banner only.
+
+Two fragilities surfaced by writing the tests, both now guarded but worth
+hardening: `ensureCoveringGrant` is dead code in both Sundhed paths (zero call
+sites, one `await` from restoring automatic upload), and the consult share's
+summaries-only granularity is supplied by a `??` default two layers below the
+consent surface (`AppState` passes `nil`) — it holds ON THE WIRE (asserted via a
+`URLProtocol` stub) but the consent surface should state it explicitly.

@@ -33,6 +33,13 @@ if [ -n "${ASC_KEY_ID:-}" ] && [ -n "${ASC_ISSUER_ID:-}" ] && [ -n "${ASC_KEY_PA
         -authenticationKeyIssuerID "$ASC_ISSUER_ID")
 fi
 
+# T-PROV-01 — provenance-never-renders guard. BLOCKING, PRE-ARCHIVE: `set -e`
+# aborts before anything is built. The dev chain (build-ios.sh) has run this
+# since 2026-07-03; the RELEASE chain must never be the weaker of the two —
+# a Release archive is exactly where an un-guarded regression would ship.
+echo "▸ Verifying provenance-never-renders guard before archiving…"
+bash scripts/guard_provenance.sh Liviqa
+
 echo "▸ Archiving (Release, automatic signing, provisioning updates allowed)…"
 xcodebuild -scheme Liviqa -configuration Release \
   -destination 'generic/platform=iOS' \

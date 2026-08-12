@@ -16,8 +16,28 @@ struct NudgeDetailView: View {
     @State private var showShare = false
     /// UC-19 / FR-PMS-01 — the report-a-wrong-nudge sheet.
     @State private var showReport = false
+    /// FR-XPL-01 — the same "See why" disclosure the rest of the app uses. The
+    /// N·r·p row below stays exactly where it was; this adds the plain-language
+    /// reading of it, and the deep link to the published evidence gate.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var ev: NudgeEvidence? { nudge.evidence }
+
+    /// The evidence row, said in words rather than chips.
+    private func evidenceWhy(_ verdict: String) -> SeeWhyExplanation {
+        guard let ev else {
+            return SeeWhyExplanation(
+                id: "nudge.evidence", surface: String(localized: "Insight · the evidence"),
+                verdict: verdict,
+                unexplained: String(localized: "This insight carries no evidence record, so there are no figures to take apart. If it reads like a claim about your health, report it — that route is at the bottom of this screen."),
+                method: .evidenceGate)
+        }
+        return SeeWhyExplainer.nudge(
+            verdict: verdict, n: ev.n, nUnit: ev.nUnit,
+            baselineDays: ev.baselineDays, r: ev.r, pText: ev.p,
+            isGated: ev.confidence != .learning,
+            baselineNeeded: ev.baselineNeeded)
+    }
 
     var body: some View {
         ScrollView {
@@ -48,6 +68,7 @@ struct NudgeDetailView: View {
         .sheet(isPresented: $showReport) {
             ReportNudgeView(nudge: nudge)
         }
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
@@ -111,6 +132,10 @@ struct NudgeDetailView: View {
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // FR-XPL-01 — the universal affordance, in the same place it sits on
+            // every other verdict: directly under the sentence it explains.
+            SeeWhyChip { seeWhy = evidenceWhy(ev?.headline ?? nudge.body) }
 
             // 03 — the lever, named
             if let lever = ev?.lever {
@@ -269,6 +294,9 @@ struct NudgeDetailView: View {
                 .font(.lato(14)).lineSpacing(3)
                 .foregroundStyle(LiviqaTheme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // Refusing to assert is itself a decision, so it explains itself too.
+            SeeWhyChip { seeWhy = evidenceWhy(ev.headline ?? nudge.body) }
 
             BaselineProgressBar(
                 label: "Baseline progress",

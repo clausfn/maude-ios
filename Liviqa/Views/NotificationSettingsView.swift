@@ -91,9 +91,11 @@ struct NotificationSettingsView: View {
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
 
                 // Honest status line (not in the canvas, required by the honesty
-                // rail): morning/evening notes are scheduled on this phone today;
-                // the other three apply when their channels launch.
-                Text("Morning and evening notes are scheduled on this phone. Earned attention, care and study alerts apply when those channels launch.")
+                // rail). Updated 2026-08-13 with the earned-attention loop: it is
+                // now REAL, but iOS — not Liviqa — decides whether the app gets to
+                // wake, so the promise is deliberately "may go quiet", never
+                // "every day". Care and study alerts remain preference-only.
+                Text("Morning and evening notes are scheduled on this phone. Earned attention is worked out here too, when iOS lets the app wake between 09:00 and 20:00 — some days it will not, and then you simply hear nothing. Care and study alerts apply when those channels launch.")
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink4)
                     .multilineTextAlignment(.center)
@@ -113,7 +115,9 @@ struct NotificationSettingsView: View {
         // prompts once; afterwards this is a no-op.
         .onChange(of: morningOn) { _, on in prefsChanged(requestPermission: on) }
         .onChange(of: eveningOn) { _, on in prefsChanged(requestPermission: on) }
-        .onChange(of: earnedOn)  { _, _  in prefsChanged(requestPermission: false) }
+        // Earned attention has a real switch behind it now: turning it on asks
+        // iOS for the opportunistic wake, turning it off withdraws the request.
+        .onChange(of: earnedOn)  { _, on in prefsChanged(requestPermission: on) }
         .onChange(of: careOn)    { _, _  in prefsChanged(requestPermission: false) }
         .onChange(of: studyOn)   { _, _  in prefsChanged(requestPermission: false) }
     }
@@ -121,6 +125,9 @@ struct NotificationSettingsView: View {
     private func prefsChanged(requestPermission: Bool) {
         if requestPermission { appState.requestPushAuthorization() }
         EditionNotifications.resync()
+        // FR-NOT-02: (re)arm or cancel the background wake that decides, off
+        // session, whether one thing today earned an interruption.
+        BackgroundRefresh.schedule()
     }
 
     // MARK: — One ladder row

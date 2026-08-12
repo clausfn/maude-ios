@@ -16,6 +16,50 @@ public enum CryptoError: Error, Equatable {
     case enclaveUnavailable
     case keychain(OSStatus)
     case malformedWrappedKey
+    /// Key material for this app EXISTS on this device but cannot be used by it
+    /// (a wrapped DEK whose device key is gone, or a device-key blob this
+    /// hardware can't load — e.g. a Secure-Enclave blob after a restore).
+    /// Distinct from "no key yet": the caller must NOT mint a replacement,
+    /// because doing so would silently orphan data that is still on disk.
+    case sealedKeyUnreadable
+    /// No key could be provisioned AND none exists — nothing is at risk, the
+    /// caller may retry or start fresh.
+    case keyMaterialUnavailable
+}
+
+/// Classification of key-provisioning failures. The two classes demand very
+/// different, honest UI: `isDeviceLocked` is recoverable by unlocking the phone
+/// and must never trigger a re-key; `isStorageUnusable` means this build simply
+/// cannot reach the Keychain (an unsigned simulator build carries no
+/// `application-identifier`, so every Keychain call returns -34018) and a
+/// device-local file fallback is legitimate.
+public enum KeyFailure {
+
+    /// Key material is temporarily out of reach: the device has not been
+    /// unlocked since boot, or a user-presence gate was not satisfied. Nothing
+    /// is lost; retry after unlock.
+    public static func isDeviceLocked(_ error: any Error) -> Bool {
+        if let c = error as? CryptoError, case .keychain(let status) = c {
+            return status == errSecInteractionNotAllowed || status == errSecAuthFailed
+        }
+        // Reading an NSFileProtectionComplete file before first unlock.
+        let ns = error as NSError
+        if ns.domain == NSCocoaErrorDomain {
+            return ns.code == NSFileReadNoPermissionError || ns.code == NSFileWriteNoPermissionError
+        }
+        if ns.domain == NSPOSIXErrorDomain { return ns.code == Int(EPERM) || ns.code == Int(EACCES) }
+        return false
+    }
+
+    /// The Keychain itself cannot serve this process at all — not "the item is
+    /// missing", not "the device is locked". Seen on unsigned builds
+    /// (`errSecMissingEntitlement`) and when the Keychain is unavailable.
+    public static func isStorageUnusable(_ error: any Error) -> Bool {
+        guard let c = error as? CryptoError, case .keychain(let status) = c else { return false }
+        // NB: errSecInteractionNotAllowed is deliberately NOT here — a locked
+        // device is a wait, not a reason to move key material somewhere else.
+        return status == errSecMissingEntitlement || status == errSecNotAvailable
+    }
 }
 
 // MARK: - AES-256-GCM box

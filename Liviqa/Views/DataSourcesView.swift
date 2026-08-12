@@ -33,6 +33,7 @@ struct DataSourcesView: View {
     @State private var showVault = false
     @State private var showSundhedWeb = false        // live in-app MitID connect (Path A)
     @State private var showSundhedImport = false     // Path B — PDF/file export import
+    @State private var showLabImport = false         // FR-REC-03 — any-lab PDF/photo import
     @State private var showDisconnectSheet = false
     @State private var manualKind: ManualReadingKind?
     @State private var connecting = false
@@ -73,6 +74,7 @@ struct DataSourcesView: View {
                 connectedCard
                 addTheseCard
                 manualEntryCard
+                labImportCard
                 sundhedSection
                 disconnectCard
                 onDeviceStrip
@@ -119,6 +121,7 @@ struct DataSourcesView: View {
             }
         }
         .navigationDestination(isPresented: $showSundhedImport) { SundhedImportView() }
+        .navigationDestination(isPresented: $showLabImport) { LabReportImportView() }
         .fileImporter(isPresented: $showVaultImporter,
                       allowedContentTypes: [.pdf, .image, .plainText, .data],
                       allowsMultipleSelection: false) { result in
@@ -338,6 +341,48 @@ struct DataSourcesView: View {
         .background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+    }
+
+    // MARK: - Any-lab report import (FR-REC-03)
+
+    /// Works with ANY lab's paperwork, not just Sundhed.dk: the file is read on
+    /// this device (PDF text layer, or Vision text recognition for a photo) and
+    /// every recognised result is reviewed before a single row is saved.
+    private var labImportCard: some View {
+        Button { showLabImport = true } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 11) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(LiviqaTheme.moss2)
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "doc.text.viewfinder")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(LiviqaTheme.moss)
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Import a lab report")
+                            .font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink)
+                        Text("Any lab · PDF or photo")
+                            .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+                }
+                Text("Blood work from a private clinic, a hospital letter, a printout from abroad. Liviqa reads it on this phone, shows you every value it found — and what it couldn't read — and saves only what you approve, next to your own last result.")
+                    .font(.lato(12.5)).lineSpacing(2.5)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Sundhed.dk (live rows, or the lawful-basis gate when flagged off)

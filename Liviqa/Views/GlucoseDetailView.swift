@@ -24,6 +24,8 @@ struct GlucoseDetailView: View {
     /// red re-stroke + in-chart target label (same clinical anatomy).
     @AppStorage("clinicalTIRZones") private var clinicalTIRZones = true
     @State private var showShare = false
+    /// FR-XPL-01 — the hero verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: GlucoseWeekDetail? { appState.glucoseDetail }
 
@@ -36,6 +38,7 @@ struct GlucoseDetailView: View {
 
                 if let model {
                     hero(model)
+                    SeeWhyHeroRow { seeWhy = glucoseWhy(model) }
                     tirCard(model)
                     if let todayHeadline = model.todayHeadline, model.todayValues.count > 1 {
                         todayCard(model, headline: todayHeadline)
@@ -60,9 +63,25 @@ struct GlucoseDetailView: View {
             // The real multi-step share flow (same presentation as Settings/Week).
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed. This is the ONE screen whose band is a shared
+    /// clinical target rather than the user's own usual, and the disclosure says
+    /// so in as many words rather than letting it pass as "your range".
+    private func glucoseWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.glucoseHero(
+            verdict: m.verdict,
+            inRangePct: m.statPct,
+            prevWeekPct: detail?.prevWeekInRangePct,
+            avgMmol: detail?.avgMmol ?? 0,
+            gmiPct: detail?.gmiPct,
+            dayCount: m.days.count,
+            source: detail?.source,
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model (derived figures → fixed descriptive templates)

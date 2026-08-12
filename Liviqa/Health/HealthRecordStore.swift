@@ -30,7 +30,7 @@ import SwiftData
 public enum HealthDataSource: String, Codable, CaseIterable, Sendable {
     case sundhedLive        // Path A — in-app MitID extraction
     case sundhedPdf         // Path B — Sundhed.dk PDF / text import
-    case paperScan          // future — paper print / OCR
+    case paperScan          // any-lab PDF/photo import (FR-REC-03, on-device Vision OCR)
     case healthKit          // future — Apple Health labs
     case manual             // entered by the citizen
     case other              // any future integration (name it via sourceDetail)
@@ -40,7 +40,7 @@ public enum HealthDataSource: String, Codable, CaseIterable, Sendable {
         switch self {
         case .sundhedLive: return "Sundhed.dk"
         case .sundhedPdf:  return "Sundhed.dk file"
-        case .paperScan:   return "Scanned"
+        case .paperScan:   return "Lab report you imported"
         case .healthKit:   return "Apple Health"
         case .manual:      return "Entered by you"
         case .other:       return "Imported"
@@ -226,6 +226,22 @@ struct HealthStore {
         return best.values.sorted {
             HealthDisplay.labName(for: $0.scopeKey) < HealthDisplay.labName(for: $1.scopeKey)
         }
+    }
+
+    /// The newest stored reading for one scopeKey STRICTLY BEFORE `date`, across
+    /// sources. Used by the any-lab import (FR-REC-03) to frame a freshly read
+    /// result against the citizen's OWN previous value — never a population band.
+    /// Returns nil when there is no earlier reading, and the caller says so
+    /// plainly rather than inventing a comparison.
+    func priorObservation(scopeKey: String, before date: Date) -> HealthObservation? {
+        let all = (try? context.fetch(FetchDescriptor<HealthObservation>())) ?? []
+        return all
+            .filter { $0.scopeKey == scopeKey && $0.effectiveDate < date }
+            .max { a, b in
+                a.effectiveDate == b.effectiveDate
+                    ? a.importedAt < b.importedAt
+                    : a.effectiveDate < b.effectiveDate
+            }
     }
 
     /// All conditions (multi-source rows coexist), sorted by code then source.
@@ -414,6 +430,12 @@ enum HealthDisplay {
         "sodium":            "Sodium",
         "crp":               "CRP",
         "tsh":               "TSH",
+        // Any-lab import keys (FR-REC-03) with no catalog var yet — shown to the
+        // citizen, excluded from the coded research payload by knownCatalogVars.
+        "triglycerides":     "Triglycerides",
+        "ferritin":          "Ferritin",
+        "vitamin_d":         "Vitamin D",
+        "vitamin_b12":       "Vitamin B12",
         // Manual-entry keys (Data sources → "Type readings in yourself").
         "weight":            "Weight",
         "systolic_bp":       "Blood pressure (systolic)",

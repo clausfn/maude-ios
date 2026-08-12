@@ -169,6 +169,10 @@ struct TrendsView: View {
                     bandLo: r.tirBandLo, bandHi: r.tirBandHi,
                     todayAnnotation: r.tirTodayPct.map { String(localized: "\($0)% today") },
                     startLabel: r.tirStartLabel)
+                if markedCount(r) > 0 {
+                    contextStrip(markedCount(r))
+                        .padding(.top, 12)
+                }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -183,12 +187,62 @@ struct TrendsView: View {
         }
     }
 
+    // MARK: - Context flags (FR-CTX-04) — marked days stay in, read neutral
+
+    /// Every calendar day of the selected window (today back `windowDays - 1`).
+    /// Exact by construction: the window is defined by the range itself, so no
+    /// day is inferred from the chart series.
+    private func windowDays(_ r: TrendsRange) -> [Date] {
+        let cal = ContextWindow.calendar
+        let today = cal.startOfDay(for: Date())
+        return (0..<r.windowDays).compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+    }
+
+    private func markedCount(_ r: TrendsRange) -> Int {
+        let windows = appState.contextWindows
+        guard !windows.isEmpty else { return 0 }
+        return ContextFlagDeriver.markedCount(among: windowDays(r), in: windows)
+    }
+
+    /// True when TODAY is marked. Used to hold back the "lately…" tail on the
+    /// hero sentence — the only place that sentence makes a deviation claim,
+    /// and it reads the last charted day, which is today exactly when
+    /// `tirTodayPct` is non-nil.
+    private func todayIsMarked(_ r: TrendsRange) -> Bool {
+        r.tirTodayPct != nil
+            && ContextFlagDeriver.isMarked(Date(), in: appState.contextWindows)
+    }
+
+    /// Honest annotation, not a redraw: the bars stay exactly as recorded, and
+    /// the line says what marking did and did not change. Slate, hatched —
+    /// never an alarm colour.
+    private func contextStrip(_ count: Int) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(LiviqaTheme.accentFinance.opacity(0.16))
+                .frame(width: 12, height: 12)
+                .overlay {
+                    ZoneHatch(color: LiviqaTheme.accentFinance.opacity(0.55))
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                }
+                .padding(.top, 1)
+            Text(count == 1
+                 ? String(localized: "One day in this window is marked. It stays in the figures exactly as recorded — Liviqa just doesn't read it as a drift from your usual.")
+                 : String(localized: "\(count) days in this window are marked. They stay in the figures exactly as recorded — Liviqa just doesn't read them as drifts from your usual."))
+                .font(.lato(11.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     /// Fixed descriptive templates only — the verdict tail renders only when a
     /// personal band exists to compare against.
     private func tirHeadline(_ r: TrendsRange) -> String {
         let pct = r.tirPeriodPct
         let period = range.periodWord
-        guard let lo = r.tirBandLo, let hi = r.tirBandHi, let recent = r.tirDaily.last else {
+        guard let lo = r.tirBandLo, let hi = r.tirBandHi, let recent = r.tirDaily.last,
+              !todayIsMarked(r) else {
             return String(localized: "In range \(pct)% of this \(period).")
         }
         if recent < lo {

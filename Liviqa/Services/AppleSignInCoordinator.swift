@@ -1,9 +1,11 @@
 // AppleSignInCoordinator.swift — FR-AUTH-01: runs the native Sign in with Apple
 // flow (ASAuthorizationController) and returns the Apple identity token + the RAW
-// nonce. The token goes to Ory's OIDC-native `oidc` method; Ory verifies the
-// token's hashed nonce against `id_token_nonce` (the raw value we return here),
-// which is the replay protection. Tokens themselves never touch UserDefaults —
-// the resulting Ory session token is Keychained by SessionTokenStore (NFR-SEC-01).
+// nonce. The token goes to GoTrue's native id_token grant
+// (`POST /auth/v1/token?grant_type=id_token`, via SupabaseAuthClient.loginWithApple);
+// GoTrue verifies the SHA-256 of the raw nonce returned here against the nonce
+// Apple signed into the id_token, which is the replay protection. Tokens
+// themselves never touch UserDefaults — the resulting GoTrue access + refresh
+// tokens are Keychained by SessionTokenStore (NFR-SEC-01).
 import Foundation
 import AuthenticationServices
 import CryptoKit

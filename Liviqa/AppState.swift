@@ -161,6 +161,11 @@ final class AppState {
     var journalEntries:  [JournalEntry] = []
     var journalSyncEnabled: Bool        = false
 
+    // Context flags (FR-CTX-04) — the user's own "life explains this" markers.
+    // Device-local (ContextFlagStore), restored at launch, wiped by deleteAllData.
+    // Their ONLY effect on the engine is suppression (see NudgeEngine).
+    var contextFlags: [ContextFlag] = ContextFlagStore.load() ?? []
+
     // Data sources & backup
     var backupPreference: BackupPreference    = .onDevice
     var connectedSources: [DataSourceConnection] = ColdStart.connectedSources
@@ -218,6 +223,12 @@ final class AppState {
         NotificationCenter.default.addObserver(forName: .liviqaResearchReceived, object: nil, queue: .main) { _ in
             Task { @MainActor [weak self] in self?.handleResearchReceived() }
         }
+        // FR-NOT-02: an earned-attention alert was tapped → open that nudge's
+        // evidence view (the shown work), not just the app.
+        NotificationCenter.default.addObserver(forName: .liviqaOpenAttention, object: nil, queue: .main) { note in
+            let tag = note.object as? String
+            Task { @MainActor [weak self] in self?.handleAttentionTap(tag: tag) }
+        }
         // Declared health profile (About you) — restore the device-local store so
         // ProfileSheet edits survive relaunch (A7.2 Area ⑧; saved on Save there).
         if let stored = HealthContextStore.load() {
@@ -261,6 +272,36 @@ final class AppState {
         // handleResearchReceived() is a no-op (demo payload is DEBUG-only), so this
         // stays closed and the fabricated demo study is never presented.
         if researchOpportunity != nil { showStudyConsent = true }
+    }
+
+    // MARK: - FR-NOT-02 earned-attention deep link
+
+    /// Headline of the nudge an earned-attention alert was about, kept until a
+    /// matching card exists in the feed. Set on tap; a cold launch from the
+    /// notification arrives BEFORE `refreshFromHealth` has rebuilt the feed, so
+    /// the link is resolved again once it has.
+    private var pendingAttentionTag: String?
+
+    /// The card an earned-attention tap should open (its evidence view — the
+    /// shown work). MainTabView observes this and clears it.
+    var attentionDeepLink: Nudge?
+
+    /// An earned-attention alert was tapped. Nil tag ⇒ just open the edition.
+    @MainActor
+    func handleAttentionTap(tag: String?) {
+        pendingAttentionTag = tag
+        resolveAttentionDeepLink()
+    }
+
+    /// Match the pending headline against the live feed. No match ⇒ nothing is
+    /// invented: the tap simply lands on the edition, and the link stays pending
+    /// until the feed is rebuilt.
+    @MainActor
+    func resolveAttentionDeepLink() {
+        guard let tag = pendingAttentionTag else { return }
+        guard let match = nudges.first(where: { $0.tag == tag && !$0.dismissed }) else { return }
+        pendingAttentionTag = nil
+        attentionDeepLink = match
     }
 
     /// Store the APNs token and push it to the backend (when signed in).
@@ -483,6 +524,9 @@ final class AppState {
         //     FR-JRN-04) — both device-local, both personal data.
         HealthContextStore.delete()
         VoiceNoteAudioStore.deleteAll()
+        // 2c-ii. Context flags (FR-CTX-04) — the user's own notes about their own
+        //        life (travelling / unwell / off-routine) are personal data too.
+        ContextFlagStore.delete()
         // 2d. Encrypted document store ("Health data space", FR-ING-15) — the
         //     blobs and their metadata index are removed from disk. The
         //     "Keep documents, erase the rest" path (ScrDeleteData, Area ⑧)
@@ -529,7 +573,64 @@ final class AppState {
         healthObservations = []
         healthConditions   = []
         healthMedications  = []
+        contextFlags       = []
         researchContributed = false
+    }
+
+    // MARK: - Context flags (FR-CTX-04) — declared by the user, suppression-only
+
+    /// The flag covering today, if the user has marked it. Drives the Today
+    /// register and the neutral chart treatment; it never changes a number.
+    var activeContextFlag: ContextFlag? {
+        contextFlags
+            .filter { $0.covers(Date()) }
+            .max { $0.startedOn < $1.startedOn }
+    }
+
+    /// Flags whose stretch is still open (no end day recorded).
+    var openContextFlags: [ContextFlag] {
+        contextFlags.filter(\.isOpen).sorted { $0.startedOn > $1.startedOn }
+    }
+
+    /// The engine-facing projection — kind + dates only. The user's note has no
+    /// representation here, by construction (see ContextFlag / ContextWindow).
+    var contextWindows: [ContextWindow] { contextFlags.map(\.window) }
+
+    /// Start marking from today. Any stretch that is still open is closed
+    /// yesterday first, so two stretches can never claim the same day.
+    @MainActor
+    func markContext(_ kind: ContextFlagKind, note: String? = nil, now: Date = Date()) {
+        let cal = ContextWindow.calendar
+        let today = cal.startOfDay(for: now)
+        let yesterday = cal.date(byAdding: .day, value: -1, to: today) ?? today
+        for i in contextFlags.indices where contextFlags[i].isOpen {
+            contextFlags[i].endedOn = max(contextFlags[i].startedOn, yesterday)
+        }
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        contextFlags.append(ContextFlag(kind: kind, startedOn: today,
+                                        note: (trimmed?.isEmpty == false) ? trimmed : nil))
+        persistContextFlags()
+    }
+
+    /// End a stretch today (today stays marked — the user lived it).
+    @MainActor
+    func endContextFlag(_ id: UUID, now: Date = Date()) {
+        guard let i = contextFlags.firstIndex(where: { $0.id == id }) else { return }
+        let today = ContextWindow.calendar.startOfDay(for: now)
+        contextFlags[i].endedOn = max(contextFlags[i].startedOn, today)
+        persistContextFlags()
+    }
+
+    /// Remove a stretch entirely — the user's record of their own life, theirs
+    /// to delete. Nothing derived is retained from it.
+    @MainActor
+    func removeContextFlag(_ id: UUID) {
+        contextFlags.removeAll { $0.id == id }
+        persistContextFlags()
+    }
+
+    private func persistContextFlags() {
+        ContextFlagStore.save(contextFlags)
     }
 
     // MARK: - GDPR rights (Art. 20 export · Art. 17 erase) — T1 TestProd wave
@@ -788,9 +889,16 @@ final class AppState {
             #else
             let demoPatternsAllowed = false
             #endif
+            // FR-CTX-04: the days the user marked, projected to kind + dates.
+            // Handed to the engine as a SUPPRESSION gate only — it can remove
+            // baseline-deviation nudges for a marked day, never add or raise one.
+            let contextWindows = self.contextWindows
             let d = await Task.detached(priority: .userInitiated) { () -> DerivedHealth in
                 DerivedHealth(
-                    engineNudges: NudgeEngine().generate(samples: samples),
+                    // FR-NOT-02: the ONE seam to the engine. The background
+                    // earned-attention wake calls NudgeRun too, so the off-session
+                    // loop can never drift from what the app shows on screen.
+                    engineNudges: NudgeRun.nudges(from: samples, context: contextWindows),
                     patternFindings: (real || !demoPatternsAllowed) ? [] : PatternEngine.run(.lv001),
                     passport: PassportStatsDeriver.derive(from: samples),
                     grid: CorrelationDeriver.derive(from: samples),
@@ -822,6 +930,10 @@ final class AppState {
             if !real, !d.patternFindings.isEmpty {   // DEBUG demo provider only
                 nudges.append(contentsOf: d.patternFindings.map { Nudge(finding: $0) })
             }
+            // FR-NOT-02: a cold launch from an earned-attention alert lands here
+            // before the feed exists — now that it does, open the card the alert
+            // was about. No match ⇒ stays on the edition (nothing is invented).
+            resolveAttentionDeepLink()
             // FR-PAS-05 / DM-05: refresh the derived half of the Passport from
             // the same on-device samples (the count half comes from app state).
             passportStats = PassportStats.compose(

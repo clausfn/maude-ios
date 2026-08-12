@@ -2,6 +2,361 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## FR-XPL-01 — universal "See why" + published method notes (Bevel absorb ②, 2026-08-13)
+
+This change adds a new user-facing generated-text surface on top of **every**
+verdict the app prints, and publishes the app's decision rules in the Learn tier.
+It is a safety-path change on two counts: new output copy (FR-NDG-06 territory),
+and the fact that an explanation makes a verdict feel more authoritative than the
+verdict alone. Three hazards were considered.
+
+**RK-XPL-01a — the explanation reads as a clinical justification.** A panel
+headed "the arithmetic" invites the user to treat the number as clinically
+meaningful. Controls:
+
+- **Every string is a fixed template in `SeeWhyExplainer` (pure Foundation) and
+  every one of them goes through `NudgeGuard`** — the same designated control the
+  engine's output passes. `SeeWhyExplainerTests.everyDisclosureTemplatePassesNudgeGuard`
+  sweeps >40 explanations across every builder and every branch (surface, verdict
+  echo, row labels and values, honest-absence copy, footer). Nothing on this
+  surface is composed at runtime; the figures are substituted into frozen text.
+- **The verbatim personal-baseline footer is carried on every disclosure**
+  ("compares you only to yourself · not a diagnostic measure"), asserted by test.
+- **A banned-phrase test** additionally rejects "normal range", "healthy range",
+  "reference range", "percentile", "average person" and "compared to others" —
+  belt-and-braces over the guard, because this panel is where population framing
+  would be most tempting to reach for.
+- **The disclosure is moss (trust), never clay or clinical red.** An explanation
+  is not an alarm, and the colour rails say so.
+
+**RK-XPL-01b — a plausible-sounding explanation is invented for a figure that was
+never derived.** The dangerous failure here is not silence: it is a confident
+decomposition of a demo seed or a still-calibrating window. Controls:
+
+- **`SeeWhyExplanation` cannot hold both rows and an absence** — its initialiser
+  drops the rows whenever `unexplained` is set, so an honest state can never leak
+  half a decomposition. `sampleDataExplainsItselfWithNoRows` and
+  `coldStartSaysThereIsNothingToExplainYet` pin it.
+- **No new derivation exists in this feature.** Every builder takes figures the
+  derivers already produced; nothing in the file reads `HealthSamples`. A thin
+  series (<4 days) refuses to split the week rather than inventing halves; a band
+  that has not been learned is named as absent rather than approximated.
+- **One source for the verdict and its explanation.** `todayTone` and
+  `dayScoreLegs` moved into the explainer and TodayView now calls them, so the
+  sentence on the screen and the arithmetic in the sheet are chosen by the same
+  function and cannot drift apart.
+- **Two honesty fixes fell out of applying the rule.** The Home Heart card's
+  verdict word was the constant "Calm" regardless of the reading — a verdict with
+  no derivation behind it — and now reads off the same own-usual band the card
+  already draws. `MetricDetailView`'s canned recovery observation ("higher meeting
+  load and later meals") was rendering over real readings and is now gated to the
+  illustrative values it was written for.
+
+**RK-XPL-01c — a shared reference passes as "your usual".** Liviqa is
+personal-baseline-relative except in two places, and an explanation that quietly
+omitted them would be worse than no explanation. Controls:
+
+- **The 70% time-in-range mark is labelled as a shared clinical mark** wherever it
+  decides a word (Home hero, Home glucose card, glucose detail), with the
+  sentence "everything else compares you to you" alongside it.
+- **The 8-hour sleep leg of the evening score is named as a fixed reference**, in
+  the disclosure and again in the published `day-score` method note; the sleep
+  detail's rest/depth legs name their fixed references (8 h, 35% deep-and-REM
+  share) the same way. `dayScoreSheetAddsUpAndNamesTheFixedReference` asserts it.
+- **The evidence gate is published as the code applies it** (|r| ≥ 0.40, p ≤ 0.05,
+  N ≥ 10, strong at 0.60) and the below-gate disclosure states the refusal rather
+  than softening it.
+
+Residual risk: the disclosure explains *how* a figure was produced, never *what it
+means for health* — that boundary is held by the fixed templates and the guard,
+not by user interpretation, and remains the reason no clinical framing is offered
+anywhere on the surface. Danish translation of the new copy is a separate gate.
+
+## FR-NOT-02 — earned-attention micro-loop off session (Bevel absorb ⑤, 2026-08-13)
+
+Until now every notification Liviqa could send was a **clock** loop: fixed text
+at a fixed hour. This change adds the first notification whose existence depends
+on the user's own numbers, and it is decided while the app is in the background —
+a safety-path change on two counts (new generated-output surface, and a decision
+taken with no one watching). Three hazards were considered.
+
+**RK-NOT-02a — an interruption is read as a clinical verdict.** A banner on a
+lock screen is the least contextualised surface the product has: no evidence row,
+no baseline, no "why this?". Controls:
+
+- **The delivered text is a fixed template, chosen by the nudge's allow-listed
+  `NudgeCategory` and nothing else.** There is no code path from a health value
+  to notification copy in `EarnedAttention` — the same by-construction property
+  `EditionNotifications` already had. The engine's own sentence (which legitimately
+  carries numbers, e.g. "about 20% more than usual") never travels.
+- **No reading can appear at all.** `EarnedAttentionTests.noTemplateCarriesAReadingValue`
+  asserts the templates contain no decimal digit whatsoever — a stricter rail than
+  FR-NDG-06 alone, applied because this surface is read out of context.
+- **FR-NDG-06 (designated control) covers every deliverable string**, and the one
+  non-template string in the path — the nudge headline carried unrendered in
+  `userInfo` for the deep link — is re-checked with `NudgeGuard` and *dropped*
+  rather than carried if it ever failed.
+- **The banner's job is to hand over to the shown work.** Tapping opens that
+  nudge's evidence view, which is Liviqa's structural answer to score opacity.
+  The alert says only that one thing is worth a look; the workings are on the card.
+
+**RK-NOT-02b — a stale or context-blind alert alarms the user.** An
+opportunistically-woken app could easily deliver something true six hours ago, or
+something the user had already explained away. Controls:
+
+- **Derive and deliver in the same wake.** The request carries `trigger == nil`;
+  nothing is ever pre-scheduled. If the app is not woken inside the delivery
+  window, the alert simply does not exist.
+- **FR-CTX-04 suppression is not allowed to go silently missing.** The context
+  store is written `NSFileProtectionComplete`, so on a locked device it reads as
+  "no flags marked" — which would turn the suppression gate into no gate at all.
+  The pass therefore refuses to run unless `isProtectedDataAvailable` is true, and
+  hands the slot back. (HealthKit is closed on a locked device anyway; this makes
+  the reason explicit rather than incidental.)
+- **The AFib / route-to-clinician lane is deliberately excluded from this loop.**
+  Apple Watch already notifies for an irregular-rhythm signal at the moment it
+  records one. A second, opportunistically-timed echo hours later would be an
+  alarm Liviqa can neither time nor interpret — and D9 forbids interpretation.
+  The routing nudge still sits at the top of the edition, which is where the
+  "share this with your cardiologist" sentence belongs. `EarnedAttentionTests.theAFibRouteNeverProducesAnAlertEvenAtTopPriority`
+  proves it cannot fire even at priority 100.
+- **Only the top of the ladder may interrupt** (`.bandStatus` / `.behaviouralLever`
+  at engine priority ≥ 60). "Glucose steady", "short night", "quieter day" and the
+  plain resting-HR echo are all real engine outputs that stay silent.
+- **At most one a day**, enforced by a pure function over a device-local ledger,
+  and by a single request identifier so alerts replace rather than stack. This is
+  the "At most one a day" the Notifications screen states verbatim.
+
+**RK-NOT-02c — the loop promises more than iOS delivers.** BGAppRefreshTask is
+opportunistic: it does not run in Low Power Mode, when Background App Refresh is
+off, or when iOS has not learned a usage pattern. Controls:
+
+- **Every failure mode is silence.** Never woken, woken while locked, woken at
+  03:00, woken with nothing earned — all produce no notification. There is no
+  branch that substitutes something weaker to fill the gap.
+- **Demo data can never notify.** The pass returns early unless the resolved
+  provider is `.healthKit` *and* the fetch returned readings; a mock/demo run
+  produces no alert. (Honest-data rail: an alert about fabricated numbers is
+  exactly the failure this loop was built to avoid.)
+- **The UI says so.** `NotificationSettingsView`'s status line now reads that
+  earned attention is worked out on this phone "when iOS lets the app wake between
+  09:00 and 20:00 — some days it will not, and then you simply hear nothing."
+  It no longer says the channel "applies later", because it no longer does.
+
+**Residual risk.** The wake itself is unverified on hardware: the loop has unit
+proof of every decision it makes, but no device QA yet of a real BGAppRefreshTask
+firing (tracked on the RTM row). Because the unverified path fails to silence,
+the residual is a *missed* alert, not a wrong one. No new hazard introduced to
+the cardiac or glucose lanes; no new data leaves the device (the pass reads
+HealthKit and writes one local notification, nothing else).
+
+## FR-REC-03 — any-lab PDF/photo import (Bevel absorb ④, 2026-08-13)
+
+A new *entry point into the canonical health record* is a safety-path change:
+until now every row in `HealthRecordStore` came from a structured source
+(Sundhed.dk, HealthKit, or the citizen typing it). This one comes from reading
+paper. Two hazards were considered.
+
+**RK-REC-03a — a misread number enters the record and is later trusted.**
+OCR does not fail loudly; it fails plausibly ("6.4" read as "64"). Controls:
+
+- **Review before save is structural.** `LabReportImportView` has no path from
+  picking a file to `HealthStore.ingest` that does not pass through the review
+  list. Every recognised row is shown with its value, its unit, the source line
+  it came from, and a switch; the Save button counts what will be written
+  ("Save 12 to my record") and is disabled at zero.
+- **Nothing is guessed.** A known analyte in a unit the parser cannot convert
+  *exactly*, a number that is ambiguous under EN/DA grouping ("1.234"), a
+  censored bound ("<0.6"), and a value outside a deliberately absurd-wide
+  readable bound are ALL refused and listed as unread lines with their reason.
+  The bound is an OCR-sanity gate, never a clinical range, and is never shown.
+- **Low-confidence rows arrive switched OFF.** Below 0.5 recognition confidence
+  the row defaults to excluded and says so; the citizen must opt it in.
+- **An edited value replaces the machine's, and an unparseable edit saves
+  nothing** — the row cannot silently fall back to the OCR reading.
+- **Unit confusion is closed at the edge (OD-07).** Glucose lands in mmol/L and
+  HbA1c in the NGSP % headline whatever the report printed, using the SAME
+  conversion the Sundhed Path B parser uses (`SundhedParsers.hba1cIFCCtoNGSP`) —
+  no second standard. Converted rows show their work ("Printed as 108 mg/dL").
+  T-REC-03 covers normalisation, the allow-list, and each refusal class.
+
+**RK-REC-03b — an imported value is read as a clinical verdict.** A lab report
+arrives covered in reference intervals; carrying those into Liviqa would import
+exactly the population-normal framing the product exists to avoid. Controls:
+
+- **The lab's bands are structurally unreadable.** Bracketed text, anything
+  behind a reference/interval keyword, and both sides of an "a – b" span are
+  exclusion zones in the number scanner — the parser cannot pick a value out of
+  a printed range even if it wanted to, and nothing in the result type can carry
+  one.
+- **Framing is the citizen's OWN prior value or nothing.** `LabPriorFraming`
+  produces one sentence: the previous stored value for that analyte with its
+  date and the change since, or "No earlier … on this phone". A prior in a
+  different unit is not compared at all. There is no verdict, no band, no
+  adjective.
+- **FR-NDG-06 (designated control) is applied to this new generated text.**
+  These sentences are the only generated copy in the import path.
+  `LabReportParserTests.everyFramingSentencePassesNudgeGuard` runs
+  `NudgeGuard.check` over every sentence the path can produce, for all 15
+  analytes in both directions, and additionally bans population/advice
+  vocabulary. The sentences deliberately carry no unit token.
+- **Provenance is untouched.** Rows are stamped `HealthDataSource.paperScan`
+  with the file name as `sourceDetail` — user-facing source labels, not the
+  `Provenance{REAL,SIMULATED,EXTERNAL}` data field, which this feature neither
+  reads nor renders. `scripts/guard_provenance.sh` green.
+- **No red.** The screen's only signal colours are moss and brass; `clinRed` and
+  the `tir*` ramp appear nowhere in it.
+
+**On-device rail.** Reading happens in `LabReportOCR`: PDFKit for a text layer,
+`VNRecognizeTextRequest` otherwise. Noted honestly: the iOS SDK
+(iPhoneSimulator 26.5) has **no** `requiresOnDeviceRecognition` property to set —
+it was a macOS-only switch — so the guarantee rests on the platform behaviour
+that iOS text recognition runs on device, not on a flag we set. The code carries
+that note at the exact line where such a flag would go. No network call exists in
+the import path.
+
+**The file itself.** Discarded after parsing by default (the Sundhed Path B
+precedent), with an explicit opt-in to hand it to the existing encrypted
+document vault (`HealthVaultStore`, unmodified). The done card states which of
+the two actually happened, including when the vault write failed.
+
+Residual risk: a transcription error the citizen does not catch during review is
+stored as their own value — the same residual risk as manual entry, and the
+reason the source line is printed under every row. The importer reads 15
+analytes; anything else is listed as unread, so a report can be partially
+imported without the citizen being told it was complete (it never claims to be).
+
+## FR-WID-01 — home-screen widgets + complication (Bevel absorb ①, 2026-08-13)
+
+Source-complete, **target-pending**: no WidgetKit target exists yet, so none of
+this code executes on a device today. The risk note is filed now because the
+design decides a safety-path question — *what may leave the app's process*.
+
+New hazard considered: **RK-WID-01 — guarded text or hidden data escapes the app
+through the widget channel.** A widget extension is a separate process with its
+own sandbox; whatever the app writes into the shared App Group is rendered
+outside every in-app guard. Controls:
+
+- **Allow-list by construction.** `LiviqaWidgetSnapshot` has six explicit
+  `CodingKeys` (`schema`, `derivedAt`, `edition`, `verdict`, `chips`,
+  `timeInRange`) and carries no raw samples, identifiers, or clinician data.
+  `provenance` is absent, has no key, and must never be added; T-WID-01 asserts
+  the encoded top-level key set, so a new stored property cannot start crossing
+  the boundary unnoticed. `scripts/guard_provenance.sh LiviqaWidgets` green.
+- **FR-NDG-06 re-checked at the boundary (designated control).** The verdict
+  sentence is the same allow-listed line Home and the wrist show, but the
+  publisher does not assume that: `NudgeGuard.check` runs immediately before the
+  write, a violation is replaced by the neutral steady line (never the offending
+  text, never a blank), and DEBUG traps. Every *static* string the extension can
+  render is collected in `WidgetCopy.allStatic` and swept by T-WID-02 — needed
+  because `NudgeGuard` itself is not a member of the extension targets.
+- **Red stays clinical.** The widget's time-in-range is two-state — inside your
+  range (`moss`) on an outside track (`line`). `clinRed` and the five-band `tir*`
+  ramp appear nowhere in `LiviqaWidgets/`; a home-screen surface is not a
+  clinical surface. The attention state remains the locked amber `clay`.
+- **No composite score.** The absorb exists because Bevel's opaque score was its
+  loudest complaint. The widget shows the sentence and the decomposed parts
+  behind it. Adding a single blended figure to this surface would reintroduce the
+  hazard the feature was built to avoid.
+- **Fails closed, never stale-and-silent.** The App Group id comes from the
+  Info.plist `LiviqaAppGroup` (`$(APP_GROUP)`); if it is missing or unexpanded
+  the store reads `nil` and writes `false` rather than guessing a container.
+  When the app has nothing honest to publish it *clears* the snapshot, so a
+  figure cannot outlive its data, and every surface carries "as of HH:MM".
+
+Residual risk: a widget necessarily shows a cached value that may be minutes or
+hours old. Mitigated by the mandatory timestamp on every family that has room for
+one (small, medium, `.accessoryRectangular`) rather than by promising freshness.
+`.accessoryCircular`/`.accessoryCorner`/`.accessoryInline` have no room for a
+timestamp and therefore carry only the figure — accepted, as they carry a single
+descriptive number with no interpretation.
+
+### RK-WID-02 (OPEN — finding on a designated control, NOT changed here)
+
+While sweeping widget copy through `NudgeGuard`, the `clinicalNormality` rule was
+found to be narrower than its own documentation. The pattern is:
+
+    \bab?normal\b|\bwithin\s+normal\b|\bhealthy\s+range\b|\bnormal\s+(range|limits)\b
+
+`\bab?normal\b` matches "abnormal" and "anormal" but **not** a bare "normal" used
+as a predicate. Confirmed by direct evaluation: `"Your readings are normal."` and
+`"That is normal for you."` both PASS the guard, while `"abnormal"`,
+`"within normal limits"` and `"normal range"` are caught. The comment above the
+rule says it rejects "normal/abnormal", so the intent appears to have been
+`\b(ab)?normal\b`.
+
+Not changed in this PR: `NudgeGuard` is a **designated blocking control**, and
+widening it is a deliberate act that needs its own review, a red-team pass over
+existing shipped strings, and CN sign-off — not a side effect of a widget PR.
+
+Current exposure: **nil in practice.** Every string this feature can render is
+either fixed copy in `WidgetCopy` (swept, clean) or one of the three fixed
+allow-listed week sentences from `AppState.watchStateLine(for:)`; none contains
+"normal". The finding is logged for the control's owner to rule on, together with
+the `blockedIntent` widening already recorded under Area ⑨.
+
+## FR-CTX-04 — context status flag (Bevel absorb ③, 2026-08-13)
+
+The user can mark a stretch of days as **travelling / unwell / off-routine**. The
+marker is *declared* data — Liviqa never infers it — and it touches a designated
+safety control, so it gets a row rather than a "no new hazard" note.
+
+New hazard considered: **RK-CTX-01 — a context flag silences something the user
+needed to see.** A feature whose whole purpose is "say less" can, done carelessly,
+suppress a safety route or hide a reading. Controls:
+
+- **Suppression-only, enforced by shape, not by review.** `NudgeEngine.generate`
+  takes `context: [ContextWindow]` and uses it in exactly one place: an `if
+  !suppressesBaselineDeviations(...)` around the baseline-comparison streams.
+  There is no branch anywhere that emits, re-ranks or rewrites a nudge *because*
+  a flag exists. `T-CTX-04e` proves it structurally rather than by sampling
+  sentences: for every flag kind, the marked-day output is a strict **subset** of
+  the unmarked output, compared on category+title+body+priority — so a flag can
+  neither add a nudge nor raise a priority. `T-CTX-04d` proves a flag over an
+  empty store produces nothing at all. This is the **FR-NDG-06 interaction rule**
+  and its tests are blocking.
+- **The safety route is outside the gate.** The D9 AFib route-to-clinician is
+  emitted before the gate and is never suppressed (`T-CTX-04f` asserts the route
+  and its `displayOnly` lane survive an active flag). A self-declared travel note
+  must never silence a cardiac route. Today's UI mirrors this: `hasClinicianRoute`
+  keeps the attention card on screen even on a marked day, and the calm context
+  note stands in only when no route is present.
+- **Nothing is hidden, only re-read.** The plain resting-HR number echo is also
+  outside the gate (`T-CTX-04b`): a marked day still shows the user their own
+  reading. Marked days stay in every derivation, aggregate and chart — the flag
+  changes how a day is *read*, never what it contains, and no surface fabricates
+  or omits a value because of it.
+- **Charts go neutral, never alarming and never invented.** In the week grid a
+  marked column takes one flat slate tint plus the shared `ZoneHatch` (the same
+  hatch the TIR zones use, so the state survives greyscale and colour-blindness),
+  is excluded from `clusterDay`/`hardDayCount`, and `.noData` still reads as
+  empty — marking a day never invents a reading for it. The week verdict drops
+  "steady, day after day" for "steady around the days you marked" rather than
+  overclaiming across days the user told us were atypical. **No red anywhere**:
+  the tint is `accentFinance` (slate/context); `clinRed` and the `tir*` ramp are
+  untouched and stay exclusive to clinical glucose.
+- **Copy through the guard.** Every string the feature introduces is a fixed
+  template selected by enum — never assembled from readings and never from the
+  user's note. `T-CTX-04k` runs all of them through `NudgeGuard.check`.
+- **The note is out of the intelligence layer by construction.** `ContextFlag`
+  holds the user's optional free text; the engine is handed `ContextWindow`,
+  which has *no note field*. `T-CTX-04m` asserts two flags with different notes
+  project to equal windows, so the text cannot become an inference input.
+
+Privacy: the flags are the user's own words about their own life, so they are
+personal data. `ContextFlagStore` is device-local JSON with
+`NSFileProtectionComplete`, has no upload path, appears in no share or export
+DTO, and `AppState.deleteAllData` removes the file alongside the journal and the
+PMS outbox.
+
+Residual risk (accepted, and stated on-screen): a user may mark days and forget,
+quieting comparisons longer than they intended. Mitigated by visibility rather
+than by expiry — the Today register carries a "Marked · Travelling" kicker every
+day it is active, the entry row reads "tap when you're back to your routine", and
+Settings → "Days you've marked" shows the open stretch with its start date. No
+automatic expiry was added: silently un-marking a user's declared trip would be a
+second, worse surprise.
+
 ## A7.2 Area ⑨ — Knowledge base & AI behaviours (branch claude/a72-electric-ink, 2026-08-12)
 
 Six census rows: the two-tier HRV knowledge screen (new) and the four designed
@@ -146,6 +501,46 @@ Safety posture:
   delete-really-deletes on disk, metadata persistence across instances, GCM
   tamper → loud failure, scope isolation). No upload path exists in the store
   or either vault surface, and none may be added.
+- **RK-VAULT-02 (NEW, 2026-08-13) — a recoverable key state must not be shown
+  as lost data, and must never re-key over sealed data (FR-ING-15).** Hazard:
+  the first build treated EVERY key-provisioning failure as one thing and
+  rendered "Your documents are unreadable without this device's key" with
+  "Add a document" disabled. On the device sweep this fired for a purely
+  environmental reason (an unsigned build has no `application-identifier`, so
+  every Keychain call returns errSecMissingEntitlement −34018) — but the same
+  code path runs on real hardware at first unlock, on restore-from-backup and
+  after a passcode change, where telling a citizen their health documents are
+  unreadable is a false alarm that invites a reinstall (which WOULD destroy
+  them). Second hazard, quieter: `add`/`delete` loaded the index with `try?`,
+  so a key that could not open the index would start a fresh one and write it
+  OVER the old one — silent destruction of the only record of the documents on
+  disk. Mitigation: `KeyVault` now separates KEY TYPE (Secure Enclave, else a
+  software P-256 key — `protection`/`isHardwareBacked`, and the UI sentence is
+  rendered from it, including "no claim at all" before provisioning) from KEY
+  STORAGE (Keychain, else a device-local file with `NSFileProtectionComplete`,
+  excluded from backup, used only when the Keychain answers
+  errSecMissingEntitlement/errSecNotAvailable — `storage`). `KeyFailure`
+  classifies a locked device (errSecInteractionNotAllowed / a
+  complete-protection file read before first unlock) as a WAIT, never as loss,
+  and never as grounds to move key material. Key material that exists but
+  cannot be used raises `CryptoError.sealedKeyUnreadable` and is NEVER
+  replaced — re-keying would orphan documents still on disk. `VaultAccess`
+  gives the screen four named states (`ready` / `lockedUntilDeviceUnlock` /
+  `keyUnavailable` / `sealedDataUnreadable`); only the last shows the
+  unreadable sentence, the two middle ones are retryable and claim no loss,
+  and "Add a document" is enabled from `canAddDocuments` (a prepared key AND
+  an index this key can open). `HealthVaultStore.loadIndex` now distinguishes
+  "no index" from "unreadable index" and `add`/`delete` refuse on the latter.
+  `LocalUserScope` persists device-locally instead of re-minting an ephemeral
+  id per call when the Keychain is unusable — an unstable scope would hide the
+  citizen's own documents behind a new folder each launch. Asserted by
+  T-ING-15 (`HealthVaultStoreTests`: fresh space is ready+writable, an
+  unprovisionable key is recoverable not unreadable, sealed-data-unreadable is
+  reported AND non-destructive with byte-identical files afterwards, add never
+  overwrites an unreadable index) and `KeyVaultFallbackTests` (DEK stable
+  across instances, hardware claim follows the live path, unusable key
+  material never silently replaced, failure classification, device-file store
+  round-trip/isolation/hashed names, scope stability).
 - **Consent rail — documents stay OUT of shares by default.** The space's
   consent strip states it ("money and insurance papers never enter a clinician
   share"); no code path feeds vault documents into `DerivedShareBuilder` or

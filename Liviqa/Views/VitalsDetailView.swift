@@ -15,6 +15,8 @@ import SwiftUI
 struct VitalsDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// FR-XPL-01 — the hero verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: VitalsDetail? { appState.vitalsDetail }
 
@@ -32,6 +34,7 @@ struct VitalsDetailView: View {
                                stat: model.stat,
                                unit: model.statUnit,
                                sub: model.sub)
+                    SeeWhyHeroRow { seeWhy = vitalsWhy(model) }
                     ForEach(Array(model.vitals.enumerated()), id: \.offset) { _, v in
                         vitalCard(v)
                     }
@@ -43,9 +46,23 @@ struct VitalsDetailView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed — every band on this screen is the user's own
+    /// typical range, and the disclosure states that none of them is clinical.
+    private func vitalsWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.vitalsHero(
+            verdict: m.verdict,
+            vitals: (detail?.vitals ?? []).map {
+                VitalFact(name: $0.name, unit: $0.unit, latest: $0.latest,
+                          band: $0.band, decimals: $0.decimals,
+                          typical: $0.latestIsTypical)
+            },
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model

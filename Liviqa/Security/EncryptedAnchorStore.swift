@@ -99,19 +99,29 @@ public final class EncryptedAnchorStore {
 }
 
 /// A device-LOCAL, stable user identifier for namespacing on-device state
-/// (anchor files). Minted once and kept in the Keychain (device-only, after
-/// first unlock) — NOT in UserDefaults, and explicitly NOT a backend/account id
-/// (FR-ING-04). If the Keychain is unavailable, falls back to an ephemeral id so
-/// callers still get isolation within the process.
+/// (anchor files, the encrypted document space). Minted once and kept in the
+/// Keychain (device-only, after first unlock) — NOT in UserDefaults, and
+/// explicitly NOT a backend/account id (FR-ING-04).
+///
+/// STABILITY IS THE POINT: this string picks the on-disk folder, so a scope that
+/// changes between calls hides the citizen's own data from them. Where the
+/// Keychain cannot hold it (an unsigned build gets errSecMissingEntitlement for
+/// every call), it is persisted device-locally instead — same protection class,
+/// excluded from backup — rather than re-minted per call.
 public enum LocalUserScope {
     private static let service = "io.liviqa.local-scope"
     private static let account = "health.anchor.scope"
+    private static let fileStore = DeviceKeyFileStore(service: service)
 
     public static func current() -> String {
         if let existing = read() { return existing }
+        if let filed = ((try? fileStore.read(account: account)) ?? nil),
+           let scope = String(data: filed, encoding: .utf8) { return scope }
         let fresh = UUID().uuidString
         write(fresh)
-        return read() ?? fresh
+        if let stored = read() { return stored }
+        try? fileStore.write(Data(fresh.utf8), account: account)
+        return fresh
     }
 
     private static var baseQuery: [String: Any] {

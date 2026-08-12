@@ -43,6 +43,10 @@ struct LiviqaApp: App {
     // init so a cold launch starts locked without a flash of content.
     @AppStorage("appLockEnabled") private var appLockEnabled = false
     @State private var isLocked = UserDefaults.standard.bool(forKey: "appLockEnabled")
+    /// True while iOS may be photographing the window (`.inactive`) — drives the
+    /// app-switcher privacy cover. Separate from `isLocked`: covering the screen
+    /// must never cost the user a Face ID prompt.
+    @State private var isScreenObscured = false
     @Environment(\.scenePhase) private var scenePhase
 
     // Runtime theme (Midnight default) — flips every LiviqaTheme.* token at the root.
@@ -97,11 +101,27 @@ struct LiviqaApp: App {
             .overlay {
                 if isLocked {
                     AppLockScreen { isLocked = false }
+                } else if isScreenObscured {
+                    // Privacy cover for the app-switcher snapshot. iOS photographs
+                    // the window on `.inactive` — WITHOUT this, a locked phone's
+                    // switcher still showed the citizen's readings (found by
+                    // T-SEC-07, 2026-08-13). Cover only: no Face ID prompt here,
+                    // so a system alert or share sheet never triggers an auth
+                    // round-trip; the real lock still runs on background→active.
+                    AppPrivacyCover()
                 }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background && appLockEnabled {
-                    isLocked = true
+                switch phase {
+                case .background:
+                    if appLockEnabled { isLocked = true }
+                    isScreenObscured = appLockEnabled
+                case .inactive:
+                    if appLockEnabled { isScreenObscured = true }
+                case .active:
+                    isScreenObscured = false
+                @unknown default:
+                    break
                 }
             }
             #if DEBUG
