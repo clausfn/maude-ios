@@ -5,29 +5,42 @@ import SwiftUI
 
 enum WellnessPillar: String, Hashable, CaseIterable {
     case sleep, glucose, recovery, heart
+    // A7.2 Area ④ — new detail surfaces. Routed to their own editorial screens
+    // below; the legacy-body properties return neutral values for exhaustiveness
+    // only (these cases never render legacyBody). Adding cases here also extends
+    // the LIVIQA_OPEN_PILLAR screenshot hook for free (rawValue-based).
+    case fitness, activity, body, vitals
 
     var title: String {
         switch self {
         case .sleep:    return "Sleep"
         case .glucose:  return "Glucose · time in range"
         case .recovery: return "Recovery · stress (HRV)"
-        case .heart:    return "Resting heart rate"
+        case .heart:    return "Heart"
+        case .fitness:  return "Fitness & exercise"
+        case .activity: return "Activity"
+        case .body:     return "Body"
+        case .vitals:   return "Vitals"
         }
     }
     var icon: String {
         switch self {
         case .sleep: "moon.fill"; case .glucose: "drop.fill"
         case .recovery: "waveform.path.ecg"; case .heart: "heart.fill"
+        case .fitness: "figure.outdoor.cycle"; case .activity: "figure.walk"
+        case .body: "figure.arms.open"; case .vitals: "lungs.fill"
         }
     }
     var bigValue: String {
         switch self {
         case .sleep: "6h 52"; case .glucose: "68%"; case .recovery: "42 ms"; case .heart: "58 bpm"
+        case .fitness, .activity, .body, .vitals: "—"
         }
     }
     var delta: String {
         switch self {
         case .sleep: "▲ 12 min"; case .glucose: "▲ 3 pts"; case .recovery: "▼ 8 ms"; case .heart: "▼ 2 bpm"
+        case .fitness, .activity, .body, .vitals: ""
         }
     }
     /// Weekly series (oldest → today) for the trend chart.
@@ -37,6 +50,7 @@ enum WellnessPillar: String, Hashable, CaseIterable {
         case .glucose:  return [71, 74, 69, 78, 80, 76, 84]
         case .recovery: return [48, 45, 39, 41, 44, 50, 52]
         case .heart:    return [60, 59, 61, 58, 57, 58, 55]
+        case .fitness, .activity, .body, .vitals: return []
         }
     }
     /// Unit appended to chart y-axis labels.
@@ -44,6 +58,7 @@ enum WellnessPillar: String, Hashable, CaseIterable {
         switch self {
         case .sleep: return "h"; case .glucose: return "%"
         case .recovery: return " ms"; case .heart: return " bpm"
+        case .fitness, .activity, .body, .vitals: return ""
         }
     }
     /// Intraday curve (glucose only) — mmol/L sampled across the day (00→24).
@@ -61,6 +76,7 @@ enum WellnessPillar: String, Hashable, CaseIterable {
         case .glucose:  return "In your data, more time in range tracked with the days you walked after dinner. A pattern in your own data, not a medical finding."
         case .recovery: return "In your data, your HRV ran lower mid-week — higher meeting load and later meals. A pattern in your own data, not a medical finding."
         case .heart:    return "In your data, your resting heart rate settled lower across the week. A pattern in your own data, not a medical finding."
+        case .fitness, .activity, .body, .vitals: return ""
         }
     }
 }
@@ -76,12 +92,18 @@ struct MetricDetailView: View {
     private let dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
     var body: some View {
-        // A7.2 Area ③: glucose gets the rebuilt DGlucose editorial screen (the
-        // app's single clinical-red surface). Other pillars keep the legacy body.
-        if pillar == .glucose {
-            GlucoseDetailView()
-        } else {
-            legacyBody
+        // A7.2 Area ③/④: each pillar routes to its rebuilt editorial screen.
+        // Glucose (Area ③) is the app's single clinical-red surface. Recovery
+        // keeps the legacy descriptive body until its own rebuild wave.
+        switch pillar {
+        case .glucose:  GlucoseDetailView()
+        case .sleep:    SleepDetailView()
+        case .heart:    HeartDetailView()
+        case .fitness:  FitnessDetailView()
+        case .activity: ActivityDetailView()
+        case .body:     BodyDetailView()
+        case .vitals:   VitalsDetailView()
+        case .recovery: legacyBody
         }
     }
 
@@ -169,6 +191,7 @@ struct MetricDetailView: View {
             case .recovery: real = sig.hrvWeek
             case .heart:    real = sig.rhrWeek
             case .sleep:    real = sig.sleepWeek
+            default:        real = []   // Area-④ pillars never render legacyBody
             }
             if !real.isEmpty { return real }
         }
@@ -190,7 +213,7 @@ struct MetricDetailView: View {
             case .glucose:
                 DailyBarsChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit,
                                goal: 70, goalLabel: "70% TARGET")
-            case .recovery, .heart:
+            default:   // recovery + heart today; Area-④ pillars never reach here
                 AreaTrendChart(values: weekValues, tint: LiviqaTheme.moss, xTicks: dayLabels, unit: pillar.unit)
             }
         }
@@ -216,6 +239,7 @@ struct MetricDetailView: View {
         case .recovery: return sig.hrv == "—" ? nil : sig.hrv + " ms"
         case .heart:    return sig.rhr == "—" ? nil : sig.rhr + " bpm"
         case .sleep:    return sig.sleep == "—" ? nil : sig.sleep   // liveSleep took priority above; else match Home
+        default:        return nil   // Area-④ pillars never render legacyBody
         }
     }
     private var hasRealValue: Bool { realValue != nil }

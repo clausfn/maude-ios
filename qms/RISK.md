@@ -2,6 +2,97 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## A7.2 Area ② — Today & insights remainder: PMS channel, Trends, day replay (branch claude/a72-electric-ink, 2026-08-12)
+
+- **RK-PMS-01 (NEW) — the wrong/harmful-nudge reporting channel (UC-19 /
+  FR-PMS-01).** Hazards: (a) the PMS intake could leak health data off the
+  device, and (b) the report flow could be mistaken for a care/triage channel.
+  Mitigations: the payload is **summary-only by construction** — `PMSReport`
+  carries only nudge id/tag/headline, shown-at, a fixed-choice reason and the
+  user's optional note, and has no field that can hold a reading (key
+  allow-list unit-tested, T-PMS-01). Transport is **queue-only**: the sovereign
+  client exposes no PMS endpoint today, so reports persist in an on-device,
+  file-protected outbox (wiped by GDPR erase) and the UI says so honestly
+  ("will send when a reporting channel opens") — nothing transmits until a
+  consented route exists. The sheet closes on a consent-ledger-style receipt
+  listing exactly what is queued, and both the form and the receipt carry the
+  urgent-care footer ("For anything urgent about your health, contact your care
+  team. Liviqa doesn't diagnose or treat."). FR-NDG-06 is untouched — the
+  channel feeds the guard's post-market loop, it never alters engine output
+  (T-NDG-06* remain blocking).
+- **Trends (FR-TOD-06) — correlation claims gated; red rail held.** The rebuilt
+  Trends surface renders STRONG/MODERATE pills only past a conservative
+  evidence gate (|r| ≥ 0.4 AND two-tailed p ≤ 0.05 via a critical-r table at
+  N ≥ 10 paired days; STRONG at |r| ≥ 0.6); below the gate it shows an honest
+  "still learning" refusal. The former hard-coded correlation/month narratives
+  are deleted — every figure now derives on device from the user's own samples,
+  so canned copy cannot render on any account. All sentences are fixed
+  descriptive templates (guard-checked, T-TOD-06). The TIR chart stays
+  personal-band framed ("Your usual · lo–hi%", moss/fjord); **no red anywhere
+  on Trends** — clinical red remains exclusive to the glucose detail
+  (RK-ALARM-01 lock re-affirmed). mmol/L canonical (OD-07). Same rail applied
+  in passing to Insights' weekly metric cards (down-deltas were rust; now ink).
+- **Day replay (scrub-your-day) — narration from derived figures only.** The
+  "At HH:MM" moment card is generated from timestamped glucose plus a real
+  tracked workout when one ended shortly before the peak; the canvas's canned
+  at-timestamp steps/heart-rate sentences are NOT reproduced, because those
+  streams exist only at daily granularity in the read model — **omitted rather
+  than fabricated**. Time-of-day phrasing is generic ("Around lunchtime."),
+  never a claim about meals or activities the app cannot see. Descriptive-only,
+  mmol/L, no red. No new hazard beyond the honesty risks mitigated above.
+
+## A7.2 Area ④ — non-glucose metric details rebuilt to the D-series anatomy (branch claude/a72-electric-ink, 2026-08-12)
+
+Seven surfaces: Sleep, Heart, Fitness, Activity, Body, Vitals rebuilt/created
+(`SleepDetailView` / `HeartDetailView` / `FitnessDetailView` /
+`ActivityDetailView` / `BodyDetailView` / `VitalsDetailView` + derivers in
+`Liviqa/Intelligence/`), plus the restyled baseline sheet
+(`MetricBaselineView` + `BaselineDeriver`). Safety posture:
+
+- **RK-ALARM-01 lock held — no clinical red on any Area-④ surface.** Heart uses
+  the approved rose-punch `accentHeart 0xD9486B`; Body introduces the design's
+  own indigo `accentBody 0x5B5FC7` (new token, extension in `MetricCharts.swift`);
+  Sleep/Fitness/Activity/Vitals use their existing domain accents. `clinRed`
+  appears nowhere in Area-④ code — the glucose detail remains the app's single
+  red surface.
+- **RK-CARD-01 / OD-11 / D9 — AFib lane stays display-only.** `HeartDetailDeriver`
+  re-presents the recorded burden figure + observation-day count + date and
+  nothing else: the type carries no series, band, trend or delta for AFib
+  (structural mitigation), the card's foot prints the designated rail ("display-
+  only — no score, no trend, no advice"), and the "Talk to your cardiologist"
+  chip is a plain routing affordance into the existing share-with-clinician
+  flow — not an alert. FR-NDG-06 (designated control) untouched; its tests
+  remain blocking.
+- **Sleep score — a DELIBERATE, transparent deviation from FR-SLEEP-01's "no
+  score" clause.** The DSleep hero ring is the same anti-score-opacity stance
+  as the accepted evening day score (FR-TOD-05): three visible fractions —
+  rest = night/8 h × 50 (the accepted FR-TOD-05 divisor), depth = deep+REM
+  share vs a stated 35% reference × 30, rhythm = last night vs the user's OWN
+  week mean × 20 — printed under the hero, never an opaque composite. It
+  refuses to render below 4 nights or without stage detail
+  (`SleepDetailDeriverTests`). RTM FR-SLEEP-01 row annotated.
+- **Personal-baseline framing everywhere.** Every band/corridor in Area ④
+  (RHR band, BP corridors, activity "usual" line, body corridor, vitals bands,
+  learned baselines) is the user's OWN mean ±1σ over the local window and
+  refuses to render below 5 own readings — never a clinical reference range,
+  never a population target (unit-tested per deriver). The Fitness screen
+  carries the designated no-target line verbatim.
+- **FR-NDG-06 exposure controlled.** All Area-④ sentences are fixed descriptive
+  templates from derived numbers (no generated language); every template —
+  including the design-package demo seeds — runs through `NudgeGuard.check`
+  in the new deriver test files. The package's advice-adjacent fitness verdict
+  ("your legs are asking for an easy day") is demo-seed-only; real verdicts
+  are descriptive.
+- **Data honesty.** Demo seeds render only behind `isDemoData` with no
+  derivation (glucose-detail pattern); real sessions get honest empty states.
+  Ingestion truths respected: no intra-night sleep times ⇒ the søkort depth
+  chart, wake-up annotation and bedtime card are demo-only; no per-workout HR
+  ingestion yet ⇒ avg-HR/zones honest-absent on real data (T-FIT-01).
+  `provenance` never renders (unchanged).
+
+No new hazard class introduced; existing mitigations extended to the new
+surfaces as above.
+
 ## A7.2 Area ③ — Glucose detail rebuilt to the DGlucose anatomy (branch claude/a72-electric-ink, 2026-08-12)
 
 - **RK-ALARM-01 — clinical red EXTENDED inside the glucose clinical charts,

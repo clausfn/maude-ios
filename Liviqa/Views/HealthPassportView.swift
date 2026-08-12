@@ -152,6 +152,26 @@ struct HealthPassportView: View {
                             #endif
                         }
 
+                        // ── YOUR DATA, IN DEPTH (A7.2 Area ④ detail screens) ──
+                        // Entry points for the surfaces that live off the You
+                        // area (design: DBody's back label is "You"); fitness /
+                        // activity / vitals ride along until Today grows chips.
+                        LiviqaSectionHeader(label: "Your data, in depth")
+
+                        VStack(spacing: 0) {
+                            depthRow(pillar: .fitness)
+                            Divider().background(LiviqaTheme.line2).padding(.leading, 44)
+                            depthRow(pillar: .activity)
+                            Divider().background(LiviqaTheme.line2).padding(.leading, 44)
+                            depthRow(pillar: .body)
+                            Divider().background(LiviqaTheme.line2).padding(.leading, 44)
+                            depthRow(pillar: .vitals)
+                        }
+                        .background(LiviqaTheme.paper2)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
+                        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+
                         // ── PRIVACY RECORD ──
                         LiviqaSectionHeader(label: "Privacy record")
 
@@ -699,6 +719,30 @@ struct HealthPassportView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - In-depth detail row (A7.2 Area ④ entry points)
+
+    private func depthRow(pillar: WellnessPillar) -> some View {
+        NavigationLink(destination: MetricDetailView(pillar: pillar)) {
+            HStack(spacing: 12) {
+                Image(systemName: pillar.icon)
+                    .font(.lato(13))
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .frame(width: 20)
+                Text(pillar.title)
+                    .font(.lato(13.5, .semibold))
+                    .foregroundStyle(LiviqaTheme.ink)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

@@ -286,7 +286,9 @@ private extension GlucoseDetailView.Model {
 
         var sub = String(format: "Average %.1f mmol/L", d.avgMmol)
         if let gmi = d.gmiPct { sub += String(format: " · GMI %.1f%%", gmi) }
-        if let src = d.source { sub += " · \(src)" }
+        if let src = d.source {
+            sub += " · \(src.caseInsensitiveCompare("Mock") == .orderedSame ? String(localized: "Sample data") : src)"
+        }
 
         // Today card headline from the excursion counts — descriptive only.
         var todayHeadline: String? = nil

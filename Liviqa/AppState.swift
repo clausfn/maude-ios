@@ -128,6 +128,26 @@ final class AppState {
     /// Drives the real sleep visualisation (falls back to demo when nil).
     var sleepSummary: SleepSummary? = nil
 
+    // A7.2 Area ④ — metric-detail derivations (same honesty rule as
+    // `glucoseDetail`: nil ⇒ the screen shows clearly-demo seeds in demo mode,
+    // or an honest empty state on a real-data session).
+    var sleepDetail: SleepWeekDetail? = nil
+    var heartDetail: HeartWeekDetail? = nil
+    var fitnessDetail: FitnessDetail? = nil
+    var activityDetail: ActivityWeekDetail? = nil
+    var bodyDetail: BodyTrendDetail? = nil
+    var vitalsDetail: VitalsDetail? = nil
+    /// Per-domain learned "your usual" baselines (UC-08) for the baseline sheet.
+    var baselines: BaselineBook? = nil
+
+    /// Trends surface derivation (FR-TOD-06, Area ②): week/month/quarter TIR
+    /// trend vs the user's own usual band, gate-passed correlations, aggregate
+    /// tiles, and the Today-feed period comparison. nil ⇒ honest empty state.
+    var trends: TrendsSummary? = nil
+    /// "Replay your day" derivation (Area ②): today's timestamped glucose curve
+    /// + the figures the moment card narrates. nil ⇒ honest empty state.
+    var dayReplay: DayReplay? = nil
+
     // Wallet
     var grants:       [WalletGrant]  = []
     var walletEvents: [WalletEvent]  = []
@@ -440,6 +460,11 @@ final class AppState {
         if let journalURL = JournalStore.defaultURL() {
             try? FileManager.default.removeItem(at: journalURL)
         }
+        // 2b. PMS report outbox (FR-PMS-01) — queued safety reports are personal
+        //     data too; the erase must not leave them behind.
+        if let pmsURL = PMSOutboxStore.defaultURL() {
+            try? FileManager.default.removeItem(at: pmsURL)
+        }
         // 3. Encrypted HealthKit sync anchors for this local scope (FR-ING-03/04).
         (try? EncryptedAnchorStore(keyVault: .shared, userScope: LocalUserScope.current()))?.clear()
         // 4. Keychain session token (NFR-SEC-01) + server session + auth state.
@@ -458,6 +483,15 @@ final class AppState {
         todaySignals    = nil
         glucoseDetail   = nil
         sleepSummary    = nil
+        trends          = nil
+        dayReplay       = nil
+        sleepDetail     = nil
+        heartDetail     = nil
+        fitnessDetail   = nil
+        activityDetail  = nil
+        bodyDetail      = nil
+        vitalsDetail    = nil
+        baselines       = nil
         workoutMerges   = []
         passportStats   = ColdStart.passportStats
         correlationWeek = ColdStart.correlationWeek
@@ -732,7 +766,16 @@ final class AppState {
                     grid: CorrelationDeriver.derive(from: samples),
                     signals: TodaySignalsDeriver.derive(from: samples),
                     glucose: GlucoseDetailDeriver.derive(from: samples),
-                    sleep: SleepDeriver.derive(from: samples))
+                    sleep: SleepDeriver.derive(from: samples),
+                    trends: TrendsDeriver.derive(from: samples),
+                    dayReplay: DayReplayDeriver.derive(from: samples),
+                    sleepDetail: SleepDetailDeriver.derive(from: samples),
+                    heart: HeartDetailDeriver.derive(from: samples),
+                    fitness: FitnessDeriver.derive(from: samples),
+                    activity: ActivityDeriver.derive(from: samples),
+                    body: BodyTrendDeriver.derive(from: samples),
+                    vitals: VitalsDeriver.derive(from: samples),
+                    baselines: BaselineDeriver.derive(from: samples))
             }.value
             // With REAL data, trust the engine even when it finds nothing — clear
             // any demo seeds so fabricated nudges are never shown as the user's own
@@ -764,6 +807,17 @@ final class AppState {
             glucoseDetail = d.glucose
             // Sleep-stage breakdown for the real sleep visualisation.
             sleepSummary = d.sleep
+            // Trends + day-replay surfaces — same samples, same honesty rule.
+            trends = d.trends
+            dayReplay = d.dayReplay
+            // A7.2 Area ④ metric details + learned baselines — same honesty rule.
+            sleepDetail = d.sleepDetail
+            heartDetail = d.heart
+            fitnessDetail = d.fitness
+            activityDetail = d.activity
+            bodyDetail = d.body
+            vitalsDetail = d.vitals
+            baselines = d.baselines
         } catch {
             lastError = error.localizedDescription   // keep existing nudges
         }
@@ -955,4 +1009,14 @@ private struct DerivedHealth: Sendable {
     let signals: TodaySignals?
     let glucose: GlucoseWeekDetail?
     let sleep: SleepSummary?
+    let trends: TrendsSummary?
+    let dayReplay: DayReplay?
+    // A7.2 Area ④ — the seven metric-detail surfaces.
+    let sleepDetail: SleepWeekDetail?
+    let heart: HeartWeekDetail?
+    let fitness: FitnessDetail?
+    let activity: ActivityWeekDetail?
+    let body: BodyTrendDetail?
+    let vitals: VitalsDetail?
+    let baselines: BaselineBook?
 }

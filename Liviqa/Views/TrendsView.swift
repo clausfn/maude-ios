@@ -1,110 +1,222 @@
-// TrendsView.swift · v02 2026-05-22
-// Design ref: Liviqa_App_UI_Aperture_v01_20260521.html (Trends frame)
+// TrendsView.swift · v03 2026-08-12 — A7.2 rebuild (FR-TOD-06, Area ②).
+// Design ref: f-missing.jsx ScrTrends ("Liviqa Missing Screens (A7).html").
+// Pushed from Today (momentum strip "See the trend →"; DEBUG: LIVIQA_OPEN_TRENDS=1).
+//
+// Honest-data rail: every figure comes from TrendsDeriver over the device's own
+// samples (demo mode runs the same deriver over the labelled demo provider's
+// samples) — the old canned correlation/month copy is gone and can never render.
+// Correlation cards appear ONLY past the evidence gate (|r| ≥ 0.4, p ≤ 0.05,
+// N ≥ 10 paired days) with their N·r·p always on (FR-XPL-01). The TIR chart is
+// personal-band framed (moss/fjord, "Your usual · lo–hi%") — clinical red stays
+// exclusive to the glucose detail. Glucose mmol/L (OD-07).
 import SwiftUI
 
 struct TrendsView: View {
-    @State private var range = "Month"
+
+    @Environment(AppState.self) private var appState
+    @Environment(\.dismiss) private var dismiss
+
+    private enum Range: String, CaseIterable {
+        case week = "Week", month = "Month", quarter = "Quarter"
+
+        var periodWord: String {
+            switch self {
+            case .week:    return String(localized: "week")
+            case .month:   return String(localized: "month")
+            case .quarter: return String(localized: "quarter")
+            }
+        }
+        var sectionLabel: String {
+            switch self {
+            case .week:    return String(localized: "This week")
+            case .month:   return String(localized: "This month")
+            case .quarter: return String(localized: "This quarter")
+            }
+        }
+    }
+
+    @State private var range: Range = .month
+
+    private var summary: TrendsSummary? { appState.trends }
+
+    private var current: TrendsRange? {
+        guard let s = summary else { return nil }
+        switch range {
+        case .week:    return s.week
+        case .month:   return s.month
+        case .quarter: return s.quarter
+        }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
-                // ── App bar ──
-                LiviqaAppBar(title: "Trends", showMark: false)
+                header
+                    .padding(.top, 6)
 
-                VStack(alignment: .leading, spacing: 0) {
-
-                    // Range segmented control
-                    HStack(spacing: 0) {
-                        ForEach(["Week", "Month", "Quarter"], id: \.self) { chip in
-                            Button(chip) { range = chip }
-                                .font(.liviqaKicker(11))
-                                .tracking(0.6)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 7)
-                                .background(range == chip ? LiviqaTheme.paper : Color.clear)
-                                .foregroundStyle(range == chip ? LiviqaTheme.ink : LiviqaTheme.ink3)
-                                .fontWeight(range == chip ? .medium : .regular)
-                                .clipShape(RoundedRectangle(cornerRadius: 7))
-                                .shadow(color: range == chip ? LiviqaTheme.cardShadow : .clear,
-                                        radius: 2, y: 1)
-                        }
-                    }
-                    .padding(3)
-                    .background(LiviqaTheme.line2)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                segmentedControl
                     .padding(.top, 14)
 
-                    // Chart placeholder
-                    ChartPlaceholder(title: "Glucose · time in range", value: "84%")
+                if let r = current {
+                    tirHero(r)
                         .padding(.top, 16)
 
-                    // "What's connected" section
                     LiviqaSectionHeader(label: "What's connected")
 
-                    correlationCard(
-                        pair: "Evening walks → Glucose in range",
-                        strength: "Strong",
-                        strengthColor: LiviqaTheme.moss,
-                        strengthBg: LiviqaTheme.moss2,
-                        barProgress: 0.86,
-                        barColor: LiviqaTheme.moss,
-                        body: "On days you walk after dinner, glucose stays in range about 22% more of the night."
-                    )
+                    if r.correlations.isEmpty {
+                        connectionsLearningCard(r)
+                    } else {
+                        ForEach(Array(r.correlations.enumerated()), id: \.offset) { _, c in
+                            correlationCard(c)
+                        }
+                    }
 
-                    correlationCard(
-                        pair: "Late meals → Deep sleep",
-                        strength: "Moderate",
-                        strengthColor: LiviqaTheme.clay,
-                        strengthBg: LiviqaTheme.clay2,
-                        barProgress: 0.60,
-                        barColor: LiviqaTheme.clay,
-                        body: "Eating after 21:00 tracks with about a fifth less deep sleep that night."
-                    )
-
-                    correlationCard(
-                        pair: "Air quality → Activity",
-                        strength: "Moderate",
-                        strengthColor: LiviqaTheme.clay,
-                        strengthBg: LiviqaTheme.clay2,
-                        barProgress: 0.55,
-                        barColor: LiviqaTheme.clay,
-                        body: "High-pollution days line up with roughly 40% less time spent active outdoors."
-                    )
-
-                    // "This month" metrics
-                    LiviqaSectionHeader(label: "This month")
+                    LiviqaSectionHeader(label: range.sectionLabel)
 
                     HStack(spacing: 10) {
-                        monthMetric(value: "7h05", label: "Sleep avg",     delta: "▲ 18 min",  up: true)
-                        monthMetric(value: "58",   label: "Resting HR",    delta: "▼ 3 bpm",   up: true)
-                        monthMetric(value: "42",   label: "Active min/day",delta: "– flat",    up: nil)
+                        monthMetric(value: r.sleepAvgHours.map { Self.sleepText($0) },
+                                    label: String(localized: "Sleep avg"),
+                                    delta: sleepDeltaText(r), good: (r.sleepDeltaMin ?? 0) > 0)
+                        monthMetric(value: r.rhrAvg.map { "\($0)" },
+                                    label: String(localized: "Resting HR"),
+                                    delta: rhrDeltaText(r), good: (r.rhrDeltaBpm ?? 0) < 0)
+                        monthMetric(value: r.activeMinPerDay.map { "\($0)" },
+                                    label: String(localized: "Active min/day"),
+                                    delta: activeDeltaText(r), good: (r.activeDeltaMin ?? 0) > 0)
                     }
-                    .padding(.bottom, 24)
+
+                    // The honesty line — especially for Quarter before 90 days exist.
+                    Text("Derived on this device from \(r.daysCovered) day\(r.daysCovered == 1 ? "" : "s") of your own readings in this window.")
+                        .font(.lato(11)).foregroundStyle(LiviqaTheme.ink3)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 16)
+                        .padding(.bottom, 24)
+                } else {
+                    emptyState
+                        .padding(.top, 16)
+                        .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 20)
             }
+            .padding(.horizontal, 20)
+        }
+        .background(LiviqaTheme.paper.ignoresSafeArea())
+        .liviqaDetail()   // hide the floating tab bar while this detail is on top
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
+    }
+
+    // MARK: - Header (back to Today · centred title · sample-data honesty chip)
+
+    private var header: some View {
+        ZStack {
+            NavBackHeader(onBack: { dismiss() }) {
+                if appState.isDemoData {
+                    Text(String(localized: "Sample data").uppercased())
+                        .font(.liviqaKicker(9)).tracking(0.8)
+                        .foregroundStyle(LiviqaTheme.clayText)
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .background(Capsule().fill(LiviqaTheme.clay2))
+                }
+            }
+            Text("Trends")
+                .font(.lato(15, .bold))
+                .foregroundStyle(LiviqaTheme.ink)
         }
     }
 
-    private func correlationCard(pair: String, strength: String,
-                                  strengthColor: Color, strengthBg: Color,
-                                  barProgress: Double, barColor: Color,
-                                  body: String) -> some View {
+    // MARK: - Range segmented control
+
+    private var segmentedControl: some View {
+        HStack(spacing: 0) {
+            ForEach(Range.allCases, id: \.self) { chip in
+                Button(chip.rawValue) { range = chip }
+                    .font(.liviqaKicker(11))
+                    .tracking(0.6)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background(range == chip ? LiviqaTheme.paper2 : Color.clear)
+                    .foregroundStyle(range == chip ? LiviqaTheme.ink : LiviqaTheme.ink3)
+                    .fontWeight(range == chip ? .medium : .regular)
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .shadow(color: range == chip ? LiviqaTheme.cardShadow : .clear,
+                            radius: 2, y: 1)
+            }
+        }
+        .padding(3)
+        .background(LiviqaTheme.line2)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - TIR hero — daily bars vs the user's own usual band
+
+    @ViewBuilder
+    private func tirHero(_ r: TrendsRange) -> some View {
+        if r.tirDaily.count >= 2 {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(String(localized: "Glucose · time in range · \(r.tirDaily.count) days").uppercased())
+                    .font(.liviqaKicker(9.5)).tracking(1)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text(tirHeadline(r))
+                    .font(.liviqaSerif(19)).kerning(-0.2).lineSpacing(3)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 7).padding(.bottom, 10)
+                TIRTrendBarChart(
+                    daily: r.tirDaily,
+                    bandLo: r.tirBandLo, bandHi: r.tirBandHi,
+                    todayAnnotation: r.tirTodayPct.map { String(localized: "\($0)% today") },
+                    startLabel: r.tirStartLabel)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
+            .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+        } else {
+            honestCard(
+                title: String(localized: "No glucose readings in this window yet"),
+                detail: String(localized: "Connect a data source and your time-in-range trend appears here, drawn against your own usual band."))
+        }
+    }
+
+    /// Fixed descriptive templates only — the verdict tail renders only when a
+    /// personal band exists to compare against.
+    private func tirHeadline(_ r: TrendsRange) -> String {
+        let pct = r.tirPeriodPct
+        let period = range.periodWord
+        guard let lo = r.tirBandLo, let hi = r.tirBandHi, let recent = r.tirDaily.last else {
+            return String(localized: "In range \(pct)% of this \(period).")
+        }
+        if recent < lo {
+            return String(localized: "In range \(pct)% of this \(period) — lately a little under your usual band.")
+        }
+        if recent > hi {
+            return String(localized: "In range \(pct)% of this \(period) — lately a little above your usual band.")
+        }
+        return String(localized: "In range \(pct)% of this \(period) — steady in your usual band.")
+    }
+
+    // MARK: - Correlations (gate-first)
+
+    private func correlationCard(_ c: TrendCorrelation) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(pair)
+            HStack(alignment: .center, spacing: 8) {
+                Text(c.pairTitle)
                     .font(.lato(14, .bold))
                     .kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.ink)
-                Spacer()
-                Text(strength.uppercased())
+                Spacer(minLength: 6)
+                Text((c.strong ? String(localized: "Strong") : String(localized: "Moderate")).uppercased())
                     .font(.liviqaKicker(9.5))
                     .tracking(0.6)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(strengthBg)
-                    .foregroundStyle(strengthColor)
+                    .background(c.strong ? LiviqaTheme.moss2 : LiviqaTheme.clay2)
+                    .foregroundStyle(c.strong ? LiviqaTheme.moss : LiviqaTheme.clayText)
                     .clipShape(Capsule())
             }
 
@@ -112,29 +224,61 @@ struct TrendsView: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(LiviqaTheme.line2)
                     Capsule()
-                        .fill(barColor)
-                        .frame(width: geo.size.width * barProgress)
+                        .fill(c.strong ? LiviqaTheme.moss : LiviqaTheme.clay)
+                        .frame(width: geo.size.width * min(1, abs(c.r)))
                 }
             }
             .frame(height: 5)
             .padding(.vertical, 11)
 
-            Text(body)
+            Text(c.body)
                 .font(.lato(13))
                 .lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // The evidence, always on (FR-XPL-01) — same chips as the nudge detail.
+            HStack(spacing: 6) {
+                evidenceChip("N", "\(c.n) days")
+                evidenceChip("r", String(format: "%.2f", c.r))
+                evidenceChip(nil, "p\(c.pText)")
+            }
+            .padding(.top, 10)
         }
         .padding(14)
         .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
         .shadow(color: LiviqaTheme.cardShadow, radius: 6, y: 2)
         .padding(.bottom, 10)
     }
 
-    private func monthMetric(value: String, label: String, delta: String, up: Bool?) -> some View {
+    private func evidenceChip(_ key: String?, _ value: String) -> some View {
+        HStack(spacing: 4) {
+            if let key { Text(key).foregroundStyle(LiviqaTheme.ink3) }
+            Text(value).foregroundStyle(LiviqaTheme.ink)
+        }
+        .font(.liviqaMono(10.5))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(LiviqaTheme.paper)
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(LiviqaTheme.line2, lineWidth: 1))
+    }
+
+    /// Below the gate we refuse to assert — the honest still-learning state.
+    private func connectionsLearningCard(_ r: TrendsRange) -> some View {
+        honestCard(
+            title: String(localized: "Still learning how your signals move together"),
+            detail: String(localized: "A connection appears here once a pattern in your own data passes the evidence gate — a clear relationship (r ≥ 0.4, p ≤ 0.05) over enough days. Below that bar, Liviqa doesn't claim one."))
+    }
+
+    // MARK: - Aggregate tiles
+
+    private func monthMetric(value: String?, label: String,
+                             delta: String, good: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(value)
+            Text(value ?? "—")
                 .font(.liviqaMono(18))
                 .monospacedDigit()
                 .foregroundStyle(LiviqaTheme.ink)
@@ -143,13 +287,15 @@ struct TrendsView: View {
                 .tracking(0.8)
                 .foregroundStyle(LiviqaTheme.ink3)
                 .padding(.top, 5)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Text(delta)
                 .font(.lato(11, .bold))
-                .foregroundStyle(
-                    up == nil ? LiviqaTheme.ink3 :
-                    (up! ? LiviqaTheme.moss : LiviqaTheme.rust)
-                )
+                .foregroundStyle(value == nil ? LiviqaTheme.ink4
+                                 : (good ? LiviqaTheme.moss : LiviqaTheme.ink3))
                 .padding(.top, 6)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -157,5 +303,73 @@ struct TrendsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 0.5))
         .shadow(color: LiviqaTheme.cardShadow, radius: 4, y: 1)
+        .accessibilityElement(children: .combine)
+    }
+
+    private static func sleepText(_ hours: Double) -> String {
+        var h = Int(hours)
+        var m = Int(((hours - Double(h)) * 60).rounded())
+        if m == 60 { h += 1; m = 0 }
+        return String(format: "%dh%02d", h, m)
+    }
+
+    private func sleepDeltaText(_ r: TrendsRange) -> String {
+        guard r.sleepAvgHours != nil else { return String(localized: "no data yet") }
+        guard let d = r.sleepDeltaMin else { return String(localized: "– no earlier window") }
+        if abs(d) < 5 { return String(localized: "– flat") }
+        return d > 0 ? "▲ \(d) min" : "▼ \(abs(d)) min"
+    }
+
+    private func rhrDeltaText(_ r: TrendsRange) -> String {
+        guard r.rhrAvg != nil else { return String(localized: "no data yet") }
+        guard let d = r.rhrDeltaBpm else { return String(localized: "– no earlier window") }
+        if abs(d) < 1 { return String(localized: "– flat") }
+        return d > 0 ? "▲ \(d) bpm" : "▼ \(abs(d)) bpm"
+    }
+
+    private func activeDeltaText(_ r: TrendsRange) -> String {
+        guard r.activeMinPerDay != nil else { return String(localized: "no data yet") }
+        guard let d = r.activeDeltaMin else { return String(localized: "– no earlier window") }
+        if abs(d) < 3 { return String(localized: "– flat") }
+        return d > 0 ? "▲ \(d) min" : "▼ \(abs(d)) min"
+    }
+
+    // MARK: - Honest states
+
+    private func honestCard(title: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.lato(14, .bold))
+                .foregroundStyle(LiviqaTheme.ink)
+            Text(detail)
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+        .padding(.bottom, 10)
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "chart.bar")
+                .font(.system(size: 26)).foregroundStyle(LiviqaTheme.moss)
+            Text("Your trends are still filling in")
+                .font(.lato(15, .semibold)).foregroundStyle(LiviqaTheme.ink)
+            Text("Trends build from your own readings on this device — once there's a week or more of data, this page compares each period against your own usual.")
+                .font(.lato(13)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card))
+        .overlay(RoundedRectangle(cornerRadius: LiviqaTheme.Radius.card)
+            .stroke(LiviqaTheme.line, lineWidth: 0.5))
     }
 }

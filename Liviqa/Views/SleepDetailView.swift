@@ -1,0 +1,339 @@
+// SleepDetailView.swift — A7.2 Area ④: the Sleep metric detail, rebuilt to the
+// DSleep editorial anatomy (design_handoff_liviqa_a7: d-insights.jsx DSleep +
+// charts.jsx SleepDepthChart/CompareBars).
+//
+// DATA HONESTY (checked against ingestion): sleep segments are retained as
+// (day, stage, hours) only — no intra-night times, no awake stage. So the real
+// screen renders the honest reduced anatomy (stage totals + share, nightly week
+// vs own mean, duration vs last week); the søkort depth chart, the 02:10 wake-up,
+// the AWAKE tile and the bedtime card render ONLY from the clearly-demo design
+// seeds (never over a real-data session).
+//
+// The hero score ring is the SAME transparent, decomposed arithmetic stance as
+// the evening day score (FR-TOD-05 / anti-score-opacity): three visible
+// fractions (rest / depth / rhythm), printed under the hero — never an opaque
+// composite. All sentences are fixed descriptive templates (FR-NDG-06 rail).
+import SwiftUI
+
+struct SleepDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
+
+    private var detail: SleepWeekDetail? { appState.sleepDetail }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                NavBackHeader(onBack: { dismiss() }) { EmptyView() }
+                    .padding(.top, 6)
+                    .padding(.horizontal, 20)
+
+                if let model {
+                    hero(model)
+                    if !model.stats.isEmpty { MetricStatRow(items: model.stats) }
+                    if model.showDemoDepthChart { demoDepthCard }
+                    if !model.stageRows.isEmpty { stageCard(model) }
+                    if model.nights.count >= 2 { weekCard(model) }
+                    if let sentence = model.compareSentence, !model.compareRows.isEmpty {
+                        compareCard(model, sentence: sentence)
+                    }
+                    if model.showDemoDepthChart { demoBedtimeCard }
+                    MetricDiscussButton { appState.showAssistant = true }
+                } else {
+                    emptyState
+                }
+            }
+            .padding(.bottom, 28)
+        }
+        .background(LiviqaTheme.paper)
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
+    }
+
+    // MARK: - Screen model (derived figures → fixed descriptive templates)
+
+    struct Model {
+        var verdict: String
+        var statText: String
+        var sub: String
+        var score: SleepDetailDeriver.Score?
+        var stats: [(String, String)]
+        var stageRows: [(String, Int, Color)]      // name, minutes, colour
+        var asleepMin: Int
+        var nights: [SleepWeekDetail.Night]
+        var weekMeanHours: Double
+        var weekHeadline: String
+        var compareSentence: String?
+        var compareRows: [MetricCompareRow]
+        var showDemoDepthChart: Bool
+    }
+
+    private var model: Model? {
+        if let d = detail { return Model(derived: d) }
+        // Design-package seeds — demo builds only, never over a real-data session.
+        return appState.isDemoData ? .designSeed : nil
+    }
+
+    // MARK: - Hero
+
+    private func hero(_ m: Model) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            MetricHero(tint: LiviqaTheme.accentSleep,
+                       kicker: "Sleep · last night",
+                       verdict: m.verdict,
+                       stat: m.statText,
+                       sub: scoreLine(m) ?? m.sub) {
+                if let score = m.score {
+                    ScoreRing(score: score.total,
+                              segments: [
+                                ScoreSegment(name: "Rest", val: score.rest, max: 50, color: .white),
+                                ScoreSegment(name: "Depth", val: score.depth, max: 30, color: .white.opacity(0.7)),
+                                ScoreSegment(name: "Rhythm", val: score.rhythm, max: 20, color: .white.opacity(0.45)),
+                              ],
+                              size: 78, textColor: .white)
+                }
+            }
+        }
+    }
+
+    /// The visible arithmetic under the score ring (anti-score-opacity) —
+    /// replaces the sub line whenever a score renders.
+    private func scoreLine(_ m: Model) -> String? {
+        guard let s = m.score else { return nil }
+        return "Rest \(Int(s.rest.rounded()))/50 · Depth \(Int(s.depth.rounded()))/30 · Rhythm \(Int(s.rhythm.rounded()))/20 — \(m.sub)"
+    }
+
+    // MARK: - Cards
+
+    /// Demo-only signature chart (see file header — real nights carry no times).
+    private var demoDepthCard: some View {
+        MetricDCard(kicker: "The night, as depth",
+                    headline: "A calm descent — deepest before 2 am.") {
+            SleepDepthChart(
+                segments: Self.demoNight,
+                soundings: [(0.17, 0.86, "1h 20m", "DEEP"),
+                            (0.795, 0.2, "1h 44m", "REM"),
+                            (0.44, 0.5, "4h 06m", "CORE")],
+                wakeT: 0.632,
+                wakeLabel: "02:10 — up for a moment",
+                edgeStart: "23:04", edgeEnd: "06:14")
+        }
+    }
+
+    private var demoBedtimeCard: some View {
+        MetricDCard(kicker: "Bedtime · this week",
+                    headline: "Within 20 min of your usual, 6 nights of 7.") {
+            MetricCompareBars(rows: [
+                MetricCompareRow(value: "23:04 avg", label: "THIS WEEK", frac: 0.92, on: true),
+                MetricCompareRow(value: "23:26 avg", label: "LAST WEEK", frac: 0.86, on: false),
+            ], color: LiviqaTheme.accentSleep)
+        }
+    }
+
+    private func stageCard(_ m: Model) -> some View {
+        let total = max(1, m.stageRows.reduce(0) { $0 + $1.1 })
+        let deepRemPct = Int((Double(m.stageRows.filter { $0.0 != "Core" }
+            .reduce(0) { $0 + $1.1 }) / Double(total) * 100).rounded())
+        return MetricDCard(kicker: "The night, by stage",
+                           headline: "About \(deepRemPct)% of the night in Deep and REM.") {
+            VStack(alignment: .leading, spacing: 10) {
+                GeometryReader { geo in
+                    HStack(spacing: 2) {
+                        ForEach(Array(m.stageRows.enumerated()), id: \.offset) { _, s in
+                            RoundedRectangle(cornerRadius: 4).fill(s.2)
+                                .frame(width: max(2, geo.size.width * CGFloat(s.1) / CGFloat(total)))
+                        }
+                    }
+                }
+                .frame(height: 18)
+                VStack(spacing: 5) {
+                    ForEach(Array(m.stageRows.enumerated()), id: \.offset) { _, s in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 3).fill(s.2).frame(width: 9, height: 9)
+                            Text(s.0).font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink2)
+                            Spacer()
+                            Text("\(minText(s.1))  ·  \(Int((Double(s.1) / Double(total) * 100).rounded()))%")
+                                .font(.liviqaMono(11)).foregroundStyle(LiviqaTheme.ink3)
+                        }
+                    }
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Sleep stages")
+            .accessibilityValue(m.stageRows.map { "\($0.0) \(minText($0.1))" }.joined(separator: ", "))
+        }
+    }
+
+    private func weekCard(_ m: Model) -> some View {
+        MetricDCard(kicker: "Sleep · this week", headline: m.weekHeadline) {
+            UsualDayBars(values: m.nights.map(\.hours),
+                         labels: m.nights.map(\.label),
+                         usual: m.weekMeanHours,
+                         color: LiviqaTheme.accentSleep,
+                         unit: "hours asleep",
+                         fmt: { String(format: "%.1fh", $0) })
+        }
+    }
+
+    private func compareCard(_ m: Model, sentence: String) -> some View {
+        MetricDCard(kicker: "Sleep · vs last week", headline: sentence) {
+            MetricCompareBars(rows: m.compareRows, color: LiviqaTheme.accentSleep)
+        }
+    }
+
+    // MARK: - Honest empty state (real device, no sleep)
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "moon.fill").font(.system(size: 12))
+                    .foregroundStyle(LiviqaTheme.accentSleep)
+                Text("SLEEP")
+                    .font(.liviqaKicker(10.5)).tracking(LiviqaTheme.Tracking.kicker)
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            Text("No sleep recorded yet.")
+                .font(.liviqaSerif(21)).kerning(-0.2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 9)
+            Text("When a watch or sleep app shares to Apple Health, this page fills with your own nights — stages, your week, and how it compares to your usual. Everything stays on this phone.")
+                .font(.lato(13.5)).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .padding(.top, 10)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+
+    private func minText(_ mins: Int) -> String {
+        "\(mins / 60)h \(String(format: "%02d", mins % 60))m"
+    }
+
+    /// The design package's demo night (charts.jsx SleepDepthChart), verbatim.
+    static let demoNight: [SleepDepthSegment] = [
+        .init(stage: 0, t0: 0, t1: 0.03), .init(stage: 2, t0: 0.03, t1: 0.12),
+        .init(stage: 3, t0: 0.12, t1: 0.22), .init(stage: 2, t0: 0.22, t1: 0.30),
+        .init(stage: 1, t0: 0.30, t1: 0.38), .init(stage: 2, t0: 0.38, t1: 0.50),
+        .init(stage: 3, t0: 0.50, t1: 0.56), .init(stage: 2, t0: 0.56, t1: 0.62),
+        .init(stage: 0, t0: 0.62, t1: 0.645), .init(stage: 2, t0: 0.645, t1: 0.74),
+        .init(stage: 1, t0: 0.74, t1: 0.85), .init(stage: 2, t0: 0.85, t1: 0.95),
+        .init(stage: 1, t0: 0.95, t1: 1),
+    ]
+}
+
+// MARK: - Model building
+
+extension SleepDetailView.Model {
+
+    /// Derived figures → fixed descriptive templates (no generated language).
+    init(derived d: SleepWeekDetail) {
+        let night = Double(d.asleepMin) / 60
+        let mean = Double(d.weekMeanMin) / 60
+
+        // Verdict: last night vs the user's OWN week mean (±30 min = usual).
+        let verdict: String
+        if d.nights.count >= 3 {
+            if abs(night - mean) <= 0.5 { verdict = "You slept like your usual self." }
+            else if night > mean { verdict = "A longer night than your usual." }
+            else { verdict = "A shorter night than your usual." }
+        } else {
+            verdict = "Last night, as your watch recorded it."
+        }
+
+        var subParts: [String] = []
+        if d.hasStageDetail {
+            subParts.append("Deep \(Self.minText(d.deepMin)) · REM \(Self.minText(d.remMin)) · Core \(Self.minText(d.coreMin))")
+        }
+        // The mock provider's internal name must never read as a device name —
+        // in demo the honest label is the same one the chip uses.
+        if let src = d.source {
+            subParts.append(src.caseInsensitiveCompare("Mock") == .orderedSame
+                            ? String(localized: "Sample data") : src)
+        }
+
+        let stats: [(String, String)] = d.hasStageDetail
+            ? [(Self.minText(d.deepMin), "DEEP"),
+               (Self.minText(d.remMin), "REM"),
+               (Self.minText(d.coreMin), "CORE")]
+            : []
+
+        let stageRows: [(String, Int, Color)] = d.hasStageDetail
+            ? [("Deep", d.deepMin, LiviqaTheme.accentSleep),
+               ("REM", d.remMin, LiviqaTheme.accentSleep.opacity(0.65)),
+               ("Core", d.coreMin, LiviqaTheme.accentSleep.opacity(0.35))]
+            : []
+
+        let closeNights = d.nights.filter { abs($0.hours - mean) <= 0.5 }.count
+        let weekHeadline = d.nights.count >= 2
+            ? "\(closeNights) of \(d.nights.count) nights within about half an hour of your usual."
+            : ""
+
+        var compareSentence: String? = nil
+        var compareRows: [MetricCompareRow] = []
+        if let prev = d.prevWeekMeanMin, d.nights.count >= 3 {
+            let diff = d.weekMeanMin - prev
+            if diff >= 15 { compareSentence = "More sleep a night than last week." }
+            else if diff <= -15 { compareSentence = "Less sleep a night than last week." }
+            else { compareSentence = "About the same nightly sleep as last week." }
+            let top = Double(max(d.weekMeanMin, prev)) * 1.08
+            compareRows = [
+                MetricCompareRow(value: "\(Self.minText(d.weekMeanMin)) avg", label: "THIS WEEK",
+                                 frac: Double(d.weekMeanMin) / top, on: true),
+                MetricCompareRow(value: "\(Self.minText(prev)) avg", label: "LAST WEEK",
+                                 frac: Double(prev) / top, on: false),
+            ]
+        }
+
+        self.init(
+            verdict: verdict,
+            statText: Self.minText(d.asleepMin),
+            sub: subParts.joined(separator: " · "),
+            score: SleepDetailDeriver.score(of: d),
+            stats: stats,
+            stageRows: stageRows,
+            asleepMin: d.asleepMin,
+            nights: d.nights,
+            weekMeanHours: mean,
+            weekHeadline: weekHeadline,
+            compareSentence: compareSentence,
+            compareRows: compareRows,
+            showDemoDepthChart: false)
+    }
+
+    /// The design package's demo story (d-insights.jsx DSleep), verbatim.
+    /// Rendered ONLY when no derivation exists AND the session is demo-tagged.
+    static var designSeed: Self {
+        .init(
+            verdict: "You slept like your usual self.",
+            statText: "7h 10m",
+            sub: "One brief wake-up at 02:10 — then straight back down.",
+            score: .init(rest: 45, depth: 26, rhythm: 16),
+            stats: [("1h 20m", "DEEP"), ("1h 44m", "REM"),
+                    ("4h 06m", "CORE"), ("12m", "AWAKE")],
+            stageRows: [],
+            asleepMin: 430,
+            nights: [
+                .init(label: "M", hours: 7.2, isLastNight: false),
+                .init(label: "T", hours: 6.8, isLastNight: false),
+                .init(label: "W", hours: 7.4, isLastNight: false),
+                .init(label: "T", hours: 6.9, isLastNight: false),
+                .init(label: "F", hours: 7.1, isLastNight: false),
+                .init(label: "S", hours: 7.6, isLastNight: false),
+                .init(label: "S", hours: 7.2, isLastNight: true),
+            ],
+            weekMeanHours: 7.17,
+            weekHeadline: "6 of 7 nights within about half an hour of your usual.",
+            compareSentence: "About the same nightly sleep as last week.",
+            compareRows: [
+                MetricCompareRow(value: "7h 10m avg", label: "THIS WEEK", frac: 0.92, on: true),
+                MetricCompareRow(value: "7h 02m avg", label: "LAST WEEK", frac: 0.90, on: false),
+            ],
+            showDemoDepthChart: true)
+    }
+
+    private static func minText(_ mins: Int) -> String {
+        "\(mins / 60)h \(String(format: "%02d", mins % 60))m"
+    }
+}
