@@ -18,6 +18,14 @@ import UniformTypeIdentifiers
 #endif
 
 struct DataSourcesView: View {
+
+    /// Fixture source names never render as device names (shared rule with
+    /// the metric-detail source labels).
+    static func displaySource(_ raw: String) -> String {
+        raw.caseInsensitiveCompare("Mock") == .orderedSame
+            ? String(localized: "Sample data") : raw
+    }
+
     @Environment(AppState.self) private var appState
 
     @State private var showBankSheet = false
@@ -897,15 +905,19 @@ extension DataSourcesView {
                     .foregroundStyle(LiviqaTheme.ink)
             }
             ForEach(Array(appState.workoutMerges.prefix(3).enumerated()), id: \.offset) { _, m in
+                // The mock provider's internal name must never read as a device
+                // name in user copy (same rule as the detail-view source labels).
+                let kept = Self.displaySource(m.kept)
+                let merged = m.merged.map(Self.displaySource).joined(separator: ", ")
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(m.type) · \(m.start.formatted(date: .abbreviated, time: .shortened))")
                         .font(.lato(13))
                         .foregroundStyle(LiviqaTheme.ink)
                     Group {
                         if m.enrichedFields.isEmpty {
-                            Text("Kept \(m.kept) for counting · merged \(m.merged.joined(separator: ", "))")
+                            Text("Kept \(kept) for counting · merged \(merged)")
                         } else {
-                            Text("Kept \(m.kept) for counting · merged \(m.merged.joined(separator: ", ")) · gained \(m.enrichedFields.joined(separator: ", "))")
+                            Text("Kept \(kept) for counting · merged \(merged) · gained \(m.enrichedFields.joined(separator: ", "))")
                         }
                     }
                     .font(.lato(12))
