@@ -2,6 +2,27 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-08-13 (early) — A7.2 full-screen program COMPLETE: all nine areas built (PR-106/107 waves closed)
+
+- **Outcome.** The 74-screen census is resolved to **0 MISSING at screen level**
+  across four build waves on `claude/a72-electric-ink`, each merged to develop
+  build-green (waves: onboarding+glucose → today/insights+metric details →
+  care+consent core → vault+settings/journal/watch+knowledge/AI). Unit bundle
+  161 → **282 tests / 51 suites, all passing**; watch scheme green.
+- **The guard net proved itself against generated work:** terminology lint
+  caught advice-voice in new Face ID copy; FR-NDG-06's dose rule caught the
+  design package's own VO₂max wording; the chat guard gained titration/basal/
+  bolus coverage after red-teaming; the posture suite was upgraded where a
+  demo path was replaced by real state.
+- **Honesty-first divergences recorded per wave** in CHANGELOG/RISK: no claim
+  ships that the running app cannot make true (receipt evidentiary gating,
+  queue-only PMS, preference-only notification channels labelled as such,
+  unverifiable retention figure removed, no fabricated names/counters).
+- **Open registers:** feature-level follow-ups + CN rulings + backend
+  dependencies consolidated in the census v02 delta (DfG Works Liviqa root)
+  and `qms/RTM.md`; SRS v06 diff proposal awaits CN ratification; full-frame
+  screenshot sweep filed at `20_Build/a72_sweep_20260813/`.
+
 ## 2026-08-12 (night) — A7.2 full-screen program: census v01 + requirements diff (PR-107 opens)
 
 - **Directive (CN, 2026-08-12):** build **every** designed screen in the A7.2
