@@ -763,3 +763,111 @@ struct BaselineSpark: View {
         .accessibilityHidden(true)
     }
 }
+
+// MARK: - A7.2 Evening edition (PR-106) — day-score ring + month trend line
+
+/// One transparent slice of the evening day score: the arithmetic IS the UI.
+struct ScoreSegment: Identifiable {
+    let id = UUID()
+    let name: String
+    let val: Double
+    let max: Double
+    let color: Color
+}
+
+/// Segmented breakdown ring (charts.jsx ScoreRing): each domain owns an arc
+/// sized by its weight (max/total); the fill inside it is val/max. The score
+/// is never opaque — the legend next to it shows the exact addition.
+struct ScoreRing: View {
+    var score: Int
+    var segments: [ScoreSegment]
+    var size: CGFloat = 96
+
+    private let gapDeg = 14.0
+
+    var body: some View {
+        let total = segments.reduce(0) { $0 + $1.max }
+        let sweep = 360.0 - gapDeg * Double(segments.count)
+        ZStack {
+            ForEach(Array(segments.enumerated()), id: \.element.id) { i, seg in
+                let priorMax = segments.prefix(i).reduce(0) { $0 + $1.max }
+                let start = -90 + gapDeg / 2 + (priorMax / total) * sweep + gapDeg * Double(i)
+                let span = (seg.max / total) * sweep
+                let fill = Swift.max(4, span * (seg.val / seg.max))
+                arc(start, start + span).stroke(seg.color.opacity(0.20),
+                    style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                arc(start, start + fill).stroke(seg.color,
+                    style: StrokeStyle(lineWidth: 7, lineCap: .round))
+            }
+            Text("\(score)")
+                .font(.liviqaSerif(26))
+                .foregroundStyle(LiviqaTheme.ink)
+        }
+        .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Day score \(score) of 100"))
+    }
+
+    private func arc(_ a0: Double, _ a1: Double) -> Path {
+        Path { p in
+            let c = CGPoint(x: size / 2, y: size / 2)
+            p.addArc(center: c, radius: size / 2 - 7,
+                     startAngle: .degrees(a0), endAngle: .degrees(a1), clockwise: false)
+        }
+    }
+}
+
+/// Trend line with a dashed "your usual" reference (charts.jsx TrendLine):
+/// gradient stroke, average line, edge date labels, end-dot.
+struct MonthTrendLine: View {
+    var data: [Double]
+    var avg: Double
+    var color: Color
+    var color2: Color? = nil
+    var height: CGFloat = 92
+    var labels: [String] = []
+
+    var body: some View {
+        VStack(spacing: 3) {
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                if data.count > 1 {
+                    let lo = min(data.min() ?? 0, avg) - 3
+                    let hi = max(data.max() ?? 1, avg) + 3
+                    let span = max(0.0001, hi - lo)
+                    let y: (Double) -> CGFloat = { v in 4 + (1 - CGFloat((v - lo) / span)) * (h - 8) }
+                    let x: (Int) -> CGFloat = { i in 3 + CGFloat(i) / CGFloat(data.count - 1) * (w - 6) }
+                    ZStack(alignment: .topLeading) {
+                        // "your usual" — dashed reference at the period average
+                        Path { p in
+                            p.move(to: CGPoint(x: 0, y: y(avg)))
+                            p.addLine(to: CGPoint(x: w, y: y(avg)))
+                        }
+                        .stroke(LiviqaTheme.ink3.opacity(0.55),
+                                style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                        Path { p in
+                            p.move(to: CGPoint(x: x(0), y: y(data[0])))
+                            for i in 1..<data.count { p.addLine(to: CGPoint(x: x(i), y: y(data[i]))) }
+                        }
+                        .stroke(
+                            LinearGradient(colors: [color, color2 ?? color],
+                                           startPoint: .leading, endPoint: .trailing),
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        Circle().fill(color2 ?? color).frame(width: 5, height: 5)
+                            .position(x: x(data.count - 1), y: y(data[data.count - 1]))
+                    }
+                }
+            }
+            .frame(height: height)
+            if !labels.isEmpty {
+                HStack {
+                    ForEach(Array(labels.enumerated()), id: \.offset) { i, l in
+                        if i > 0 { Spacer() }
+                        Text(l).font(.lato(10)).foregroundStyle(LiviqaTheme.ink3)
+                    }
+                }
+            }
+        }
+        .accessibilityHidden(true)   // the card headline carries the meaning
+    }
+}
