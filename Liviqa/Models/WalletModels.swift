@@ -130,6 +130,41 @@ struct CEEvidence: Codable, Equatable {
         guard let h = eventHash, !h.isEmpty else { return nil }
         return String(h.prefix(10))
     }
+
+    /// FR-WAL-09 — a receipt is EVIDENTIARY only when the consent engine
+    /// returned BOTH a receipt id and an event hash (CE_MODE=sim/real attach
+    /// them; CE_MODE=stub attaches neither). While non-evidentiary, no
+    /// "signed so nobody can change it" claim and no proof number may render —
+    /// the UI softens to "kept in your consent record". Gated in
+    /// ShareReceiptSheet + ConsentLedgerView; asserted by T-WAL-09.
+    var isEvidentiary: Bool {
+        guard let id = receiptId, !id.isEmpty,
+              let hash = eventHash, !hash.isEmpty else { return false }
+        return true
+    }
+
+    /// Receipt-slip proof number: "0x" + first6…last4 of the event hash.
+    /// ONLY meaningful on evidentiary receipts (returns nil otherwise).
+    var proofNumber: String? {
+        guard isEvidentiary, let h = eventHash else { return nil }
+        let hex = h.hasPrefix("0x") ? String(h.dropFirst(2)) : h
+        guard hex.count > 10 else { return "0x\(hex)" }
+        return "0x\(hex.prefix(6))…\(hex.suffix(4))"
+    }
+}
+
+extension Array where Element == WalletEvent {
+    /// Latest EVIDENTIARY consent-engine receipt for a grant — matched by the
+    /// grant's CE chain ref when both sides carry one, else by actor name.
+    /// The share receipt slip renders its proof number from this and nothing
+    /// else (FR-WAL-09: stub receipts never produce a proof number).
+    func latestEvidence(forGrantRef ref: String?, recipientName: String) -> CEEvidence? {
+        first(where: { event in
+            guard let ce = event.ce, ce.isEvidentiary else { return false }
+            if let ref, let grantRef = ce.grantRef { return grantRef == ref }
+            return event.actorName == recipientName
+        })?.ce
+    }
 }
 
 struct WalletEvent: Identifiable, Codable {

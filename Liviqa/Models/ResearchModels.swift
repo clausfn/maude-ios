@@ -13,6 +13,18 @@ struct ResearchStudy: Identifiable, Equatable {
     var cohortK: Int               // anonymity-set size (NFR-RSCH-04: must be ≥ 5)
 }
 
+extension ResearchStudy {
+    /// NFR-RSCH-04 — the grouping promise in the A7.2 register: "grouped with
+    /// at least 4 other people" is the citizen-language TRANSLATION of k ≥ 5,
+    /// never a change of threshold. k is clamped to the ≥ 5 floor before
+    /// wording, so a mis-seeded study can under-promise but never lower the
+    /// real guarantee. Asserted by T-RSCH-06 (ConsentSurfaceTests).
+    static func groupingPhrase(cohortK: Int) -> String {
+        let k = max(cohortK, 5)
+        return String(localized: "at least \(k - 1) other people")
+    }
+}
+
 extension MockData {
     /// Demo study used for the invitation → review/consent → joined flow.
     static let demoStudy = ResearchStudy(

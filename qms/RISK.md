@@ -2,7 +2,128 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
-## A7.2 Area ② — Today & insights remainder: PMS channel, Trends, day replay (branch claude/a72-electric-ink, 2026-08-12)
+## A7.2 Area ⑥ — Sharing & consent: the trust core (branch claude/a72-electric-ink, 2026-08-12)
+
+Ten census rows: WalletView copy-register purge + UC-11/Research-hub entries,
+ShareWithClinicianView single-scroll rebuild, CreateGrantView (new),
+ConsentLedgerView claim gating, ShareReceiptSheet slip rebuild,
+StudyConsentView defaults-off flip, ResearchHubView (new), TokenWalletView
+donate-first rework, InAppPrivacyView proof surface. Safety posture:
+
+- **RK-SHARE-03 (NEW) — the package's "Every reading" share mode is NOT built
+  (OPEN QMS RULING, DHF 2026-08-12 night).** Hazard: ScrSharePattern's per-area
+  "Summary only | Every reading" choice would ship raw measurement lists off
+  the device, directly contradicting the repo's derived-only rail (FR-SHARE-02
+  / `DerivedShareBuilder` — raw samples and provenance never enter a share
+  payload) and the package's own ScrCreateGrant plate ("Raw readings can never
+  be added to a grant · Locked on"). The canvas is internally inconsistent.
+  Mitigation: the rebuilt share form is SUMMARIES-ONLY — area rows are on/off
+  (no detail-level segmented pair), the verdict kicker reads "one area · one
+  time period · summaries only", and the lock plate + CreateGrantView's
+  non-interactive "Locked on" plate state the rail as UI. The mode stays
+  unbuilt until the product/QMS ruling closes. No engine/deriver change; the
+  existing `createGrantAndShare` path is untouched.
+- **RK-WAL-09 — CE-stub receipts are NON-EVIDENTIARY: claim gating implemented
+  (FR-WAL-09, safety-path copy).** Hazard: the ledger header "Nobody can edit
+  this — not even us", the slip body "signed so nobody can change it
+  afterwards", and a rendered proof number would overclaim while the backend
+  runs CE_MODE=stub (no cryptographic receipt exists). Mitigation: evidentiary
+  = `CEEvidence.isEvidentiary` (receipt id AND event hash — stub mode attaches
+  neither). Proof number + "Signed at" + the signed-claim sentence render ONLY
+  from evidentiary evidence (`ReceiptSlipModel.build`); otherwise the slip
+  softens to "kept in your consent record" and "Recorded at". The consent
+  record's header claim gates the same way
+  (`ConsentLedgerView.headerClaim(hasEvidence:)` → "It is designed so nobody
+  can edit it" without evidence), and the per-event "verified" chip + evidence
+  block render only on evidentiary events. Asserted by T-WAL-09
+  (`ConsentSurfaceTests`).
+- **RK-RSCH-07 — study-consent defaults flipped to OFF (consent-safety
+  default, FR-RSCH-07).** Hazard: `StudyConsentView` pre-selected ALL of a
+  study's data categories, so a citizen could approve maximal scope with the
+  pre-checked defaults doing the consenting. Mitigation: `initialSelection` is
+  now empty for every study, the sheet says "Everything is off until you
+  switch it on", and Approve & join stays disabled until ≥ 1 category is on
+  (`canJoin`). Joined-state copy now names the categories actually selected,
+  not the study's full request. Asserted by T-RSCH-07 (`ConsentSurfaceTests`).
+- **k ≥ 5 stands; the wording is a translation.** "Grouped with at least 4
+  other people — never shown alone" (research hub, study consent, wallet
+  footer) equals k ≥ 5; `ResearchStudy.groupingPhrase` clamps to the k ≥ 5
+  floor so a mis-seeded study can never lower the promise (NFR-RSCH-04
+  unchanged, `cohortK ≥ 5`). Tested.
+- **Token wallet (FR-DFG-07) — consent-record claim withheld.** Token events
+  do not yet log as wallet events (local `TokenTransaction`s never reach the
+  ledger), so the designed "earning and donating are written to your consent
+  record" sentence is NOT shipped; the footer claims only what is true
+  ("tokens carry no health data"). Donation descriptions carry the cause name
+  only — no field can hold a reading (tested). Real ledger sums; Release keeps
+  honest empty states (no fabricated catalogue/causes).
+- **Revoke stays one-way; offline queue NOT built (conscious drop, honest
+  failure instead).** The census manifest's queued-offline-withdraw has no
+  backend/replay machinery; shipping copy that says "your stop is saved" over
+  a reverted optimistic update would be false. Instead a failed stop reverts
+  (existing `toggleGrant` behaviour) and the toast says honestly "Couldn't
+  stop the share — you may be offline. Nothing changed; try again." Vocabulary
+  converged on "stop" across WalletView/InAppPrivacyView/ledger (the old
+  Pause/Resume demo control is deleted); reactivation remains an explicit
+  fresh re-consent (FR-WAL-08 untouched).
+- **Proof surface (NFR-PRIV-05) now proves with real state.** InAppPrivacyView
+  drops its DEBUG-only fabricated grants (a Release proof sheet previously
+  showed no sharing state at all) and mirrors `AppState.grants` read-only;
+  empty state is the honest "No one." Airplane-mode proof is purely local
+  framing (no network claim); "every look is logged" links the consent record
+  and counts real `dataAccessed` events. Demo study never renders as a real
+  open study (hub renders only `researchOpportunity`; honest empty state
+  otherwise). Provenance renders nowhere on any Area-⑥ surface; no red/TIR;
+  FR-NDG-06 untouched.
+
+## A7.2 Area ⑤ — Care & Liviqa PRO citizen surface rebuilt to the A7 canvases (branch claude/a72-electric-ink, 2026-08-12)
+
+- **RK-CONSULT-SHARE-01 (NEW) — the pre-visit share tick now creates a REAL
+  consent grant (FR-PRO-01).** Hazards: (a) the citizen could believe more (or
+  less) is shared than actually is; (b) a per-consult share could outlive the
+  episode; (c) the derived payload could leak raw data or provenance.
+  Mitigations: (a) the tick's copy is the verbatim summaries-only promise
+  ("…never your raw data, which stays on this device") and the status line
+  states the real posture — on the sovereign backend it reads "Shared for this
+  consult · expires automatically in 24 hours · listed in your consent record"
+  only AFTER the grant + summary push succeed; on failure the tick REVERTS
+  (never a claimed share that didn't happen); off the sovereign backend no
+  status line renders and nothing is transmitted. (b) the grant carries a 24 h
+  expiry and summaries-only granularity; un-ticking revokes the exact grant the
+  screen created (one-way, both events kept in the ledger); the grant stays
+  manageable from Privacy like any other. (c) the payload rides the audited
+  FR-SHARE-02 path (`DerivedShareBuilder`): derived summaries only, no raw
+  samples, no provenance field, mmol/L (OD-07). Residual: LOW — a citizen who
+  ticks in demo mode shares nothing (matching demo's empty network), and the
+  console-side view-event ingestion (who saw what, when) is an OPEN contract
+  item tracked on FR-PRO-01.
+- **Consent-first join held (structural).** Joining IS the consent to the call
+  on both surfaces that can start one (incoming ring, waiting-room auto-join);
+  no pre-ticked boxes added, no join without the citizen's own tap/arm. The
+  incoming-call consent line was MERGED, not replaced: canvas copy ("Joining is
+  your consent to this call. X sees only the summary you've shared — never your
+  raw data.") + the existing recording guarantee ("Recording stays off unless
+  you allow it in the call.") — strictly stronger than either alone.
+- **Recording consent (FR-WAL) — copy preserved, affordance repositioned.** The
+  in-call consent moved from a card to the designed floating banner; the ask
+  copy is byte-identical ("X asked to record this call. Only you can allow it —
+  and you can stop any time."), the on-state keeps the logged-either-way
+  disclosure, and Stop stays one tap. The unprompted "Allow recording" button
+  (shown even when nobody asked) was REMOVED — a consent affordance now appears
+  only against a real request: fewer accidental grants, no new hazard.
+- **Waiting room stays honest.** The rebuilt (light) waiting room drops the old
+  "Your clinician has been notified you're waiting" line — the app only polls;
+  no notification is actually sent — and replaces it with the canvas body
+  ("Your call opens automatically the moment they join."), which is literally
+  what `waitLoop()` does. The 15-min grace state (reschedule offer) is kept.
+  New footer promise "Secure EU video room · nothing is recorded without your
+  say-so" is true by construction (NFR-SEC-07 EU Jitsi + citizen-owned
+  recording consent).
+- **No clinical red introduced.** Care surfaces stay fjord/moss; rust appears
+  only on the standing boundary controls (decline/hang-up) it already owned.
+  TIR/GMI render on NO iOS care surface — the red=TIR-only rail transfers to
+  the console PRO build as a written obligation (FR-PRO-01). FR-NDG-06
+  untouched (no nudge-engine code in this area).
 
 - **RK-PMS-01 (NEW) — the wrong/harmful-nudge reporting channel (UC-19 /
   FR-PMS-01).** Hazards: (a) the PMS intake could leak health data off the

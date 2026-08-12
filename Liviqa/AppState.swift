@@ -933,6 +933,59 @@ final class AppState {
         return DerivedShareBuilder.build(from: samples, scopeGroups: scopeGroups)
     }
 
+    // MARK: - Per-consult share (FR-PRO-01: pre-visit gate → expiring grant + summary)
+
+    /// Backend grant ids for consult shares armed THIS session (recipientId → id),
+    /// so un-ticking the pre-visit box can revoke the exact grant it created.
+    var consultShareGrantIds: [String: String] = [:]
+
+    /// How long a per-consult grant lives. Generous enough to cover a same-day
+    /// consult that runs late; short enough that the summary genuinely expires
+    /// with the episode ("Shared for this consult · expires after the call").
+    static let consultShareLifetime: TimeInterval = 24 * 3600
+
+    /// Arm the pre-visit share: create a short-lived, summaries-only grant for
+    /// this recipient and push the derived summary (glucose TIR/mean · sleep ·
+    /// recovery) for the last 7 days. Rides the existing FR-SHARE-02 path, so
+    /// raw samples and provenance never leave the device and the grant lands in
+    /// the consent ledger like any other. Returns false (with `lastError`) on
+    /// failure or off the sovereign backend.
+    @MainActor
+    @discardableResult
+    func armConsultShare(recipientId: String) async -> Bool {
+        guard let sov = sovereign else { return false }
+        // The role tightens the server-side scope template; look it up from the
+        // directory and fall back to the clinical template (never looser).
+        var role: RecipientRole = .clinicalNurse
+        if let match = (try? await sov.fetchRecipients())?.first(where: { $0.id == recipientId }) {
+            role = match.role
+        }
+        let expiry = Date().addingTimeInterval(Self.consultShareLifetime)
+        guard let id = await createGrantAndShare(recipientId: recipientId,
+                                                role: role,
+                                                scopeGroups: ["glucose", "sleep", "recovery"],
+                                                rangeDays: 7,
+                                                expiry: expiry,
+                                                purpose: "consultation") else { return false }
+        consultShareGrantIds[recipientId] = id
+        return true
+    }
+
+    /// Withdraw the consult share armed this session (one-way revoke; the ledger
+    /// keeps the grant + revocation events). No-op when we don't hold the id —
+    /// the grant still expires on its own and stays manageable from Privacy.
+    @MainActor
+    func disarmConsultShare(recipientId: String) async {
+        guard let sov = sovereign, let id = consultShareGrantIds[recipientId] else { return }
+        do {
+            try await sov.revokeGrant(backendGrantId: id)
+            consultShareGrantIds[recipientId] = nil
+            await loadWallet()
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     @MainActor
     func toggleGrant(_ grant: WalletGrant) async {
         // Optimistic update

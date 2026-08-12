@@ -1,4 +1,24 @@
-// ShareWithClinicianView.swift — Multi-step data sharing flow · v01 2026-05-22
+// ShareWithClinicianView.swift — Share a pattern (UC-07) · v02 2026-08-12
+// A7.2 rebuild from b-sharing.jsx ScrSharePattern: the 5-step wizard becomes
+// ONE scroll form — Who sees it → What they can see (per-area toggles) → How
+// long → How it reaches them → lock plate → "Preview & share" (a real preview
+// phase, then send). The existing send path (createGrantAndShare → sovereign
+// createGrant + DerivedShareBuilder + PUT /shares/{grantId}) is kept untouched.
+//
+// SAFETY RAILS (qms/RISK.md Area ⑥):
+//  • SUMMARIES ONLY — the package's per-area "Every reading" detail level is
+//    under an OPEN QMS ruling (DHF 2026-08-12 night) and is NOT built: it
+//    contradicts the derived-only rail (FR-SHARE-02 / DerivedShareBuilder) and
+//    ScrCreateGrant's own "Raw readings can never be added to a grant · Locked
+//    on" plate. Area rows are on/off; the kicker + lock plate say summaries.
+//  • Documents & letters — not packageable today (FR-ING-15 open): the row
+//    renders SOON + disabled, never a live toggle (honest UI).
+//  • "Until I stop it" — the backend has no open-ended expiry: the chip maps
+//    to a 12-month grant and the note says honestly that the share pauses
+//    after 12 months unless confirmed again (no fake reminder promise).
+//  • Nothing pre-selected — consent-conservative default (nothing leaves the
+//    phone that the citizen didn't switch on this visit).
+//  • Provenance never enters the share payload (enforced in the deriver).
 import SwiftUI
 
 struct ShareWithClinicianView: View {
@@ -6,55 +26,87 @@ struct ShareWithClinicianView: View {
 
     var nudge: Nudge? = nil
     var onDismiss: () -> Void
+    /// UC-11 entry (CreateGrantView): restrict the directory to one role.
+    var roleFilter: RecipientRole? = nil
 
-    @State private var step = 1
+    private enum Phase { case form, preview, done }
+    @State private var phase: Phase = .form
 
-    // Step 1 — what to share
-    @State private var shareGlucose  = true
+    // What to share — consent-conservative: everything OFF until switched on.
+    @State private var shareGlucose  = false
     @State private var shareSleep    = false
-    @State private var shareHRV      = false
+    @State private var shareHeart    = false   // recovery group (HRV, resting rate)
     @State private var shareActivity = false
-    @State private var shareNudges   = true
 
-    // Step 2 — time range
-    @State private var selectedRange = "Last 7 days"
+    // How long — access duration AND data window ride the same chip.
+    @State private var selectedDuration: Duration = .days30
 
-    // Step 3 — recipient (live directory when on the sovereign backend; free text on mock)
+    // Recipient (live directory when on the sovereign backend; free text on mock)
     @State private var recipients: [Recipient] = []
     @State private var selectedRecipient: Recipient? = nil
     @State private var recipientName = ""
     @State private var recipientRole = ""
 
-    // Step 4 — send
+    // Send
     @State private var isSending = false
     @State private var sendError: String? = nil
 
-    private let rangeOptions = ["Last 7 days", "Last 30 days", "Last 90 days"]
+    enum Duration: String, CaseIterable {
+        case days7    = "7 days"
+        case days30   = "30 days"
+        case months3  = "3 months"
+        case openEnded = "Until I stop it"
+
+        /// Data window pushed into the derived package (days back from today).
+        var rangeDays: Int {
+            switch self {
+            case .days7: return 7
+            case .days30: return 30
+            case .months3: return 90
+            case .openEnded: return 90   // full quarter — the widest window the deriver serves
+            }
+        }
+        /// Grant expiry. "Until I stop it" = 12 months, then the share pauses
+        /// until confirmed again (honest mapping — no open-ended backend expiry).
+        var expiry: Date {
+            let cal = Calendar.current
+            switch self {
+            case .days7:    return cal.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+            case .days30:   return cal.date(byAdding: .day, value: 30, to: Date()) ?? Date()
+            case .months3:  return cal.date(byAdding: .month, value: 3, to: Date()) ?? Date()
+            case .openEnded: return cal.date(byAdding: .month, value: 12, to: Date()) ?? Date()
+            }
+        }
+        var summaryLabel: String {
+            switch self {
+            case .openEnded: return String(localized: "Until you stop it (confirm again in 12 months)")
+            default: return rawValue
+            }
+        }
+    }
 
     /// Live recipient directory + grant push is available only on the sovereign backend.
     private var liveSharing: Bool { appState.sovereign != nil }
 
-    private var anySelected: Bool {
-        shareGlucose || shareSleep || shareHRV || shareActivity || shareNudges
-    }
+    private var anySelected: Bool { shareGlucose || shareSleep || shareHeart || shareActivity }
 
-    /// Step-1 toggles → consent GROUP keys (NudgeS aren't a scope group — insights
-    /// ride along inside the derived share). Maps to scope-vocab in the contract.
+    /// Toggles → consent GROUP keys (contract scope vocabulary).
     private var scopeGroups: Set<String> {
         var g = Set<String>()
         if shareGlucose  { g.insert("glucose") }
         if shareSleep    { g.insert("sleep") }
-        if shareHRV      { g.insert("recovery") }   // hrv/rhr
+        if shareHeart    { g.insert("recovery") }   // hrv/rhr
         if shareActivity { g.insert("activity") }
         return g
     }
 
-    private var rangeDays: Int {
-        switch selectedRange {
-        case "Last 30 days": return 30
-        case "Last 90 days": return 90
-        default:             return 7
-        }
+    private var selectedAreas: [String] {
+        var items: [String] = []
+        if shareGlucose  { items.append(String(localized: "Glucose")) }
+        if shareSleep    { items.append(String(localized: "Sleep")) }
+        if shareHeart    { items.append(String(localized: "Heart")) }
+        if shareActivity { items.append(String(localized: "Activity")) }
+        return items
     }
 
     /// Display name for the resolved recipient (picker selection or free text).
@@ -62,14 +114,14 @@ struct ShareWithClinicianView: View {
         selectedRecipient?.displayName ?? recipientName
     }
 
-    private var selectedItems: [String] {
-        var items: [String] = []
-        if shareGlucose  { items.append("Glucose patterns") }
-        if shareSleep    { items.append("Sleep data") }
-        if shareHRV      { items.append("Heart rate variability") }
-        if shareActivity { items.append("Training load & activity") }
-        if shareNudges   { items.append("Nudge history") }
-        return items
+    private var recipientFirstName: String {
+        resolvedRecipientName.components(separatedBy: CharacterSet(charactersIn: " ·")).first ?? resolvedRecipientName
+    }
+
+    private var recipientReady: Bool {
+        liveSharing
+            ? selectedRecipient != nil
+            : !recipientName.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
@@ -82,29 +134,35 @@ struct ShareWithClinicianView: View {
                     .fill(LiviqaTheme.line)
                     .frame(width: 36, height: 4)
                     .padding(.top, 10)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 8)
 
-                // Progress dots (steps 1–4 only)
-                if step < 5 {
-                    HStack(spacing: 6) {
-                        ForEach(1...4, id: \.self) { i in
-                            Circle()
-                                .fill(i == step ? LiviqaTheme.moss : LiviqaTheme.line2)
-                                .frame(width: 7, height: 7)
-                        }
+                // Header — Cancel · Share
+                HStack {
+                    Button {
+                        if phase == .preview { withAnimation { phase = .form } }
+                        else { onDismiss() }
+                    } label: {
+                        Text(phase == .preview ? "Back" : "Cancel")
+                            .font(.lato(15))
+                            .foregroundStyle(LiviqaTheme.ink3)
                     }
-                    .padding(.bottom, 20)
+                    .opacity(phase == .done ? 0 : 1)
+                    Spacer()
+                    Text(phase == .done ? "Receipt" : "Share")
+                        .font(.liviqaSerif(16))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Spacer()
+                    Text("Cancel").font(.lato(15)).opacity(0)   // balance
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
 
-                // Page content
                 ScrollView {
                     Group {
-                        switch step {
-                        case 1:  step1
-                        case 2:  step2
-                        case 3:  step3
-                        case 4:  step4
-                        default: step5
+                        switch phase {
+                        case .form:    form
+                        case .preview: preview
+                        case .done:    doneSlip
                         }
                     }
                     .padding(.horizontal, 20)
@@ -113,268 +171,360 @@ struct ShareWithClinicianView: View {
             }
         }
         .task {
-            guard recipients.isEmpty, let sov = appState.sovereign else { return }
-            if let directory = try? await sov.fetchRecipients() {
-                recipients = directory
+            if recipients.isEmpty, let sov = appState.sovereign,
+               let directory = try? await sov.fetchRecipients() {
+                recipients = roleFilter.map { f in directory.filter { $0.role == f } } ?? directory
             }
+            #if DEBUG
+            // Headless screenshot hook: LIVIQA_SHARE_PHASE=preview|done jumps the
+            // sheet to a later phase with a representative selection.
+            if let jump = ProcessInfo.processInfo.environment["LIVIQA_SHARE_PHASE"] {
+                shareGlucose = true; shareSleep = true
+                if !liveSharing, recipientName.isEmpty {
+                    recipientName = "Mette Holm"; recipientRole = "Diabetes nurse"
+                }
+                if jump == "preview" { phase = .preview }
+                if jump == "done"    { phase = .done }
+            }
+            #endif
         }
     }
 
-    // MARK: — Step 1: What to share
+    // MARK: — The form (single scroll)
 
-    private var step1: some View {
-        VStack(alignment: .leading, spacing: 20) {
+    private var form: some View {
+        VStack(alignment: .leading, spacing: 14) {
+
+            // Verdict — kicker says SUMMARIES (the "your choice of detail" line
+            // belongs to the unbuilt Every-reading mode; see header rails).
             VStack(alignment: .leading, spacing: 6) {
-                Text("Choose what to share")
-                    .font(.title2.weight(.bold))
+                HStack(spacing: 7) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.lato(13, .semibold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text("One area · one time period · summaries only".uppercased())
+                        .font(.liviqaKicker(10)).tracking(1.2)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
+                Text("You decide how much they see.")
+                    .font(.liviqaSerif(22)).kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.ink)
-                Text("Select the patterns you want your care team to see. Nothing is sent until you confirm.")
-                    .font(.footnote)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(LiviqaTheme.moss)
+                    .frame(width: 44, height: 3)
+                    .padding(.top, 4)
+            }
+            .padding(.top, 4)
+
+            // ── Who sees it ──
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Who sees it".uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                recipientPicker
+            }
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
+
+            // ── What they can see ──
+            VStack(alignment: .leading, spacing: 9) {
+                Text("What they can see".uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text("A summary is Liviqa's short read of the area — your individual readings stay on this phone.")
+                    .font(.lato(11.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+
+                areaRow(icon: "drop.fill", color: LiviqaTheme.accentGlucose,
+                        label: "Glucose", sub: "Time in range, GMI, daily pattern",
+                        isOn: $shareGlucose)
+                areaRow(icon: "moon.fill", color: LiviqaTheme.accentSleep,
+                        label: "Sleep", sub: "Duration & consistency",
+                        isOn: $shareSleep)
+                areaRow(icon: "heart.fill", color: LiviqaTheme.accentHeart,
+                        label: "Heart", sub: "Resting rate, variability",
+                        isOn: $shareHeart)
+                areaRow(icon: "figure.walk", color: LiviqaTheme.accentRecovery,
+                        label: "Activity", sub: "Training load & movement",
+                        isOn: $shareActivity)
+                documentsRow   // SOON — files aren't packageable yet (FR-ING-15)
+            }
+
+            // ── How long ──
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .font(.lato(12, .semibold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                    Text("How long".uppercased())
+                        .font(.liviqaKicker(10)).tracking(1.2)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
+
+                HStack(spacing: 6) {
+                    durationChip(.days7)
+                    durationChip(.days30)
+                    durationChip(.months3)
+                }
+                durationChip(.openEnded, fullWidth: true)
+
+                Text("An open-ended share saves re-doing this at every visit. You can stop it in one tap, and it pauses after 12 months unless you confirm it again.")
+                    .font(.lato(11.5)).lineSpacing(2)
                     .foregroundStyle(LiviqaTheme.ink3)
             }
-
-            // Checkboxes card
-            VStack(spacing: 1) {
-                checkRow("Glucose patterns · last 7 days",  $shareGlucose)
-                Divider().padding(.leading, 44)
-                checkRow("Sleep data · last 7 days",        $shareSleep)
-                Divider().padding(.leading, 44)
-                checkRow("Heart rate variability",          $shareHRV)
-                Divider().padding(.leading, 44)
-                checkRow("Training load & activity",        $shareActivity)
-                Divider().padding(.leading, 44)
-                checkRow("Nudge history · this week",       $shareNudges)
-            }
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(LiviqaTheme.paper2)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(LiviqaTheme.line2, lineWidth: 1)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
 
-            // MDR note
-            HStack(alignment: .top, spacing: 10) {
-                Rectangle()
-                    .fill(LiviqaTheme.clay.opacity(0.5))
-                    .frame(width: 1)
-                    .padding(.vertical, 2)
-                Text("These are personal patterns, not clinical reports. Your care team should use their own tools for clinical assessment.")
-                    .font(.caption)
+            // ── How it reaches them ──
+            VStack(alignment: .leading, spacing: 7) {
+                Text("How it reaches them".uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text("Most clinicians work in their own system, so \(recipientReady ? recipientFirstName : "your recipient") gets a secure link they open in a browser — nothing to install. They can print it or save it into their record. If their clinic is connected to Liviqa PRO, it appears there instead.")
+                    .font(.lato(12.5)).lineSpacing(2.5)
                     .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(12)
-            .background(LiviqaTheme.clay2)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(LiviqaTheme.clay.opacity(0.3), lineWidth: 0.5)
-            )
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
 
-            nextButton(label: "Next", disabled: !anySelected) { step = 2 }
+            // ── What leaves the phone (lock plate — the summaries-only rail) ──
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "lock")
+                    .font(.lato(13, .semibold))
+                    .foregroundStyle(LiviqaTheme.moss)
+                Text("Only the areas you switch on leave this phone — always as summaries, never your individual readings. This is governed by the Data for Good Foundation and written to your consent record.")
+                    .font(.lato(12)).lineSpacing(2.5)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
+
+            // ── Preview & share ──
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { phase = .preview }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up").font(.lato(14, .semibold))
+                    Text("Preview & share").font(.lato(15, .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(LiviqaTheme.moss.opacity(anySelected && recipientReady ? 1 : 0.4))
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            .disabled(!(anySelected && recipientReady))
         }
     }
 
-    private func checkRow(_ label: String, _ binding: Binding<Bool>) -> some View {
-        Button {
-            binding.wrappedValue.toggle()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: binding.wrappedValue ? "checkmark.square.fill" : "square")
-                    .font(.lato(18))
-                    .foregroundStyle(binding.wrappedValue ? LiviqaTheme.moss : LiviqaTheme.line)
-                Text(label)
-                    .font(.footnote)
-                    .foregroundStyle(LiviqaTheme.ink)
-                Spacer()
+    private func areaRow(icon: String, color: Color, label: String, sub: String,
+                         isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(color)
+                    .frame(width: 28, height: 28)
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.lato(14, .semibold))
+                    .foregroundStyle(LiviqaTheme.ink)
+                Text(sub)
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(LiviqaTheme.moss)
+        }
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 13))
+        .overlay(RoundedRectangle(cornerRadius: 13)
+            .stroke(isOn.wrappedValue ? LiviqaTheme.moss3 : LiviqaTheme.line, lineWidth: 1))
+    }
+
+    /// Documents & letters — not packageable today (FR-ING-15 open). SOON +
+    /// disabled: the honest-UI rule forbids a live-looking toggle here.
+    private var documentsRow: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(LiviqaTheme.line)
+                    .frame(width: 28, height: 28)
+                Image(systemName: "doc")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(LiviqaTheme.ink3)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text("Documents & letters")
+                        .font(.lato(14, .semibold))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                    Text("SOON")
+                        .font(.liviqaKicker(8.5)).tracking(1)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(LiviqaTheme.moss2))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                Text("Sharing files from your health data space is on the way")
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.ink4)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .background(LiviqaTheme.paper2.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 13))
+        .overlay(RoundedRectangle(cornerRadius: 13)
+            .stroke(LiviqaTheme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+    }
+
+    private func durationChip(_ d: Duration, fullWidth: Bool = false) -> some View {
+        Button { selectedDuration = d } label: {
+            Text(d.rawValue)
+                .font(.lato(12.5, .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(selectedDuration == d ? LiviqaTheme.moss : LiviqaTheme.line2)
+                .foregroundStyle(selectedDuration == d ? .white : LiviqaTheme.ink2)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: — Step 2: Time range
-
-    private var step2: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("How far back?")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(LiviqaTheme.ink)
-
-            VStack(spacing: 1) {
-                ForEach(rangeOptions, id: \.self) { option in
-                    Button {
-                        selectedRange = option
-                    } label: {
-                        HStack {
-                            Text(option)
-                                .font(.footnote)
-                                .foregroundStyle(option == selectedRange ? LiviqaTheme.moss : LiviqaTheme.ink)
-                            Spacer()
-                            Image(systemName: option == selectedRange ? "checkmark.circle.fill" : "circle")
-                                .font(.lato(18))
-                                .foregroundStyle(option == selectedRange ? LiviqaTheme.moss : LiviqaTheme.ink4)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 16)
-                    }
-                    .buttonStyle(.plain)
-
-                    if option != rangeOptions.last {
-                        Divider().padding(.leading, 14)
-                    }
-                }
-            }
-            .background(LiviqaTheme.paper2)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(LiviqaTheme.line2, lineWidth: 1)
-            )
-
-            navButtons(backAction: { step = 1 }, nextAction: { step = 3 }, nextDisabled: false)
-        }
-    }
-
-    // MARK: — Step 3: Recipient
-
-    private var step3: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Your recipient")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(LiviqaTheme.ink)
-
-            if liveSharing {
-                recipientPicker
-            } else {
-                VStack(spacing: 0) {
-                    inputRow(placeholder: "e.g. L. · Diabetes Centre", text: $recipientName)
-                    Divider().padding(.horizontal, 14)
-                    inputRow(placeholder: "e.g. Diabetes nurse, GP, Sports coach", text: $recipientRole)
-                }
-                .background(LiviqaTheme.paper2)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(LiviqaTheme.line, lineWidth: 1)
-                )
-            }
-
-            Text("Sharing runs for 48 hours, then access ends automatically. You can withdraw sooner in your Wallet.")
-                .font(.footnote)
-                .foregroundStyle(LiviqaTheme.ink3)
-
-            navButtons(backAction: { step = 2 }, nextAction: { step = 4 }, nextDisabled: !recipientReady)
-        }
-    }
-
-    /// Step-3 readiness: a real selection on the sovereign backend, or non-empty
-    /// free text on mock/demo.
-    private var recipientReady: Bool {
-        liveSharing
-            ? selectedRecipient != nil
-            : !recipientName.trimmingCharacters(in: .whitespaces).isEmpty
-    }
+    // MARK: — Recipient picker
 
     @ViewBuilder
     private var recipientPicker: some View {
-        if recipients.isEmpty {
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Loading your care directory…")
-                    .font(.footnote)
-                    .foregroundStyle(LiviqaTheme.ink3)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
-        } else {
-            VStack(spacing: 1) {
-                ForEach(recipients) { recipient in
-                    Button {
-                        selectedRecipient = recipient
-                    } label: {
-                        HStack(alignment: .center, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(recipient.displayName)
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(LiviqaTheme.ink)
-                                Text(recipientRoleLabel(recipient.role) + (recipient.org.map { " · \($0)" } ?? ""))
-                                    .font(.caption)
-                                    .foregroundStyle(LiviqaTheme.ink3)
+        if liveSharing {
+            if recipients.isEmpty {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Loading your care directory…")
+                        .font(.lato(12.5))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 1) {
+                    ForEach(recipients) { recipient in
+                        Button { selectedRecipient = recipient } label: {
+                            HStack(alignment: .center, spacing: 12) {
+                                Text(initials(recipient.displayName))
+                                    .font(.lato(12, .bold))
+                                    .foregroundStyle(LiviqaTheme.moss)
+                                    .frame(width: 36, height: 36)
+                                    .background(LiviqaTheme.moss2)
+                                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(recipient.displayName) — \(recipientRoleLabel(recipient.role).lowercased())")
+                                        .font(.lato(13.5, .semibold))
+                                        .foregroundStyle(LiviqaTheme.ink)
+                                    Text((recipient.org ?? "Care team") + " · verified recipient")
+                                        .font(.lato(11.5))
+                                        .foregroundStyle(LiviqaTheme.ink3)
+                                }
+                                Spacer()
+                                Image(systemName: selectedRecipient?.id == recipient.id ? "checkmark.circle.fill" : "circle")
+                                    .font(.lato(18))
+                                    .foregroundStyle(selectedRecipient?.id == recipient.id ? LiviqaTheme.moss : LiviqaTheme.ink4)
                             }
-                            Spacer()
-                            Image(systemName: selectedRecipient?.id == recipient.id ? "checkmark.circle.fill" : "circle")
-                                .font(.lato(18))
-                                .foregroundStyle(selectedRecipient?.id == recipient.id ? LiviqaTheme.moss : LiviqaTheme.ink4)
+                            .padding(.vertical, 8)
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                    if recipient.id != recipients.last?.id {
-                        Divider().padding(.leading, 14)
+                        if recipient.id != recipients.last?.id {
+                            Divider().background(LiviqaTheme.line2)
+                        }
                     }
                 }
             }
-            .background(LiviqaTheme.paper2)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(LiviqaTheme.line, lineWidth: 1)
-            )
+        } else {
+            VStack(spacing: 0) {
+                TextField("Name — e.g. Mette Holm", text: $recipientName)
+                    .font(.lato(13.5))
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .padding(.vertical, 11)
+                Divider().background(LiviqaTheme.line2)
+                TextField("Role — e.g. diabetes nurse, GP, coach", text: $recipientRole)
+                    .font(.lato(13.5))
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .padding(.vertical, 11)
+            }
         }
+    }
+
+    private func initials(_ name: String) -> String {
+        let parts = name.split(separator: " ").prefix(2)
+        return parts.map { String($0.prefix(1)) }.joined().uppercased()
     }
 
     private func recipientRoleLabel(_ role: RecipientRole) -> String {
         switch role {
-        case .clinicalNurse: return "Clinical nurse"
-        case .healthCoach:   return "Health coach"
+        case .clinicalNurse: return String(localized: "Clinical nurse")
+        case .healthCoach:   return String(localized: "Health coach")
         }
     }
 
-    private func inputRow(placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .font(.footnote)
-            .foregroundStyle(LiviqaTheme.ink)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
-    }
+    // MARK: — Preview (the promised look-before-it-goes)
 
-    // MARK: — Step 4: Review & send
-
-    private var step4: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Ready to share")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(LiviqaTheme.ink)
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Nothing has been sent yet".uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text("Check it before it goes.")
+                    .font(.liviqaSerif(22)).kerning(-0.2)
+                    .foregroundStyle(LiviqaTheme.ink)
+            }
+            .padding(.top, 4)
 
             VStack(spacing: 0) {
-                summaryRow(label: "Recipient", value: resolvedRecipientName)
-                Divider().padding(.leading, 14)
-                summaryRow(label: "Role", value: step4RoleLabel)
-                Divider().padding(.leading, 14)
-                summaryRow(label: "Data", value: selectedItems.joined(separator: ", "))
-                Divider().padding(.leading, 14)
-                summaryRow(label: "Period", value: selectedRange)
-                Divider().padding(.leading, 14)
-                summaryRow(label: "Expires", value: "In 48 hours")
+                previewRow("Recipient", resolvedRecipientName +
+                           (selectedRecipient == nil && !recipientRole.isEmpty ? " — \(recipientRole)" : ""))
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Areas", selectedAreas.joined(separator: " · ") + " — summaries only")
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Data window", "Last \(selectedDuration.rangeDays) days")
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Access", selectedDuration.summaryLabel)
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Your individual readings", "0 shared — ever")
             }
-            .padding(14)
+            .padding(.horizontal, 15).padding(.vertical, 4)
             .background(LiviqaTheme.paper2)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(LiviqaTheme.line2, lineWidth: 1)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
 
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "exclamationmark.circle")
-                    .font(.lato(14))
-                    .foregroundStyle(LiviqaTheme.clay)
+                Image(systemName: "info.circle")
+                    .font(.lato(13))
+                    .foregroundStyle(LiviqaTheme.ink3)
                     .padding(.top, 1)
-                Text("Derived summaries only — no raw samples leave your device. You can revoke access in your Wallet at any time.")
-                    .font(.caption)
+                Text("These are personal patterns, not clinical reports. Your care team should use their own tools for clinical assessment.")
+                    .font(.lato(11.5)).lineSpacing(2)
                     .foregroundStyle(LiviqaTheme.ink3)
             }
 
@@ -385,145 +535,129 @@ struct ShareWithClinicianView: View {
                         .foregroundStyle(LiviqaTheme.rust)
                         .padding(.top, 1)
                     Text(sendError)
-                        .font(.caption)
+                        .font(.lato(12))
                         .foregroundStyle(LiviqaTheme.rust)
                 }
             }
 
-            navButtons(
-                backAction: { step = 3 },
-                nextLabel: isSending ? "Sending…" : "Send secure link",
-                nextAction: { Task { await send() } },
-                nextDisabled: isSending
-            )
+            Button {
+                Task { await send() }
+            } label: {
+                Text(isSending ? "Sharing…" : "Share now")
+                    .font(.lato(15, .semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(LiviqaTheme.moss.opacity(isSending ? 0.5 : 1))
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            .disabled(isSending)
         }
     }
 
-    private var step4RoleLabel: String {
-        if let role = selectedRecipient?.role { return recipientRoleLabel(role) }
-        return recipientRole.isEmpty ? "Not specified" : recipientRole
+    private func previewRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(label)
+                .font(.lato(12))
+                .foregroundStyle(LiviqaTheme.ink3)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.lato(12.5, .semibold))
+                .foregroundStyle(LiviqaTheme.ink)
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 10)
     }
 
     /// Perform the share. On the sovereign backend this creates a real consent
     /// grant (group scope) and pushes the derived, scoped package
-    /// (PUT /shares/{grantId}); on mock/demo it simply advances to the confirmation.
+    /// (PUT /shares/{grantId}); on mock/demo it advances to the confirmation.
     @MainActor
     private func send() async {
         sendError = nil
         guard liveSharing, let recipient = selectedRecipient else {
-            step = 5   // mock/demo path — keep the simulated success
+            withAnimation { phase = .done }   // mock/demo path — simulated success
             return
         }
         isSending = true
         defer { isSending = false }
-        let expiry = Calendar.current.date(byAdding: .hour, value: 48, to: Date()) ?? Date()
         let grantId = await appState.createGrantAndShare(
             recipientId: recipient.id,
             role: recipient.role,
             scopeGroups: scopeGroups,
-            rangeDays: rangeDays,
-            expiry: expiry,
+            rangeDays: selectedDuration.rangeDays,
+            expiry: selectedDuration.expiry,
             purpose: nil
         )
         if grantId != nil {
-            step = 5
+            withAnimation { phase = .done }
         } else {
-            sendError = appState.lastError ?? "Couldn't share right now. Please try again."
+            sendError = appState.lastError ?? String(localized: "Couldn't share right now. Please try again.")
         }
     }
 
-    private func summaryRow(label: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(LiviqaTheme.ink4)
-                .frame(width: 80, alignment: .leading)
-            Text(value)
-                .font(.footnote)
-                .foregroundStyle(LiviqaTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer()
-        }
-        .padding(.vertical, 6)
-    }
+    // MARK: — Done: the on-the-record slip
 
-    // MARK: — Step 5: Confirmation
+    /// The confirmation is a receipt slip, not a spinner. NO proof number here:
+    /// that renders only from real CE evidence (FR-WAL-09) — the full receipt
+    /// with evidence lives in Privacy → your shares → "Add receipt".
+    private var doneSlip: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle().fill(LiviqaTheme.moss2).frame(width: 60, height: 60)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            .padding(.top, 10)
 
-    private var step5: some View {
-        VStack(spacing: 20) {
-            Spacer(minLength: 32)
-
-            Image(systemName: "checkmark.circle.fill")
-                .font(.lato(56))
-                .foregroundStyle(LiviqaTheme.moss)
-
-            VStack(spacing: 8) {
-                Text("Shared with \(resolvedRecipientName)")
-                    .font(.title3.weight(.bold))
+            VStack(spacing: 7) {
+                Text("Your share is on the record.")
+                    .font(.liviqaSerif(21)).kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.ink)
+                Text("This slip names exactly what you agreed to. It is kept in your consent record — you can stop the share any time in Privacy.")
+                    .font(.lato(13)).lineSpacing(2.5)
                     .multilineTextAlignment(.center)
-
-                Text("Your care team can view your patterns for 48 hours. This sharing is logged in your privacy record.")
-                    .font(.footnote)
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .multilineTextAlignment(.center)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .frame(maxWidth: 310)
             }
 
-            Spacer(minLength: 32)
+            VStack(spacing: 0) {
+                previewRow("Recipient", resolvedRecipientName)
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Areas", selectedAreas.joined(separator: " · ") + " — summaries only")
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Access", selectedDuration.summaryLabel)
+                Divider().background(LiviqaTheme.line2)
+                previewRow("Your individual readings", "0 shared — ever")
+            }
+            .padding(.horizontal, 15).padding(.vertical, 4)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.brass.opacity(0.5), lineWidth: 1))
 
-            Button {
-                onDismiss()
-            } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "lock")
+                    .font(.lato(12, .semibold))
+                    .foregroundStyle(LiviqaTheme.moss)
+                Text("Governed by the Data for Good Foundation.")
+                    .font(.lato(11.5))
+                    .foregroundStyle(LiviqaTheme.ink2)
+            }
+
+            Button { onDismiss() } label: {
                 Text("Done")
-                    .font(.footnote.weight(.semibold))
+                    .font(.lato(15, .semibold))
                     .foregroundStyle(LiviqaTheme.invertFG)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(LiviqaTheme.moss)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .background(LiviqaTheme.invertBG)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-        }
-        .padding(.top, 20)
-    }
-
-    // MARK: — Shared button helpers
-
-    private func nextButton(label: String = "Next", disabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(LiviqaTheme.invertFG)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(disabled ? LiviqaTheme.moss.opacity(0.4) : LiviqaTheme.moss)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .disabled(disabled)
-    }
-
-    private func navButtons(
-        backAction: @escaping () -> Void,
-        nextLabel: String = "Next",
-        nextAction: @escaping () -> Void,
-        nextDisabled: Bool
-    ) -> some View {
-        HStack(spacing: 12) {
-            Button(action: backAction) {
-                Text("Back")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(LiviqaTheme.paper2)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(LiviqaTheme.line2, lineWidth: 1)
-                    )
-            }
-            .frame(maxWidth: 100)
-
-            nextButton(label: nextLabel, disabled: nextDisabled, action: nextAction)
+            .buttonStyle(.plain)
+            .padding(.top, 4)
         }
     }
 }

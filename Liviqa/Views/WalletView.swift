@@ -1,6 +1,13 @@
-// WalletView.swift — Consent boundary UI · v04 2026-05-22
-// Design ref: Liviqa_App_UI_Aperture_v01_20260521.html (Wallet frame)
-// Added: CE confirmation toast after grant create/withdraw
+// WalletView.swift — Consent boundary UI · v05 2026-08-12
+// Design ref: A7.2 "Morning/Evening Edition" (design_handoff_liviqa_a7 —
+// f-shared.jsx faithful primitives + the ecosystem copy register: "active
+// shares · summaries only", "consent record — the plain list of every choice
+// you've made", stop-in-one-tap). Copy register purge (Area ⑥): grants →
+// shares · aggregates/cohort → summaries/grouped · raw exports → individual
+// readings · withdraw/pause → stop.
+// Added: CE confirmation toast after grant create/stop; UC-11 entry
+// (CreateGrantView), Research hub entry (FR-RSCH-06), receipt-slip context
+// (grant + CE evidence — FR-WAL-09).
 import SwiftUI
 
 struct WalletView: View {
@@ -10,12 +17,19 @@ struct WalletView: View {
     // CE confirmation toast (shared ledger pattern)
     @State private var toast: LiviqaToastData?
 
-    // Share Receipt issuance (UC-21): the offer drives the QR sheet.
+    // Share Receipt issuance (UC-21): the offer drives the receipt-slip sheet.
     @State private var receiptOffer: WalletReceiptOffer?
     @State private var issuingReceipt: UUID?
 
     // UC-CONSENT-REACT — reactivate withdrawn consents (legal bulk re-consent).
     @State private var showReactivate = false
+
+    // UC-11 — create a consent grant ("Share with someone new").
+    @State private var showNewShare = false
+
+    // Programmatic pushes (env screenshot hooks land here too).
+    @State private var pushResearch = false
+    @State private var pushTokens = false
 
     // Research-contribution consents — set opt-in during DfG onboarding
     // (FB-AIJMHfz6), surfaced + revocable here. Same @AppStorage keys.
@@ -34,15 +48,15 @@ struct WalletView: View {
                     // ── Summary card (dark) ──
                     summaryCard
 
-                    // ── Active grants ──
-                    LiviqaSectionHeader(label: "Active grants")
+                    // ── Your shares ──
+                    LiviqaSectionHeader(label: "Your shares")
 
                     if appState.isLoadingWallet {
                         ProgressView()
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                     } else if appState.grants.isEmpty {
-                        Text("No active grants")
+                        Text("No active shares yet — nothing leaves this phone.")
                             .font(.subheadline)
                             .foregroundStyle(LiviqaTheme.ink3)
                             .padding(.vertical, 8)
@@ -54,8 +68,27 @@ struct WalletView: View {
                         }
                     }
 
-                    // Forward note
-                    Text("Withdrawing stops future sharing immediately. Completed analyses are not affected. Every change is logged.")
+                    // UC-11 — create a consent grant.
+                    Button { showNewShare = true } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.circle")
+                            Text("Share with someone new")
+                                .font(.lato(13.5, .semibold))
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.lato(11, .semibold))
+                        }
+                        .foregroundStyle(LiviqaTheme.moss)
+                        .padding(14)
+                        .frame(maxWidth: .infinity)
+                        .background(LiviqaTheme.paper2)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+
+                    // Forward note — one-way stop; the consent record keeps everything.
+                    Text("Stopping a share ends future sharing immediately. Completed analyses are not affected. Every change is written to your consent record.")
                         .font(.lato(11.5))
                         .lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink3)
@@ -91,13 +124,15 @@ struct WalletView: View {
                         .padding(.top, 8)
                     }
 
-                    // ── Research contributions (opt-in in onboarding; revocable here) ──
-                    LiviqaSectionHeader(label: "Research contributions")
+                    // ── Research (hub entry + opt-in toggles, revocable here) ──
+                    LiviqaSectionHeader(label: "Research")
+
+                    researchHubRow
 
                     VStack(spacing: 0) {
                         researchToggleRow(
-                            title: "Anonymous cohort discovery",
-                            detail: "Approved research can be told an anonymous person like you exists in a cohort.",
+                            title: "Anonymous study matching",
+                            detail: "Approved research can be told an anonymous person like you exists — never who you are.",
                             isOn: $cohortDiscovery
                         )
                         Divider().background(LiviqaTheme.line2).padding(.leading, 14)
@@ -110,9 +145,9 @@ struct WalletView: View {
                     .background(LiviqaTheme.paper2)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
-                    .padding(.top, 4)
+                    .padding(.top, 10)
 
-                    Text("Off by default. Anonymous and aggregated — raw data never leaves your device. Turn off any time.")
+                    Text("Off by default · always your choice. Your numbers are only ever grouped with \(ResearchStudy.groupingPhrase(cohortK: 5)) — your individual readings never leave this phone. Turn off any time.")
                         .font(.lato(11.5))
                         .lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink3)
@@ -136,8 +171,8 @@ struct WalletView: View {
 
                     tokenEntryRow
 
-                    // ── Consent evidence ──
-                    LiviqaSectionHeader(label: "Consent evidence")
+                    // ── Consent record ──
+                    LiviqaSectionHeader(label: "Consent record")
 
                     ceSpineCard
 
@@ -171,9 +206,11 @@ struct WalletView: View {
                 await appState.loadWallet()   // override demo mock grants with real backend grants
                 if let g = appState.grants.first(where: { $0.isActive }),
                    let url = await appState.issueShareReceipt(for: g, verified: "Time in range ≥ 70% · last 90 days") {
-                    receiptOffer = WalletReceiptOffer(url: url, recipientName: g.recipientName)
+                    receiptOffer = WalletReceiptOffer(url: url, recipientName: g.recipientName,
+                                                      grant: g, evidence: receiptEvidence(for: g))
                 } else if let sample = URL(string: "haip-vci://?credential_offer_uri=https%3A%2F%2Fissuer-server.sandbox.demo1.partisia.com%2Fissuance%2Foid4vci%2Fcredential-offer%2Fdemo") {
-                    receiptOffer = WalletReceiptOffer(url: sample, recipientName: appState.grants.first?.recipientName ?? "Pharma Partner")
+                    receiptOffer = WalletReceiptOffer(url: sample, recipientName: appState.grants.first?.recipientName ?? "Pharma Partner",
+                                                      grant: appState.grants.first)
                 }
             }
             // Deterministic screenshot of the reactivate-consents sheet (UC-CONSENT-REACT).
@@ -181,7 +218,19 @@ struct WalletView: View {
                !appState.withdrawnGrants.isEmpty {
                 showReactivate = true
             }
+            // Area ⑥ screenshot hooks (LIVIQA_OPEN_WALLET family):
+            // new-share sheet, research hub, token wallet.
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_NEWSHARE"] == "1" { showNewShare = true }
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_RESEARCH"] == "1" { pushResearch = true }
+            if ProcessInfo.processInfo.environment["LIVIQA_OPEN_TOKENS"]   == "1" { pushTokens = true }
             #endif
+        }
+        .navigationDestination(isPresented: $pushResearch) { ResearchHubView() }
+        .navigationDestination(isPresented: $pushTokens)   { TokenWalletView() }
+        .sheet(isPresented: $showNewShare) {
+            CreateGrantView(onDismiss: { showNewShare = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(item: $receiptOffer) { off in
             ShareReceiptSheet(offer: off)
@@ -207,10 +256,34 @@ struct WalletView: View {
         df.dateFormat = "d MMM · HH:mm"
         let timestamp = df.string(from: Date())
         toast = LiviqaToastData(
-            title: isWithdraw ? "Consent withdrawn" : "Grant confirmed",
-            detail: "Recorded on DfG CE ledger · \(timestamp)",
+            title: isWithdraw ? "Share stopped" : "Share confirmed",
+            detail: "Written to your consent record · \(timestamp)",
             tone: isWithdraw ? .bad : .good
         )
+    }
+
+    /// Latest evidentiary CE receipt for this grant (nil in CE stub mode) —
+    /// the receipt slip renders its proof number ONLY from this (FR-WAL-09).
+    private func receiptEvidence(for grant: WalletGrant) -> CEEvidence? {
+        appState.walletEvents.latestEvidence(forGrantRef: grant.ceGrantRef,
+                                             recipientName: grant.recipientName)
+    }
+
+    /// Stop a share (one-way; reactivation is an explicit fresh re-consent).
+    /// The designed offline QUEUE is not built — on failure the optimistic
+    /// change reverts and the toast says so honestly, never pretending the
+    /// stop is saved somewhere (qms/RISK.md Area ⑥).
+    private func stopShare(_ grant: WalletGrant) async {
+        await appState.toggleGrant(grant)
+        let stillActive = appState.grants.first(where: { $0.id == grant.id })?.isActive ?? false
+        if stillActive {
+            toast = LiviqaToastData(
+                title: "Couldn't stop the share",
+                detail: "You may be offline — nothing changed. Try again when you're back online.",
+                tone: .bad)
+        } else {
+            showCEToast(isWithdraw: true, recipient: grant.recipientName)
+        }
     }
 
     // MARK: - Research consent toggle row
@@ -249,18 +322,18 @@ struct WalletView: View {
                 .offset(x: 18, y: -18)
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("Active grants".uppercased())
+                Text("Your shares".uppercased())
                     .font(.liviqaKicker(10.5))
                     .tracking(1.4)
                     .foregroundStyle(LiviqaTheme.invertSub)
 
-                Text("\(activeCount) recipient\(activeCount == 1 ? "" : "s")")
+                Text("\(activeCount) active share\(activeCount == 1 ? "" : "s")")
                     .font(.lato(26, .black))
                     .kerning(-0.5)
                     .foregroundStyle(LiviqaTheme.invertFG)
                     .padding(.top, 8)
 
-                Text("Glucose & activity, shared as aggregates only.")
+                Text("Summaries only — your individual readings stay on this phone.")
                     .font(.lato(13))
                     .foregroundStyle(LiviqaTheme.invertSub)
                     .padding(.top, 4)
@@ -271,8 +344,8 @@ struct WalletView: View {
 
                 HStack(spacing: 22) {
                     statCell(value: "\(activeCount)", label: "Active")
-                    statCell(value: "\(withdrawnCount)", label: "Withdrawn")
-                    statCell(value: "0", label: "Raw exports")
+                    statCell(value: "\(withdrawnCount)", label: "Stopped")
+                    statCell(value: "0 — ever", label: "Individual readings shared")
                 }
                 .padding(.top, 14)
             }
@@ -309,7 +382,7 @@ struct WalletView: View {
                     .kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.ink)
                 Spacer()
-                Text(grant.isActive ? "Active" : "Paused")
+                Text(grant.isActive ? "Active" : "Stopped")
                     .font(.liviqaKicker(10.5))
                     .tracking(0.4)
                     .padding(.horizontal, 9)
@@ -354,11 +427,9 @@ struct WalletView: View {
             // name the groups, so no dead "View scope" affordance (honest UI).
             HStack {
                 Spacer()
-                Button("Withdraw") {
-                    Task {
-                        await appState.toggleGrant(grant)
-                        showCEToast(isWithdraw: true, recipient: grant.recipientName)
-                    }
+                // "You can stop it in one tap" — the A7.2 register for revoke.
+                Button("Stop") {
+                    Task { await stopShare(grant) }
                 }
                 .font(.lato(12.5, .bold))
                 .foregroundStyle(LiviqaTheme.rust)
@@ -374,7 +445,9 @@ struct WalletView: View {
                         // device (eligibility pre-screening) — never the data itself.
                         let proof = "Data history on record: \(appState.passportStats.daysTracked) days · computed on device"
                         if let url = await appState.issueShareReceipt(for: grant, verified: proof) {
-                            receiptOffer = WalletReceiptOffer(url: url, recipientName: grant.recipientName)
+                            receiptOffer = WalletReceiptOffer(url: url, recipientName: grant.recipientName,
+                                                              grant: grant,
+                                                              evidence: receiptEvidence(for: grant))
                         }
                         issuingReceipt = nil
                     }
@@ -433,7 +506,7 @@ struct WalletView: View {
         let df = DateFormatter()
         df.dateFormat = "d MMM yyyy"
         let when = grant.createdAt ?? Date()
-        return "Granted \(df.string(from: when)) · contributes to a de-identified cohort"
+        return "Started \(df.string(from: when)) · summaries only — never your individual readings"
     }
 
     // MARK: - Token wallet entry
@@ -503,6 +576,39 @@ struct WalletView: View {
         .disabled(issuingCitizenCred)
     }
 
+    /// FR-RSCH-06 — entry to the Research participation hub.
+    var researchHubRow: some View {
+        NavigationLink(destination: ResearchHubView()) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(LiviqaTheme.moss2)
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "testtube.2")
+                        .font(.lato(15))
+                        .foregroundStyle(LiviqaTheme.moss)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Research")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(LiviqaTheme.ink)
+                    Text("Help research — without giving yourself away. Off by default.")
+                        .font(.caption)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(LiviqaTheme.line)
+            }
+            .padding(14)
+            .background(LiviqaTheme.paper2)
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
     var tokenEntryRow: some View {
         NavigationLink(destination: TokenWalletView()) {
             HStack(spacing: 14) {
@@ -518,7 +624,7 @@ struct WalletView: View {
                     Text("DfG Tokens")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(LiviqaTheme.ink)
-                    Text("\(appState.tokenBalance) tokens · earn, spend, or donate")
+                    Text("\(appState.tokenBalance) tokens · yours to keep or donate")
                         .font(.caption)
                         .foregroundStyle(LiviqaTheme.ink3)
                 }
@@ -538,21 +644,32 @@ struct WalletView: View {
     // MARK: - CE spine card
 
     private var ceSpineCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Your consent record".uppercased())
-                .font(.liviqaKicker(10))
-                .tracking(1.2)
-                .foregroundStyle(LiviqaTheme.moss)
+        NavigationLink(destination: ConsentLedgerView()) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Your consent record".uppercased())
+                        .font(.liviqaKicker(10))
+                        .tracking(1.2)
+                        .foregroundStyle(LiviqaTheme.moss)
 
-            Text("Your sharing settings are backed by an independent privacy record. Liviqa can read it — only you can change it.")
-                .font(.lato(12.5))
-                .lineSpacing(2.5)
-                .foregroundStyle(LiviqaTheme.ink2)
+                    Text("The plain list of every choice you've made — backed by an independent record. Liviqa can read it; only you can change it.")
+                        .font(.lato(12.5))
+                        .lineSpacing(2.5)
+                        .foregroundStyle(LiviqaTheme.ink2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .padding(.top, 2)
+            }
+            .padding(14)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss3, lineWidth: 1))
         }
-        .padding(14)
-        .background(LiviqaTheme.moss2)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        .buttonStyle(.plain)
         .padding(.bottom, 4)
     }
 
@@ -642,9 +759,9 @@ struct WalletView: View {
 
     private func eventTitle(_ event: WalletEvent) -> String {
         switch event.decision {
-        case .approved: return "Grant confirmed"
-        case .denied:   return "Consent withdrawn"
-        case .pending:  return "Pending approval"
+        case .approved: return "Consent given"
+        case .denied:   return "Consent stopped"
+        case .pending:  return "Awaiting your decision"
         }
     }
 

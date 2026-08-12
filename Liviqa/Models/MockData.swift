@@ -290,18 +290,41 @@ enum MockData {
                    recipientName: String(localized: "Diabetes Nurse"),
                    recipientOrg: String(localized: "University Hospital"),
                    unread: 2,
-                   lastMessageAt: nil),
+                   lastMessageAt: nil,
+                   lastMessagePreview: String(localized: "Agreed. Let's keep the basal as-is and review again in two weeks.")),
         CareThread(recipientId: "care-coach",
                    recipientName: String(localized: "Sports Coach"),
                    recipientOrg: "Yourcoach.health",
                    unread: 0,
-                   lastMessageAt: nil),
+                   lastMessageAt: nil,
+                   lastMessagePreview: String(localized: "Your HRV dipped after the late sessions — let's pull Thursday's intensity back a notch.")),
         CareThread(recipientId: "care-gp",
                    recipientName: String(localized: "General Practitioner"),
                    recipientOrg: String(localized: "City Health Clinic"),
                    unread: 0,
-                   lastMessageAt: nil),
+                   lastMessageAt: nil,
+                   lastMessagePreview: String(localized: "Everything looks stable. Message me here if anything changes.")),
     ]
+
+    /// DEBUG screenshot seeds for the care video frames (hero · incoming · consult ·
+    /// waiting). Only reachable behind the `LIVIQA_OPEN_CARE` DEBUG hook — never a
+    /// Release data path. Role-named like the demo threads (no fabricated person).
+    static let demoActiveConsult = ConsultSummary(
+        id: "demo-consult-1",
+        roomName: "liviqa-consult-demo-1",
+        recipientName: String(localized: "Diabetes Nurse"),
+        recipientOrg: String(localized: "University Hospital"),
+        startedAt: Date(),
+        recordingRequested: true,
+        recordingConsent: false)
+
+    static var demoScheduledConsult: ScheduledConsult {
+        ScheduledConsult(id: "demo-sched-1",
+                         at: Date().addingTimeInterval(10 * 60),
+                         kind: "consultation",
+                         recipientName: String(localized: "Diabetes Nurse"),
+                         recipientOrg: String(localized: "University Hospital"))
+    }
 
     /// Demo conversation for a care thread (used when no live backend is connected).
     static func demoMessages(for recipientId: String) -> [CareMessage] {

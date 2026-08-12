@@ -53,7 +53,7 @@ struct PlanConsultView: View {
         }
         .background(LiviqaTheme.paper)
         .sheet(isPresented: $showCheck) {
-            PreVisitCheckView(recipientName: recipientName)
+            PreVisitCheckView(recipientName: recipientName, recipientId: recipientId)
         }
     }
 
@@ -61,11 +61,13 @@ struct PlanConsultView: View {
 
     private var picker: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Pick a time that suits you")
+            // A7 verdict header: recipient kicker + serif question.
+            Text("With \(recipientName)".uppercased())
+                .font(.liviqaKicker(10)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.moss)
+            Text("When suits you for a video call?")
                 .font(.liviqaSerif(22)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
-            Text("\(recipientName) sees your request and confirms. You can add it to your calendar.")
-                .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink3)
-                .padding(.top, 4)
+                .padding(.top, 5)
 
             kicker("Day").padding(.top, 18)
             ScrollView(.horizontal, showsIndicators: false) {
@@ -130,19 +132,29 @@ struct PlanConsultView: View {
             }
             .padding(.top, 6)
 
-            // Fallback phone — so the clinician can reach the citizen if the
-            // video connection drops (Min Læge captures this up front).
-            kicker("If the video drops").padding(.top, 16)
-            TextField("Your mobile number", text: $phone)
-                .keyboardType(.phonePad)
-                .font(.lato(14)).foregroundStyle(LiviqaTheme.ink)
-                .padding(.horizontal, 14).padding(.vertical, 11)
-                .background(LiviqaTheme.paper2)
-                .clipShape(RoundedRectangle(cornerRadius: 11))
-                .overlay(RoundedRectangle(cornerRadius: 11).stroke(LiviqaTheme.line, lineWidth: 1))
-                .padding(.top, 6)
-            Text("So your clinician can reach you if the connection drops.")
-                .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 5)
+            // Fallback phone — its own card (A7 canvas): the clinician can reach
+            // the citizen if the video connection drops (Min Læge pattern).
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "phone").font(.system(size: 13)).foregroundStyle(LiviqaTheme.moss)
+                    kicker("If the video drops")
+                }
+                TextField("Phone number (optional) — for fallback", text: $phone)
+                    .keyboardType(.phonePad)
+                    .font(.lato(13.5)).foregroundStyle(LiviqaTheme.ink)
+                    .padding(.horizontal, 14).padding(.vertical, 12)
+                    .background(LiviqaTheme.paper)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                    .overlay(RoundedRectangle(cornerRadius: 11).stroke(LiviqaTheme.line, lineWidth: 1))
+                    .padding(.top, 8)
+                Text("\(recipientName) can call you if the connection fails. Stored on your device, shared only if the call drops.")
+                    .font(.lato(11.5)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink3).padding(.top, 8)
+            }
+            .padding(14)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(LiviqaTheme.line, lineWidth: 0.5))
+            .padding(.top, 16)
 
             // Summary
             HStack(spacing: 8) {
@@ -161,7 +173,7 @@ struct PlanConsultView: View {
             Button {
                 Task { await submitRequest() }
             } label: {
-                Text(submitting ? "Requesting…" : "Request this time")
+                Text(submitting ? "Requesting…" : "Request this consultation")
                     .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.invertFG)
                     .frame(maxWidth: .infinity).padding(.vertical, 15)
                     .background(LiviqaTheme.invertBG)
@@ -171,6 +183,15 @@ struct PlanConsultView: View {
             .buttonStyle(.plain)
             .disabled(submitting)
             .padding(.top, 14)
+
+            // A7 canvas under-button line, kept honest: the calendar add is the
+            // citizen's own tap on the next screen, never automatic.
+            Text("\(recipientName) will confirm your \(startDate.formatted(.dateTime.weekday(.wide).day().month(.wide))) · \(slot) consultation. We'll notify you here, and you can add it to your calendar.")
+                .font(.lato(11.5)).lineSpacing(2)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 10).padding(.horizontal, 6)
 
             if let error {
                 Text(error).font(.lato(12.5)).foregroundStyle(LiviqaTheme.rust)

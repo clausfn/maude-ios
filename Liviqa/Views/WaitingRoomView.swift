@@ -2,7 +2,11 @@
 // The citizen taps "I'm ready" near the start time, then waits PASSIVELY on this
 // calm screen; when the clinician starts the consult the call opens AUTOMATICALLY —
 // no self-timed "join" link to mistime. Honest by design: no fabricated queue
-// position or minute-ETA — the only reassurance is "your clinician has been notified".
+// position or minute-ETA.
+//
+// A7.2 (2026-08-12): deliberately the LIGHT plaster treatment from the canvas,
+// built on the dynamic tokens — Paper mode renders the designed light room and
+// Midnight naturally becomes the evening-edition marine, no hard-coded dark.
 import SwiftUI
 
 struct WaitingRoomView: View {
@@ -16,74 +20,84 @@ struct WaitingRoomView: View {
 
     var body: some View {
         ZStack {
-            LiviqaTheme.ink.ignoresSafeArea()
+            LiviqaTheme.paper.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(LiviqaTheme.paper.opacity(0.7))
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(LiviqaTheme.ink3)
                             .padding(10)
-                            .background(Circle().fill(.white.opacity(0.12)))
+                            .background(Circle().fill(LiviqaTheme.paper2))
+                            .overlay(Circle().stroke(LiviqaTheme.line, lineWidth: 1))
                     }
+                    .accessibilityLabel("Leave the waiting room")
                 }
                 .padding(.horizontal, 20).padding(.top, 12)
 
                 Spacer()
 
-                // Passive "waiting" indicator — a gentle pulse, never a countdown/queue.
+                // A7 anatomy: quiet tile, personal serif headline, settle-in body.
                 ZStack {
-                    ForEach(0..<3) { i in
-                        Circle()
-                            .stroke(LiviqaTheme.moss.opacity(0.42 - Double(i) * 0.12), lineWidth: 2)
-                            .frame(width: 92 + CGFloat(i) * 42, height: 92 + CGFloat(i) * 42)
-                            .scaleEffect(pulse ? 1.08 : 0.96)
-                            .opacity(pulse ? 0.5 : 1)
-                    }
-                    Circle().fill(LiviqaTheme.moss.opacity(0.18)).frame(width: 84, height: 84)
-                    Image(systemName: "video.fill").font(.system(size: 30)).foregroundStyle(LiviqaTheme.moss)
+                    RoundedRectangle(cornerRadius: 22)
+                        .fill(LiviqaTheme.moss2)
+                        .frame(width: 76, height: 76)
+                    Image(systemName: "video")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundStyle(LiviqaTheme.moss)
                 }
-                .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: pulse)
 
-                Text("In the waiting room")
-                    .font(.liviqaSerif(24)).kerning(-0.2)
-                    .foregroundStyle(LiviqaTheme.paper)
-                    .padding(.top, 36)
-                Text("\(scheduled.recipientName) will join shortly.")
-                    .font(.lato(15)).foregroundStyle(LiviqaTheme.paper.opacity(0.82))
-                    .padding(.top, 6)
-                Text("Your clinician has been notified you're waiting.")
-                    .font(.lato(12.5)).foregroundStyle(LiviqaTheme.paper.opacity(0.55))
+                Text("Waiting for \(scheduled.recipientName) to start.")
+                    .font(.liviqaSerif(23)).kerning(-0.2)
+                    .foregroundStyle(LiviqaTheme.ink)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 10).padding(.horizontal, 32)
+                    .padding(.top, 22).padding(.horizontal, 26)
+                Text("Your call opens automatically the moment they join. You don't need to do anything — settle in.")
+                    .font(.lato(14)).lineSpacing(3)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 12).padding(.horizontal, 44)
+
+                // Three quiet dots — a passive presence marker, never a countdown/queue.
+                HStack(spacing: 6) {
+                    ForEach(0..<3) { i in
+                        Circle().fill(LiviqaTheme.moss)
+                            .frame(width: 8, height: 8)
+                            .opacity(pulse ? 0.55 : 0.3)
+                            .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)
+                                        .delay(Double(i) * 0.25), value: pulse)
+                    }
+                }
+                .padding(.top, 22)
 
                 Spacer()
 
                 if graced {
+                    // Real state the canvas doesn't draw (15-min grace) — kept.
                     VStack(spacing: 11) {
                         Text("Sorry — your clinician hasn't been able to join.")
-                            .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.paper)
+                            .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
                             .multilineTextAlignment(.center)
                         Text("These things happen on a busy day. You can reschedule and we'll find another time.")
-                            .font(.lato(12)).foregroundStyle(LiviqaTheme.paper.opacity(0.62))
+                            .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
                             .multilineTextAlignment(.center)
                         Button { dismiss() } label: {
-                            Text("Reschedule").font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink)
+                            Text("Reschedule").font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.invertFG)
                                 .frame(maxWidth: .infinity).padding(.vertical, 13)
-                                .background(LiviqaTheme.paper)
+                                .background(LiviqaTheme.invertBG)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }.buttonStyle(.plain)
                     }
                     .padding(.horizontal, 34).padding(.bottom, 36)
                 } else {
-                    HStack(spacing: 7) {
+                    HStack(spacing: 8) {
                         Image(systemName: "lock.fill").font(.system(size: 10))
-                        Text("Stay on this screen — your call starts automatically. A short wait is normal; thanks for your patience.")
+                        Text("Secure EU video room · nothing is recorded without your say-so.")
                             .font(.lato(11.5)).multilineTextAlignment(.center)
                     }
-                    .foregroundStyle(LiviqaTheme.paper.opacity(0.5))
+                    .foregroundStyle(LiviqaTheme.ink3)
                     .padding(.horizontal, 34).padding(.bottom, 36)
                 }
             }

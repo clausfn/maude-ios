@@ -37,6 +37,19 @@ public struct CareThread: Identifiable, Equatable, Sendable {
     public let recipientOrg: String?
     public let unread: Int
     public let lastMessageAt: Date?
+    /// One-line preview of the newest message (A7 Care-tab thread rows).
+    /// `nil` when the backend doesn't send it yet — rows fall back to the org line.
+    public let lastMessagePreview: String?
+
+    public init(recipientId: String, recipientName: String, recipientOrg: String?,
+                unread: Int, lastMessageAt: Date?, lastMessagePreview: String? = nil) {
+        self.recipientId = recipientId
+        self.recipientName = recipientName
+        self.recipientOrg = recipientOrg
+        self.unread = unread
+        self.lastMessageAt = lastMessageAt
+        self.lastMessagePreview = lastMessagePreview
+    }
 }
 
 /// A single secure message.
