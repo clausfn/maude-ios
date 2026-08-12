@@ -5,4 +5,4 @@
 - Glucose canonical unit mmol/L (OD-07). GMI = HbA1c headline.
 - provenance{REAL,SIMULATED,EXTERNAL} is a DATA field — must NEVER render on any screen.
 - Every new FR-/NFR- gets a /qms/RTM.md row before merge. Safety-path change → /qms/RISK.md touch.
-- Brand locked: iris mark, SF Pro (+ IBM Plex Mono for numbers/kickers), A6 "Daylight" six-colour palette. Aperture mark + Lato retired 2026-06-17 (PR-96 re-skin). Extend the prototype; do not redesign.
+- Brand locked: iris mark. Visual system = **A7 "Morning/Evening Edition"** (Theme.swift v03, 2026-07-07, from the Claude Design handoff: plaster/fjord palette, Charter serif verdicts, SF Pro body, IBM Plex Mono numbers; evening = deep marine) — supersedes A6 "Daylight". Aperture mark + Lato retired 2026-06-17. Canonical A7 register row in 00_Canonical/REGISTER.md = open action. Extend the prototype; do not redesign.

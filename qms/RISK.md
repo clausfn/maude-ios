@@ -2,6 +2,55 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-104 — Sundhed.dk on-device record wave + Phase 0 robustness (2026-08-12, dated catch-up — see CHANGELOG PR-104 notice)
+
+- **RK-SUND-01 — in-app session-ride: terms/lawfulness grey zone + extraction
+  fragility — OPEN (external-testing blocker).** Hazard: Path A captures
+  sundhed.dk's own SPA responses inside an in-app WKWebView — the approach the
+  governing DataAccess analysis (2026-07-09) assessed as likely against
+  sundhed.dk's terms and recommended out-of-app; extraction depends on
+  undocumented endpoints/DOM and can break silently on their side. Mitigations
+  in place: SELF-ACCESS only (the citizen reads their own record, signed in
+  themselves; credentials never visible to Liviqa); terminal sink is the
+  on-device store ONLY (auto-upload removed — off-device requires the separate
+  explicit FR-RSCH-05 act); honest empty/none-found states rather than
+  fabricated results (hardened 10.94–10.98). NOT mitigated: the lawfulness
+  posture itself — the in-code "sanctioned by Trifork/sundhed.dk" claim has no
+  written artifact on file, and the DPIA (v01 draft) models a different
+  architecture and excludes external testers. **Owner gates before external
+  TestFlight: file the written sanction (or gate `sundhedWebConnectEnabled`
+  off for external builds) + DPIA v02 signed.** Residual risk: open — accepted
+  for the internal self-access cohort only.
+- **RK-REC-01 — displaying national-record diagnoses (mis-reading /
+  mis-tiering) — mitigated.** Hazard: a citizen misreads the plain-language
+  diagnosis list, or the major/minor tiering demotes something they consider
+  serious. Mitigations: display-only presentation of the citizen's OWN record
+  (Liviqa adds no interpretation, no normality judgement, no advice); tiering
+  is presentation-only with the full list reachable; entries attributed to the
+  national record as source; the nudge engine is NOT coupled to conditions
+  (FR-NDG-06 guard untouched — T-NDG-06/06b/06c green in the 2026-08-12 full
+  run). Residual risk: low. Counsel addendum on diagnosis display + tiering
+  vs the wellness boundary = open owner action (audit 2026-08-12).
+- **RK-SLEEP-01 — fragment-vs-baseline sleep comparison — REMOVED by fix.**
+  Hazard (pre-existing, found in the wave): `sleepNudge` compared a single
+  sleep FRAGMENT against a baseline of fragments, risking false "below your
+  usual" nudges on multi-source nights. Fix `574b971`: nightly totals are the
+  union of asleep segments (same grouping as SleepDeriver); pinned by
+  `SleepMergeTests`. Baseline-relative correctness improved; no new hazard.
+- **RK-STORE-02 — silent persistence failure (data loss without signal) —
+  ADDRESSED by construction (Phase 0, `530b32d`).** Hazards: (a) a failed
+  ingest save rendered the imported record this session and lost it on
+  relaunch with no signal (`try?`-swallowed save); (b) a failed store open
+  fell back to in-memory with only a console print — on a TestFlight device a
+  broken migration would read as "all my data vanished". Mitigations: ingest
+  save now throws and surfaces honest user copy; `storeDegraded` renders a
+  visible Home banner ("nothing new is being saved… existing data is safe");
+  the Release provider-forcing seam is compiled out (posture lint added).
+  Residual risk: low.
+- **No new clinical hazard elsewhere in the wave:** no change to glucose units
+  (OD-07 mmol/L), no AFib-lane change, no provenance rendering (field remains
+  data-only; guard green), no new nudge categories.
+
 ## PR-103 — TestProd app wave (T1): erase-ordering hazard addressed by construction, no new clinical hazard (2026-07-07)
 
 - **Stranded server data behind a "deleted" confirmation (GDPR Art. 17
