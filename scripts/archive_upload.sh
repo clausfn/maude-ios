@@ -52,6 +52,11 @@ IPA="$(ls "$EXPORT"/*.ipa 2>/dev/null | head -1)"
 echo "▸ Built: $IPA"
 
 if [ -n "${ASC_KEY_ID:-}" ] && [ -n "${ASC_ISSUER_ID:-}" ]; then
+  # BLOCKING build-integrity gate — the 10.71–10.75 Debug/mock-leak guardrail.
+  # Asserts on the EXPORTED .ipa: get-task-allow=false, Apple Distribution cert,
+  # beta-reports-active present. set -e aborts the upload if the guard exits non-zero.
+  echo "▸ Verifying release posture of exported .ipa before upload…"
+  bash scripts/guard_release_posture.sh "$IPA"
   echo "▸ Uploading to TestFlight via App Store Connect API key…"
   xcrun altool --upload-app -f "$IPA" -t ios \
     --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"

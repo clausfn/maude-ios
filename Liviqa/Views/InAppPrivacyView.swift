@@ -8,8 +8,25 @@ import SwiftUI
 struct InAppPrivacyView: View {
 
     // Local control state (self-contained; mirrors AppState grants in production).
-    @State private var grants: [PrivacyGrant] = PrivacyGrant.demo
+    // Demo grants are DEBUG-only (T1 TestProd): a Release build must not render
+    // fabricated recipients as live sharing relationships — real grants surface
+    // in Settings → Consent & Sharing and the Wallet.
+    @State private var grants: [PrivacyGrant] = {
+        #if DEBUG
+        PrivacyGrant.demo
+        #else
+        []
+        #endif
+    }()
     @State private var receiptFor: PrivacyGrant? = nil
+
+    // Research-contribution state — same @AppStorage keys set opt-in during DfG
+    // onboarding and toggled in WalletView. Default OFF, so a fresh user who
+    // enabled nothing is honestly shown "Off · not contributing", never told
+    // contribution is On and earning tokens.
+    @AppStorage("consentCohortDiscovery")      private var cohortDiscovery      = false
+    @AppStorage("consentResearchDiscoverable") private var researchDiscoverable = false
+    private var researchContributionOn: Bool { cohortDiscovery || researchDiscoverable }
 
     private var activeCount: Int { grants.filter { !$0.paused }.count }
 
@@ -51,8 +68,9 @@ struct InAppPrivacyView: View {
 
                 Text("Anonymous compute only — your device answers queries, your data never moves. ")
                     .font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink3)
-                + Text("On · earns DfG tokens")
-                    .font(.lato(12.5, .bold)).foregroundStyle(LiviqaTheme.moss)
+                + Text(researchContributionOn ? "On · earns DfG tokens" : "Off · not contributing")
+                    .font(.lato(12.5, .bold))
+                    .foregroundStyle(researchContributionOn ? LiviqaTheme.moss : LiviqaTheme.ink2)
 
                 // ── The details (legal / machinery, below the fold) ──
                 Text("THE DETAILS")
@@ -264,7 +282,7 @@ private struct PauseReceiptSheet: View {
             .padding(.top, 30)
 
             Text("Paused. Nothing is shared.")
-                .font(.lato(22, .black)).kerning(-0.5).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(22)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 18)
             Text("\(grant.name.components(separatedBy: " · ").first ?? grant.name) can no longer see anything. It happened the instant you tapped — and it's on your record.")
                 .font(.lato(14)).lineSpacing(2).multilineTextAlignment(.center)

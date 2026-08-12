@@ -121,6 +121,7 @@ struct MainTabView: View {
                             displayName: appState.profile?.displayName,
                             isDemoData: appState.isDemoData && showDemoChip,
                             signals: appState.todaySignals,
+                            coldStart: appState.isColdStartEmpty,
                             onOpen: { nudge in selectedNudge = nudge },
                             onCalibrate: { anchor in
                                 nudgeProfileAnchor = anchor
@@ -193,6 +194,21 @@ struct MainTabView: View {
             ChatView(nudges: appState.nudges)
         }
         .sheet(isPresented: Binding(
+            get: { appState.showHealthRecord },
+            set: { appState.showHealthRecord = $0 }
+        )) {
+            // NavigationStack so the passport's own drill-down links (consent log,
+            // data sources) push correctly when it's opened as a sheet; Done closes it.
+            NavigationStack {
+                HealthPassportView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { appState.showHealthRecord = false }
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: Binding(
             get: { showProfile || appState.showProfileSheet },
             set: { open in
                 if !open {
@@ -215,10 +231,15 @@ struct MainTabView: View {
                 return false
                 #endif
             }()
-            StudyConsentView(study: appState.researchOpportunity ?? MockData.demoStudy,
-                             startJoined: startJoined)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+            // Only present the consent flow for a REAL surfaced invitation. Never fall
+            // back to the fabricated demo study — joining writes a live consent grant.
+            if let study = appState.researchOpportunity {
+                StudyConsentView(study: study, startJoined: startJoined)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            } else {
+                EmptyView()
+            }
         }
         .fullScreenCover(item: $joiningConsult) { consult in
             NavigationStack { ConsultView(consult: consult) }

@@ -12,8 +12,8 @@ struct PrivacyDeclarationView: View {
          "No Facebook. No Google. No ad tracking.",
          "None of their code is in this app."),
         ("lock.fill",
-         "No account required to use the app.",
-         "Demo mode is always available, no sign-up needed."),
+         "Your account is just an email.",
+         "No phone number, no real name required. Delete it — and everything with it — any time."),
         ("iphone",
          "Processing happens on your device.",
          "Your health data does not leave your phone by default."),
@@ -35,8 +35,8 @@ struct PrivacyDeclarationView: View {
                 // Heading
                 VStack(spacing: 6) {
                     Text("Before we begin")
-                        .font(.lato(26, .black))
-                        .kerning(-0.5)
+                        .font(.liviqaSerif(26))
+                        .kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                     Text("A few things you should know")
                         .font(.lato(14))

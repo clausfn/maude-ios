@@ -48,7 +48,7 @@ struct WaitingRoomView: View {
                 .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true), value: pulse)
 
                 Text("In the waiting room")
-                    .font(.lato(24, .black)).kerning(-0.4)
+                    .font(.liviqaSerif(24)).kerning(-0.2)
                     .foregroundStyle(LiviqaTheme.paper)
                     .padding(.top, 36)
                 Text("\(scheduled.recipientName) will join shortly.")

@@ -94,8 +94,22 @@ enum Config {
     /// unaffected while this is `false`.
     static let dfgWalletEnabled = false
 
-    /// DfG Wallet *login* flow (eIDAS 2.0 + Partisia verification) on the sign-in
-    /// screen. This is the in-app, high-fidelity simulation of the wallet use cases
+    /// Sign in with Apple needs three things bound to the running bundle: the SIWA
+    /// entitlement, the backend/GoTrue token audience, and Apple's team-scoped user
+    /// identifiers. Both shipping bundles now satisfy all three — the canonical DfG
+    /// build (`dev.liviqa.app`) and the temporary PPCN beta (`xyz.ppcn.liviqa`,
+    /// 2026-07-07: SIWA capability registered on the App ID, entitlement in
+    /// `Liviqa.ppcn.entitlements`, and `xyz.ppcn.liviqa` added to GoTrue's Apple
+    /// audience). Caveat on PPCN: Apple's user id is team-scoped, so a sign-in there
+    /// links to an existing account only when Apple releases the real email; a
+    /// "Hide My Email" relay makes a fresh account. Any *other* bundle → hide the
+    /// button rather than show-and-break.
+    static let appleSignInBundles: Set<String> = ["dev.liviqa.app", "xyz.ppcn.liviqa"]
+    static var appleSignInAvailable: Bool {
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        return appleSignInBundles.contains(id)
+    }
+
     /// (identity presentation → MPC signature check → CE-ledger anchoring) for demos
     /// and pilots — it does not require the live Partisia backend.
     /// DEBUG-ONLY (PR-102, launch audit): simulated identity logins must never ship
@@ -116,20 +130,38 @@ enum Config {
     static let nationalIDLoginEnabled = false
     #endif
 
+    /// Path A "Connect Sundhed.dk" — in-app MitID WebView that session-rides the
+    /// citizen's OWN sundhed.dk login to pull labs/meds/diagnoses as CODES + summaries.
+    /// ENABLED unconditionally (2026-07-09) for the SANCTIONED Trifork / sundhed.dk
+    /// self-access test: the citizen signs in with MitID themselves and only coded
+    /// summaries cross the JS→Swift boundary. The ReleasePosture precondition that
+    /// forced this off in Release has been removed for the duration of the test.
+    static let sundhedWebConnectEnabled = true
+
+    /// Path B "Connect Sundhed.dk" — file/PDF import → on-device parse → coded ingest.
+    /// Not a simulated/insecure path (real file, real derived codes only), so no
+    /// ReleasePosture precondition. ENABLED in Release/TestFlight (2026-07-09): the
+    /// POST /ingest/sundhed route is live + verified on api.liviqa.app. The endpoint
+    /// stays flag-gated server-side (SUNDHED_TESTPROD_INGEST) and consent-gated.
+    static let sundhedConnectEnabled = true
+
     /// Wallet credential rails (Liviqa Citizen issuance, receipts, OID4VP login).
-    /// They live in the SANDBOX only (per Partisia/Kim, 2026-06-09: production
-    /// credentials are parked). The sandbox backend shares prod's database and
-    /// JWT secret, so on production builds the wallet rails are ROUTED to the
-    /// sandbox container instead of being hidden — same accounts, same grants,
-    /// same ledger; only the credential calls take the sandbox path.
     static let walletIssuanceEnabled = true
 
-    /// Base URL for the wallet rails when the main backend doesn't carry them
-    /// (prod). nil ⇒ use the main backend (local/staging already have the rails).
+    /// Base URL override for the wallet/care rails. TESTPROD (T1, 2026-07-07):
+    /// the sandbox-container detour is RETIRED — on Release every rail
+    /// (grants, ledger, wallet issuance, care surface) rides the main backend
+    /// (`api.liviqa.app`). nil ⇒ use the main backend. DEBUG-only env override
+    /// (`LIVIQA_WALLET_RAIL_URL`) kept for local dev against a split backend.
+    /// Deploy gating (route parity on api.liviqa.app) is the owner's step —
+    /// this constant just stops the app from hard-coding a sandbox host.
     static var walletRailBaseURL: URL? {
-        if case .sovereign(let baseURL, _, _) = backend, baseURL.host == "api.liviqa.app" {
-            return URL(string: "https://liviqa70f58a68-liviqa-backend-sandbox.functions.fnc.fr-par.scw.cloud")!
+        #if DEBUG
+        if let raw = ProcessInfo.processInfo.environment["LIVIQA_WALLET_RAIL_URL"],
+           let url = URL(string: raw) {
+            return url
         }
+        #endif
         return nil
     }
 

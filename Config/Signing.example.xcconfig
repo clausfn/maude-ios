@@ -20,3 +20,6 @@ APP_GROUP = group.dev.liviqa.app
 // Derived. Do NOT set PRODUCT_BUNDLE_IDENTIFIER per-target in the project;
 // it flows from APP_BUNDLE_ID here (test targets append .Tests / .UITests).
 PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_ID)
+
+// Entitlements file for the app target (default = canonical; local configs may override).
+LIVIQA_ENTITLEMENTS = Liviqa/Liviqa.entitlements

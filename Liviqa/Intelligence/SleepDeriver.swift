@@ -33,19 +33,28 @@ public nonisolated enum SleepDeriver {
         for seg in segs { byDay[cal.startOfDay(for: seg.date), default: []].append(seg) }
         guard let lastDay = byDay.keys.max(), let night = byDay[lastDay] else { return nil }
 
+        // Union overlapping same-stage segments (two-source de-dup) within each
+        // exclusive bucket, then sum. Deep/REM/Core partition a single source's
+        // night, so the summed merged buckets count each wall-clock minute once.
         func hours(_ stages: Set<SleepStage>) -> Double {
-            night.filter { stages.contains($0.stage) }.reduce(0) { $0 + $1.hours }
+            SleepReading.mergedAsleepHours(night, asleep: stages)
         }
         let deepH = hours([.deep])
         let remH  = hours([.rem])
         let coreH = hours([.core, .asleepUnspecified])
         let asleepH = deepH + remH + coreH
 
+        func nightHours(_ segs: [SleepReading]) -> Double {
+            SleepReading.mergedAsleepHours(segs, asleep: [.deep])
+                + SleepReading.mergedAsleepHours(segs, asleep: [.rem])
+                + SleepReading.mergedAsleepHours(segs, asleep: [.core, .asleepUnspecified])
+        }
+
         let today = cal.startOfDay(for: Date())
         let week: [Double] = (0..<7).reversed().compactMap { off in
             guard let d = cal.date(byAdding: .day, value: -off, to: today),
                   let segs = byDay[d] else { return nil }
-            return (segs.reduce(0) { $0 + $1.hours } * 10).rounded() / 10
+            return (nightHours(segs) * 10).rounded() / 10
         }
 
         return SleepSummary(

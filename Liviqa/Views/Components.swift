@@ -48,7 +48,7 @@ struct LiviqaAppBar: View {
                     .foregroundStyle(LiviqaTheme.ink)
             } else {
                 Text(title)
-                    .font(.lato(17, .black))
+                    .font(.liviqaSerif(17))
                     .kerning(-0.3)
                     .foregroundStyle(LiviqaTheme.ink)
             }

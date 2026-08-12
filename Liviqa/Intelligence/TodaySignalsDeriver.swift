@@ -42,7 +42,14 @@ public nonisolated enum TodaySignalsDeriver {
 
         let stats = PassportStatsDeriver.derive(from: s, tirLowMmol: tirLowMmol, tirHighMmol: tirHighMmol)
 
-        let sleep = stats.avgSleepHours > 0 ? formatSleep(stats.avgSleepHours) : "—"
+        // Sleep chip = LAST NIGHT's asleep total — the same figure the Sleep pillar
+        // detail shows, and consistent with the "latest reading" semantic of the HRV/
+        // RHR chips below. Previously this used the multi-night AVERAGE
+        // (stats.avgSleepHours), which read ~54 min off from the detail's last-night
+        // value (Home 4h12 vs detail 5h06) — the "front page doesn't match" bug. The
+        // average still lives in PassportStats where an average is actually intended.
+        let lastNightHours = SleepDeriver.derive(from: s).map { Double($0.asleepMinutes) / 60.0 } ?? 0
+        let sleep = lastNightHours > 0 ? formatSleep(lastNightHours) : "—"
         let tir = stats.glucoseTimeInRange
         let inRange = s.glucose.isEmpty ? "—" : "\(tir)%"
         let hrv = latest(s.hrv).map { String(Int($0.rounded())) } ?? "—"
@@ -71,6 +78,7 @@ public nonisolated enum TodaySignalsDeriver {
     // MARK: 7-day micro-trend series (oldest→today; one value per day WITH data).
 
     private static let cal = Calendar(identifier: .gregorian)
+    private static let asleepStages: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
     private static func recentDays(_ count: Int = 7) -> [Date] {
         let today = cal.startOfDay(for: Date())
         return (0..<count).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
@@ -88,9 +96,15 @@ public nonisolated enum TodaySignalsDeriver {
     /// Per-day total asleep hours over the last 7 days, days with data only.
     private static func sleepWeekSeries(_ s: HealthSamples) -> [Double] {
         guard !s.sleep.isEmpty else { return [] }
-        var byDay: [Date: Double] = [:]
-        for seg in s.sleep { byDay[cal.startOfDay(for: seg.date), default: 0] += seg.hours }
-        let series = recentDays().compactMap { byDay[$0] }
+        // Union per night (dedupes overlapping iPhone + Watch segments), asleep
+        // stages only — mirrors the SLEEP chip's nightly total.
+        var byDay: [Date: [SleepReading]] = [:]
+        for seg in s.sleep where asleepStages.contains(seg.stage) {
+            byDay[cal.startOfDay(for: seg.date), default: []].append(seg)
+        }
+        let series = recentDays().compactMap { day in
+            byDay[day].map { SleepReading.mergedAsleepHours($0, asleep: asleepStages) }
+        }
         return series.count >= 2 ? series : []
     }
 

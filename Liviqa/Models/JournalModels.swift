@@ -45,6 +45,21 @@ struct JournalEntry: Identifiable, Codable, Equatable {
         case updatedAt   = "updated_at"
     }
 
+    // Full initialiser (sync mapping — LiviqaBackendService / BackendMapping).
+    init(id: UUID, userId: UUID? = nil, body: String, mood: Int? = nil,
+         metrics: MetricSnapshot? = nil, tags: [String] = [],
+         syncEnabled: Bool = false, createdAt: Date, updatedAt: Date) {
+        self.id          = id
+        self.userId      = userId
+        self.body        = body
+        self.mood        = mood
+        self.metrics     = metrics
+        self.tags        = tags
+        self.syncEnabled = syncEnabled
+        self.createdAt   = createdAt
+        self.updatedAt   = updatedAt
+    }
+
     // Local-only initialiser (pre-sync)
     init(body: String, mood: Int? = nil, tags: [String] = []) {
         self.id          = UUID()

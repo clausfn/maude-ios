@@ -139,9 +139,12 @@ public enum DerivedShareBuilder {
 
     static func sleep(_ rs: [SleepReading]) -> MetricPayload? {
         guard !rs.isEmpty else { return nil }
-        // total hours asleep per day (exclude awake/inBed double-counting kept simple)
+        // Total asleep hours per day = UNION of asleep intervals: overlapping
+        // two-source nights (iPhone + Watch) count once (never summed twice),
+        // and awake/inBed are excluded rather than inflating the shared figure.
+        let asleep: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
         let byDay = Dictionary(grouping: rs) { dayKey($0.date) }
-        let daily = byDay.map { SeriesPoint(x: $0.key, v: round1($0.value.map(\.hours).reduce(0, +))) }
+        let daily = byDay.map { SeriesPoint(x: $0.key, v: round1(SleepReading.mergedAsleepHours($0.value, asleep: asleep))) }
             .sorted { $0.x < $1.x }
         let mean = daily.isEmpty ? 0 : daily.map(\.v).reduce(0, +) / Double(daily.count)
         return MetricPayload(unit: "h", goal: 8, better: "hi",

@@ -43,8 +43,8 @@ struct ShareReceiptSheet: View {
 
                     VStack(spacing: 7) {
                         Text(offer.kind == .citizenCredential ? "Your Liviqa Citizen credential" : "Add to My DfG wallet")
-                            .font(.lato(20, .black))
-                            .kerning(-0.3)
+                            .font(.liviqaSerif(20))
+                            .kerning(-0.2)
                             .foregroundStyle(LiviqaTheme.ink)
                         Text(offer.kind == .citizenCredential
                              ? "Your sign-in and participation credential — role and member ID only, pseudonymous by design. No name, no health data. Issuance is recorded in your Privacy Record."
@@ -134,7 +134,7 @@ struct ShareReceiptSheet: View {
         guard let base = gen.outputImage else { return nil }
         let fc = CIFilter.falseColor()
         fc.inputImage = base
-        fc.color0 = CIColor(red: 0.055, green: 0.102, blue: 0.169) // ink
+        fc.color0 = CIColor(red: 0.114, green: 0.208, blue: 0.341) // ink
         fc.color1 = CIColor(red: 1, green: 1, blue: 1)
         guard let out = fc.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
               let cg = ctx.createCGImage(out, from: out.extent) else { return nil }

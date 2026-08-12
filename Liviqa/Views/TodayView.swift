@@ -16,6 +16,9 @@ struct TodayView: View {
     var isDemoData: Bool = false
     /// Live Home signal values (real HealthKit). nil ⇒ show the demo seeds.
     var signals: TodaySignals? = nil
+    /// T1 cold-start honesty (Release): nothing real to show yet — render the
+    /// honest "baseline building" state instead of demo placeholder values.
+    var coldStart: Bool = false
     var onOpen: (Nudge) -> Void
     var onCalibrate: ((ProfileSheet.Section?) -> Void)? = nil
     /// Real device that tried HealthKit but has no readings → show the connect hint.
@@ -24,6 +27,7 @@ struct TodayView: View {
     var onOpenSettings: (() -> Void)? = nil
 
     @State private var connectHintDismissed = false
+    @State private var showSundhedImport = false
     /// PR-100 promotion #3: domain icon on the nudge hero (sparkline half deferred —
     /// needs a numeric series on Nudge). On by default; toggle in Settings.
     @AppStorage("visualNudge") private var visualNudge = true
@@ -78,7 +82,7 @@ struct TodayView: View {
                         .foregroundStyle(LiviqaTheme.ink3)
 
                     Text(greetingLine)
-                        .font(.lato(26, .black)).kerning(-0.6)
+                        .font(.liviqaSerif(26)).kerning(-0.2)
                         .foregroundStyle(LiviqaTheme.ink)
                         .padding(.top, 4)
 
@@ -98,9 +102,30 @@ struct TodayView: View {
                         .padding(.top, 14)
                     }
 
-                    // Calm, affirming lead (not an alert) — the everyday day-good state.
-                    calmHero
-                        .padding(.top, 14)
+                    // Bring in Sundhed.dk records (Path B import) — visible entry.
+                    if Config.sundhedConnectEnabled {
+                        sundhedConnectCard
+                            .padding(.top, 14)
+                    }
+
+                    // Once anything is imported, a visible, discoverable entry to VIEW
+                    // and screenshot the record (labs / diagnoses / medicine).
+                    if hasImportedRecord {
+                        healthRecordCard
+                            .padding(.top, 10)
+                    }
+
+                    // Calm, affirming lead (not an alert) — the everyday day-good
+                    // state. On a genuinely empty cold start (Release, no Health
+                    // readings yet) the honest baseline card replaces it.
+                    Group {
+                        if coldStart {
+                            baselineBuildingCard
+                        } else {
+                            calmHero
+                        }
+                    }
+                    .padding(.top, 14)
 
                     Text(String(localized: "Your signals · vs your normal").uppercased())
                         .font(.liviqaKicker(9)).tracking(1)
@@ -138,7 +163,94 @@ struct TodayView: View {
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: title dissolves into the feed
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showSundhedImport) {
+            NavigationStack {
+                SundhedWebSessionView(
+                    ingest: appState.supabase as? SundhedIngesting,
+                    citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
+                )
+            }
+        }
         #endif
+    }
+
+    // MARK: — Your health record (view/screenshot imported labs, diagnoses, medicine)
+
+    private var hasImportedRecord: Bool {
+        !appState.healthObservations.isEmpty
+            || !appState.healthConditions.isEmpty
+            || !appState.healthMedications.isEmpty
+    }
+
+    private var recordSummaryLine: String {
+        let l = appState.healthObservations.count
+        let d = appState.healthConditions.count
+        let m = appState.healthMedications.count
+        var parts: [String] = []
+        if l > 0 { parts.append("\(l) lab result\(l == 1 ? "" : "s")") }
+        if d > 0 { parts.append("\(d) diagnos\(d == 1 ? "is" : "es")") }
+        if m > 0 { parts.append("\(m) medicine\(m == 1 ? "" : "s")") }
+        return parts.isEmpty
+            ? "Labs, diagnoses & medicine — kept on this device"
+            : parts.joined(separator: " · ") + " — tap to view or share"
+    }
+
+    private var healthRecordCard: some View {
+        Button { appState.showHealthRecord = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "list.clipboard.fill")
+                    .font(.system(size: 17)).foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(LiviqaTheme.ink2)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your health record")
+                        .font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text(recordSummaryLine)
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right")
+                    .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: — Connect Sundhed.dk (prominent, health-records import)
+
+    private var sundhedConnectCard: some View {
+        Button { showSundhedImport = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "cross.case.fill")
+                    .font(.system(size: 17)).foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(LiviqaTheme.moss)
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Bring in your Sundhed.dk records")
+                        .font(.lato(14.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text("Sign in with MitID — pulled live to your device")
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.right")
+                    .font(.caption).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss.opacity(0.35), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: — Connect-Apple-Health hint (real device, no data yet)
@@ -148,10 +260,14 @@ struct TodayView: View {
             Image(systemName: "heart.text.square")
                 .font(.lato(15)).foregroundStyle(LiviqaTheme.moss)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Showing sample data")
+                // Cold start shows the honest empty state, not sample data —
+                // the hint header must not claim otherwise (T1).
+                Text(coldStart ? "Waiting for your Health data" : "Showing sample data")
                     .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
                 Button { onOpenSettings?() } label: {
-                    Text("Connect Apple Health in Settings to see your own →")
+                    // The silent failure mode is granting access with every category
+                    // toggled OFF — say it, or the user is stuck with an empty app.
+                    Text("Connect Apple Health in Settings — and make sure the data categories are turned ON →")
                         .font(.lato(12.5)).foregroundStyle(LiviqaTheme.moss)
                         .multilineTextAlignment(.leading)
                 }
@@ -183,7 +299,7 @@ struct TodayView: View {
                     .foregroundStyle(LiviqaTheme.moss)
             }
             Text(affirmHeadline)
-                .font(.lato(20, .black)).kerning(-0.4).lineSpacing(2)
+                .font(.liviqaSerif(20)).kerning(-0.2).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 10)
             Text(affirmSub)
@@ -199,9 +315,82 @@ struct TodayView: View {
         .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
-    private var affirmHeadline: String { String(localized: "You're having a steady week.") }
+    // Calm affirmation derived from the user's OWN week (simple descriptive
+    // heuristics on the real 7-day series — never a verdict, never medical).
+    // No signals yet (demo seeds) keeps the original steady copy; the genuine
+    // cold start is covered by the honest baseline card above.
+    private enum WeekTone { case steady, improving, uneven }
+
+    private var weekTone: WeekTone {
+        guard let s = signals else { return .steady }          // seeds → original copy
+        if s.inRangeIsClay { return .uneven }                  // the one flagged deviation
+        if tirImproving || sleepImproving { return .improving }
+        return .steady
+    }
+
+    /// Second-half average vs first-half average of a real 7-day series.
+    private func trendingUp(_ series: [Double], by delta: Double) -> Bool {
+        guard series.count >= 4 else { return false }
+        let half = series.count / 2
+        let early = series.prefix(half), late = series.suffix(series.count - half)
+        return late.reduce(0, +) / Double(late.count)
+             - early.reduce(0, +) / Double(early.count) >= delta
+    }
+
+    private var tirImproving: Bool {
+        guard let s = signals else { return false }
+        return trendingUp(s.inRangeWeek, by: 5)                // ≥5 points more in range
+    }
+    private var sleepImproving: Bool {
+        guard let s = signals else { return false }
+        return trendingUp(s.sleepWeek, by: 0.4)                // ≥ ~25 min longer nights
+    }
+
+    private var affirmHeadline: String {
+        switch weekTone {
+        case .steady:    return String(localized: "You're having a steady week.")
+        case .improving: return String(localized: "This week is trending gently up.")
+        case .uneven:    return String(localized: "A more uneven week — that happens.")
+        }
+    }
     private var affirmSub: String {
-        String(localized: "Sleep, glucose and recovery are all tracking close to your own normal.")
+        switch weekTone {
+        case .steady:
+            return String(localized: "Sleep, glucose and recovery are all tracking close to your own normal.")
+        case .improving:
+            return tirImproving
+                ? String(localized: "Recent days show a little more time in range than earlier in the week.")
+                : String(localized: "Recent nights have been a touch longer than earlier in the week.")
+        case .uneven:
+            return String(localized: "Glucose spent a bit less time in range this week — the day-to-day picture is just below.")
+        }
+    }
+
+    // MARK: — Honest cold start (no readings yet — nothing is faked)
+
+    private var baselineBuildingCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
+                Text(String(localized: "Building your baseline").uppercased())
+                    .font(.liviqaKicker(10)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            Text("No insights yet — and that's honest.")
+                .font(.liviqaSerif(20)).kerning(-0.2).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 10)
+            Text("Liviqa reads your history from Apple Health and learns what's normal for you. Your first insights typically appear after about 3 days of readings.")
+                .font(.lato(13)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .padding(.top, 7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
     // MARK: — Deviation insight (demoted under the calm state)
@@ -223,7 +412,7 @@ struct TodayView: View {
                 }
 
                 Text(heroHeadline)
-                    .font(.lato(19, .black)).kerning(-0.4)
+                    .font(.liviqaSerif(19)).kerning(-0.2)
                     .lineSpacing(2)
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(LiviqaTheme.ink)
@@ -305,7 +494,7 @@ struct TodayView: View {
                         .font(.system(size: 10, weight: .bold)).foregroundStyle(LiviqaTheme.ink3)
                 }
                 Text(weekHeadline)
-                    .font(.lato(17, .black)).kerning(-0.3).lineSpacing(2)
+                    .font(.liviqaSerif(17)).kerning(-0.3).lineSpacing(2)
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(LiviqaTheme.ink)
                     .padding(.top, 9)
@@ -326,9 +515,10 @@ struct TodayView: View {
 
     /// REAL weekly in-range series (oldest→today) when connected; a calm seed otherwise
     /// (matches the seed used by WeekInContextView so the teaser and full view agree).
+    /// Cold start: no seed sparkline — nothing real to draw yet (T1).
     private var weekSparkline: [Double]? {
         if let s = signals, s.inRangeWeek.count > 1 { return s.inRangeWeek }
-        return [71, 74, 69, 78, 80, 76, 84]
+        return coldStart ? nil : [71, 74, 69, 78, 80, 76, 84]
     }
 
     private var weekHeadline: String {
@@ -346,26 +536,43 @@ struct TodayView: View {
     private var signalRow: some View {
         HStack(spacing: 8) {
             NavigationLink(value: WellnessPillar.sleep) {
-                signalChip(String(localized: "Sleep"), "moon.fill", signals?.sleep ?? "6h52", clay: false, spark: spark(\.sleepWeek, .sleep))
+                signalChip(String(localized: "Sleep"), "moon.fill", sleepHeadline, clay: false, spark: spark(\.sleepWeek, .sleep))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
-                signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? "61%", clay: signals?.inRangeIsClay ?? true, spark: spark(\.inRangeWeek, .glucose))
+                signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? seedValue("61%"), clay: signals?.inRangeIsClay ?? !coldStart, spark: spark(\.inRangeWeek, .glucose))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.recovery) {
-                signalChip(String(localized: "Recovery"), "waveform.path.ecg", signals?.hrv ?? "48", clay: false, spark: spark(\.hrvWeek, .recovery))
+                signalChip(String(localized: "Recovery"), "waveform.path.ecg", signals?.hrv ?? seedValue("48"), clay: false, spark: spark(\.hrvWeek, .recovery))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.heart) {
-                signalChip(String(localized: "Heart"), "heart.fill", signals?.rhr ?? "58", clay: false, spark: spark(\.rhrWeek, .heart))
+                signalChip(String(localized: "Heart"), "heart.fill", signals?.rhr ?? seedValue("58"), clay: false, spark: spark(\.rhrWeek, .heart))
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
     }
 
+    /// Sleep headline for Home — derived from the SAME source the pillar detail uses
+    /// (real last-night sleep from HealthKit, `appState.sleepSummary`) so the front
+    /// page can't disagree with the detail (the "front page doesn't match the actual
+    /// data" report). Falls back to the signals value, then the honest seed.
+    private var sleepHeadline: String {
+        if let s = appState.sleepSummary {
+            return "\(s.asleepMinutes / 60)h \(String(format: "%02d", s.asleepMinutes % 60))"
+        }
+        return signals?.sleep ?? seedValue("6h 52")
+    }
+
+    /// Demo seed values render only outside the honest cold start; a genuinely
+    /// empty Release start shows "—" until real readings arrive (T1).
+    private func seedValue(_ demo: String) -> String {
+        coldStart ? "—" : demo
+    }
+
     /// Sparkline source: real per-day week when connected (empty ⇒ no spark, honest),
-    /// the pillar's demo week when showing seeds.
+    /// the pillar's demo week when showing seeds — never a seed on cold start.
     private func spark(_ keyPath: KeyPath<TodaySignals, [Double]>, _ pillar: WellnessPillar) -> [Double] {
         if let s = signals { return s[keyPath: keyPath] }
-        return pillar.week
+        return coldStart ? [] : pillar.week
     }
 
     private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool,

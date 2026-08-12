@@ -82,4 +82,22 @@ enum BackendMapping {
     /// ISO-8601 writer for outbound dates (CreateGrant.expiry, share asOf).
     static func iso(_ d: Date) -> String { isoOut.string(from: d) }
     private static let isoOut = ISO8601DateFormatter()
+
+    // MARK: - Journal (T1 TestProd wave — real /journal sync)
+    // The server row is TEXT + `at` (+ createdAt); mood/tags/metric snapshots
+    // are device-local by design and never ride the wire. Deterministic and
+    // URLSession-free so `JournalSyncMappingTests` can pin the behaviour.
+    static func journalEntry(from dto: JournalEntryDTO) -> JournalEntry {
+        let at = parseDate(dto.at) ?? Date()
+        return JournalEntry(
+            id: stableUUID(dto.id),
+            userId: nil,
+            body: dto.text,
+            mood: nil,
+            metrics: nil,
+            tags: [],
+            syncEnabled: true,
+            createdAt: at,
+            updatedAt: parseDate(dto.createdAt) ?? at)
+    }
 }

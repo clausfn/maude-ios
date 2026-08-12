@@ -42,9 +42,19 @@ struct JournalView: View {
     @State private var provenanceOffer: WalletReceiptOffer?
     @State private var issuingProvenance: UUID?
 
-    // Persisted on device (file-protected). Loads saved entries, else the starting
-    // demo set on a fresh install. Any add/edit/delete is auto-saved (onChange).
-    @State private var journalEntries: [JournalEntry] = JournalStore.load() ?? JournalView.demoSeed
+    // Persisted on device (file-protected). Loads saved entries; a fresh install
+    // starts with the demo set in DEBUG and EMPTY in Release (T1 cold-start
+    // honesty — fabricated entries must never read as the user's own words).
+    // Any add/edit/delete is auto-saved (onChange).
+    @State private var journalEntries: [JournalEntry] = JournalStore.load() ?? JournalView.initialSeed
+
+    private static let initialSeed: [JournalEntry] = {
+        #if DEBUG
+        demoSeed
+        #else
+        []
+        #endif
+    }()
 
     private static let demoSeed: [JournalEntry] = {
         var e1 = JournalEntry(
@@ -65,7 +75,14 @@ struct JournalView: View {
         return [e1, e2, e3]
     }()
 
-    @State private var vaultDocs: [VaultDocument] = VaultDocument.demo
+    // Vault demo documents are DEBUG-only (T1): Release starts with an empty vault.
+    @State private var vaultDocs: [VaultDocument] = {
+        #if DEBUG
+        VaultDocument.demo
+        #else
+        []
+        #endif
+    }()
 
     // Composer state
     @State private var composerExpanded = false
@@ -412,7 +429,7 @@ struct JournalView: View {
         VStack(spacing: 0) {
             Capsule().fill(LiviqaTheme.line).frame(width: 38, height: 4).padding(.top, 12).padding(.bottom, 18)
             Text("How's your energy?")
-                .font(.lato(20, .black)).kerning(-0.4).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(20)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
             Text("One tap. You can add a note after — or not.")
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
@@ -464,7 +481,7 @@ struct JournalView: View {
                 .padding(.top, 12).padding(.bottom, 18)
 
             Text("Log a supplement")
-                .font(.lato(20, .black)).kerning(-0.4).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(20)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
             Text("What you took, and how much.")
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3).padding(.top, 4)
 
@@ -1020,7 +1037,7 @@ struct JournalView: View {
         case .amber: return LiviqaTheme.clay
         case .moss:  return LiviqaTheme.moss
         case .ink:   return LiviqaTheme.ink
-        case .blue:  return Color(hex: 0x2992A5)
+        case .blue:  return LiviqaTheme.accentRecovery
         case .ink3:  return LiviqaTheme.ink3
         }
     }

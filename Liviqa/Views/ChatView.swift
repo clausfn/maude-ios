@@ -7,6 +7,9 @@ struct ChatView: View {
     /// Current nudges — drives contextual starter questions (what the engine found).
     var nudges: [Nudge] = []
     @Environment(\.dismiss) private var dismiss
+    // Live health context — the assistant describes the signed-in user's OWN
+    // derived signals, never a fabricated persona (T1 honest-data).
+    @Environment(AppState.self) private var appState
 
     // Granular, standalone, defaults-off consent (severable, withdrawable).
     @AppStorage("chatConsentProcess")  private var consentProcess  = false
@@ -15,7 +18,7 @@ struct ChatView: View {
 
     @State private var messages: [ChatMessage] = []
     @State private var draft = ""
-    @State private var engine = ChatEngine(summary: .demo)
+    @State private var engine = ChatEngine()   // summary wired to live data in refreshSummary()
     @State private var thinking = false
 
     var body: some View {
@@ -30,11 +33,16 @@ struct ChatView: View {
         }
         // A6: full-height glass assistant sheet with a grabber (keeps room for the composer).
         .liviqaSheet([.large])
+        // Build the summary from the user's own signals at appear-time and rebuild
+        // whenever a Health refresh lands mid-conversation.
+        .task { refreshSummary() }
+        .onChange(of: appState.todaySignals) { _, _ in refreshSummary() }
         #if DEBUG
         .task {
             // Snapshot hook: auto-send one seed question (LIVIQA_CHAT_SEED).
             if let seed = ProcessInfo.processInfo.environment["LIVIQA_CHAT_SEED"],
                consentProcess, messages.isEmpty {
+                refreshSummary()   // don't race the appear-time task — answer from data
                 draft = seed; send()
             }
         }
@@ -46,7 +54,7 @@ struct ChatView: View {
     private var header: some View {
         HStack(spacing: 10) {
             LiviqaApertureMark(size: 24)
-            Text("Assistant").font(.lato(17, .black)).kerning(-0.3).foregroundStyle(LiviqaTheme.ink)
+            Text("Assistant").font(.liviqaSerif(17)).kerning(-0.3).foregroundStyle(LiviqaTheme.ink)
             Spacer()
             if consentProcess {
                 Menu {
@@ -155,6 +163,20 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(nudges.isEmpty ? "Ask about your own data" : "Based on what your data showed")
                 .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.ink)
+            // Honest empty context (T1): no tracked numbers yet — say so calmly
+            // instead of answering from data that doesn't exist.
+            if !hasSummaryData {
+                HStack(alignment: .top, spacing: 7) {
+                    Image(systemName: "heart.text.square")
+                        .font(.lato(13)).foregroundStyle(LiviqaTheme.moss)
+                    Text("No Health data yet — connect Apple Health in Settings to personalise answers with your own numbers.")
+                        .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(LiviqaTheme.moss2)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
             ForEach(ChatSuggestions.contextual(from: nudges), id: \.self) { ex in
                 Button { draft = ex; send() } label: {
                     Text(ex).font(.lato(13)).foregroundStyle(LiviqaTheme.moss)
@@ -204,6 +226,44 @@ struct ChatView: View {
     }
 
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    // MARK: - Live summary (the user's own data, never a fabricated persona)
+
+    /// True when the engine has at least one real number to describe.
+    private var hasSummaryData: Bool {
+        let s = engine.summary
+        return s.avgGlucoseMmol7d != nil || s.glucoseTIRpct7d != nil || s.sleepAvgHours7d != nil
+            || s.restingHRavg7d != nil || s.hrvAvgMs7d != nil || s.stepsAvg7d != nil
+    }
+
+    /// Wires the engine to the signed-in user's REAL derived signals. Release
+    /// builds never fall back to the demo persona — no data means an honest
+    /// empty summary (the cloud path then sends "(no tracked data available)").
+    private func refreshSummary() {
+        if let s = appState.todaySignals {
+            engine.summary = Self.summary(from: s)
+        } else {
+            #if DEBUG
+            // DEBUG demo provider only: keep the synthetic persona exercisable on
+            // the simulator (mirrors the seeded Home values). Never ships (PR-102).
+            engine.summary = appState.isDemoData ? .demo : .empty
+            #else
+            engine.summary = .empty
+            #endif
+        }
+    }
+
+    /// 7-day chat summary from the Home signal series (oldest→today). Fields
+    /// without real data stay nil — the responder only states what's present.
+    /// (avgGlucoseMmol7d / stepsAvg7d aren't derivable from TodaySignals → nil.)
+    private static func summary(from s: TodaySignals) -> ChatHealthSummary {
+        func avg(_ xs: [Double]) -> Double? { xs.isEmpty ? nil : xs.reduce(0, +) / Double(xs.count) }
+        return ChatHealthSummary(
+            glucoseTIRpct7d: avg(s.inRangeWeek).map { Int($0.rounded()) },
+            sleepAvgHours7d: avg(s.sleepWeek),
+            restingHRavg7d:  avg(s.rhrWeek).map { Int($0.rounded()) },
+            hrvAvgMs7d:      avg(s.hrvWeek).map { Int($0.rounded()) })
+    }
 
     // MARK: - Actions
 

@@ -46,7 +46,7 @@ struct VoiceNoteView: View {
             // ── Header ──
             HStack {
                 Text("Voice note")
-                    .font(.lato(17, .bold))
+                    .font(.liviqaSerif(17))
                     .foregroundStyle(LiviqaTheme.ink)
                 Spacer()
                 Button {

@@ -69,6 +69,48 @@ public struct SleepReading: Provenanced, Sendable {
     }
 }
 
+public extension SleepReading {
+
+    /// Total asleep hours for a set of segments, counting each wall-clock minute
+    /// **once** — the UNION of the intervals, never their sum.
+    ///
+    /// When two sources record the same night (iPhone + Apple Watch), their
+    /// asleep segments overlap; naively summing `hours` double-counts the overlap
+    /// (a real ~8h night reads as ~16h). This filters to `asleep` stages, treats
+    /// each reading as the half-open interval `[date, date + hours]`, sorts by
+    /// start, merges overlapping/adjacent intervals, and returns the merged span
+    /// in hours. Overlapping segments from different sources count exactly once.
+    ///
+    /// Pure Foundation, no side effects (unit-testable, Android-portable).
+    static func mergedAsleepHours(_ segments: [SleepReading],
+                                  asleep: Set<SleepStage>) -> Double {
+        // Intervals in seconds; drop non-asleep stages and empty/negative spans.
+        let intervals = segments
+            .filter { asleep.contains($0.stage) && $0.hours > 0 }
+            .map { seg -> (start: TimeInterval, end: TimeInterval) in
+                let start = seg.date.timeIntervalSinceReferenceDate
+                return (start, start + seg.hours * 3600)
+            }
+            .sorted { $0.start < $1.start }
+        guard let first = intervals.first else { return 0 }
+
+        var total: TimeInterval = 0
+        var runStart = first.start
+        var runEnd = first.end
+        for iv in intervals.dropFirst() {
+            if iv.start <= runEnd {              // overlaps or touches → extend run
+                runEnd = max(runEnd, iv.end)
+            } else {                             // gap → bank the run, start a new one
+                total += runEnd - runStart
+                runStart = iv.start
+                runEnd = iv.end
+            }
+        }
+        total += runEnd - runStart
+        return total / 3600
+    }
+}
+
 public struct WorkoutReading: Provenanced, Sendable {
     public let start: Date
     public let end: Date

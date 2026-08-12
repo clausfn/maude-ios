@@ -30,6 +30,11 @@ enum LiviqaStore {
         MedicationInteraction.self,
         WeatherContext.self,
         CalendarLoad.self,
+        // Canonical, source-agnostic health record (Sundhed live/PDF, OCR, HealthKit,
+        // manual…). On-device only; leaves only by explicit user action.
+        HealthObservation.self,
+        HealthCondition.self,
+        HealthMedication.self,
     ]
 
     static var schema: Schema { Schema(models) }
@@ -50,12 +55,26 @@ enum LiviqaStore {
         return container
     }
 
-    /// Best-effort: mark the store file as `complete` data protection (hardware
-    /// AES, key evicted when the device locks). Hardened further in PR-7.
+    /// Encrypt the store at rest with the DATABASE-appropriate protection level.
+    ///
+    /// MUST be `.completeUntilFirstUserAuthentication`, NOT `.complete`:
+    ///  · `.complete` evicts the file's key whenever the device locks, making the
+    ///    SQLite file UNREADABLE while locked / on a background relaunch. With WAL
+    ///    journaling (SwiftData's default) the `-wal`/`-shm` siblings kept the OS
+    ///    default level, so the main `.store` could become inaccessible before the
+    ///    WAL checkpointed — writes were recorded, then RANDOMLY lost when the device
+    ///    locked. (That is the "data came in, then disappeared, seems random" bug.)
+    ///  · `.completeUntilFirstUserAuthentication` keeps the file encrypted at rest but
+    ///    available from the first unlock after boot until reboot — the standard,
+    ///    correct level for an app database, and what Core Data/SwiftData default to.
+    ///
+    /// Applied to the store AND its `-wal` / `-shm` companions so all three files share
+    /// one consistent, lock-safe protection level.
     private static func applyFileProtection(to url: URL) {
-        try? FileManager.default.setAttributes(
-            [.protectionKey: FileProtectionType.complete],
-            ofItemAtPath: url.path
-        )
+        let level = FileProtectionType.completeUntilFirstUserAuthentication
+        let base = url.path
+        for path in [base, base + "-wal", base + "-shm"] {
+            try? FileManager.default.setAttributes([.protectionKey: level], ofItemAtPath: path)
+        }
     }
 }

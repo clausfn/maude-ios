@@ -2,6 +2,32 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## PR-103 — TestProd app wave (T1): erase-ordering hazard addressed by construction, no new clinical hazard (2026-07-07)
+
+- **Stranded server data behind a "deleted" confirmation (GDPR Art. 17
+  integrity) — ADDRESSED by ordering.** Hazard: with a server-side erase
+  added to the Settings delete flow, a local-wipe-first sequence could wipe
+  the device, show success, and then fail the network call — leaving the
+  user's account data on the backend while they believe everything is gone
+  (the PR-102 "false deletion assurance" hazard, moved to the server side).
+  Mitigation (by construction): `AppState.eraseEverythingServerFirst()` calls
+  `POST /me/erase` FIRST and runs the local wipe ONLY after the server
+  confirmed `erased: true`; a server failure aborts before anything local is
+  touched and surfaces a retryable, honest error ("nothing was removed yet —
+  not from Liviqa's servers and not from this device"). Ordering pinned by
+  `EraseOrderingTests` (failure aborts pre-wipe; success ordering
+  server→local). The residual failure direction is the SAFE one: worst case
+  the server is erased and the local wipe is interrupted (app killed
+  mid-flow) — the device still holds the user's own data and the flow can be
+  re-run; no state exists where the user was told "deleted" while server
+  data persists. Residual risk: low.
+- **No new clinical hazard.** Rails unification, GDPR surfaces, real journal
+  sync, receipt display and cold-start honesty touch no nudge logic, no
+  units (glucose mmol/L, OD-07), no provenance handling, no AFib lane, no
+  FR-NDG-06 guard. The Release cold-start change only REMOVES fabricated
+  data from shipped builds (extends the PR-102 demo-leak removal app-wide);
+  the honest empty state cannot present synthetic values as the user's own.
+
 ## PR-102 — Pre-launch audit fixes, wave 1: two hazards REMOVED, none added (2026-07-03)
 
 Both safety-path changes in PR-102 remove existing hazards; neither introduces a

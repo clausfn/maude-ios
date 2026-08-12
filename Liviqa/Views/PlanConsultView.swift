@@ -62,7 +62,7 @@ struct PlanConsultView: View {
     private var picker: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Pick a time that suits you")
-                .font(.lato(22, .black)).kerning(-0.5).foregroundStyle(LiviqaTheme.ink)
+                .font(.liviqaSerif(22)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
             Text("\(recipientName) sees your request and confirms. You can add it to your calendar.")
                 .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink3)
                 .padding(.top, 4)
@@ -189,7 +189,7 @@ struct PlanConsultView: View {
             }
             .padding(.top, 14)
             Text("Request sent.")
-                .font(.lato(23, .black)).kerning(-0.5).foregroundStyle(LiviqaTheme.ink).padding(.top, 16)
+                .font(.liviqaSerif(23)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink).padding(.top, 16)
             Text("\(recipientName) will confirm your \(startDate.formatted(.dateTime.weekday(.wide).day().month())) · \(slot) consultation. We'll notify you here.")
                 .font(.lato(14)).lineSpacing(2).multilineTextAlignment(.center)
                 .foregroundStyle(LiviqaTheme.ink2).padding(.top, 10).padding(.horizontal, 8)

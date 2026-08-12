@@ -29,7 +29,7 @@ struct PreVisitCheckView: View {
                 .padding(.top, 6)
 
                 Text("Before your consult")
-                    .font(.lato(22, .black)).kerning(-0.5).foregroundStyle(LiviqaTheme.ink)
+                    .font(.liviqaSerif(22)).kerning(-0.2).foregroundStyle(LiviqaTheme.ink)
                 Text("A quick check so your video call with \(recipientName) starts smoothly.")
                     .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink3)
 

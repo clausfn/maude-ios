@@ -61,9 +61,18 @@ protocol SovereignSharing: Sendable {
     func issueCitizenCredential() async throws -> (url: URL, validUntil: Date?)
 }
 
+/// Password recovery (e-mail reset link) — carried by the sovereign service when
+/// GoTrue auth is configured. AuthView reaches it via `supabase as? PasswordRecovery`,
+/// so mock/sandbox services simply don't offer the affordance.
+protocol PasswordRecovery: Sendable {
+    /// Ask the auth server to e-mail a reset link. Succeeds even for unknown
+    /// emails (no account enumeration) — keep the confirmation copy conditional.
+    func requestPasswordReset(email: String) async throws
+}
+
 // MARK: - Service
 
-final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, CareConnect, @unchecked Sendable {
+final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, CareConnect, DataRights, PasswordRecovery, @unchecked Sendable {
 
     private let baseURL: URL
     private let session: URLSession
@@ -75,10 +84,17 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
 
     /// Keychain-backed persistence for the access token (NFR-SEC-01).
     private let tokenStore = SessionTokenStore()
+    /// The GoTrue refresh token, same Keychain, its own slot — the real session
+    /// (access tokens are short-lived; a 401 triggers one silent refresh).
+    private let refreshStore = SessionTokenStore(account: "auth.refresh_token")
 
     /// Bearer presented to the backend: a dev seed token (local) or, after
     /// Supabase sign-in, the Supabase access token (persisted in the Keychain).
     private var bearerToken: String?
+
+    /// One in-flight refresh at a time — concurrent 401s collapse onto the same
+    /// Task instead of stampeding GoTrue (which rotates the refresh token).
+    private var refreshTask: Task<String?, Never>?
 
     /// Derived-UUID → original backend id, populated on fetchGrants so that
     /// revoke / share-push can address grants by their backend path id.
@@ -89,7 +105,17 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     /// main backend is prod (same DB + JWT secret — see Config.walletRailBaseURL).
     private var walletRailURL: URL { Config.walletRailBaseURL ?? baseURL }
 
-    init(baseURL: URL, devToken: String? = nil, auth: SupabaseAuthClient? = nil, session: URLSession = .shared) {
+    /// Default session with sane timeouts (URLSession.shared waits 60 s per
+    /// request) — a dead network fails fast into friendly copy, not a spinner.
+    static let defaultSession: URLSession = {
+        let c = URLSessionConfiguration.default
+        c.timeoutIntervalForRequest = 15
+        c.timeoutIntervalForResource = 30
+        return URLSession(configuration: c)
+    }()
+
+    init(baseURL: URL, devToken: String? = nil, auth: SupabaseAuthClient? = nil,
+         session: URLSession = LiviqaBackendService.defaultSession) {
         self.baseURL = baseURL
         self.auth = auth
         self.session = session
@@ -98,14 +124,21 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         self.bearerToken = auth != nil ? (tokenStore.load() ?? devToken) : devToken
     }
 
+    /// Adopt a GoTrue session: bearer in memory + both tokens in the Keychain
+    /// (GoTrue rotates the refresh token on every refresh, so always overwrite).
+    private func adoptSession(_ result: SupabaseSessionResult) {
+        bearerToken = result.accessToken
+        tokenStore.save(result.accessToken)
+        refreshStore.save(result.refreshToken)
+    }
+
     // MARK: - Auth (Supabase access token in prod; dev seed token locally)
 
     func signInWithEmail(email: String, password: String) async throws -> UserSession {
         if let auth {
             // Supabase (GoTrue) login → access token becomes the backend bearer.
             let result = try await auth.login(email: email, password: password)
-            bearerToken = result.accessToken
-            tokenStore.save(result.accessToken)
+            adoptSession(result)
             let account = try await getMe()
             return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email ?? email)
         }
@@ -115,12 +148,24 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: email)
     }
 
+    func signUpWithEmail(email: String, password: String) async throws -> UserSession {
+        if let auth {
+            // GoTrue signup (autoconfirm → session) → the first authenticated /me
+            // auto-provisions the citizen account server-side (OPEN_CITIZEN_SIGNUP).
+            let result = try await auth.signup(email: email, password: password)
+            adoptSession(result)
+            let account = try await getMe()
+            return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email ?? email)
+        }
+        // Local dev has no registration surface; the seed token is the identity.
+        throw SupabaseError.notAvailable
+    }
+
     func signInWithApple(idToken: String, nonce: String) async throws -> UserSession {
         if let auth {
             // Supabase native id_token grant (Sign in with Apple) → access token = bearer.
             let result = try await auth.loginWithApple(idToken: idToken, nonce: nonce)
-            bearerToken = result.accessToken
-            tokenStore.save(result.accessToken)
+            adoptSession(result)
             let account = try await getMe()
             return UserSession(userId: BackendMapping.stableUUID(account.id),
                                email: account.email ?? result.email)
@@ -137,6 +182,7 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
             try? await auth.logout(token: token)
             bearerToken = nil
             tokenStore.clear()
+            refreshStore.clear()
         }
         // Local dev seed tokens are static; nothing to revoke server-side.
     }
@@ -144,12 +190,55 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     func currentSession() async -> UserSession? {
         // With Supabase, validate the live token; locally, the seed token is enough.
         if let auth, let token = bearerToken {
-            guard (try? await auth.user(token: token)) != nil,
-                  let account = try? await getMe() else { return nil }
+            // Access tokens are short-lived: an expired one gets ONE silent
+            // refresh before the citizen is treated as signed out.
+            if (try? await auth.user(token: token)) == nil,
+               await refreshSession() == nil { return nil }
+            guard let account = try? await getMe() else { return nil }
             return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
         }
         guard bearerToken != nil, let account = try? await getMe() else { return nil }
         return UserSession(userId: BackendMapping.stableUUID(account.id), email: account.email)
+    }
+
+    /// PasswordRecovery — GoTrue e-mails the reset link (standard template).
+    func requestPasswordReset(email: String) async throws {
+        guard let auth else { throw SupabaseError.notAvailable }
+        try await auth.recover(email: email)
+    }
+
+    /// Silent refresh, single-flight: trade the Keychained refresh token for a
+    /// fresh session. Returns the new access token, or nil when there is no
+    /// refresh token / GoTrue rejects it (⇒ the citizen is really signed out).
+    private func refreshSession() async -> String? {
+        let task = joinOrStartRefresh()
+        let token = await task.value
+        clearRefreshTask(task)
+        return token
+    }
+
+    /// Lock-guarded section, kept synchronous (NSLock is not await-safe):
+    /// join the in-flight refresh Task or start the one and only.
+    private func joinOrStartRefresh() -> Task<String?, Never> {
+        mapLock.lock(); defer { mapLock.unlock() }
+        if let running = refreshTask { return running }
+        let auth = self.auth
+        let refreshStore = self.refreshStore
+        let task = Task<String?, Never> { [weak self] in
+            guard let auth,
+                  let refresh = refreshStore.load(), !refresh.isEmpty,
+                  let result = try? await auth.refresh(refreshToken: refresh)
+            else { return nil }
+            self?.adoptSession(result)           // rotated refresh token included
+            return result.accessToken
+        }
+        refreshTask = task
+        return task
+    }
+
+    private func clearRefreshTask(_ task: Task<String?, Never>) {
+        mapLock.lock(); defer { mapLock.unlock() }
+        if refreshTask == task { refreshTask = nil }
     }
 
     // MARK: - Profile  (GET /me)
@@ -185,7 +274,8 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
                 scopeKeys: dto.scopeKeys,
                 isActive: dto.active,
                 expiresAt: BackendMapping.parseDate(dto.expiresAt),
-                createdAt: BackendMapping.parseDate(dto.createdAt)
+                createdAt: BackendMapping.parseDate(dto.createdAt),
+                ceGrantRef: dto.ceGrantRef
             )
         }
         storeBackendIDs(map)
@@ -214,24 +304,97 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
 
     func fetchEvents(limit: Int) async throws -> [WalletEvent] {
         let dtos = try await get("/ledger?limit=\(limit)", as: [LedgerEventDTO].self)
-        return dtos.map { dto in
-            WalletEvent(
-                id: BackendMapping.stableUUID(dto.id),
-                userId: nil,
-                eventType: BackendMapping.eventType(dto.type),
-                actorName: dto.detail?.actorName ?? dto.detail?.actor ?? "—",
-                scopeKeys: dto.detail?.scopeKeys ?? dto.detail?.scope ?? [],
-                decision: BackendMapping.decision(dto.type),
-                occurredAt: BackendMapping.parseDate(dto.occurredAt) ?? Date()
-            )
-        }
+        return dtos.map(Self.walletEvent(from:))
     }
 
-    // MARK: - Journal (PUT /journal — opt-in, deferred parity)
+    /// Pure DTO→domain mapping (internal so `ReceiptDecodeTests` can exercise
+    /// the ce evidence decode without URLSession).
+    static func walletEvent(from dto: LedgerEventDTO) -> WalletEvent {
+        WalletEvent(
+            id: BackendMapping.stableUUID(dto.id),
+            userId: nil,
+            eventType: BackendMapping.eventType(dto.type),
+            actorName: dto.detail?.actorName ?? dto.detail?.actor ?? "—",
+            scopeKeys: dto.detail?.scopeKeys ?? dto.detail?.scope ?? [],
+            decision: BackendMapping.decision(dto.type),
+            occurredAt: BackendMapping.parseDate(dto.occurredAt) ?? Date(),
+            ce: dto.detail?.ce
+        )
+    }
 
-    func fetchJournalEntries(limit: Int) async throws -> [JournalEntry] { [] }
-    func upsertJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry { entry }
-    func deleteJournalEntry(id: UUID) async throws {}
+    // MARK: - Journal (GET/PUT /journal · DELETE /journal/{id} — opt-in sync)
+    // T1 TestProd wave: the former stub trio (fetch→[], upsert echo, delete
+    // no-op) silently discarded synced entries. These are now the real citizen
+    // journal routes. The server stores TEXT + timestamp only; mood/tags/metric
+    // snapshots stay device-local by design (never uploaded).
+
+    /// Local-UUID → backend journal id, so update/delete address the server row.
+    private var journalBackendIDs: [UUID: String] = [:]
+
+    func fetchJournalEntries(limit: Int) async throws -> [JournalEntry] {
+        let dtos = try await get("/journal", as: [JournalEntryDTO].self)
+        var map: [UUID: String] = [:]
+        let entries = dtos.prefix(max(limit, 0)).map { dto -> JournalEntry in
+            let entry = BackendMapping.journalEntry(from: dto)
+            map[entry.id] = dto.id
+            return entry
+        }
+        mapLock.lock()
+        journalBackendIDs.merge(map) { _, new in new }
+        mapLock.unlock()
+        return Array(entries)
+    }
+
+    func upsertJournalEntry(_ entry: JournalEntry) async throws -> JournalEntry {
+        let backendID = journalBackendID(for: entry.id)
+        let body = JournalUpsertBody(id: backendID,
+                                     text: entry.body,
+                                     at: BackendMapping.iso(entry.createdAt))
+        let dto = try await put("/journal", body: body, as: JournalEntryDTO.self)
+        mapLock.lock()
+        journalBackendIDs[entry.id] = dto.id
+        journalBackendIDs[BackendMapping.stableUUID(dto.id)] = dto.id
+        mapLock.unlock()
+        // Keep the caller's identity + device-local fields (mood/tags/metrics);
+        // the server round-trip confirms text + timestamp.
+        var confirmed = entry
+        confirmed.syncEnabled = true
+        confirmed.updatedAt = Date()
+        return confirmed
+    }
+
+    func deleteJournalEntry(id: UUID) async throws {
+        // Entry never synced ⇒ nothing server-side to delete (honest no-op).
+        guard let backendID = journalBackendID(for: id) else { return }
+        struct DeletedDTO: Decodable { let deleted: Bool }
+        let resp = try await delete("/journal/\(backendID)", as: DeletedDTO.self)
+        guard resp.deleted else { throw SupabaseError.serverError("Delete failed.") }
+        mapLock.lock()
+        journalBackendIDs[id] = nil
+        mapLock.unlock()
+    }
+
+    private func journalBackendID(for uuid: UUID) -> String? {
+        mapLock.lock(); defer { mapLock.unlock() }
+        return journalBackendIDs[uuid]
+    }
+
+    // MARK: - GDPR rights (GET /me/export · POST /me/erase) — T1 TestProd wave
+
+    /// GDPR Art. 20 — the server's export blob, verbatim (shared as JSON).
+    func exportMyData() async throws -> Data {
+        try await sendRaw("/me/export", method: "GET", bodyData: nil)
+    }
+
+    /// GDPR Art. 17 — server-side erasure (revoke-on-erase: the account row and
+    /// its auth mapping die together; re-entry needs a fresh invite).
+    func eraseMyData() async throws {
+        struct ErasedDTO: Decodable { let erased: Bool }
+        let resp = try await post("/me/erase", body: EmptyBody(), as: ErasedDTO.self)
+        guard resp.erased else {
+            throw SupabaseError.serverError("The server did not confirm the erase.")
+        }
+    }
 
     // MARK: - SovereignSharing
 
@@ -444,8 +607,24 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
     private func put<B: Encodable, T: Decodable>(_ path: String, body: B, as: T.Type) async throws -> T {
         try await send(path, method: "PUT", bodyData: try Self.encoder.encode(body), as: T.self)
     }
+    private func delete<T: Decodable>(_ path: String, as: T.Type) async throws -> T {
+        try await send(path, method: "DELETE", bodyData: nil, as: T.self)
+    }
 
     private func send<T: Decodable>(_ path: String, method: String, bodyData: Data?, as: T.Type, base: URL? = nil) async throws -> T {
+        let data = try await sendRaw(path, method: method, bodyData: bodyData, base: base)
+        if data.isEmpty, let empty = EmptyDecodable() as? T { return empty }
+        do { return try Self.decoder.decode(T.self, from: data) }
+        catch { throw SupabaseError.serverError("Decode \(T.self): \(error.localizedDescription)") }
+    }
+
+    /// Request returning the raw response body (used for `/me/export`, whose
+    /// JSON blob is shared verbatim, and as the plumbing under `send`).
+    /// `allowRefresh` guards the 401 → silent-refresh → retry path to exactly
+    /// one retry (the retried call passes false).
+    @discardableResult
+    private func sendRaw(_ path: String, method: String, bodyData: Data?, base: URL? = nil,
+                         allowRefresh: Bool = true) async throws -> Data {
         guard let url = URL(string: path, relativeTo: base ?? baseURL) else {
             throw SupabaseError.serverError("Bad URL: \(path)")
         }
@@ -460,6 +639,14 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         }
         let (data, response): (Data, URLResponse)
         do { (data, response) = try await session.data(for: req) }
+        catch let e as URLError where e.code == .notConnectedToInternet
+                                   || e.code == .networkConnectionLost
+                                   || e.code == .dataNotAllowed {
+            throw SupabaseError.serverError(String(localized: "You appear to be offline. Check your connection and try again."))
+        }
+        catch let e as URLError where e.code == .timedOut {
+            throw SupabaseError.serverError(String(localized: "The server is taking too long to respond. Try again in a moment."))
+        }
         catch { throw SupabaseError.serverError(error.localizedDescription) }
 
         guard let http = response as? HTTPURLResponse else {
@@ -467,14 +654,24 @@ final class LiviqaBackendService: SupabaseServiceProtocol, SovereignSharing, Car
         }
         switch http.statusCode {
         case 200...299:
-            if data.isEmpty, let empty = EmptyDecodable() as? T { return empty }
-            do { return try Self.decoder.decode(T.self, from: data) }
-            catch { throw SupabaseError.serverError("Decode \(T.self): \(error.localizedDescription)") }
+            return data
         case 401:
+            // Expired access token → ONE silent refresh, then retry this
+            // request once. A failed refresh falls through to signed-out.
+            if allowRefresh, auth != nil, await refreshSession() != nil {
+                return try await sendRaw(path, method: method, bodyData: bodyData,
+                                         base: base, allowRefresh: false)
+            }
             throw SupabaseError.notSignedIn
+        case 500...599:
+            // Server-side trouble — never show the raw body to a citizen.
+            throw SupabaseError.serverError(String(localized: "Liviqa's servers are having trouble right now. Please try again in a few minutes."))
         default:
-            let msg = String(data: data, encoding: .utf8) ?? "HTTP \(http.statusCode)"
-            throw SupabaseError.serverError("HTTP \(http.statusCode): \(msg)")
+            // 4xx: prefer the server's own message field; never dump raw JSON.
+            let o = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            let serverMsg = (o["message"] as? String) ?? (o["error"] as? String) ?? (o["msg"] as? String)
+            throw SupabaseError.serverError(serverMsg
+                ?? String(localized: "That didn't go through (error \(http.statusCode)). Try again."))
         }
     }
 
@@ -512,20 +709,42 @@ private struct MyGrantDTO: Decodable {
     let delivery: String?
     let expiresAt: String?
     let createdAt: String?
+    /// CE chain reference — carried by the grant DETAIL today; tolerated on the
+    /// list route for forward-compatibility (optional decode, T1 wave).
+    let ceGrantRef: String?
 }
 
-private struct LedgerEventDTO: Decodable {
+/// Internal (not private) so `ReceiptDecodeTests` can decode fixtures and
+/// exercise `LiviqaBackendService.walletEvent(from:)` without URLSession.
+struct LedgerEventDTO: Decodable {
     struct Detail: Decodable {
         let actorName: String?
         let actor: String?
         let scope: [String]?
         let scopeKeys: [String]?
+        /// CE evidence block (`detail.ce`, CE_MODE=sim) — snake_case keys
+        /// decoded straight into the domain `CEEvidence` (same wire names).
+        let ce: CEEvidence?
     }
     let id: String
     let type: String
     let grantId: String?
     let detail: Detail?
     let occurredAt: String
+}
+
+/// Citizen journal row (`GET/PUT /journal`). Internal for mapping tests.
+struct JournalEntryDTO: Decodable {
+    let id: String
+    let text: String
+    let at: String
+    let createdAt: String?
+}
+
+private struct JournalUpsertBody: Encodable {
+    let id: String?
+    let text: String
+    let at: String
 }
 
 private struct CreateGrantDTO: Encodable {

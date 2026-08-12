@@ -9,6 +9,11 @@ struct HealthPassportView: View {
     @State private var showProfile       = false
     @State private var profileAnchor: ProfileSheet.Section? = nil
     @State private var selectedMetric: BaselineMetric? = nil
+    @State private var shareItem: HealthShareItem? = nil
+    @State private var isContributing = false
+    @State private var researchNote: String? = nil
+    /// Secondary diagnoses group (past/minor/admin codes) — collapsed by default.
+    @State private var showMinorDiagnoses = false
 
     var body: some View {
         ScrollView {
@@ -71,6 +76,9 @@ struct HealthPassportView: View {
                         .sheet(isPresented: $showProfile, onDismiss: { profileAnchor = nil }) {
                             ProfileSheet(openSection: profileAnchor)
                         }
+
+                        // ── YOUR HEALTH RECORD (imported, source-agnostic) ──
+                        healthRecordSection
 
                         // ── YOUR NUMBERS ──
                         LiviqaSectionHeader(label: "Your numbers")
@@ -219,7 +227,264 @@ struct HealthPassportView: View {
         .navigationTitle("Health Passport")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $shareItem) { item in
+            ActivityShareSheet(items: [item.text])
+                .presentationDetents([.medium, .large])
+        }
         #endif
+        .onAppear { appState.reloadHealthRecord() }
+    }
+
+    // MARK: - Health record (Task 3: display · Task 4: share + research)
+
+    private var healthRecordSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            let labs = appState.healthObservations
+            let conds = appState.healthConditions
+            let meds = appState.healthMedications
+            let isEmpty = labs.isEmpty && conds.isEmpty && meds.isEmpty
+
+            if isEmpty {
+                LiviqaSectionHeader(label: "Health record")
+                recordEmptyState
+            } else {
+                // Lab results
+                LiviqaSectionHeader(label: "Lab results")
+                recordCard {
+                    ForEach(Array(labs.enumerated()), id: \.element.persistentModelID) { i, o in
+                        if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
+                        labRow(o)
+                    }
+                }
+
+                // Diagnoses — tiered: ongoing/major conditions lead; injuries,
+                // one-off infections, symptom codes and administrative codes sit in
+                // a collapsed secondary group so they don't crowd the main record.
+                if !conds.isEmpty {
+                    let major = conds.filter { HealthDisplay.conditionTier(for: $0.icd10) == .major }
+                    let other = conds.filter { HealthDisplay.conditionTier(for: $0.icd10) != .major }
+
+                    LiviqaSectionHeader(label: "Diagnoses")
+                    if !major.isEmpty {
+                        recordCard {
+                            ForEach(Array(major.enumerated()), id: \.element.persistentModelID) { i, c in
+                                if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
+                                diagnosisRow(c)
+                            }
+                        }
+                    }
+
+                    if !other.isEmpty {
+                        Button { withAnimation { showMinorDiagnoses.toggle() } } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: showMinorDiagnoses ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(LiviqaTheme.ink3)
+                                Text("Past, minor & administrative entries (\(other.count))")
+                                    .font(.lato(12.5, .semibold)).foregroundStyle(LiviqaTheme.ink2)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 4).padding(.vertical, 9)
+                        }
+                        .buttonStyle(.plain)
+                        if showMinorDiagnoses {
+                            recordCard {
+                                ForEach(Array(other.enumerated()), id: \.element.persistentModelID) { i, c in
+                                    if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
+                                    diagnosisRow(c)
+                                }
+                            }
+                        }
+                    }
+
+                    // The one explainer every diagnoses list needs — journal codes,
+                    // not a statement of what's active today.
+                    Text(HealthDisplay.diagnosesExplainer)
+                        .font(.lato(11)).lineSpacing(2)
+                        .foregroundStyle(LiviqaTheme.ink4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8).padding(.horizontal, 2)
+                }
+
+                // Medicine
+                if !meds.isEmpty {
+                    LiviqaSectionHeader(label: "Medicine")
+                    recordCard {
+                        ForEach(Array(meds.enumerated()), id: \.element.persistentModelID) { i, m in
+                            if i > 0 { Divider().background(LiviqaTheme.line2).padding(.leading, 14) }
+                            medRow(m)
+                        }
+                    }
+                }
+
+                // Consented exits — the ONLY ways data leaves the device.
+                recordActions
+            }
+        }
+    }
+
+    /// Friendly empty state.
+    private var recordEmptyState: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "tray.and.arrow.down")
+                .font(.lato(15)).foregroundStyle(LiviqaTheme.ink4)
+            Text("Connect a source to import your labs and diagnoses. Everything you bring in stays on this device until you choose to share it.")
+                .font(.lato(12.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+    }
+
+    private func recordCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) { content() }
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
+            .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+    }
+
+    private func labRow(_ o: HealthObservation) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(HealthDisplay.labName(for: o.scopeKey))
+                    .font(.lato(13.5, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                Text(o.effectiveDate.formatted(date: .abbreviated, time: .omitted))
+                    .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
+            }
+            Spacer()
+            sourceChip(o.source)
+            Text("\(HealthDisplay.number(o.value)) \(o.unit)")
+                .font(.liviqaMono(15)).monospacedDigit()
+                .foregroundStyle(LiviqaTheme.ink)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+    }
+
+    private func diagnosisRow(_ c: HealthCondition) -> some View {
+        // Name leads (plain language), the code + start year are the small print —
+        // a citizen reads "Type 1 diabetes with nerve complications · since 2019",
+        // not a bare "DE104".
+        let name = (c.label?.isEmpty == false) ? c.label! : HealthDisplay.conditionName(for: c.icd10)
+        return HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.lato(13.5, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Text(c.icd10)
+                        .font(.liviqaMono(10.5)).foregroundStyle(LiviqaTheme.ink3)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(LiviqaTheme.clay2).clipShape(Capsule())
+                    if let d = c.onsetDate {
+                        Text(HealthDisplay.sinceText(d))
+                            .font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                // Calming context for entries that make people wonder (old findings,
+                // coded complications, admin codes). nil for self-explanatory majors.
+                if let ctx = HealthDisplay.conditionContext(for: c.icd10) {
+                    Text(ctx)
+                        .font(.lato(11)).lineSpacing(1.5)
+                        .foregroundStyle(LiviqaTheme.ink4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer()
+            sourceChip(c.source)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+    }
+
+    private func medRow(_ m: HealthMedication) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(m.name).font(.lato(13.5, .semibold)).foregroundStyle(LiviqaTheme.ink).lineLimit(1)
+                if let atc = m.atc, !atc.isEmpty {
+                    Text(atc).font(.lato(11, .medium)).foregroundStyle(LiviqaTheme.moss)
+                }
+            }
+            Spacer()
+            sourceChip(m.source)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+    }
+
+    /// Small source-provenance chip (which source filed the row). Uses the friendly
+    /// HealthDataSource label — never the hidden arbitration field.
+    private func sourceChip(_ rawSource: String) -> some View {
+        Text((HealthDataSource(rawValue: rawSource)?.displayLabel ?? rawSource).uppercased())
+            .font(.liviqaKicker(8.5)).tracking(0.5)
+            .foregroundStyle(LiviqaTheme.moss)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(LiviqaTheme.moss3).clipShape(Capsule())
+    }
+
+    /// The two explicit, consented exits (share + research). Both are user taps.
+    private var recordActions: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                shareItem = HealthShareItem(text: appState.healthStore?.summaryReport() ?? "")
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up").font(.system(size: 14))
+                    Text("Share health summary").font(.lato(14, .bold))
+                    Spacer()
+                }
+                .foregroundStyle(.white)
+                .padding(.vertical, 12).padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .background(LiviqaTheme.moss)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                guard !isContributing else { return }
+                isContributing = true
+                researchNote = nil
+                Task {
+                    await appState.contributeHealthResearch()
+                    isContributing = false
+                    researchNote = appState.researchContributed
+                        ? "Thanks — your coded, privacy-preserving summary was contributed to research."
+                        : (appState.lastError ?? "Couldn't contribute right now. Please try again.")
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if isContributing { ProgressView().controlSize(.small) }
+                    else { Image(systemName: "heart.text.square").font(.system(size: 14)) }
+                    Text(isContributing ? "Contributing…" : "Contribute to research")
+                        .font(.lato(14, .bold))
+                    Spacer()
+                }
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.vertical, 12).padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(isContributing)
+
+            if let researchNote {
+                Text(researchNote)
+                    .font(.lato(12)).lineSpacing(2)
+                    .foregroundStyle(appState.researchContributed ? LiviqaTheme.moss : LiviqaTheme.rust)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Nothing here leaves your phone unless you tap one of these. Sharing sends a readable summary you choose; contributing sends only coded, privacy-preserving numbers.")
+                .font(.lato(11)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, 14)
     }
 
     // MARK: - Correlation grid (FR-PAS-05 / DM-06, live appState.correlationWeek)
@@ -477,6 +742,14 @@ struct HealthPassportView: View {
         .buttonStyle(.plain)
         .disabled(baseline == nil)
     }
+}
+
+// MARK: - Share payload
+
+/// Identifiable wrapper so the one-page text report can drive `.sheet(item:)`.
+struct HealthShareItem: Identifiable {
+    let id = UUID()
+    let text: String
 }
 
 // MARK: - Preview
