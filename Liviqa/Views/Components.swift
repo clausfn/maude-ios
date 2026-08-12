@@ -103,6 +103,11 @@ struct LiviqaAppBar: View {
                 .accessibilityLabel("New research notification")
             }
 
+            // A7.2: the standing "On device" privacy chip — in every root app bar.
+            if showsAvatar {
+                OnDeviceChip()
+            }
+
             if showsAvatar, let appState {
                 Button {
                     appState.showAssistant = true
@@ -591,5 +596,37 @@ struct FlowChips: View {
                     .overlay(Capsule().stroke(LiviqaTheme.line, lineWidth: 0.5))
             }
         }
+    }
+}
+
+// MARK: - On-device chip (A7.2 trust moment — always visible, tappable proof)
+
+/// "On device" — the standing privacy chip. Tap → the proof surface
+/// (InAppPrivacyView: what stays on the phone, what's logged, who governs).
+struct OnDeviceChip: View {
+    @State private var showProof = false
+
+    var body: some View {
+        Button { showProof = true } label: {
+            HStack(spacing: 5) {
+                ZStack {
+                    Circle().stroke(LiviqaTheme.moss, lineWidth: 1.5)
+                        .frame(width: 10, height: 10)
+                    Circle().fill(LiviqaTheme.moss).frame(width: 3.5, height: 3.5)
+                }
+                Text("On device")
+                    .font(.lato(11.5, .semibold))
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(Capsule().fill(LiviqaTheme.paper2))
+            .overlay(Capsule().stroke(LiviqaTheme.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showProof) {
+            NavigationStack { InAppPrivacyView() }
+        }
+        .accessibilityLabel("On device — your data stays on this phone. Opens the privacy overview.")
     }
 }

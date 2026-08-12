@@ -25,6 +25,8 @@ struct TodayView: View {
     var showConnectHint: Bool = false
     /// Switch to the Settings tab (where Apple Health is connected).
     var onOpenSettings: (() -> Void)? = nil
+    /// Switch to the Privacy tab (share flows + consent ledger live there).
+    var onOpenPrivacy: (() -> Void)? = nil
 
     @State private var connectHintDismissed = false
     @State private var showSundhedImport = false
@@ -66,6 +68,21 @@ struct TodayView: View {
     }
 
     private var mainBody: some View {
+        ScrollViewReader { proxy in
+            scrollBody
+                #if DEBUG
+                // Snapshot hook: screenshot the below-the-fold Home content headlessly.
+                .task {
+                    if ProcessInfo.processInfo.environment["LIVIQA_SCROLL_TO"] == "bottom" {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        proxy.scrollTo("home-bottom", anchor: .bottom)
+                    }
+                }
+                #endif
+        }
+    }
+
+    private var scrollBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
@@ -124,46 +141,51 @@ struct TodayView: View {
                             .padding(.top, 10)
                     }
 
-                    // Calm, affirming lead (not an alert) — the everyday day-good
-                    // state. On a genuinely empty cold start (Release, no Health
-                    // readings yet) the honest baseline card replaces it.
+                    // A7.2 Home anatomy (screen-home.jsx): verdict hero + day-arc ·
+                    // momentum · signals 2×2 · quiet/attention · week · share · colophon.
+                    // Cold start keeps the honest calibrating card in the hero slot.
                     Group {
                         if coldStart {
                             baselineBuildingCard
                         } else {
-                            calmHero
+                            heroBlock
                         }
                     }
-                    .padding(.top, 14)
+                    .padding(.top, 16)
 
-                    Text(String(localized: "Your signals · vs your normal").uppercased())
-                        .font(.liviqaKicker(9)).tracking(1)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .padding(.top, 18)
-                        .padding(.bottom, 9)
-
-                    signalRow
-
-                    // Deviations are demoted below the calm state (not the hero).
-                    if !nudges.isEmpty {
-                        Text(String(localized: "Worth a look").uppercased())
-                            .font(.liviqaKicker(9)).tracking(1)
-                            .foregroundStyle(LiviqaTheme.ink3)
-                            .padding(.top, 20)
-                            .padding(.bottom, 9)
-                        insightHero
+                    // Since last week — momentum vs the user's own baseline.
+                    if let items = momentumItems {
+                        momentumStrip(items)
+                            .padding(.top, 14)
                     }
+
+                    signalsGrid
+                        .padding(.top, 14)
+
+                    // ONE earned attention card — or the quiet all-clear line.
+                    Group {
+                        if coldStart {
+                            EmptyView()
+                        } else if !nudges.isEmpty {
+                            attentionCard
+                        } else {
+                            quietLine
+                        }
+                    }
+                    .padding(.top, 16)
 
                     // Zoom out from today → the full week (correlation view).
                     weekCard
-                        .padding(.top, 20)
+                        .padding(.top, 16)
 
-                    Text(String(localized: "Not averages. Yours.").uppercased())
-                        .font(.liviqaKicker(11)).tracking(0.6)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 20)
+                    // Sharing status — the standing "who can see your week" card.
+                    shareCard
+                        .padding(.top, 14)
+
+                    colophon
+                        .padding(.top, 22)
                         .padding(.bottom, 28)
+                        .id("home-bottom")
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
@@ -319,31 +341,37 @@ struct TodayView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
     }
 
-    // MARK: — Calm affirming lead (the all-clear day must feel good, not empty)
+    // MARK: — Verdict hero (A7.2: on-canvas sentence + fjord underline + iris day-arc)
 
-    private var calmHero: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
+    private var heroBlock: some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(String(localized: "Today").uppercased())
                     .font(.liviqaKicker(10)).tracking(1.2)
-                    .foregroundStyle(LiviqaTheme.moss)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text(affirmHeadline)
+                    .font(.liviqaSerif(23)).kerning(-0.2).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(LiviqaTheme.moss)
+                    .frame(width: 44, height: 3)
+                    .padding(.vertical, 10)
+                Text(affirmSub)
+                    .font(.lato(13.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text(affirmHeadline)
-                .font(.liviqaSerif(20)).kerning(-0.2).lineSpacing(2)
-                .foregroundStyle(LiviqaTheme.ink)
-                .padding(.top, 10)
-            Text(affirmSub)
-                .font(.lato(13)).lineSpacing(2)
-                .foregroundStyle(LiviqaTheme.ink2)
-                .padding(.top, 7)
+            Spacer(minLength: 0)
+            IrisDayArc(progress: dayProgress, size: 76)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.moss3, lineWidth: 1))
-        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+    }
+
+    /// Fraction of today elapsed — drives the day-arc fill.
+    private var dayProgress: Double {
+        let start = Calendar.current.startOfDay(for: Date())
+        return min(1, Date().timeIntervalSince(start) / 86_400)
     }
 
     // Calm affirmation derived from the user's OWN week (simple descriptive
@@ -401,20 +429,30 @@ struct TodayView: View {
 
     private var baselineBuildingCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
-                Circle().fill(LiviqaTheme.moss).frame(width: 7, height: 7)
-                Text(String(localized: "Building your baseline").uppercased())
+            HStack(spacing: 8) {
+                IrisDayArc(progress: 0.12, size: 26)
+                Text(String(localized: "Getting to know you").uppercased())
                     .font(.liviqaKicker(10)).tracking(1.2)
                     .foregroundStyle(LiviqaTheme.moss)
             }
-            Text("No insights yet — and that's honest.")
+            Text("Learning your normal.")
                 .font(.liviqaSerif(20)).kerning(-0.2).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink)
                 .padding(.top, 10)
-            Text("Liviqa reads your history from Apple Health and learns what's normal for you. Your first insights typically appear after about 3 days of readings.")
+            // Quiet progress hint — indeterminate by design (no fake day counter).
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(LiviqaTheme.line2)
+                    Capsule().fill(LiviqaTheme.fjordBright)
+                        .frame(width: geo.size.width * 0.18)
+                }
+            }
+            .frame(height: 5)
+            .padding(.top, 12)
+            Text("Your readings are coming in. Until Liviqa has enough of your own days to compare against, nothing is shown as an insight — your first ones typically appear after about 3 days.")
                 .font(.lato(13)).lineSpacing(2)
                 .foregroundStyle(LiviqaTheme.ink2)
-                .padding(.top, 7)
+                .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
@@ -424,9 +462,9 @@ struct TodayView: View {
         .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
     }
 
-    // MARK: — Deviation insight (demoted under the calm state)
+    // MARK: — Earned attention card / quiet all-clear (A7.2: at most ONE per day)
 
-    private var insightHero: some View {
+    private var attentionCard: some View {
         Button {
             if let n = nudges.first { onOpen(n) }
         } label: {
@@ -434,49 +472,58 @@ struct TodayView: View {
                 HStack(spacing: 6) {
                     if visualNudge, let acc = nudges.first?.accent {
                         Image(systemName: acc.icon).font(.system(size: 11)).foregroundStyle(acc.accentColor)
-                    } else {
-                        Circle().fill(LiviqaTheme.clay).frame(width: 7, height: 7)
                     }
-                    Text(String(localized: "In your data").uppercased())
+                    Text(String(localized: "Worth a look").uppercased())
                         .font(.liviqaKicker(10)).tracking(1.2)
                         .foregroundStyle(LiviqaTheme.clayText)
                 }
 
                 Text(heroHeadline)
-                    .font(.liviqaSerif(19)).kerning(-0.2)
+                    .font(.liviqaSerif(17)).kerning(-0.2)
                     .lineSpacing(2)
                     .multilineTextAlignment(.leading)
                     .foregroundStyle(LiviqaTheme.ink)
-                    .padding(.top, 10)
+                    .padding(.top, 9)
 
-                Text(heroSub)
-                    .font(.lato(13)).lineSpacing(2)
-                    .multilineTextAlignment(.leading)
-                    .foregroundStyle(LiviqaTheme.clayText)
-                    .padding(.top, 7)
-
-                // PR-100 #3: inline sparkline of the matching domain's REAL weekly
-                // series (from todaySignals) — the evidence made visible, not faked.
+                // Inline sparkline of the matching domain's REAL weekly series
+                // (from todaySignals) — the evidence made visible, not faked.
                 if visualNudge, let spark = heroSparkline, let acc = nudges.first?.accent {
-                    MiniSparkline(values: spark, tint: acc.accentColor, height: 28)
-                        .padding(.top, 11)
+                    MiniSparkline(values: spark, tint: acc.accentColor, height: 26)
+                        .padding(.top, 10)
                 }
 
-                HStack(spacing: 6) {
-                    Text("See the evidence").font(.lato(13, .bold))
+                HStack(spacing: 5) {
+                    Text("See why").font(.lato(13.5, .bold))
                     Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold))
                 }
-                .foregroundStyle(LiviqaTheme.ink)
-                .padding(.top, 11)
+                .foregroundStyle(LiviqaTheme.moss)
+                .padding(.top, 10)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(15)
-            .background(LiviqaTheme.paper2)
+            .padding(16)
+            .background(LiviqaTheme.clay2)
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.clay3, lineWidth: 1))
-            .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.clay, lineWidth: 1.5))
         }
         .buttonStyle(.plain)
+    }
+
+    private var quietLine: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle().stroke(LiviqaTheme.moss, lineWidth: 1.6).frame(width: 19, height: 19)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            Text("Nothing needs your attention today.")
+                .font(.liviqaSerif(14, .regular))
+                .italic()
+                .foregroundStyle(LiviqaTheme.ink2)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 
     // Live when real data is connected (drive from the user's own top nudge);
@@ -564,22 +611,66 @@ struct TodayView: View {
     // Wellness pillars (Sleep · Glucose · Recovery · Heart) — topic by icon+label,
     // state by the single moss/clay dot (locked two-state). "Recovery" carries the
     // stress axis (HRV) descriptively — no stress score/verdict.
-    private var signalRow: some View {
-        HStack(spacing: 8) {
+    // A7.2 SignalsGrid — 2×2 verdict-first cards: domain left-rule + icon, a plain
+    // verdict WORD before the number, the value big + tabular, and the 7-day line
+    // over the "your usual" band. Verdicts reuse the locked two-state semantics
+    // (moss = like your usual · clay = worth a look) as words instead of dots.
+    private var signalsGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                  spacing: 10) {
             NavigationLink(value: WellnessPillar.sleep) {
-                signalChip(String(localized: "Sleep"), "moon.fill", sleepHeadline, clay: false, spark: spark(\.sleepWeek, .sleep))
+                SignalCardView(rule: LiviqaTheme.accentSleep, icon: "moon.fill",
+                               domain: String(localized: "Sleep"),
+                               verdict: sleepVerdict, value: sleepHeadline, unit: nil,
+                               spark: spark(\.sleepWeek, .sleep))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.glucose) {
-                signalChip(String(localized: "Glucose"), "drop.fill", signals?.inRange ?? seedValue("61%"), clay: signals?.inRangeIsClay ?? !coldStart, spark: spark(\.inRangeWeek, .glucose))
+                SignalCardView(rule: LiviqaTheme.accentGlucose, icon: "drop.fill",
+                               domain: String(localized: "Glucose"),
+                               verdict: glucoseVerdict,
+                               value: signals?.inRange ?? seedValue("61%"),
+                               unit: String(localized: "in range"),
+                               spark: spark(\.inRangeWeek, .glucose),
+                               chip: String(localized: "Zones & TIR"))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.recovery) {
-                signalChip(String(localized: "Recovery"), "waveform.path.ecg", signals?.hrv ?? seedValue("48"), clay: false, spark: spark(\.hrvWeek, .recovery))
+                SignalCardView(rule: LiviqaTheme.accentRecovery, icon: "waveform.path.ecg",
+                               domain: String(localized: "Recovery"),
+                               verdict: recoveryVerdict,
+                               value: signals?.hrv ?? seedValue("48"), unit: nil,
+                               spark: spark(\.hrvWeek, .recovery))
             }.buttonStyle(.plain)
             NavigationLink(value: WellnessPillar.heart) {
-                signalChip(String(localized: "Heart"), "heart.fill", signals?.rhr ?? seedValue("58"), clay: false, spark: spark(\.rhrWeek, .heart))
+                SignalCardView(rule: LiviqaTheme.accentHeart, icon: "heart.fill",
+                               domain: String(localized: "Heart"),
+                               verdict: heartVerdict,
+                               value: signals?.rhr ?? seedValue("58"),
+                               unit: String(localized: "resting"),
+                               spark: spark(\.rhrWeek, .heart))
             }.buttonStyle(.plain)
         }
         .navigationDestination(for: WellnessPillar.self) { MetricDetailView(pillar: $0) }
+    }
+
+    // Verdict words — plain, allow-listed, baseline-relative states (no clinical
+    // claims; "—" while calibrating). The clay flag keeps its locked meaning.
+    private var sleepVerdict: String {
+        if coldStart || (signals == nil && !isDemoData) { return "—" }
+        return sleepImproving ? String(localized: "A little longer") : String(localized: "As usual")
+    }
+    private var glucoseVerdict: String {
+        if coldStart { return "—" }
+        return (signals?.inRangeIsClay ?? false)
+            ? String(localized: "Worth a look") : String(localized: "Steady")
+    }
+    private var recoveryVerdict: String {
+        if coldStart { return "—" }
+        guard let s = signals else { return String(localized: "Steady") }
+        return trendingUp(s.hrvWeek, by: 2) ? String(localized: "On the way up")
+                                            : String(localized: "Steady")
+    }
+    private var heartVerdict: String {
+        coldStart ? "—" : String(localized: "Calm")
     }
 
     /// Sleep headline for Home — derived from the SAME source the pillar detail uses
@@ -606,39 +697,239 @@ struct TodayView: View {
         return coldStart ? [] : pillar.week
     }
 
-    private func signalChip(_ label: String, _ icon: String, _ value: String, clay: Bool,
-                            spark: [Double] = []) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 4) {
+    // MARK: — Momentum strip (Since last week — vs the user's OWN baseline)
+
+    struct MomentumItem: Identifiable {
+        let id = UUID()
+        let text: String
+        let up: Bool?   // true ↑ · nil — flat/none
+    }
+
+    /// Honest derivation: today vs the mean of the week series. nil (no strip) on
+    /// cold start or when nothing meaningful moved; seeds only in demo mode.
+    private var momentumItems: [MomentumItem]? {
+        if coldStart { return nil }
+        guard let s = signals else {
+            return isDemoData
+                ? [MomentumItem(text: String(localized: "Recovery up 4 vs your usual"), up: true),
+                   MomentumItem(text: String(localized: "Sleep unchanged"), up: nil)]
+                : nil
+        }
+        var items: [MomentumItem] = []
+        if let d = weekDelta(s.hrvWeek), abs(d) >= 2 {
+            items.append(MomentumItem(
+                text: d > 0 ? String(localized: "Recovery up \(Int(d.rounded())) vs your usual")
+                            : String(localized: "Recovery down \(Int((-d).rounded())) vs your usual"),
+                up: d > 0))
+        }
+        if let d = weekDelta(s.sleepWeek) {
+            if abs(d) < 0.25 {
+                items.append(MomentumItem(text: String(localized: "Sleep unchanged"), up: nil))
+            } else {
+                let mins = Int((abs(d) * 60).rounded())
+                items.append(MomentumItem(
+                    text: d > 0 ? String(localized: "Sleep +\(mins) min") : String(localized: "Sleep −\(mins) min"),
+                    up: d > 0))
+            }
+        }
+        if let d = weekDelta(s.inRangeWeek), abs(d) >= 3 {
+            items.append(MomentumItem(
+                text: d > 0 ? String(localized: "In range +\(Int(d.rounded()))")
+                            : String(localized: "In range −\(Int((-d).rounded()))"),
+                up: d > 0))
+        }
+        return items.isEmpty ? nil : items
+    }
+
+    /// Latest value minus the mean of the preceding days (nil when too sparse).
+    private func weekDelta(_ series: [Double]) -> Double? {
+        guard series.count >= 4, let last = series.last else { return nil }
+        let prior = series.dropLast()
+        return last - prior.reduce(0, +) / Double(prior.count)
+    }
+
+    private func momentumStrip(_ items: [MomentumItem]) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(String(localized: "Since last week").uppercased())
+                .font(.liviqaKicker(9)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            // Items keep natural width and wrap onto new rows — never truncated.
+            FlowLayout(spacing: 14, rowSpacing: 6) {
+                ForEach(items) { item in
+                    HStack(spacing: 4) {
+                        if let up = item.up {
+                            Image(systemName: up ? "arrow.up" : "arrow.down")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(LiviqaTheme.moss)
+                        } else {
+                            Text("—").font(.lato(11)).foregroundStyle(LiviqaTheme.ink3)
+                        }
+                        Text(item.text)
+                            .font(.lato(12.5, .medium))
+                            .foregroundStyle(LiviqaTheme.ink2)
+                    }
+                    .fixedSize()
+                }
+            }
+            NavigationLink(destination: WeekInContextView()) {
+                Text("See the trend →")
+                    .font(.lato(12.5, .semibold))
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 15).padding(.vertical, 12)
+        .background(Color.white.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
+    }
+
+    // MARK: — Share card (the standing "who can see your week" affordance)
+
+    private var activeGrants: [WalletGrant] { appState.grants.filter(\.isActive) }
+
+    private var shareHeadline: String {
+        if let clinical = activeGrants.first(where: { $0.recipientType == .clinical }) {
+            // "Diabetes Nurse · University Hospital" → "Diabetes Nurse"
+            let name = clinical.recipientName.components(separatedBy: " · ").first ?? clinical.recipientName
+            return String(localized: "\(name) can see your week.")
+        }
+        return activeGrants.isEmpty
+            ? String(localized: "Ready when your doctor is.")
+            : String(localized: "Your week is ready to share.")
+    }
+
+    private var shareMeta: String {
+        let n = activeGrants.count
+        return n == 0
+            ? String(localized: "No shares yet · nothing has left this device")
+            : String(localized: "\(n) active share\(n == 1 ? "" : "s") · summaries only · 0 raw exports — ever")
+    }
+
+    private var shareCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(shareHeadline)
+                .font(.liviqaSerif(17)).kerning(-0.2).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+            Text(shareMeta)
+                .font(.lato(12)).monospacedDigit()
+                .foregroundStyle(LiviqaTheme.ink3)
+                .padding(.top, 5)
+            HStack(spacing: 8) {
+                Button { onOpenPrivacy?() } label: {
+                    Text("Share with your doctor")
+                        .font(.lato(13.5, .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(LiviqaTheme.moss)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                Button { onOpenPrivacy?() } label: {
+                    Text("View receipts")
+                        .font(.lato(13.5, .semibold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .padding(.horizontal, 14).padding(.vertical, 11)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: LiviqaTheme.cardShadow, radius: 10, y: 6)
+    }
+
+    // MARK: — Colophon (the daily privacy line — honest to what actually happened)
+
+    private var colophon: some View {
+        VStack(spacing: 3) {
+            Text(appState.researchContributed
+                 ? String(localized: "Printed on your device — you chose what to share.")
+                 : String(localized: "Printed on your device — nothing left it today."))
+            Text("Governed by the Data for Good Foundation.")
+        }
+        .font(.lato(11))
+        .foregroundStyle(LiviqaTheme.ink3)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - A7.2 signal card (verdict word first, number after, baseline sparkline)
+
+private struct SignalCardView: View {
+    let rule: Color
+    let icon: String
+    let domain: String
+    let verdict: String
+    let value: String
+    let unit: String?
+    var spark: [Double] = []
+    var chip: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 9))
-                    .foregroundStyle(clay ? LiviqaTheme.clay : LiviqaTheme.moss)
-                Text(label.uppercased())
-                    .font(.liviqaKicker(8)).tracking(0.4)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(rule)
+                Text(domain)
+                    .font(.lato(11.5, .semibold))
                     .foregroundStyle(LiviqaTheme.ink3)
                     .lineLimit(1).minimumScaleFactor(0.8)
             }
-            HStack(spacing: 5) {
-                Circle().fill(clay ? LiviqaTheme.clay : LiviqaTheme.moss).frame(width: 6, height: 6)
+            Text(verdict)
+                .font(.liviqaSerif(15)).kerning(-0.1)
+                .foregroundStyle(LiviqaTheme.ink)
+                .lineLimit(1).minimumScaleFactor(0.75)
+                .padding(.top, 6)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
-                    .font(.lato(15, .heavy))
-                    .foregroundStyle(clay ? LiviqaTheme.clayText : LiviqaTheme.ink)
+                    .font(.liviqaMono(19))
+                    .foregroundStyle(LiviqaTheme.ink)
                     .lineLimit(1).minimumScaleFactor(0.7)
+                if let unit {
+                    Text(unit)
+                        .font(.lato(10.5, .semibold))
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                }
             }
-            // 7-day micro-trend (only when there's real/seed data to show).
+            .padding(.top, 4)
             if spark.count > 1 {
-                MiniSparkline(values: spark, tint: clay ? LiviqaTheme.clay : LiviqaTheme.moss, height: 18)
-                    .padding(.top, 2)
+                BaselineSpark(data: spark, color: rule, height: 26)
+                    .padding(.top, 7)
+            }
+            if let chip {
+                HStack(spacing: 3) {
+                    Text(chip)
+                    Text("→")
+                }
+                .font(.lato(10.5, .semibold))
+                .foregroundStyle(LiviqaTheme.moss)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Capsule().fill(LiviqaTheme.moss2))
+                .padding(.top, 7)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The four chips share a fixed row; cap their growth so labels/values stay
-        // on one line at large text sizes (content elsewhere scales freely).
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 10)
+        .padding(.top, 12).padding(.bottom, 12)
+        .padding(.leading, 15).padding(.trailing, 11)
         .background(LiviqaTheme.paper2)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line2, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(rule)
+                .frame(width: 3)
+                .padding(.vertical, 12)
+        }
+        .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 4)
     }
 }

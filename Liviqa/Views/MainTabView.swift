@@ -128,7 +128,8 @@ struct MainTabView: View {
                                 appState.showProfileSheet = true
                             },
                             showConnectHint: showConnectHintResolved,
-                            onOpenSettings: { tab = .settings }
+                            onOpenSettings: { tab = .settings },
+                            onOpenPrivacy: { tab = .privacy }
                         ))
                         // Health refresh runs from the app-level one-time `.task`
                         // below — NOT re-fired on every Home appearance, which used
