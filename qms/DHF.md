@@ -2,6 +2,25 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-08-12 (evening) — A7.2 screen ANATOMY is in scope, starting with Home (PR-106)
+
+- **Decision (CN, 2026-08-12, on seeing the reskinned build vs the design
+  canvas):** the A7.2 package is not a token swap only — the designed screen
+  anatomy is the deliverable ("This is the design and the screens I need to
+  see"). `screen-home.jsx` and the SCREENS.md v2 canvases are the source of
+  truth for screen structure, not just colour.
+- **Home rebuilt to the canvas** (PR-106, see CHANGELOG): verdict hero +
+  iris day-arc, momentum strip, verdict-first 2×2 signal cards, single
+  attention card / quiet all-clear, share card on live grant state, colophon.
+  Verdict WORDS lead and numbers follow — the anti-score-opacity stance
+  (also the #1 Bevel complaint in the 2026-08-12 study) is now structural.
+- **Guarded invariants restated for the anatomy work:** verdict vocabulary is
+  a fixed allow-list, baseline-relative, non-diagnostic; ONE attention card
+  max; red remains clinical glucose TIR only; provenance never renders.
+- **Next screens from the same set:** evening edition (closing note + day
+  score ring + 30-day trend + tomorrow hook), InsightCompare, Insights week
+  header + grid.
+
 ## 2026-08-12 (later) — A7.2 "Electric Ink" adopted as the visual system of record (PR-105)
 
 - **Decision.** A7.2 (round-4 palette of the Claude Design redesign, carrying

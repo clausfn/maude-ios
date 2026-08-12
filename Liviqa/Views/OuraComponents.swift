@@ -691,3 +691,75 @@ private struct ZoneDots: View {
         .allowsHitTesting(false)
     }
 }
+
+// MARK: - A7.2 Home anatomy (PR-106) — iris day-arc + baseline sparkline
+
+/// Three concentric arcs echoing the iris mark, quietly filling as the day's
+/// data accrues. Pure presentation — progress 0…1 (fraction of the day).
+struct IrisDayArc: View {
+    var progress: Double
+    var size: CGFloat = 76
+
+    private var p: Double { min(1, max(0, progress)) }
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(LiviqaTheme.fjordBright.opacity(0.18), lineWidth: 4)
+            Circle().trim(from: 0, to: max(0.001, p))
+                .stroke(LiviqaTheme.fjordBright, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Circle().inset(by: 8).stroke(LiviqaTheme.ink.opacity(0.10), lineWidth: 3.5)
+            Circle().inset(by: 8).trim(from: 0, to: max(0.001, p * 0.8))
+                .stroke(LiviqaTheme.ink.opacity(0.85), style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Circle().inset(by: 16).trim(from: 0, to: 0.16)
+                .stroke(LiviqaTheme.amber, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-70))
+            Circle().fill(LiviqaTheme.ink).frame(width: 6, height: 6)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)   // decorative; the verdict sentence carries the meaning
+    }
+}
+
+/// The signal-card sparkline: a 7–14-day line drawn over the "your usual" band.
+struct BaselineSpark: View {
+    var data: [Double]
+    var band: ClosedRange<Double>? = nil
+    var color: Color
+    var height: CGFloat = 28
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            if data.count > 1 {
+                let dLo = data.min() ?? 0, dHi = data.max() ?? 1
+                let lo = min(dLo, band?.lowerBound ?? dLo)
+                let hi = max(dHi, band?.upperBound ?? dHi)
+                let span = max(0.0001, hi - lo)
+                let y: (Double) -> CGFloat = { v in
+                    h - CGFloat((v - lo) / span) * (h * 0.82) - h * 0.09
+                }
+                let x: (Int) -> CGFloat = { i in CGFloat(i) / CGFloat(data.count - 1) * w }
+                ZStack(alignment: .topLeading) {
+                    if let band {
+                        let top = y(band.upperBound), bot = y(band.lowerBound)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(color.opacity(0.10))
+                            .frame(height: max(2, bot - top))
+                            .offset(y: top)
+                    }
+                    Path { path in
+                        path.move(to: CGPoint(x: x(0), y: y(data[0])))
+                        for i in 1..<data.count { path.addLine(to: CGPoint(x: x(i), y: y(data[i]))) }
+                    }
+                    .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                    Circle().fill(color).frame(width: 4.5, height: 4.5)
+                        .position(x: x(data.count - 1), y: y(data[data.count - 1]))
+                }
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
+    }
+}

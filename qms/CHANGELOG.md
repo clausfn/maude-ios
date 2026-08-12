@@ -2,6 +2,20 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-106 — A7.2 Home screen anatomy (2026-08-12, branch `claude/a72-electric-ink`; CN directive same day: build the DESIGNED screens, not just the reskin)
+
+Structural rebuild of Home/Today to the `screen-home.jsx` canvas (design source of truth). Presentation-layer only: all values come from the existing `TodaySignals`/`AppState` paths; nudge generation, baselines, and provenance handling untouched.
+
+- **feat(home) — verdict hero + iris day-arc.** TODAY kicker + serif verdict headline + moss underline + sub-line (existing honest `affirmHeadline/affirmSub` derivations), with a new `IrisDayArc` (fjordBright/ink/amber concentric arcs, progress = fraction of day elapsed) as the brand-mark timepiece. Cold start keeps the calibrating card in the hero slot (`IrisDayArc` low-progress + "Learning your normal." + honest progress capsule).
+- **feat(home) — momentum strip.** "SINCE LAST WEEK" — deltas computed vs the mean of the user's OWN week series (`weekDelta`: hrv ≥2, sleep ≥15 min, in-range ≥3 pts; suppressed on cold start; demo seeds only in demo mode); wrapping `FlowLayout` so items never truncate; "See the trend →" into `WeekInContextView`.
+- **feat(home) — verdict-first signal cards.** `signalRow` chips → 2×2 `SignalCardView` grid: domain accent left-rule, verdict WORD first (serif; "As usual" / "Steady" / "On the way up" / "Worth a look" / "Calm"), mono value + unit after, `BaselineSpark` (7-day polyline over a personal-band tint), glucose card carries the "Zones & TIR →" chip. All verdicts "—" on cold start. NavigationLinks to `MetricDetailView` unchanged.
+- **feat(home) — ONE attention card / quiet line.** `insightHero` → `attentionCard` (amber surface, "Worth a look" kicker, same first-nudge content + evidence path — FR-NDG coupling unchanged, display treatment only) — or, when no nudge earned attention, the `quietLine` all-clear ("Nothing needs your attention today."). Never both; nothing on cold start.
+- **feat(home) — share card + colophon.** Standing "who can see your week" card driven by live `WalletGrant` state (first active clinical grant's name in the headline; "N active shares · summaries only · 0 raw exports — ever" meta; both buttons route to the Privacy tab via new `onOpenPrivacy`). Footer colophon replaces the tagline: "Printed on your device — nothing left it today." (or "— you chose what to share." once research contribution happened) + "Governed by the Data for Good Foundation."
+- **feat(appbar).** "On device" chip (moss ring-dot) in the app bar → opens `InAppPrivacyView` as a sheet.
+- **chore(debug).** `LIVIQA_SCROLL_TO=bottom` DEBUG-only snapshot hook (joins the existing `-uiTestAutoDemo` family) to screenshot below-the-fold Home headlessly.
+- **Verification:** Debug/sim build green; screenshot QA vs the `screen-home.jsx` canvas — hero+arc, momentum wrap, 2×2 verdict cards, attention card, week card, share card (live grant data), colophon all verified on-device 2026-08-12.
+- **Safety notes:** no new FR (presentation of existing requirement surfaces); red still clinical-TIR-only (heart card = rose per PR-105); attention card amber = the established worth-a-look treatment; provenance field still never rendered; momentum/verdict language is baseline-relative and non-diagnostic by construction (allow-listed verdict words only).
+
 ## PR-105 — A7.2 "Electric Ink" reskin (2026-08-12, branch `claude/a72-electric-ink`; CN approved the 5 gate decisions same day)
 
 Skin only — IA/copy/navigation unchanged; dark "Evening" args untouched except the two documented exceptions. Source: the A7.2 design handoff (`design_handoff_liviqa_a7`, revised package) — the outcome of Christel's review rounds 3–4 (52 of 57 threads resolved by the package; 5 partial → copy pass / feature backlog).
