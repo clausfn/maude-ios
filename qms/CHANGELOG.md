@@ -2,6 +2,16 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## RELEASE build 10.99 — A7.2 full-screen app to TestFlight (2026-08-13, develop `6255b06` + version bump; CN directive "ship 10.99")
+
+First TestFlight build carrying the complete A7.2 designed application (PR-105 reskin + PR-106 Home/Insights anatomy + PR-107 waves 1–4, all nine areas). Supersedes 10.70 as the newest internal build; the 10.71–10.98 wave never reached TestFlight.
+
+- **Content:** 74 designed screens — onboarding flow (11 frames + declined/lock/MitID/identity), Home day + evening editions, Insights + Trends (evidence-gated correlations), 8 metric details incl. the clinical glucose surface, care lane, consent/sharing core, encrypted document vault, settings/notifications/voice journal, Learn tier + 4 assistant behaviours, watch deltas.
+- **Pre-flight gates (all green):** provenance guard T-PROV-01 ✓; **Release-configuration compile ✓** (DEBUG hook families verified compiled out); unit bundle 282 tests / 51 suites ✓ (Debug, develop `6255b06`); designated controls re-verified in-suite (FR-NDG-06 NudgeGuard, ProvenanceGuard, terminology/advice-voice lint, ReleasePosture incl. provider-forcing and demo-seed gating); watch scheme ✓; 58-frame on-device sweep ✓.
+- **Posture:** signing = Fonden Data For Good PS258XSNL8, bundle `dev.liviqa.app` (ASC app 6776228205), export `app-store-connect`/automatic; the exported .ipa is additionally gated by `scripts/guard_release_posture.sh` (get-task-allow=false, Apple Distribution cert, beta-reports-active) — a failure ABORTS the upload.
+- **Distribution scope:** **INTERNAL TestFlight only.** Promotion to the external group "Liviqa beta tester" remains blocked pending the standing gates — DPIA v02 signed (RK-SUND-01 covers the shipped in-app sundhed flows + diagnoses + external cohort), written Trifork/sundhed.dk sanction artifact (or `sundhedWebConnectEnabled` gated off for external builds), and the ClickUp decisions task z8nrz7c35v (self-signup lock).
+- **Known-state notes carried into this build:** notification channels beyond morning/evening are preference-only and labelled so; PMS reports queue on-device (no backend endpoint); watch complication absent (no Widget-Extension target); SRS v06 rows remain `[PROV]` pending CN ratification.
+
 ## PR-107 build wave 4 — Areas ⑦ Integrations/vault, ⑧ Settings/journal/watch, ⑨ Knowledge/AI (2026-08-13 early, branch `claude/a72-electric-ink`)
 
 Final code wave — all nine areas now built. Combined iOS build green; **watch scheme green; 282 tests / 51 suites PASS** (all agent-authored suites executed in-simulator).
