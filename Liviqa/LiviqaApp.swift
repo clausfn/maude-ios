@@ -145,6 +145,10 @@ struct LiviqaApp: App {
                 // instantly when no token is stored, so the hooks below and a
                 // true first launch are not delayed.
                 await appState.restoreSession()
+                // FR-NOT-01/02 (A7.2 Area ⑧): re-schedule the local edition
+                // loops from the persisted prefs on every launch. No-op until
+                // notification permission is granted.
+                EditionNotifications.resync()
                 #if DEBUG
                 // Design-exploration hook: open the Liquid Glass Lab (gallery).
                 if ProcessInfo.processInfo.arguments.contains("-glassLab") {

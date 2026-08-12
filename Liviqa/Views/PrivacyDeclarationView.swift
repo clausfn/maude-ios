@@ -83,14 +83,16 @@ struct PrivacyDeclarationView: View {
     private func declarationRow(icon: String, statement: String, detail: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
 
-            // Icon badge
+            // Icon badge — A7.2 pattern 1: SOLID fjord circle + WHITE glyph
+            // (tinted-pastel badges retired; the adjacent statement carries
+            // the meaning, so the low-contrast solid fill is allowed).
             ZStack {
                 Circle()
-                    .fill(LiviqaTheme.moss2)
+                    .fill(LiviqaTheme.fjordBright)
                     .frame(width: 38, height: 38)
                 Image(systemName: icon)
                     .font(.lato(15, .medium))
-                    .foregroundStyle(LiviqaTheme.moss)
+                    .foregroundStyle(.white)
             }
             .frame(width: 38)
 

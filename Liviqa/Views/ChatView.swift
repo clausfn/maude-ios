@@ -1,6 +1,12 @@
-// ChatView.swift — Liviqa wellness-scope assistant UI. v01 2026-06-09.
-// Standalone, consent-gated, persistent AI label. Reuses locked brand tokens only;
-// no chrome/nav redesign. All answers flow through ChatEngine (guard-first/last).
+// ChatView.swift — Liviqa wellness-scope assistant UI. v01 2026-06-09 ·
+// v02 2026-08-12 (A7.2 Area ⑨: "Ask Liviqa" chrome from b-learn.jsx AIChat —
+// On-device chip, card bubbles with honest proof footers, in-bubble baseline
+// spark, post-answer suggestion chips, designed redirect presentation).
+//
+// RAILS KEPT that the canvas omits: the consent gate (severable, defaults-off)
+// and the persistent EU-AI-Act disclosure bar. All answers still flow through
+// ChatEngine (guard-first/last). The proof line "Answered on this iPhone" only
+// renders for answers that really were generated on device (ChatReply.origin).
 import SwiftUI
 
 struct ChatView: View {
@@ -15,11 +21,19 @@ struct ChatView: View {
     @AppStorage("chatConsentProcess")  private var consentProcess  = false
     @AppStorage("chatConsentCloud")    private var consentCloud    = false   // wired, not in MVP
     @AppStorage("chatConsentResearch") private var consentResearch = false   // wired, not in MVP
+    // FR-LIT-01 consumer: the literacy preference shapes the answer VOICE
+    // (plain-language templates) — never hides numbers.
+    @AppStorage("literacyLevel") private var literacyLevel = "both"
 
     @State private var messages: [ChatMessage] = []
     @State private var draft = ""
     @State private var engine = ChatEngine()   // summary wired to live data in refreshSummary()
     @State private var thinking = false
+
+    // Area ⑨ action-chip destinations — all EXISTING consent-first surfaces.
+    @State private var showLearnHRV = false
+    @State private var showShare = false
+    @State private var showPlan = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,6 +51,16 @@ struct ChatView: View {
         // whenever a Health refresh lands mid-conversation.
         .task { refreshSummary() }
         .onChange(of: appState.todaySignals) { _, _ in refreshSummary() }
+        .sheet(isPresented: $showLearnHRV) {
+            LearnArticleView(topic: .hrv, appState: appState, startTier: .clinical)
+        }
+        .sheet(isPresented: $showShare) {
+            ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
+        }
+        .sheet(isPresented: $showPlan) {
+            PlanConsultView(recipientName: careTeamName,
+                            recipientId: appState.careThreads.first?.recipientId)
+        }
         #if DEBUG
         .task {
             // Snapshot hook: auto-send one seed question (LIVIQA_CHAT_SEED).
@@ -49,13 +73,25 @@ struct ChatView: View {
         #endif
     }
 
-    // MARK: - Header (reuses brand, not the system nav bar)
+    /// Named clinician only from a REAL care-team record — otherwise the
+    /// generic form (the canvas's "Mette, your diabetes nurse" is demo-only).
+    private var careTeamName: String {
+        appState.careThreads.first?.recipientName
+            ?? appState.activeConsults.first?.recipientName
+            ?? "your care team"
+    }
+
+    // MARK: - Header ("Ask Liviqa" + On-device chip; reuses brand, not the system nav bar)
 
     private var header: some View {
         HStack(spacing: 10) {
-            LiviqaApertureMark(size: 24)
-            Text("Assistant").font(.liviqaSerif(17)).kerning(-0.3).foregroundStyle(LiviqaTheme.ink)
+            LiviqaApertureMark(size: 22)
+                .frame(width: 32, height: 32)
+                .background(RoundedRectangle(cornerRadius: 9).fill(LiviqaTheme.paper2))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(LiviqaTheme.line, lineWidth: 1))
+            Text("Ask Liviqa").font(.liviqaSerif(17)).kerning(-0.3).foregroundStyle(LiviqaTheme.ink)
             Spacer()
+            OnDeviceChip()
             if consentProcess {
                 Menu {
                     Button(role: .destructive) { withdraw() } label: {
@@ -141,7 +177,12 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 10) {
                         if messages.isEmpty { starter }
-                        ForEach(messages) { m in bubble(m).id(m.id) }
+                        ForEach(messages) { m in
+                            bubble(m).id(m.id)
+                            if m.id == lastAssistantId, !followUps(for: m).isEmpty {
+                                followUpChips(followUps(for: m))
+                            }
+                        }
                         if thinking {
                             Text("…").font(.lato(14)).foregroundStyle(LiviqaTheme.ink3)
                                 .padding(.horizontal, 12).padding(.vertical, 9)
@@ -163,13 +204,13 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(nudges.isEmpty ? "Ask about your own data" : "Based on what your data showed")
                 .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.ink)
-            // Honest empty context (T1): no tracked numbers yet — say so calmly
-            // instead of answering from data that doesn't exist.
+            // Honest empty context (T1), warmer designed voice — keeps the
+            // Settings pointer, never fakes a day counter.
             if !hasSummaryData {
                 HStack(alignment: .top, spacing: 7) {
                     Image(systemName: "heart.text.square")
                         .font(.lato(13)).foregroundStyle(LiviqaTheme.moss)
-                    Text("No Health data yet — connect Apple Health in Settings to personalise answers with your own numbers.")
+                    Text("Liviqa is still learning your normal — your readings are only starting to come in. You can ask how it works, or connect Apple Health in Settings to bring in your own numbers.")
                         .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
                 }
                 .padding(12)
@@ -177,7 +218,7 @@ struct ChatView: View {
                 .background(LiviqaTheme.moss2)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            ForEach(ChatSuggestions.contextual(from: nudges), id: \.self) { ex in
+            ForEach(starterQuestions, id: \.self) { ex in
                 Button { draft = ex; send() } label: {
                     Text(ex).font(.lato(13)).foregroundStyle(LiviqaTheme.moss)
                         .padding(.horizontal, 12).padding(.vertical, 9)
@@ -191,20 +232,162 @@ struct ChatView: View {
         .padding(.top, 6)
     }
 
-    private func bubble(_ m: ChatMessage) -> some View {
-        HStack {
-            if m.role == .user { Spacer(minLength: 40) }
-            Text(m.text.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: ""))
-                .font(.lato(14)).foregroundStyle(m.role == .user ? LiviqaTheme.invertFG : LiviqaTheme.ink)
-                .padding(.horizontal, 12).padding(.vertical, 9)
-                .background(RoundedRectangle(cornerRadius: 14)
-                    .fill(m.role == .user ? LiviqaTheme.invertBG : LiviqaTheme.paper2))
-                .overlay(RoundedRectangle(cornerRadius: 14)
-                    .stroke(m.role == .user ? Color.clear : LiviqaTheme.line, lineWidth: 1))
-            if m.role == .assistant { Spacer(minLength: 40) }
+    /// Starter chips: the calibration question leads when there's no data yet;
+    /// contextual (nudge-derived) questions otherwise.
+    private var starterQuestions: [String] {
+        if !hasSummaryData {
+            return ["Why do my numbers look empty?", "What are you learning?"]
         }
-        .frame(maxWidth: .infinity, alignment: m.role == .user ? .trailing : .leading)
+        return ChatSuggestions.contextual(from: nudges)
     }
+
+    // MARK: - Bubbles (b-learn.jsx AIChat: user fjord 18/18/5/18 · assistant card 18/18/18/5)
+
+    @ViewBuilder
+    private func bubble(_ m: ChatMessage) -> some View {
+        if m.role == .user {
+            HStack {
+                Spacer(minLength: 40)
+                Text(cleaned(m.text))
+                    .font(.lato(14)).lineSpacing(2).foregroundStyle(.white)
+                    .padding(.horizontal, 15).padding(.vertical, 11)
+                    .background(UnevenRoundedRectangle(
+                        topLeadingRadius: 18, bottomLeadingRadius: 18,
+                        bottomTrailingRadius: 5, topTrailingRadius: 18)
+                        .fill(LiviqaTheme.moss))
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
+            HStack {
+                assistantCard(m)
+                Spacer(minLength: 28)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func assistantCard(_ m: ChatMessage) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(cleaned(m.text))
+                .font(.lato(13.5)).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // In-bubble baseline spark — the person's own week against their own
+            // usual band (explain behaviour; only when the real series exists).
+            if m.intent == .explainHRVDrop, let d = engine.summary.hrvDetail,
+               d.weekSeries.count >= 2 {
+                ChatBaselineSpark(values: d.weekSeries,
+                                  band: d.usualBand,
+                                  tint: LiviqaTheme.accentRecovery)
+                    .frame(height: 54)
+                    .padding(.top, 10)
+            }
+
+            // Calibration presentation — indeterminate by design (reconciled
+            // with Home's baselineBuildingCard: no fake day counter).
+            if m.intent == .calibration {
+                VStack(alignment: .leading, spacing: 6) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(LiviqaTheme.line2)
+                            Capsule().fill(LiviqaTheme.fjordBright)
+                                .frame(width: geo.size.width * 0.18)
+                        }
+                    }
+                    .frame(height: 5)
+                    Text("Calibrating your baseline")
+                        .font(.lato(11)).foregroundStyle(LiviqaTheme.ink3)
+                }
+                .padding(.top, 12)
+            }
+
+            // Honest proof footer (hairline-separated).
+            Rectangle().fill(LiviqaTheme.line).frame(height: 0.5)
+                .padding(.top, 10)
+            Text(proofText(for: m))
+                .font(.lato(11)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .padding(.top, 9)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .background(UnevenRoundedRectangle(
+            topLeadingRadius: 18, bottomLeadingRadius: 5,
+            bottomTrailingRadius: 18, topTrailingRadius: 18)
+            .fill(LiviqaTheme.paper2))
+        .overlay(UnevenRoundedRectangle(
+            topLeadingRadius: 18, bottomLeadingRadius: 5,
+            bottomTrailingRadius: 18, topTrailingRadius: 18)
+            .stroke(LiviqaTheme.line, lineWidth: 0.5))
+        .shadow(color: LiviqaTheme.cardShadow.opacity(0.5), radius: 8, y: 4)
+    }
+
+    /// Strip the responder's inline markers (bubbles render plain text).
+    private func cleaned(_ t: String) -> String {
+        t.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
+    }
+
+    /// The proof line is honest by construction: "Answered on this iPhone" may
+    /// only render when the shown text really was generated on device — the
+    /// consented Mistral path says so instead (ChatReply.origin, never guessed).
+    private func proofText(for m: ChatMessage) -> String {
+        if m.isSafetyLine {
+            return m.origin == .onDevice
+                ? "Answered on this iPhone · Liviqa doesn't diagnose, treat, or advise on medication"
+                : "Liviqa doesn't diagnose, treat, or advise on medication"
+        }
+        switch (m.intent, m.origin) {
+        case (.plainGlucose, .onDevice):
+            return "Answered on this iPhone · plain-language mode · not medical advice"
+        case (.calibration, .onDevice):
+            return "Answered on this iPhone · nothing was sent anywhere"
+        case (_, .onDevice):
+            return "Answered on this iPhone · from your own readings · educational, not a diagnosis"
+        case (.plainGlucose, .cloud):
+            return "Answered via Mistral EU (your cloud consent) · plain-language mode · not medical advice"
+        case (_, .cloud):
+            return "Answered via Mistral EU (your cloud consent) · from your own summary · educational, not a diagnosis"
+        }
+    }
+
+    // MARK: - Post-answer suggestion chips (pill style; latest answer only)
+
+    private var lastAssistantId: UUID? {
+        messages.last(where: { $0.role == .assistant })?.id
+    }
+
+    private func followUps(for m: ChatMessage) -> [ChatFollowUp] {
+        guard m.role == .assistant else { return [] }
+        return ChatFollowUps.followUps(for: m.isSafetyLine ? .safety : m.intent)
+    }
+
+    private func followUpChips(_ chips: [ChatFollowUp]) -> some View {
+        FlowRow(spacing: 8) {
+            ForEach(chips) { chip in
+                Button { handle(chip) } label: {
+                    Text(chip.label)
+                        .font(.lato(12.5, .semibold))
+                        .foregroundStyle(LiviqaTheme.moss)
+                        .padding(.horizontal, 13).padding(.vertical, 8)
+                        .background(Capsule().fill(LiviqaTheme.paper2))
+                        .overlay(Capsule().stroke(LiviqaTheme.line, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func handle(_ chip: ChatFollowUp) {
+        switch chip.kind {
+        case .ask(let q):    draft = q; send()
+        case .openLearnHRV:  showLearnHRV = true
+        case .shareSummary:  showShare = true
+        case .planConsult:   showPlan = true
+        }
+    }
+
+    // MARK: - Composer
 
     private var composer: some View {
         HStack(spacing: 10) {
@@ -230,27 +413,45 @@ struct ChatView: View {
     // MARK: - Live summary (the user's own data, never a fabricated persona)
 
     /// True when the engine has at least one real number to describe.
-    private var hasSummaryData: Bool {
-        let s = engine.summary
-        return s.avgGlucoseMmol7d != nil || s.glucoseTIRpct7d != nil || s.sleepAvgHours7d != nil
-            || s.restingHRavg7d != nil || s.hrvAvgMs7d != nil || s.stepsAvg7d != nil
-    }
+    private var hasSummaryData: Bool { engine.summary.hasAnyData }
 
     /// Wires the engine to the signed-in user's REAL derived signals. Release
     /// builds never fall back to the demo persona — no data means an honest
     /// empty summary (the cloud path then sends "(no tracked data available)").
     private func refreshSummary() {
-        if let s = appState.todaySignals {
-            engine.summary = Self.summary(from: s)
+        var s: ChatHealthSummary
+        if let sig = appState.todaySignals {
+            s = Self.summary(from: sig)
         } else {
             #if DEBUG
             // DEBUG demo provider only: keep the synthetic persona exercisable on
             // the simulator (mirrors the seeded Home values). Never ships (PR-102).
-            engine.summary = appState.isDemoData ? .demo : .empty
+            s = appState.isDemoData ? .demo : .empty
             #else
-            engine.summary = .empty
+            s = .empty
             #endif
         }
+        // A7.2 Area ⑨ — deeper derived facts (all optional; honest when absent).
+        s.hrvDetail = appState.hrvLearn
+        if s.glucoseTIRpct7d != nil,
+           let month = appState.trends?.month, !month.tirDaily.isEmpty {
+            s.tirMonthPct = month.tirPeriodPct
+        }
+        if appState.passportStats.daysTracked > 0 {
+            s.daysOfData = appState.passportStats.daysTracked
+        }
+        if let replay = appState.dayReplay {
+            s.glucoseBandLo = replay.bandLo
+            s.glucoseBandHi = replay.bandHi
+            if let peak = replay.peakIndex, replay.points.indices.contains(peak) {
+                s.todayRise = TodayGlucoseRise(
+                    peakTimeText: replay.points[peak].timeText,
+                    backByTimeText: replay.backInRangeText)
+            }
+        }
+        s.gatedCorrelationTitles = appState.trends?.month.correlations.map(\.pairTitle) ?? []
+        s.literacy = LiteracyLevel(storage: literacyLevel)
+        engine.summary = s
     }
 
     /// 7-day chat summary from the Home signal series (oldest→today). Fields
@@ -276,13 +477,16 @@ struct ChatView: View {
             // Enhanced (cloud) — Mistral, guard-first/last; async.
             thinking = true
             Task {
-                let reply = await engine.respondCloud(to: q)
+                let reply = await engine.replyCloud(to: q)
                 thinking = false
-                messages.append(ChatMessage(role: .assistant, text: reply))
+                messages.append(ChatMessage(role: .assistant, text: reply.text,
+                                            origin: reply.origin, intent: reply.intent))
             }
         } else {
             // On-device deterministic (default).
-            messages.append(ChatMessage(role: .assistant, text: engine.respond(to: q)))
+            let reply = engine.reply(to: q)
+            messages.append(ChatMessage(role: .assistant, text: reply.text,
+                                        origin: reply.origin, intent: reply.intent))
         }
     }
 
@@ -294,5 +498,51 @@ struct ChatView: View {
         consentProcess = false
         consentCloud = false
         consentResearch = false
+    }
+}
+
+// MARK: - In-bubble baseline spark (b-learn.jsx BaselineSpark)
+
+/// Small week line over the person's own usual band. Pure presentation; the
+/// values and band come from the real HRV deriver — never illustrative.
+struct ChatBaselineSpark: View {
+    var values: [Double]
+    var band: ClosedRange<Double>?
+    var tint: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let lo = min(values.min() ?? 0, band?.lowerBound ?? .infinity)
+            let hi = max(values.max() ?? 1, band?.upperBound ?? -.infinity)
+            let span = max(0.0001, hi - lo)
+            // let-bound closures, not local funcs — ViewBuilder closures reject
+            // `func` declarations (build fix, Area ⑧ passing through).
+            let y: (Double) -> CGFloat = { v in h - CGFloat((v - lo) / span) * (h * 0.82) - h * 0.09 }
+            let x: (Int) -> CGFloat = { i in
+                values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
+            }
+            ZStack {
+                if let band {
+                    Rectangle()
+                        .fill(tint.opacity(0.13))
+                        .frame(height: max(2, y(band.lowerBound) - y(band.upperBound)))
+                        .position(x: w / 2, y: (y(band.lowerBound) + y(band.upperBound)) / 2)
+                }
+                Path { p in
+                    for (i, v) in values.enumerated() {
+                        let pt = CGPoint(x: x(i), y: y(v))
+                        if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+                    }
+                }
+                .stroke(tint, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                ForEach(Array(values.enumerated()), id: \.offset) { i, v in
+                    Circle().fill(tint).frame(width: 4, height: 4)
+                        .position(x: x(i), y: y(v))
+                }
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Your week against your own usual band")
     }
 }

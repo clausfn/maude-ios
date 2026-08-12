@@ -59,16 +59,42 @@ extension AppState {
         let s = todaySignals   // nil ⇒ fall back to the same defaults the Home chips use
         // `trend` mirrors the phone Home chip sparklines (last-7, oldest→today) so the
         // wrist tap-through shows the same series. Empty ⇒ no sparkline (no fabrication).
+        // A7.2 Area ⑧ fix: the live Recovery value carries its " ms" unit (the
+        // deriver hands back the bare number; the demo/design show "42 ms").
         let signals: [[String: Any]] = [
             ["label": "Glucose",  "icon": "drop.fill",         "value": s?.inRange ?? "61%",  "clay": s?.inRangeIsClay ?? true, "trend": s?.inRangeWeek ?? []],
             ["label": "Sleep",    "icon": "moon.fill",         "value": s?.sleep   ?? "6h52", "clay": false,                   "trend": s?.sleepWeek   ?? []],
-            ["label": "Recovery", "icon": "waveform.path.ecg", "value": s?.hrv     ?? "48",   "clay": false,                   "trend": s?.hrvWeek     ?? []],
+            ["label": "Recovery", "icon": "waveform.path.ecg", "value": s.map { "\($0.hrv) ms" } ?? "48 ms", "clay": false,    "trend": s?.hrvWeek     ?? []],
             ["label": "Heart",    "icon": "heart.fill",        "value": s?.rhr     ?? "58",   "clay": false,                   "trend": s?.rhrWeek     ?? []],
         ]
-        // Same approved affirming copy as the phone Home (TodayView.affirmHeadline).
-        let stateLine = String(localized: "You're having a steady week.")
+        // A7.2 Area ⑧ fix: mirror the phone's ACTUAL affirming line (was
+        // hardcoded to the steady copy regardless of the user's week).
         #if canImport(WatchConnectivity)
-        PhoneWatchSync.shared.push(stateLine: stateLine, signals: signals)
+        PhoneWatchSync.shared.push(stateLine: watchStateLine(for: s), signals: signals)
         #endif
+    }
+
+    /// The same three approved affirming lines the phone Home shows
+    /// (TodayView.affirmHeadline), derived with the SAME heuristics on the same
+    /// series — the wrist never disagrees with the screen. Kept descriptive-only
+    /// (non-MDSW): a tone about the user's own week, never a verdict.
+    /// NOTE: thresholds mirror TodayView (tirImproving ≥5 pts, sleepImproving
+    /// ≥0.4 h) — change them together or the two surfaces drift.
+    nonisolated func watchStateLine(for s: TodaySignals?) -> String {
+        guard let s else { return String(localized: "You're having a steady week.") }
+        if s.inRangeIsClay {
+            return String(localized: "A more uneven week — that happens.")
+        }
+        func trendingUp(_ series: [Double], by delta: Double) -> Bool {
+            guard series.count >= 4 else { return false }
+            let half = series.count / 2
+            let early = series.prefix(half), late = series.suffix(series.count - half)
+            return late.reduce(0, +) / Double(late.count)
+                 - early.reduce(0, +) / Double(early.count) >= delta
+        }
+        if trendingUp(s.inRangeWeek, by: 5) || trendingUp(s.sleepWeek, by: 0.4) {
+            return String(localized: "This week is trending gently up.")
+        }
+        return String(localized: "You're having a steady week.")
     }
 }

@@ -1,6 +1,12 @@
-// SettingsView.swift — Profile · Consent · Regulatory v02 · 2026-05-22
+// SettingsView.swift — Profile · Consent · Regulatory v03 · 2026-08-12
 // Three zones: My Data (profile + connected sources) / Consent & Sharing (audit trail)
 // / Regulatory (disclaimer, privacy policy, delete). This is the trust layer.
+// v03 (A7.2 Area ⑧): Account & security nav row added (pushes the new
+// AccountSecurityView); the inline 3-step delete card is replaced by a nav row
+// to the dedicated DeleteDataView (server-first failure state preserved there);
+// "Nudge Settings" renamed "Notifications" (edition ladder); the MDR notice is
+// single-sourced from RegulatoryCopy (FR-REG-01 — the two divergent wordings
+// are gone).
 import SwiftUI
 import LocalAuthentication
 #if os(iOS)
@@ -9,9 +15,6 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
-    // 0=idle 1=warn 2=confirm 3=done 4=server-erase failed (retryable)
-    @State private var showDeleteConfirmStep: Int = 0
-    @State private var isErasing = false
     // GDPR Art. 20 export (T1): GET /me/export → share sheet with the JSON.
     @State private var isExporting = false
     @State private var exportFile: ExportFile?
@@ -46,6 +49,8 @@ struct SettingsView: View {
     @State private var showNudgeSettings  = false
     @State private var showPrivacy        = false
     @State private var showShare          = false
+    @State private var showAccount        = false
+    @State private var showDelete         = false
 
     var body: some View {
         ScrollView {
@@ -78,9 +83,22 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $showConsentLedger)  { ConsentLedgerView() }
         .navigationDestination(isPresented: $showNudgeSettings)  { NotificationSettingsView() }
         .navigationDestination(isPresented: $showPrivacy)        { InAppPrivacyView() }
+        .navigationDestination(isPresented: $showAccount)        { AccountSecurityView() }
+        .navigationDestination(isPresented: $showDelete)         { DeleteDataView() }
         .sheet(isPresented: $showShare) {
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
+        #if DEBUG
+        // Snapshot hooks (A7.2 Area ⑧): with LIVIQA_TAB=settings —
+        // LIVIQA_OPEN_ACCOUNT=1 → Account & security; LIVIQA_OPEN_NOTIFS=1 →
+        // Notifications; LIVIQA_OPEN_DELETE=1 → Delete all my data.
+        .task {
+            let env = ProcessInfo.processInfo.environment
+            if env["LIVIQA_OPEN_ACCOUNT"] == "1" { showAccount = true }
+            if env["LIVIQA_OPEN_NOTIFS"]  == "1" { showNudgeSettings = true }
+            if env["LIVIQA_OPEN_DELETE"]  == "1" { showDelete = true }
+        }
+        #endif
     }
 
     // MARK: — Zone 0: Display
@@ -267,7 +285,24 @@ struct SettingsView: View {
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
 
-            // Account & security — Face ID app lock (NFR-SEC; overlay in LiviqaApp)
+            // Account & security — the designed pushed screen (A7.2 Area ⑧:
+            // b-integrations ScrAccount — sign-in state, app lock, backup,
+            // recovery, held-vs-on-device, delete).
+            Button { showAccount = true } label: {
+                settingsNavRow(
+                    icon: "key.fill",
+                    color: LiviqaTheme.fjordBright,
+                    label: String(localized: "Account & security"),
+                    detail: appState.session?.email ?? String(localized: "Demo session")
+                )
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            // Face ID app lock quick toggle (NFR-SEC-08, Area ① — kept here;
+            // the Account screen exposes the same @AppStorage pref).
             VStack(alignment: .leading, spacing: 6) {
                 Toggle(isOn: Binding(
                     get: { appLockEnabled },
@@ -579,13 +614,12 @@ struct SettingsView: View {
                         .kerning(1)
                 }
 
-                Text("Liviqa is a personal wellness application. It is not a medical device, and it does not diagnose, treat, monitor, or manage any medical condition.")
+                // FR-REG-01 — the ONE canonical MDR notice (RegulatoryCopy).
+                // Previously this card carried its own divergent wording.
+                Text(RegulatoryCopy.mdrNotice)
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink2)
-
-                Text("Nudges are first-person observations generated from your own data. They are not medical advice. Always consult a qualified healthcare professional before making changes to your care or medication.")
-                    .font(.caption)
-                    .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(14)
             .background(LiviqaTheme.clay2)
@@ -595,7 +629,7 @@ struct SettingsView: View {
             // Links
             VStack(spacing: 1) {
                 Button { showNudgeSettings = true } label: {
-                    regulatoryLinkRow(label: "Nudge Settings", icon: "bell")
+                    regulatoryLinkRow(label: "Notifications", icon: "bell")
                 }
                 .buttonStyle(.plain)
                 Divider().padding(.leading, 56)
@@ -616,8 +650,25 @@ struct SettingsView: View {
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
 
-            // Delete all data — three-step confirmation
-            deleteSection
+            // Delete all data — the dedicated designed screen (A7.2 Area ⑧;
+            // server-first ordering + retryable failure live in DeleteDataView).
+            Button { showDelete = true } label: {
+                HStack {
+                    Image(systemName: "trash")
+                    Text("Delete all my data")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(LiviqaTheme.rust.opacity(0.6))
+                }
+                .font(.footnote)
+                .foregroundStyle(LiviqaTheme.rust)
+                .padding(14)
+                .background(LiviqaTheme.rust2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.rust.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -655,171 +706,7 @@ struct SettingsView: View {
         .frame(minHeight: 48)
     }
 
-    private var deleteSection: some View {
-        VStack(spacing: 8) {
-            switch showDeleteConfirmStep {
-            case 0:
-                Button {
-                    withAnimation(.spring(response: 0.3)) { showDeleteConfirmStep = 1 }
-                } label: {
-                    HStack {
-                        Image(systemName: "trash")
-                        Text("Delete all my data")
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(LiviqaTheme.rust)
-                    .frame(maxWidth: .infinity)
-                    .padding(14)
-                    .background(LiviqaTheme.rust2)
-                    .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.rust.opacity(0.3), lineWidth: 1))
-                }
-
-            case 1:
-                VStack(spacing: 8) {
-                    Text("This will permanently delete your data from Liviqa's servers and from this device — health records, vault files, journal entries, consent grants, messages, and nudge history. It cannot be undone.")
-                        .font(.caption)
-                        .foregroundStyle(LiviqaTheme.rust)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 4)
-
-                    HStack(spacing: 10) {
-                        Button("Cancel") {
-                            withAnimation { showDeleteConfirmStep = 0 }
-                        }
-                        .font(.footnote)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(LiviqaTheme.paper2)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.line, lineWidth: 1))
-
-                        Button("Yes, delete everything") {
-                            withAnimation { showDeleteConfirmStep = 2 }
-                        }
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(LiviqaTheme.rust)
-                        .cornerRadius(10)
-                    }
-                }
-                .padding(14)
-                .background(LiviqaTheme.rust2)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.rust.opacity(0.3), lineWidth: 1))
-
-            case 2:
-                VStack(spacing: 8) {
-                    Text("Final confirmation. This action is irreversible.")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(LiviqaTheme.rust)
-
-                    Button {
-                        runErase()
-                    } label: {
-                        Group {
-                            if isErasing {
-                                ProgressView().tint(.white)
-                            } else {
-                                Text("Delete permanently")
-                            }
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(LiviqaTheme.rust)
-                        .cornerRadius(10)
-                    }
-                    .disabled(isErasing)
-
-                    Button("Cancel") {
-                        withAnimation { showDeleteConfirmStep = 0 }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(LiviqaTheme.ink4)
-                    .disabled(isErasing)
-                }
-                .padding(14)
-                .background(LiviqaTheme.rust2)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.rust.opacity(0.3), lineWidth: 1))
-
-            case 4:
-                // Server erase failed — nothing was removed anywhere. Honest
-                // failure + retry (T1: server FIRST, local wipe only after).
-                VStack(spacing: 8) {
-                    Text("The server couldn't confirm the deletion, so nothing was removed yet — not from Liviqa's servers and not from this device.")
-                        .font(.caption)
-                        .foregroundStyle(LiviqaTheme.rust)
-                        .multilineTextAlignment(.center)
-                    if let detail = appState.eraseServerError {
-                        Text(detail)
-                            .font(.caption2)
-                            .foregroundStyle(LiviqaTheme.ink4)
-                            .multilineTextAlignment(.center)
-                    }
-                    Button {
-                        runErase()
-                    } label: {
-                        Group {
-                            if isErasing {
-                                ProgressView().tint(.white)
-                            } else {
-                                Text("Try again")
-                            }
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(LiviqaTheme.rust)
-                        .cornerRadius(10)
-                    }
-                    .disabled(isErasing)
-                    Button("Cancel") {
-                        withAnimation { showDeleteConfirmStep = 0 }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(LiviqaTheme.ink4)
-                    .disabled(isErasing)
-                }
-                .padding(14)
-                .background(LiviqaTheme.rust2)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.rust.opacity(0.3), lineWidth: 1))
-
-            default:
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(LiviqaTheme.moss)
-                    Text("Your data has been deleted from Liviqa's servers and this device.")
-                        .font(.footnote)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(14)
-            }
-        }
-    }
-
-    /// T-DEL-01 + T1 GDPR ordering: erase SERVER-side first (POST /me/erase),
-    /// wipe the device only after the server confirmed — a network failure can
-    /// then never strand server data behind a success message. On failure the
-    /// flow lands on the retryable error state; on success deleteAllData()
-    /// signs out, so the root swaps to AuthView behind the confirmation.
-    private func runErase() {
-        guard !isErasing else { return }
-        isErasing = true
-        Task { @MainActor in
-            defer { isErasing = false }
-            let ok = await appState.eraseEverythingServerFirst()
-            withAnimation { showDeleteConfirmStep = ok ? 3 : 4 }
-        }
-    }
+    // (deleteSection + runErase moved to DeleteDataView — A7.2 Area ⑧.)
 
     // MARK: Helpers
 

@@ -1,5 +1,8 @@
 // LiviqaChat.swift — Wellness-scope AI assistant: copy, deterministic guard,
-// descriptive responder, and engine. v01 2026-06-09.
+// descriptive responder, and engine. v01 2026-06-09 · v02 2026-08-12 (A7.2
+// Area ⑨: intent-routed templates for explain / plain-language / calibration;
+// literacy-aware voice; honest answer-origin tracking; guard STRENGTHENED with
+// titration/basal/bolus patterns — never weakened).
 //
 // COMPLIANCE CORE. The chat DESCRIBES and SUMMARISES the user's own data. It must
 // never interpret disease, predict, give prognosis, triage, diagnose, or advise on
@@ -7,6 +10,12 @@
 // The guard is DETERMINISTIC and sits between any model and the UI — it does not
 // trust prompt instructions, because models drift. See
 // 06_Regulatory/Liviqa_CounselMemo_AIChat_WellnessScope_v01_20260609.docx.
+//
+// DESIGNATED CONTROL (open ruling, DHF 2026-08-12): `safetyLine` is a FIXED
+// string — a counsel memo is required before ANY copy change. The A7.2 canvas
+// (b-learn.jsx AIRedirect) shows warmer, dose-specific wording; that divergence
+// is NOTED for the memo and NOT adopted here. Only the PRESENTATION around the
+// unchanged line (action chips to existing consent-first flows) shipped.
 import Foundation
 
 // MARK: - Fixed copy (identical everywhere: system prompt, consent, UI, store copy)
@@ -64,6 +73,10 @@ enum ChatGuard {
         #"\b(hypo|hyper)\b"#,
         #"\b(afib|a-fib|arrhythmia|heart attack|cardiac|stroke|seizure)\b"#,
         #"\b(insulin|dose|dosing|medication|medicine|meds?|treat(ment)?|therapy)\b"#,
+        // A7.2 Area ⑨ strengthening: dose-adjustment vocabulary that previously
+        // slipped past the guard ("time to titrate my basal?"). Additive only —
+        // the redirect behaviour may only get STRONGER.
+        #"\b(titrat(e|es|ed|ing|ion)?|basal|bolus|prescri(be|bed|ption))\b"#,
         #"\bshould i\b"#,
         #"\b(see|call|visit|go to)\b.{0,16}\b(doctor|gp|clinician|nurse|hospital|er|a&e|emergency)\b"#,
         #"\b(is it (normal|serious|dangerous|bad)|am i (ok|okay|fine|unwell|sick|ill))\b"#,
@@ -114,7 +127,29 @@ enum ChatGuard {
     }
 }
 
+// MARK: - Literacy preference (FR-LIT-01 — first consumer)
+
+/// The health-literacy preference captured by the onboarding LiteracyStep
+/// (@AppStorage("literacyLevel"): "plain" | "both" | "clinical", default "both").
+/// The responder uses it to pick the VOICE of an answer — never to hide data
+/// ("Liviqa never hides your real data": the numbers stay one question away).
+enum LiteracyLevel: String, Sendable, Equatable {
+    case plain, both, clinical
+    init(storage: String) { self = LiteracyLevel(rawValue: storage) ?? .both }
+}
+
 // MARK: - Health summary (the only data the responder may describe)
+
+/// Today's post-meal rise facts, lifted from the REAL DayReplay derivation
+/// (timestamped glucose curve). nil ⇒ the clause never renders — the assistant
+/// must not guess at meals it cannot see.
+struct TodayGlucoseRise: Equatable {
+    /// Time of today's highest above-band reading ("13:40").
+    var peakTimeText: String
+    /// First back-in-band time after the last above-band run ("15:10"), if it
+    /// has come back.
+    var backByTimeText: String?
+}
 
 /// A small, already-derived snapshot of the user's OWN data. All optional — the
 /// responder only states what's present. (Built on-device from AppState/HealthKit.)
@@ -125,6 +160,31 @@ struct ChatHealthSummary {
     var restingHRavg7d: Int?
     var hrvAvgMs7d: Int?
     var stepsAvg7d: Int?
+
+    // A7.2 Area ⑨ — deeper derived facts for the designed example behaviours.
+    // All real-deriver-fed and optional; the templates degrade honestly to the
+    // shallower fields above when these are absent.
+    /// Up-to-60-day HRV aggregation (HRVLearnDeriver) — explain-a-drop + Learn tier.
+    var hrvDetail: HRVLearnDetail?
+    /// Distinct days of the user's own tracked data (PassportStats.daysTracked).
+    var daysOfData: Int?
+    /// 30-day glucose TIR (TrendsSummary.month) — honest "vs your own month" clause.
+    var tirMonthPct: Int?
+    /// The band the user's own charts read glucose against (mmol/L, OD-07).
+    var glucoseBandLo: Double?
+    var glucoseBandHi: Double?
+    /// Today's post-meal rise, only when the DayReplay deriver produced one.
+    var todayRise: TodayGlucoseRise?
+    /// Cross-signal observations that passed the Trends evidence gate (titles only).
+    var gatedCorrelationTitles: [String] = []
+    /// Literacy preference — voice selection only, never data hiding.
+    var literacy: LiteracyLevel = .both
+
+    /// At least one of the user's own numbers is present to describe.
+    var hasAnyData: Bool {
+        avgGlucoseMmol7d != nil || glucoseTIRpct7d != nil || sleepAvgHours7d != nil
+            || restingHRavg7d != nil || hrvAvgMs7d != nil || stepsAvg7d != nil
+    }
 
     static let empty = ChatHealthSummary()
 
@@ -145,6 +205,12 @@ struct ChatHealthSummary {
         if let r = restingHRavg7d   { lines.append("- 7-day average resting heart rate: \(r) bpm") }
         if let v = hrvAvgMs7d       { lines.append("- 7-day average HRV: \(v) ms") }
         if let st = stepsAvg7d      { lines.append("- 7-day average steps: \(st) per day") }
+        // Area ⑨ facts — still ONLY the user's own derived numbers, never raw samples.
+        if let d = hrvDetail {
+            lines.append("- HRV over the last \(d.windowDays) days: median \(d.medianMs) ms, range \(d.rangeLoMs)–\(d.rangeHiMs) ms")
+        }
+        if let m = tirMonthPct { lines.append("- 30-day glucose time-in-range: \(m)%") }
+        if let n = daysOfData  { lines.append("- days of tracked data so far: \(n)") }
         return lines.isEmpty ? "(no tracked data available)" : lines.joined(separator: "\n")
     }
 }
@@ -161,12 +227,32 @@ protocol ChatResponder {
 
 struct LocalDataResponder: ChatResponder {
     func candidate(for prompt: String, summary s: ChatHealthSummary) -> String {
+        // A7.2 Area ⑨: intent routing first — the four designed behaviours are
+        // fixed descriptive templates filled with the user's OWN derived figures.
+        // (The guard has already refused out-of-scope inputs; sanitizeOutput
+        // still runs on whatever this returns.)
+        switch ChatIntentClassifier.classify(prompt, summary: s) {
+        case .explainHRVDrop: return Self.explainHRVDrop(s)
+        case .hrvHistory:     return Self.hrvHistory(s)
+        case .hrvBetterDays:  return Self.hrvBetterDays(s)
+        case .plainGlucose:   return Self.plainGlucose(s)
+        case .glucoseRange:   return Self.glucoseRange(s)
+        case .mealRise:       return Self.mealRise(s)
+        case .calibration:    return Self.calibration(s)
+        case .whatLearning:   return Self.whatLearning(s)
+        case .speedUp:        return Self.speedUp(s)
+        case .safety, .generic: break
+        }
+
         let q = prompt.lowercased()
         func has(_ ws: [String]) -> Bool { ws.contains { q.contains($0) } }
 
         if has(["glucose", "sugar", "cgm"]) {
             if has(["range", "tir", "in range"]), let t = s.glucoseTIRpct7d {
-                return "In your data, you spent about \(t)% of the last 7 days in your target glucose range."
+                // FR-LIT-01: plain literacy keeps the same number in plain voice.
+                return s.literacy == .plain
+                    ? "You were in your comfortable middle band about \(t)% of the last 7 days."
+                    : "In your data, you spent about \(t)% of the last 7 days in your target glucose range."
             }
             if let g = s.avgGlucoseMmol7d {
                 return String(format: "Your average glucose over the last 7 days was %.1f mmol/L.", g)
@@ -189,9 +275,177 @@ struct LocalDataResponder: ChatResponder {
         return "I can describe your own tracked data — for example your glucose, sleep, "
             + "resting heart rate, or activity averages and trends. What would you like to see?"
     }
+
+    // MARK: Area ⑨ fixed templates (descriptive only; own-figures only)
+
+    /// AIExplain — a drop explained against the person's own week and baseline.
+    /// No life context ("meetings", "dinner") is ever asserted: the responder
+    /// only knows the numbers.
+    private static func explainHRVDrop(_ s: ChatHealthSummary) -> String {
+        let definition = "HRV is the small variation in time between your heartbeats — "
+            + "more variation usually means you're well-rested."
+        if let d = s.hrvDetail {
+            if let low = d.weekLowMs, let day = d.weekLowDayName, d.dippedBelowUsual {
+                let drop = " Yours was lowest on \(day) at \(low) ms, against your usual "
+                    + "~\(d.medianMs) ms (your \(d.windowDays)-day median)."
+                let tail = d.recoveredToUsual
+                    ? " Your latest reading, \(d.latestMs) ms, is back in your usual range."
+                    : " Your latest reading, \(d.latestMs) ms, hasn't come back to your usual yet — Liviqa keeps comparing it against your own days."
+                return definition + drop + tail
+            }
+            if let lo = d.weekSeries.min(), let hi = d.weekSeries.max(), d.weekSeries.count >= 2 {
+                return definition + " This week yours stayed close to your own usual — "
+                    + "between \(Int(lo.rounded())) and \(Int(hi.rounded())) ms, "
+                    + "around your \(d.windowDays)-day median of \(d.medianMs) ms."
+            }
+            return definition + " Your latest reading is \(d.latestMs) ms, around your "
+                + "\(d.windowDays)-day median of \(d.medianMs) ms."
+        }
+        if let v = s.hrvAvgMs7d {
+            return definition + " Your 7-day average is \(v) ms. Liviqa doesn't have enough of "
+                + "your own days yet to say what's usual for you, so it can't call this a drop or a rebound."
+        }
+        return definition + " There aren't enough of your own readings yet for Liviqa to "
+            + "compare a change against your usual."
+    }
+
+    /// Follow-up: the person's own longer window, honestly labelled.
+    private static func hrvHistory(_ s: ChatHealthSummary) -> String {
+        guard let d = s.hrvDetail else {
+            return "Liviqa doesn't have enough of your own days yet to show a longer history — "
+                + "it compares you only with yourself, so that picture builds as your days come in."
+        }
+        return "Across your last \(d.windowDays) days, your HRV has ranged "
+            + "\(d.rangeLoMs)–\(d.rangeHiMs) ms around a median of \(d.medianMs) ms. "
+            + "Dips and rebounds inside that spread are part of your own normal."
+    }
+
+    /// Follow-up (re-authored from the canvas's advice-adjacent "What helps HRV?"):
+    /// descriptive, evidence-gate honest — never a cause claim, never a tip.
+    private static func hrvBetterDays(_ s: ChatHealthSummary) -> String {
+        var lead = "Liviqa doesn't guess at causes."
+        if let d = s.hrvDetail, let hi = d.weekSeries.max() {
+            lead = "Your highest HRV this week was \(Int(hi.rounded())) ms. " + lead
+        }
+        if s.gatedCorrelationTitles.isEmpty {
+            return lead + " When a link in your own data passes the evidence gate, "
+                + "it appears on your Trends screen — nothing involving HRV has passed it yet."
+        }
+        return lead + " In your own data, these links have passed the evidence gate so far: "
+            + s.gatedCorrelationTitles.joined(separator: " · ")
+            + ". You can see them on your Trends screen."
+    }
+
+    /// AITranslate — plain-language glucose on request. The "vs your own weeks"
+    /// clause is COMPUTED against the user's own month (or dropped); the
+    /// post-meal clause renders only from the real timestamped day curve.
+    private static func plainGlucose(_ s: ChatHealthSummary) -> String {
+        guard let t = s.glucoseTIRpct7d else {
+            return "Think of glucose as the fuel in your blood. You want it to stay in a "
+                + "comfortable middle band most of the day. Liviqa doesn't have glucose "
+                + "readings from you yet, so there's nothing of your own to translate — "
+                + "once readings arrive, this answer fills in with your own week."
+        }
+        var text = "Think of glucose as the fuel in your blood. You want it to stay in a "
+            + "comfortable middle band most of the day. This week you were in that band "
+            + "\(t)% of the time"
+        if let m = s.tirMonthPct {
+            if t >= m + 3      { text += " — a little above your own month's average." }
+            else if t <= m - 3 { text += " — a little below your own month's average." }
+            else               { text += " — right around your own month's average." }
+        } else {
+            text += "."
+        }
+        if let rise = s.todayRise {
+            text += rise.backByTimeText.map {
+                " Today's highest reading came at \(rise.peakTimeText), and it was back "
+                + "in your band by \($0) on its own."
+            } ?? " Today's highest reading came at \(rise.peakTimeText) — a rise after eating is expected."
+        }
+        return text
+    }
+
+    /// Follow-up: the band the user's OWN charts read against — never framed as
+    /// a target set for them personally. mmol/L canonical (OD-07).
+    private static func glucoseRange(_ s: ChatHealthSummary) -> String {
+        let lo = s.glucoseBandLo ?? 3.9, hi = s.glucoseBandHi ?? 10.0
+        func f(_ v: Double) -> String {
+            v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v)
+        }
+        return "Liviqa reads your days against the band \(f(lo))–\(f(hi)) mmol/L — the same "
+            + "band your time-in-range charts use. It compares you only with your own days; "
+            + "your care team may read your numbers against a band chosen for you."
+    }
+
+    /// Follow-up: general education, clearly framed as general; the personal
+    /// clause renders only from the real day curve.
+    private static func mealRise(_ s: ChatHealthSummary) -> String {
+        var text = "In general — not specific to you — a rise after eating is expected: "
+            + "carbohydrate from food reaches the blood as glucose, and the level settles "
+            + "again as your body takes it up."
+        if let rise = s.todayRise {
+            text += rise.backByTimeText.map {
+                " In your own data today, the highest reading came at \(rise.peakTimeText) "
+                + "and was back in your band by \($0)."
+            } ?? " In your own data today, the highest reading came at \(rise.peakTimeText)."
+        }
+        return text
+    }
+
+    /// AICalibration — the honest sparse-data answer. Reconciled with Home's
+    /// deliberate no-fake-day-counter stance: a real day count is stated when
+    /// one exists; NO "day 1 of ~14" style progress is ever fabricated. The
+    /// "about 3 days" expectation matches TodayView's baselineBuildingCard.
+    private static func calibration(_ s: ChatHealthSummary) -> String {
+        let days = s.daysOfData ?? 0
+        let lead: String
+        if days >= 1 {
+            lead = days == 1
+                ? "Liviqa has 1 day of your own readings so far."
+                : "Liviqa has \(days) days of your own readings so far."
+        } else {
+            lead = "Your readings are only starting to come in."
+        }
+        var text = lead + " It's still learning your normal, so it's watching more than "
+            + "talking right now. Once it has enough of your own days to compare against, "
+            + "your daily edition fills in — and every insight will be measured against "
+            + "you, not averages."
+        if days < 3 {
+            text += " The first ones typically appear after about 3 days."
+        }
+        return text
+    }
+
+    /// Follow-up: what the baselines are learning — descriptive.
+    private static func whatLearning(_ s: ChatHealthSummary) -> String {
+        "From your own days, Liviqa is learning what's usual for you — your typical sleep "
+            + "length, your overnight heart-rate variability, your resting heart rate, and "
+            + "how much of the day your glucose spends in your band. Each new day of your "
+            + "own readings sharpens that picture."
+    }
+
+    /// Follow-up: authored descriptively (how the system works), never as advice.
+    private static func speedUp(_ s: ChatHealthSummary) -> String {
+        "More of your own days is the only ingredient. Nights with your watch worn and days "
+            + "with your devices along give Liviqa more of you to compare against — the "
+            + "baseline builds by itself from there."
+    }
 }
 
 // MARK: - Engine (orchestrates request → guard → responder → guard)
+
+/// One assistant answer + honest metadata for the presentation layer.
+nonisolated struct ChatReply: Equatable {
+    /// Where the shown text was generated. `.onDevice` includes guard refusals
+    /// on the cloud path (the prompt never left the phone) and cloud fallbacks.
+    /// The "Answered on this iPhone" proof line may ONLY render for `.onDevice`.
+    nonisolated enum Origin: Equatable { case onDevice, cloud }
+    let text: String
+    let origin: Origin
+    /// Which behaviour answered — presentation only (spark chart, calibration
+    /// bar, follow-up chips). `.safety` ⇔ the fixed safety line.
+    let intent: ChatIntent
+}
 
 struct ChatEngine {
     var responder: ChatResponder = LocalDataResponder()
@@ -208,15 +462,30 @@ struct ChatEngine {
         return ChatGuard.sanitizeOutput(candidate)
     }
 
+    /// On-device answer + presentation metadata. Same guard path as `respond`.
+    func reply(to prompt: String) -> ChatReply {
+        let text = respond(to: prompt)
+        let intent: ChatIntent = text == LiviqaChatCopy.safetyLine
+            ? .safety
+            : ChatIntentClassifier.classify(prompt, summary: summary)
+        return ChatReply(text: text, origin: .onDevice, intent: intent)
+    }
+
     /// Enhanced (cloud) path — only when the user opted into cloud consent. The guard
     /// runs BEFORE (no out-of-scope request ever reaches Mistral) and AFTER (any drift
     /// in the model's answer is blocked → safety line). Falls back to the on-device
-    /// deterministic answer if the network/model fails.
-    func respondCloud(to prompt: String) async -> String {
+    /// deterministic answer if the network/model fails. `origin` is honest: `.cloud`
+    /// only when Mistral's (sanitised) answer is actually shown.
+    func replyCloud(to prompt: String) async -> ChatReply {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return LiviqaChatCopy.safetyLine }
-        if ChatGuard.inputIsOutOfScope(trimmed) { return LiviqaChatCopy.safetyLine }
-        guard MistralClient.hasKey else { return respond(to: trimmed) }
+        guard !trimmed.isEmpty else {
+            return ChatReply(text: LiviqaChatCopy.safetyLine, origin: .onDevice, intent: .safety)
+        }
+        // Guard refusal happens BEFORE any network call — nothing left the phone.
+        if ChatGuard.inputIsOutOfScope(trimmed) {
+            return ChatReply(text: LiviqaChatCopy.safetyLine, origin: .onDevice, intent: .safety)
+        }
+        guard MistralClient.hasKey else { return reply(to: trimmed) }
         let userMessage = """
         The user's own tracked data (the ONLY data you may describe):
         \(summary.promptContext())
@@ -226,10 +495,23 @@ struct ChatEngine {
         do {
             let candidate = try await MistralClient.complete(
                 system: LiviqaChatCopy.systemPrompt, user: userMessage)
-            return ChatGuard.sanitizeOutput(candidate)
+            let text = ChatGuard.sanitizeOutput(candidate)
+            let intent: ChatIntent = text == LiviqaChatCopy.safetyLine
+                ? .safety
+                : ChatIntentClassifier.classify(trimmed, summary: summary)
+            return ChatReply(text: text, origin: .cloud, intent: intent)
         } catch {
-            return ChatGuard.sanitizeOutput(responder.candidate(for: trimmed, summary: summary))
+            let text = ChatGuard.sanitizeOutput(responder.candidate(for: trimmed, summary: summary))
+            let intent: ChatIntent = text == LiviqaChatCopy.safetyLine
+                ? .safety
+                : ChatIntentClassifier.classify(trimmed, summary: summary)
+            return ChatReply(text: text, origin: .onDevice, intent: intent)
         }
+    }
+
+    /// Back-compat string API (tests + existing callers).
+    func respondCloud(to prompt: String) async -> String {
+        await replyCloud(to: prompt).text
     }
 }
 
@@ -240,5 +522,9 @@ struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
     let role: Role
     let text: String
+    /// Presentation metadata (A7.2 Area ⑨) — origin drives the honest proof
+    /// footer; intent drives the in-bubble spark / calibration bar / chips.
+    var origin: ChatReply.Origin = .onDevice
+    var intent: ChatIntent = .generic
     var isSafetyLine: Bool { role == .assistant && text == LiviqaChatCopy.safetyLine }
 }

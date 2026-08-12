@@ -2,6 +2,183 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## A7.2 Area ⑨ — Knowledge base & AI behaviours (branch claude/a72-electric-ink, 2026-08-12)
+
+Six census rows: the two-tier HRV knowledge screen (new) and the four designed
+assistant example behaviours (explain / plain-language / calibration / safe
+redirect) on the existing ChatGuard-protected chat. Safety posture:
+
+- **ChatGuard input surface STRENGTHENED (additive only — RK-CHAT lane).**
+  While building the designed redirect presentation, a gap was found in
+  `blockedIntent`: dose-adjustment vocabulary without the words dose/insulin
+  ("time to titrate my basal?", "how much bolus for pasta?") passed the input
+  guard (outcome stayed safe — the deterministic responder cannot advise — but
+  the question did not route to care as designed). New additive pattern
+  `titrat…|basal|bolus|prescri…` in `Liviqa/Chat/LiviqaChat.swift`; pinned by
+  new `ChatGuardTests` red-team arguments. No pattern was removed or narrowed;
+  a companion test pins that the designed descriptive prompts are NOT refused.
+  Residual risk: unlisted drug names still pass the input guard; the
+  deterministic responder answers descriptively and `sanitizeOutput` strips
+  advice, so the failure mode is a generic answer, never advice. Unchanged.
+- **Designated control `safetyLine` UNCHANGED (open ruling, DHF 2026-08-12:
+  counsel memo required before any copy change).** The canvas's warmer,
+  dose-specific redirect copy (b-learn.jsx AIRedirect) was NOT adopted; only
+  the PRESENTATION around the verbatim line shipped: two action chips opening
+  the EXISTING consent-first flows (`ShareWithClinicianView` summaries-only,
+  `PlanConsultView`) plus a proof footer. Chips generate no text and never
+  re-enter the model. The canvas's named clinician ("Mette, your diabetes
+  nurse") renders only from a real care-team record, generic otherwise.
+  `ChatBehaviourTests.redirectIntentIsSafetyAndLineIsUnchanged` +
+  `redirectFollowUpsAreConsentFirstActionsOnly` pin both. Divergence list for
+  the counsel memo lives in the PR notes.
+- **Honest answer-origin (T1) — "Answered on this iPhone" can no longer
+  overclaim.** The canvas shows the proof line unconditionally; the consented
+  Mistral cloud path would have made it false. `ChatReply.origin` tracks where
+  the SHOWN text was generated (guard refusals on the cloud path stay
+  `.onDevice` — the prompt never left the phone; cloud fallbacks likewise);
+  the footer renders a truthful Mistral-EU variant for `.cloud`. Pinned by
+  `ChatBehaviourTests.guardRefusalOnCloudPathNeverLeftThePhone`.
+- **No fabricated calibration progress (T1).** The canvas's "day 1 of about
+  14" + 8% bar conflicts with Home's deliberate no-fake-day-counter stance
+  (TodayView.baselineBuildingCard). Chat adopts Home's story: a real
+  days-of-data count when one exists (PassportStats.daysTracked), an
+  indeterminate bar otherwise, and the same "about 3 days" first-insight
+  expectation. Pinned by `ChatBehaviourTests.calibrationNeverFabricatesADayCounter`.
+- **No invented life context / no invented derivations.** The explain template
+  never asserts meetings/dinners (pinned test); the Learn clinical tier drops
+  the non-derivable "measured 00:30–05:00"/"Nightly ≥3h" claims for the
+  truthful daily-average method description; the plain-glucose "better than
+  most weeks" clause is computed against the user's own month or CUT; the
+  post-meal clause renders only from the real DayReplay curve. New
+  `HRVLearnDeriver` claims nothing below 5 days and always labels its actual
+  window. FR-NDG-06 untouched; chat keeps clinical red out ("comfortable
+  middle band" phrasing); glucose stays mmol/L (OD-07); provenance never
+  renders. No new hazard elsewhere.
+
+## A7.2 Area ⑧ — Account & settings + Watch (branch claude/a72-electric-ink, 2026-08-12)
+
+Twelve census rows: Account & security (new), dedicated Delete screen, the
+edition-model Notification settings (FR-NOT-01/02), real voice-note capture
+(FR-JRN-04), profile/declaration small deltas, and the watch glance honesty
+fixes. Safety posture:
+
+- **FR-REG-01 — MDR notice single-sourced (safety-copy move).** The two
+  DIVERGENT wordings of the wellness-not-device notice (SettingsView
+  regulatory card vs InAppPrivacyView) are replaced by ONE canonical constant
+  (`Liviqa/Models/RegulatoryCopy.mdrNotice`, the long form); the Account
+  screen's short DfG footer lives in the same file so the two sentences are
+  reviewed together and can never drift into contradicting claims. A wording
+  review now touches exactly one line.
+- **RK-DEL-01 posture HELD; one claim downgraded, one option added.** The
+  dedicated Delete screen (ScrDeleteData) PRESERVES the server-first erase
+  ordering and its honest retryable failure state (T-DEL-01/T1 — the canvas
+  omits it; `EraseOrderingTests` unchanged). The canvas' "consent receipts
+  kept 30 days by law" is NOT shipped — nothing in the client or backend
+  contract verifies a 30-day period; the row says "kept only as long as the
+  law requires, then erased". **OPEN COMPLIANCE ITEM: confirm the actual
+  statutory receipt-retention period with the backend before Release and
+  restore the precise number.** "Keep documents, erase the rest" is REAL and
+  minimal: `deleteAllData(keepDocuments:)` branches around exactly the
+  Area ⑦ vault-clear step (2d) and nothing else — the server erase is
+  identical because the server never holds documents (no upload path,
+  FR-ING-15).
+- **FR-JRN-04 — on-device-only claim gating (designated) now enforced in
+  code.** The voice recorder's "Transcribed on this iPhone — the audio never
+  leaves it." footer renders ONLY while an SFSpeech task with
+  `requiresOnDeviceRecognition = true` is actually running; the flag is
+  hard-set in the single request factory and asserted by `VoiceCaptureTests`
+  (T-JRN-04, never skip). No server recognition path and no audio upload path
+  exist in the capture code. When on-device recognition is unavailable the
+  note degrades honestly to audio-only (no fake transcript). Audio lands in
+  `journal-audio/` with `NSFileProtectionComplete` and is wiped by the GDPR
+  erase. `Info.plist` mic string updated — the old "only during a video
+  consultation" claim would have become false with voice notes.
+- **FR-NOT-01/02 — notification content is allow-listed by construction
+  (FR-NDG-06 designated).** The only strings that can reach a notification
+  are the two static edition templates in `EditionNotifications` (morning /
+  evening, silent, no health data, guard-checked in `NotificationPrefTests`).
+  The earned-attention ALERT is deliberately NOT scheduled — no background
+  picker exists, so the "at most one a day" cadence guarantee stays with the
+  engine and nothing can outrun it. The default-OFF "Study & consent
+  activity" pref gates only the foreground BANNER of study payloads; the
+  in-app consent surfaces (bell badge, Care card) still update, so nothing
+  consent-relevant is silently lost.
+- **Watch — descriptive-only line strengthened, not weakened.** The glance
+  `stateLine` now mirrors the phone's ACTUAL affirming line (the same three
+  approved strings + thresholds as `TodayView.affirmHeadline`) instead of a
+  hardcoded "steady week" — an honesty fix inside the existing non-MDSW
+  vocabulary; no new strings, no verdicts, provenance still never travels in
+  the payload. Recovery gains its " ms" unit.
+- **Account & security — three canvas claims downgraded to what is true**
+  ("Signed in" without a provider claim; backup "nothing has been backed up
+  yet" — no engine exists; recovery contact = honest coming-soon). The
+  NFR-SEC-08 app-lock control is wrapped (same `@AppStorage` pref +
+  LAContext gate), not rebuilt.
+
+No new hazard class introduced; two claims-vs-implementation gaps (delete
+retention wording, watch state line) removed.
+
+## A7.2 Area ⑦ — Integrations / data: real encrypted vault + honest source states (branch claude/a72-electric-ink, 2026-08-12)
+
+Four census rows: DataSourcesView ScrDataSources rebuild (verdict band,
+Connected/add split, manual entry, lawful-basis gate, disconnect),
+HealthVaultView "Health data space" rebuild over a NEW encrypted document
+store (FR-ING-15), and the two Connect-Sundhed.dk cosmetic deltas (Paths A/B).
+Safety posture:
+
+- **RK-VAULT-01 (NEW, claims-vs-implementation hazard REMOVED) — the vault's
+  encryption claims are now literally true (FR-ING-15).** Hazard: the old
+  HealthVaultView told the citizen "Your documents, on this device, encrypted"
+  over a hardcoded demo seed (`VaultSeed`) — no document was ever stored, and
+  the Data-sources "import" set only a toast string, so a citizen could
+  believe a sensitive document was safely kept when it was silently discarded.
+  Mitigation: `Liviqa/Security/HealthVaultStore.swift` — every document AND
+  the metadata index (names are sensitive) sealed with AES-256-GCM
+  (`CryptoBox` over the KeyVault DEK, ECIES-wrapped to the Secure-Enclave
+  P-256 device key), written atomic + `NSFileProtectionComplete`, namespaced
+  to `LocalUserScope` (never a backend id). Add (Files/Photos), preview,
+  delete-with-confirm are real; delete removes the blob from disk immediately
+  (no trash). The Secure-Enclave clause in the UI renders from
+  `KeyVault.isHardwareBacked` — no enclave overclaim on SE-less simulators.
+  GDPR erase wipes the store (`AppState.eraseEverything` 2d; a future "keep my
+  documents" option must branch around exactly that line). Asserted by
+  T-ING-15 (`HealthVaultStoreTests`: ciphertext-at-rest incl. index,
+  delete-really-deletes on disk, metadata persistence across instances, GCM
+  tamper → loud failure, scope isolation). No upload path exists in the store
+  or either vault surface, and none may be added.
+- **Consent rail — documents stay OUT of shares by default.** The space's
+  consent strip states it ("money and insurance papers never enter a clinician
+  share"); no code path feeds vault documents into `DerivedShareBuilder` or
+  any grant — documents leave only as decrypted bytes under an explicit user
+  action, and today no such share surface exists. Unchanged: FR-SHARE-02
+  derived-only share payloads.
+- **RK-SUND-01 posture HELD — no new extraction, no new egress.** Area ⑦
+  touched Path A/B presentation only: first-import CTA aligned to the canvas
+  ("Import from Sundhed.dk"), checklist row dress (the honest `.empty`/"none
+  found" state kept — a row still never ticks green without a real capture),
+  Path B review footer strengthened to the discard promise ("Only this coded
+  summary is saved. The file itself … is discarded.") which matches the
+  removed-upload reality; idle-stage OnDeviceChip added. Interception,
+  reduction and the on-device-only sink are untouched; the MitID prompt
+  (Area ① satellite) now fronts the session from Data sources too. The
+  Sundhedsplatformen lawful-basis gate card renders ONLY when
+  `Config.sundhedWebConnectEnabled` is false — the gate is the flag-off state,
+  never a regression of the live path.
+- **Manual entry (new surface, no new hazard class).** Hand-typed
+  weight / blood pressure / glucose / sleep land through the SAME
+  `HealthStore.ingest()` as every source, tagged `.manual` — the user-facing
+  label "Entered by you" is the `HealthDataSource` provenance a citizen SHOULD
+  see; the hidden `Provenance{REAL,SIMULATED,EXTERNAL}` field still never
+  renders (T-PROV-01 unaffected). Glucose entry is mmol/L only (OD-07), with
+  plausibility bounds (1–35 mmol/L) so a mistyped mg/dL value can't land.
+  No nudge/deriver change: FR-NDG-06 untouched.
+- **Honest connect/disconnect states.** The Connected card lists only sources
+  genuinely connected in this build (real HealthKit deriver, persisted
+  Sundhed.dk record, DEBUG demo seeds); Apple Health disconnect is NOT faked —
+  the sheet says iOS holds that permission (Health app → Sharing); Sundhed.dk
+  "disconnect" forgets the returning-user record while already-imported data
+  stays until deleted, exactly as the copy promises.
+
 ## A7.2 Area ⑥ — Sharing & consent: the trust core (branch claude/a72-electric-ink, 2026-08-12)
 
 Ten census rows: WalletView copy-register purge + UC-11/Research-hub entries,

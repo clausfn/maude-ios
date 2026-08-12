@@ -23,12 +23,19 @@ extension Notification.Name {
     static let liviqaOpenResearch = Notification.Name("LiviqaOpenResearch")
     /// Posted when a research invitation is DELIVERED in the foreground → bell badge + Care card.
     static let liviqaResearchReceived = Notification.Name("LiviqaResearchReceived")
+    /// Posted when a local edition note (morning/evening — FR-NOT-02) is TAPPED
+    /// → MainTabView fronts the Home tab (the edition surface).
+    static let liviqaOpenEdition = Notification.Name("LiviqaOpenEdition")
 }
 
 private func isResearchPayload(_ info: [AnyHashable: Any]) -> Bool {
     (info["type"] as? String) == "research"
         || (info["kind"] as? String) == "research_invite"
         || (info["category"] as? String) == "research"
+}
+
+private func isEditionPayload(_ info: [AnyHashable: Any]) -> Bool {
+    (info["type"] as? String) == "edition"
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
@@ -61,16 +68,28 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         // Delivered while foreground → badge the bell + drop a Care card, and show the banner.
         if isResearchPayload(notification.request.content.userInfo) {
             NotificationCenter.default.post(name: .liviqaResearchReceived, object: nil)
+            // FR-NOT-01: the "Study & consent activity" pref (default OFF) gates
+            // the foreground BANNER of study payloads — the in-app surfaces
+            // (bell badge, Care card) still update above, so nothing consent-
+            // relevant is silently lost.
+            if !EditionNotifications.isOn(EditionNotifications.Pref.study) {
+                completionHandler([.list])
+                return
+            }
         }
         completionHandler([.banner, .sound, .list])
     }
 
-    /// Tapping a research invitation routes into the consent flow (UC-RSCH).
+    /// Tapping routes to the right surface: a research invitation opens the
+    /// consent flow (UC-RSCH); an edition note (FR-NOT-02) fronts Home.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        if isResearchPayload(response.notification.request.content.userInfo) {
+        let info = response.notification.request.content.userInfo
+        if isResearchPayload(info) {
             NotificationCenter.default.post(name: .liviqaOpenResearch, object: nil)
+        } else if isEditionPayload(info) {
+            NotificationCenter.default.post(name: .liviqaOpenEdition, object: nil)
         }
         completionHandler()
     }

@@ -32,6 +32,11 @@ struct JournalEntry: Identifiable, Codable, Equatable {
     var syncEnabled: Bool
     var createdAt: Date
     var updatedAt: Date
+    /// Voice-note audio file (FR-JRN-04) — a filename inside the device-local
+    /// VoiceNoteAudioStore, NEVER a remote reference. Local persistence only:
+    /// journal sync uses DTOs (server stores text + timestamp), so the audio —
+    /// and even its filename — never leaves the device.
+    var audioFilename: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -43,6 +48,7 @@ struct JournalEntry: Identifiable, Codable, Equatable {
         case syncEnabled = "sync_enabled"
         case createdAt   = "created_at"
         case updatedAt   = "updated_at"
+        case audioFilename = "audio_filename"
     }
 
     // Full initialiser (sync mapping — LiviqaBackendService / BackendMapping).
