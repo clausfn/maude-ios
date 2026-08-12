@@ -2,6 +2,32 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-109 — Day-axis integrity, real sleep/HR ingestion, scroll edge, consult stage (2026-08-13 overnight, branch `claude/a72-electric-ink`)
+
+**463 tests / 70 suites PASS** (was 418/62). Build green, Release build green (warnings 36 → 2), provenance guard green.
+
+### Charts could show a value against the WRONG DAY (RK-CHART-01)
+Series like `TrendsRange.tirDaily` and `TodaySignals.inRangeWeek` are COMPACTED — one entry per day that has data — and carried no dates, while the axis labels were computed separately. Three live mis-labellings were confirmed in code before anything was changed:
+- `WeekInContextView` passed a 3-value series with a 7-letter tick row: three values read under seven day letters.
+- `TrendsView` drew a 90-day quarter as N adjacent bars spanning the full width, with a hardcoded "TODAY" end label that was false whenever the last reading was not today.
+- `TodayView.recoveryTrend` labelled the month card with fixed −29/−15/0 day offsets over a compacted series.
+**Fix:** new `DaySeries`/`DaySlot` primitive (pure Foundation) that places each value on its own date and **refuses to guess** — a dateless series is only placed when it covers the window 1:1, else the caller drops the day labels. Dates now flow through `TrendsRange` (`tirDailyDates`, `hrvDailyDates`, `windowStart/End`) and `TodaySignals` (four date arrays + `slots(for:over:)`). `AreaTrendChart`, `MonthTrendLine`, `TIRTrendBarChart` and `DailyBarsChart` take an optional day axis: one column per day, the curve BREAKS at a gap, and a missing day draws **nothing** — never a zero (which would assert 0% in range) and never a shifted neighbour. `MetricDetailView` (same defect, fixed in integration) now derives its day letters from the slot dates instead of a fixed M–S row, and bar emphasis follows the last day that actually has a reading. Scope: presentation-integrity only — the nudge engine and the correlation evidence gate always worked from dated samples, so no decision logic was affected. New rows NFR-VIZ-DAY-01, NFR-UI-EDGE-01; 14 new alignment tests, negative-control verified (restoring index alignment failed 5 of them).
+- **Marked-day neutrality now shipped** on the TIR bars (the FR-CTX-04 clause that previously read "NOT shipped — bar↔date alignment is not derivable").
+
+### Two real sleep-data bugs fixed by the ingestion work
+Ingesting intra-night segment times surfaced them: **a night spanning midnight was split into two half-nights**, and **a fragmented night's union collapsed to its longest fragment** (every segment shared one instant), understating sleep. Nights are now bucketed by start-of-day of *t*+6 h and the union runs on real starts.
+- **T-FIT-01 closed:** heart rate inside each workout interval is ingested, arbitrated and consumed, so Fitness average-HR and Z1–Z4 time-in-zone light up on real data (zone edges are fractions of the citizen's OWN observed max, printed as such — "not a population scale, and not a target"), and stay honestly absent without beats.
+- Sleep depth chart, wake-up moment, AWAKE tile and bedtime card now render from the citizen's own night; bedtime compares only to their own mean, needs ≥3 timed nights, and states there is no recommended hour.
+- **Inferred-denial cue:** on a completed read with zero samples across every type, the honest declined screen appears. HealthKit's `authorizationStatus` answers for writing only, so denial and "granted but empty" genuinely cannot be told apart from inside the app — the copy says so and never accuses the system of denying access.
+- Demo consistency: LV001 GMI 6.8% → 6.1% anchored to its own glucose seed, and each sparkline's last point now equals its chip.
+
+### Other
+- **Scroll edge:** `liviqaScrollEdgeSoft()` was a no-op below iOS 26 / with the glass flag off — which is why the sweep saw content under the Dynamic Island. New `liviqaScrollEdge()` fades from the paper token, sized from the real safe-area inset, firmer under Reduce Transparency; an overlay with hit-testing off, so content size, offsets and the snapshot hook are untouched.
+- **Consult stage placeholder:** the black rectangle is replaced by a derived stage (`CallStageDeriver`): initials, name · organisation, an honest status line, self-tile caption and a retry affordance. `.live` renders nothing extra — when media is up, Liviqa claims nothing.
+- **Consent-surface explicitness:** `createGrantAndShare` now passes `ShareGranularity.summariesOnly(for: scopeGroups)` instead of `nil`. The wire body is unchanged, but summaries-only is now stated AT the consent surface rather than inherited from a backend client default two layers down; `ConsultShareTests` asserts the explicit map.
+- **RTM hygiene:** FR-SET-02 corrected to `implemented` (backup posture has been `@AppStorage` since the onboarding work); FR-PAT-02 stays `planned` but its evidence was understated and is now accurate.
+- **Known residual:** `MiniSparkline` and the Home signal chips still draw compacted series — they carry no day labels and make no per-day claim, so nothing can be misread onto a date (recorded in RISK). `WeekInContextView.weeklyCard` computes its delta as last − first available day, which is a coarse statistic on a gappy week — flagged for a copy/derivation review, not changed.
+
 ## PR-108 — Bevel absorb build + vault data-loss fixes + test-debt closure (2026-08-13 overnight, branch `claude/a72-electric-ink`)
 
 CN approved the Bevel absorbs 2026-08-13 (which also cleared FR-REC-03's doc-first gate). Built overnight while CN slept; every decision reserved for CN was left untouched and written up instead. **418 tests / 62 suites PASS** (was 282/51); build green; provenance guard green.

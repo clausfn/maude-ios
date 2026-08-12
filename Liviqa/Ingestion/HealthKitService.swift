@@ -5,6 +5,13 @@
 // returns the framework-free `HealthSamples` aggregate. Blood glucose is read
 // directly in canonical mmol/L (OD-07). All readings are provenance = .real.
 //
+// v03 · 2026-08-13 — two gaps closed so designed screens stop being demo-only:
+//   • workout heart-rate in-interval (T-FIT-01) → per-workout average HR and
+//     Z1–Z4 time-in-zone, both framed against the citizen's OWN observed max.
+//   • sleep segment START times + the AWAKE stage, and night bucketing by the
+//     day a night ends on → the depth chart, the wake-up moment and bedtime
+//     consistency all render from real data when it exists.
+//
 // Wrapped in `#if canImport(HealthKit)` so the module still compiles on
 // platforms/toolchains without the SDK (the factory falls back to Mock there).
 import Foundation
@@ -79,6 +86,7 @@ public struct HealthKitService: HealthDataProvider {
         async let sleep = readSleep(start, end)
         async let workouts = readWorkouts(start, end)
 
+
         // Full-HealthKit capture — extended heart/respiratory panel + cardiometabolic.
         async let heartRate  = readDaily(.heartRate, .heartRate, unit: bpm, start, end, tier: .good, cumulative: false)
         async let walkingHR  = readDaily(.walkingHeartRateAverage, .walkingHR, unit: bpm, start, end, tier: .good, cumulative: false)
@@ -93,10 +101,16 @@ public struct HealthKitService: HealthDataProvider {
 
         let heartExtras = try await heartRate + walkingHR + hrRecovery + respRate + spo2 + vo2
 
+        // T-FIT-01 — beats INSIDE each recent workout interval. Depends on the
+        // workout list, so it runs after that await rather than in parallel.
+        let sessions = try await workouts
+        let workoutHR = try await readWorkoutHeartRate(sessions, windowEnd: end)
+
         return try await HealthSamples(
             glucose: glucose, hrv: hrv, restingHR: rhr, steps: steps,
-            activeEnergy: energy, sleep: sleep, workouts: workouts,
-            heartExtras: heartExtras, insulin: insulin, bloodPressure: bp,
+            activeEnergy: energy, sleep: sleep, workouts: sessions,
+            heartExtras: heartExtras, workoutHeartRate: workoutHR,
+            insulin: insulin, bloodPressure: bp,
             afib: afib, bodyComposition: body)
     }
 
@@ -138,19 +152,44 @@ public struct HealthKitService: HealthDataProvider {
         }.sorted { $0.date < $1.date }
     }
 
+    /// Sleep segments WITH their intra-night wall-clock times.
+    ///
+    /// Two deliberate properties, both required by the Sleep detail screen and
+    /// both safe for every other consumer (each one filters by stage):
+    ///
+    /// • `start` carries the segment's real start, so a night recorded as many
+    ///   short segments unions correctly (previously every segment of a night
+    ///   shared the same start-of-day instant, which made the union collapse to
+    ///   the longest segment instead of the night).
+    /// • `date` is the NIGHT bucket (`nightDay`), not the calendar day of the
+    ///   segment's start — otherwise a 23:04→06:14 night is split at midnight
+    ///   into two half-nights on two different days.
+    ///
+    /// AWAKE is retained (it is part of the night's anatomy: the wake-up moment
+    /// and the AWAKE total). Every asleep-total path filters on the asleep stage
+    /// set, so awake segments can never inflate a sleep duration. IN-BED is
+    /// still dropped: it overlaps the asleep segments and carries no stage.
     private func readSleep(_ start: Date, _ end: Date) async throws -> [SleepReading] {
         guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
         let samples = try await categorySamples(type, start, end)
-        let cal = Calendar(identifier: .gregorian)
         return samples.compactMap { s -> SleepReading? in
             let stage = Self.mapSleepStage(s.value)
-            guard stage != .inBed, stage != .awake else { return nil }
+            guard stage != .inBed else { return nil }
             let hours = s.endDate.timeIntervalSince(s.startDate) / 3600
-            return SleepReading(date: cal.startOfDay(for: s.startDate), stage: stage,
-                                hours: (hours * 10).rounded() / 10,
+            guard hours > 0 else { return nil }
+            return SleepReading(date: Self.nightDay(s.startDate), stage: stage,
+                                hours: (hours * 100).rounded() / 100,
+                                start: s.startDate,
                                 source: s.sourceRevision.source.name,
                                 tier: .estimate, provenance: .real)
         }
+    }
+
+    /// The night a sleep segment belongs to: the day it ENDS on. Anything from
+    /// 18:00 onwards counts towards the next morning, which is how a person
+    /// reads "last night" — and how Apple's own Sleep app labels a night.
+    static func nightDay(_ instant: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date {
+        calendar.startOfDay(for: instant.addingTimeInterval(6 * 3600))
     }
 
     private func readWorkouts(_ start: Date, _ end: Date) async throws -> [WorkoutReading] {
@@ -167,6 +206,42 @@ public struct HealthKitService: HealthDataProvider {
                     .sumQuantity()?.doubleValue(for: .meterUnit(with: .kilo)),
                 source: w.sourceRevision.source.name,
                 tier: .estimate, provenance: .real)
+        }
+    }
+
+    /// How far back workout heart-rate is read. The Fitness screen only ever
+    /// looks at four week-buckets of load and this week's zone card, so beats
+    /// older than this can't change a single figure — and the bound keeps a
+    /// 90-day first-run backfill from pulling tens of thousands of samples.
+    static let hrWindowDays = 28
+
+    /// T-FIT-01 — the beats inside each recent workout interval.
+    ///
+    /// One OR-compound predicate over the sessions' intervals (not one query
+    /// per workout, and not a blanket 90-day heart-rate read). Samples that
+    /// merely overlap an interval edge are excluded (`.strictStartDate` +
+    /// `.strictEndDate`), so a beat is only ever attributed to a session it
+    /// actually falls inside.
+    private func readWorkoutHeartRate(_ workouts: [WorkoutReading],
+                                      windowEnd: Date) async throws -> [HeartRateSample] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else { return [] }
+        let cutoff = Calendar(identifier: .gregorian)
+            .date(byAdding: .day, value: -Self.hrWindowDays, to: windowEnd) ?? windowEnd
+        let recent = workouts.filter { $0.end >= cutoff && $0.end > $0.start }
+        guard !recent.isEmpty else { return [] }
+
+        let intervals = recent.map {
+            HKQuery.predicateForSamples(withStart: $0.start, end: $0.end,
+                                        options: [.strictStartDate, .strictEndDate])
+        }
+        let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: intervals)
+        let raw = try await sampleQuery(type, predicate)
+        let bpm = HKUnit.count().unitDivided(by: .minute())
+        return raw.compactMap { $0 as? HKQuantitySample }.map { s in
+            HeartRateSample(ts: s.startDate,
+                            bpm: s.quantity.doubleValue(for: bpm),
+                            source: s.sourceRevision.source.name,
+                            tier: .good, provenance: .real)
         }
     }
 

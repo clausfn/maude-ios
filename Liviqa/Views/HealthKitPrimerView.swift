@@ -13,6 +13,11 @@ import SwiftUI
 struct HealthKitPrimerView: View {
     /// First name captured upstream (nil → generic headline).
     var greetName: String? = nil
+    /// True while the read authorization + first fetch are in flight. The flow
+    /// waits for that answer before moving on, so it can tell "your data is
+    /// here" from "nothing came through" (the inferred-denial cue) instead of
+    /// dropping the citizen into a silently empty app.
+    var isConnecting: Bool = false
     var onConnect: () -> Void
     var onSkip:    () -> Void
 
@@ -88,11 +93,19 @@ struct HealthKitPrimerView: View {
             .scrollBounceBehavior(.basedOnSize)
 
             VStack(spacing: 10) {
-                OnbPrimaryButton(label: String(localized: "Connect Apple Health"),
-                                 icon: "applewatch", action: onConnect)
+                OnbPrimaryButton(
+                    label: isConnecting
+                        ? String(localized: "Reading Apple Health…")
+                        : String(localized: "Connect Apple Health"),
+                    icon: "applewatch",
+                    action: { if !isConnecting { onConnect() } })
+                    .opacity(isConnecting ? 0.6 : 1)
+                    .allowsHitTesting(!isConnecting)
+                    .accessibilityAddTraits(isConnecting ? [.updatesFrequently] : [])
                 OnbQuietButton(label: String(localized: "Skip — explore with sample data"),
                                sub: String(localized: "You can connect real data any time in Settings"),
                                action: onSkip)
+                    .disabled(isConnecting)
                 // Teal lock card
                 HStack(spacing: 9) {
                     ZStack {

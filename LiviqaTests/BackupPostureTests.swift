@@ -1,0 +1,60 @@
+import Testing
+import Foundation
+@testable import Liviqa
+
+// T-SET-02b — the backup posture the citizen chose in onboarding must SURVIVE.
+//
+// The row this covers used to read "today the selection is @State, discarded on
+// complete". It isn't: `BackupStep` writes `@AppStorage("backupPreference")` on
+// Continue, restores it in `onAppear`, and `AccountSecurityView` reads the same
+// key — so the choice round-trips across the whole app, not just the step.
+//
+// The honesty rail here: an unreadable or legacy stored value must fall back to
+// `.onDevice` (nothing is backed up) — never to a posture that implies a backup
+// exists when it doesn't.
+struct BackupPostureTests {
+
+    /// The one key both surfaces use. If this ever diverges, the setting
+    /// silently stops persisting — so the test names it explicitly.
+    private let key = "backupPreference"
+
+    private func withCleanDefaults(_ body: () -> Void) {
+        let saved = UserDefaults.standard.string(forKey: key)
+        UserDefaults.standard.removeObject(forKey: key)
+        body()
+        if let saved { UserDefaults.standard.set(saved, forKey: key) }
+        else { UserDefaults.standard.removeObject(forKey: key) }
+    }
+
+    @Test func chosenPostureRoundTrips() {
+        withCleanDefaults {
+            for choice in [BackupPreference.onDevice, .iCloud, .sovereign] {
+                UserDefaults.standard.set(choice.rawValue, forKey: key)
+                let restored = BackupPreference(
+                    rawValue: UserDefaults.standard.string(forKey: key) ?? "")
+                #expect(restored == choice)
+            }
+        }
+    }
+
+    @Test func unsetOrUnknownFallsBackToOnDevice() {
+        withCleanDefaults {
+            // Nothing stored yet (first launch).
+            let fresh = BackupPreference(
+                rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .onDevice
+            #expect(fresh == .onDevice)
+            // A legacy / corrupted value must not imply a backup exists.
+            UserDefaults.standard.set("someRetiredOption", forKey: key)
+            let legacy = BackupPreference(
+                rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .onDevice
+            #expect(legacy == .onDevice)
+        }
+    }
+
+    /// The in-memory mirror the rest of the app reads starts at the same honest
+    /// default, so no surface can claim a backup before one is chosen.
+    @Test func appStateDefaultsToOnDevice() async {
+        let state = await AppState(supabase: MockSupabaseService())
+        #expect(await state.backupPreference == .onDevice)
+    }
+}

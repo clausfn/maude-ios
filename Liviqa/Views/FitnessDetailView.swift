@@ -6,10 +6,12 @@
 // "Load points add up how long and how hard you moved. Only your own
 // week-to-week change matters — there is no target."
 //
-// DATA HONESTY (checked against ingestion): workouts (start/end/type/dur/kcal/km)
-// and daily VO₂max ARE ingested; per-workout heart-rate samples are NOT yet
-// (T-FIT-01) — so on real data the avg-HR figures and the zone card are honestly
-// absent; the designed zone anatomy renders from the clearly-demo seeds only.
+// DATA HONESTY (checked against ingestion): workouts (start/end/type/dur/kcal/km),
+// daily VO₂max AND the beats inside each recent workout interval are ingested
+// (T-FIT-01 closed 2026-08-13) — so avg-HR and the zone card now render from the
+// citizen's own recordings, and are still honestly absent when a session carries
+// no heart rate. The zone scale is the citizen's OWN highest recorded rate, named
+// in the card's foot: no age formula, no population scale, no target.
 // Hero verdicts are fixed descriptive templates (FR-NDG-06 rail — the package's
 // advice-adjacent "your legs are asking for an easy day" is demo-seed-only and
 // guard-checked; real templates describe, never advise).
@@ -83,6 +85,7 @@ struct FitnessDetailView: View {
         var workoutsHeadline: String
         var zonesKicker: String
         var zonesHeadline: String
+        var zonesFoot: String?
         var zones: [ZoneShareItem]
         var vo2Series: [Double]
         var vo2Band: ClosedRange<Double>?
@@ -149,7 +152,7 @@ struct FitnessDetailView: View {
     }
 
     private func zonesCard(_ m: Model) -> some View {
-        MetricDCard(kicker: m.zonesKicker, headline: m.zonesHeadline) {
+        MetricDCard(kicker: m.zonesKicker, headline: m.zonesHeadline, foot: m.zonesFoot) {
             ZoneBarView(zones: m.zones)
         }
     }
@@ -288,6 +291,11 @@ extension FitnessDetailView.Model {
             workoutsHeadline: workoutsHeadline,
             zonesKicker: d.zoneWorkoutTitle ?? "Heart-rate zones",
             zonesHeadline: "Where the time went, zone by zone.",
+            // The scale is the citizen's own recorded maximum — said out loud so
+            // it can never be read as an age formula or a population zone chart.
+            zonesFoot: d.zoneOwnMaxHR.map {
+                "Zones are shares of \($0) bpm — the highest your own workouts recorded in these weeks. Not a population scale, and not a target."
+            } ?? "Zones are shares of the highest heart rate your own workouts recorded. Not a population scale, and not a target.",
             zones: Self.zoneItems(d.zones),
             vo2Series: d.vo2Series,
             vo2Band: d.vo2Band,
@@ -334,6 +342,7 @@ extension FitnessDetailView.Model {
             workoutsHeadline: "Steady base miles, one hard interval day.",
             zonesKicker: "Sunday ride · heart-rate zones",
             zonesHeadline: "Mostly endurance — you held Zone 2 for two hours.",
+            zonesFoot: "Zones are shares of 168 bpm — the highest your own workouts recorded in these weeks. Not a population scale, and not a target.",
             zones: zoneItems([
                 .init(name: "Z1 · easy", minutes: 18),
                 .init(name: "Z2 · endurance", minutes: 118),

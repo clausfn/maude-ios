@@ -25,9 +25,15 @@ enum NudgeRun {
 
     /// Run the on-device engine over already-arbitrated samples.
     /// The single call site of `NudgeEngine.generate` in the app.
-    static func nudges(from samples: HealthSamples,
-                       context: [ContextWindow],
-                       now: Date = Date()) -> [EngineNudge] {
+    ///
+    /// `nonisolated` because both callers run it OFF the main actor —
+    /// AppState's detached deriver chain (FB-AJR9AqEk) and the background
+    /// earned-attention loop. `NudgeEngine` is itself a `nonisolated` Sendable
+    /// value type, so this states the isolation that was already true at
+    /// runtime (and clears the Swift-6 warning at the AppState call site).
+    nonisolated static func nudges(from samples: HealthSamples,
+                                   context: [ContextWindow],
+                                   now: Date = Date()) -> [EngineNudge] {
         NudgeEngine().generate(samples: samples, context: context, now: now)
     }
 

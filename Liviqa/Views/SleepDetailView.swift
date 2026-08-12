@@ -2,12 +2,18 @@
 // DSleep editorial anatomy (design_handoff_liviqa_a7: d-insights.jsx DSleep +
 // charts.jsx SleepDepthChart/CompareBars).
 //
-// DATA HONESTY (checked against ingestion): sleep segments are retained as
-// (day, stage, hours) only — no intra-night times, no awake stage. So the real
-// screen renders the honest reduced anatomy (stage totals + share, nightly week
-// vs own mean, duration vs last week); the søkort depth chart, the 02:10 wake-up,
-// the AWAKE tile and the bedtime card render ONLY from the clearly-demo design
-// seeds (never over a real-data session).
+// DATA HONESTY (checked against ingestion, 2026-08-13): sleep segments carry
+// their wall-clock start and the awake stage, so the søkort depth chart, the
+// wake-up moment, the AWAKE tile and the bedtime card now render from the
+// citizen's OWN night whenever the source recorded one. When it didn't (an
+// aggregated import, a hand-logged night) the deriver returns nil for those
+// pieces and the screen falls back to exactly the reduced anatomy it had
+// before — stage totals + share, nightly week vs own mean, duration vs last
+// week. The clearly-demo seeds still exist, and still only for a demo session
+// with no derivation at all.
+//
+// Bedtime is compared to the citizen's OWN mean bedtime — never to a
+// recommended one. There is no correct hour on this screen.
 //
 // The hero score ring is the SAME transparent, decomposed arithmetic stance as
 // the evening day score (FR-TOD-05 / anti-score-opacity): three visible
@@ -34,13 +40,15 @@ struct SleepDetailView: View {
                     hero(model)
                     SeeWhyHeroRow { seeWhy = sleepWhy(model) }
                     if !model.stats.isEmpty { MetricStatRow(items: model.stats) }
-                    if model.showDemoDepthChart { demoDepthCard }
+                    if let shape = model.shape { depthCard(shape) }
+                    else if model.showDemoDepthChart { demoDepthCard }
                     if !model.stageRows.isEmpty { stageCard(model) }
                     if model.nights.count >= 2 { weekCard(model) }
                     if let sentence = model.compareSentence, !model.compareRows.isEmpty {
                         compareCard(model, sentence: sentence)
                     }
-                    if model.showDemoDepthChart { demoBedtimeCard }
+                    if let bedtime = model.bedtime { bedtimeCard(bedtime) }
+                    else if model.showDemoDepthChart { demoBedtimeCard }
                     MetricDiscussButton { appState.showAssistant = true }
                 } else {
                     emptyState
@@ -86,6 +94,10 @@ struct SleepDetailView: View {
         var weekHeadline: String
         var compareSentence: String?
         var compareRows: [MetricCompareRow]
+        /// Last night as a real shape — nil when the source kept no times.
+        var shape: SleepNightShape? = nil
+        /// Bedtime vs the citizen's own usual — nil below 3 timed nights.
+        var bedtime: SleepBedtimeWeek? = nil
         var showDemoDepthChart: Bool
     }
 
@@ -126,7 +138,64 @@ struct SleepDetailView: View {
 
     // MARK: - Cards
 
-    /// Demo-only signature chart (see file header — real nights carry no times).
+    /// The citizen's OWN night, drawn as depth. Every figure printed here is a
+    /// real total from their segments; only the label positions are chosen.
+    private func depthCard(_ shape: SleepNightShape) -> some View {
+        let names = ["AWAKE", "REM", "CORE", "DEEP"]
+        return MetricDCard(kicker: "The night, as depth",
+                           headline: Self.depthHeadline(shape)) {
+            SleepDepthChart(
+                segments: shape.segments.map {
+                    SleepDepthSegment(stage: $0.stage, t0: $0.t0, t1: $0.t1)
+                },
+                soundings: shape.soundings.map {
+                    ($0.t, SleepDepthChart.stageDepth[$0.stage],
+                     minText($0.minutes), names[$0.stage])
+                },
+                wakeT: shape.wake?.t,
+                wakeLabel: shape.wake.map { "\($0.clock) — up for a moment" },
+                edgeStart: shape.startClock, edgeEnd: shape.endClock)
+        }
+    }
+
+    /// Fixed descriptive templates over derived facts (FR-NDG-06 rail): where
+    /// the deep stretches actually sat, and whether the night was unbroken.
+    static func depthHeadline(_ shape: SleepNightShape) -> String {
+        if let wake = shape.wake {
+            return "One wake-up at \(wake.clock) — then back down."
+        }
+        let deep = shape.segments.filter { $0.stage == 3 }
+        guard !deep.isEmpty else { return "The night, start to finish." }
+        let centre = deep.reduce(0.0) { $0 + ($1.t0 + $1.t1) / 2 } / Double(deep.count)
+        if centre < 0.45 { return "A calm descent — the deepest water came early." }
+        if centre > 0.6 { return "The deepest water came late in the night." }
+        return "The deep stretches sat in the middle of the night."
+    }
+
+    /// Bedtime against the citizen's own usual — never a recommended hour.
+    private func bedtimeCard(_ b: SleepBedtimeWeek) -> some View {
+        // Bar length = how late each mean bedtime was, on one shared scale, so
+        // the two rows can only differ by a difference that is actually there.
+        let top = Double(max(b.thisWeekMinutes, b.prevWeekMinutes ?? 0)) * 1.08
+        var rows: [MetricCompareRow] = []
+        rows.append(MetricCompareRow(value: "\(b.thisWeekClock) avg", label: "THIS WEEK",
+                                     frac: top > 0 ? Double(b.thisWeekMinutes) / top : 1,
+                                     on: true))
+        if let prev = b.prevWeekClock, let prevMin = b.prevWeekMinutes {
+            rows.append(MetricCompareRow(value: "\(prev) avg", label: "LAST WEEK",
+                                         frac: top > 0 ? Double(prevMin) / top : 1,
+                                         on: false))
+        }
+        return MetricDCard(
+            kicker: "Bedtime · this week",
+            headline: "Within half an hour of your own usual, \(b.nightsNearUsual) of \(b.nightCount) nights.",
+            foot: "\"Usual\" here is the average of your own bedtimes this week. There is no recommended hour on this page.") {
+            MetricCompareBars(rows: rows, color: LiviqaTheme.accentSleep)
+        }
+    }
+
+    /// Demo-only signature chart — used when there is no derivation at all and
+    /// the session is demo-tagged.
     private var demoDepthCard: some View {
         MetricDCard(kicker: "The night, as depth",
                     headline: "A calm descent — deepest before 2 am.") {
@@ -263,6 +332,9 @@ extension SleepDetailView.Model {
         }
 
         var subParts: [String] = []
+        if let wake = d.shape?.wake {
+            subParts.append("One wake-up at \(wake.clock) — then straight back down.")
+        }
         if d.hasStageDetail {
             subParts.append("Deep \(Self.minText(d.deepMin)) · REM \(Self.minText(d.remMin)) · Core \(Self.minText(d.coreMin))")
         }
@@ -273,11 +345,15 @@ extension SleepDetailView.Model {
                             ? String(localized: "Sample data") : src)
         }
 
-        let stats: [(String, String)] = d.hasStageDetail
+        var stats: [(String, String)] = d.hasStageDetail
             ? [(Self.minText(d.deepMin), "DEEP"),
                (Self.minText(d.remMin), "REM"),
                (Self.minText(d.coreMin), "CORE")]
             : []
+        // AWAKE only when the source actually recorded time awake in the night.
+        if d.awakeMin > 0, !stats.isEmpty {
+            stats.append(("\(d.awakeMin)m", "AWAKE"))
+        }
 
         let stageRows: [(String, Int, Color)] = d.hasStageDetail
             ? [("Deep", d.deepMin, LiviqaTheme.accentSleep),
@@ -319,6 +395,8 @@ extension SleepDetailView.Model {
             weekHeadline: weekHeadline,
             compareSentence: compareSentence,
             compareRows: compareRows,
+            shape: d.shape,
+            bedtime: d.bedtime,
             showDemoDepthChart: false)
     }
 

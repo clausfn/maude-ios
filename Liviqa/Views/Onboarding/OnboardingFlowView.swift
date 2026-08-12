@@ -90,6 +90,11 @@ struct OnboardingFlowView: View {
     @State private var lastName = ""
     /// nil until the Apple Health step resolves; true = connect, false = demo.
     @State private var healthConnected: Bool? = nil
+    /// True while the Health read authorization + first fetch are in flight.
+    @State private var connectingHealth = false
+    /// Why the declined frame is showing — a chosen skip, or a read that
+    /// completed with nothing in it (never stated as a denial; see that view).
+    @State private var declinedReason: HealthAccessDeclinedView.Reason = .skipped
 
     init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -295,22 +300,39 @@ struct OnboardingFlowView: View {
         case .health:
             HealthKitPrimerView(
                 greetName: greetName,
+                isConnecting: connectingHealth,
                 onConnect: {
                     // Real connect path (FR-ING-01/02): switch to on-device
-                    // HealthKit and request read authorization now.
+                    // HealthKit and request read authorization now. We WAIT for
+                    // the first fetch to resolve, because its answer decides the
+                    // next frame: readings ⇒ carry on; nothing at all ⇒ the
+                    // honest "nothing came through" screen (inferred-denial
+                    // cue) instead of a silently empty app.
                     appState.dataProviderKind = .healthKit
-                    Task { await appState.refreshFromHealth() }
-                    healthConnected = true
-                    advance()
+                    connectingHealth = true
+                    Task {
+                        await appState.refreshFromHealth()
+                        connectingHealth = false
+                        healthConnected = !appState.healthReadReturnedNothing
+                        if appState.healthReadReturnedNothing {
+                            declinedReason = .noReadings
+                            forward = true
+                            history.append(.health)
+                            frame = .healthDeclined
+                        } else {
+                            advance()
+                        }
+                    }
                 },
                 onSkip: {
                     healthConnected = false
+                    declinedReason = .skipped
                     forward = true
                     history.append(frame)
                     frame = .healthDeclined
                 })
         case .healthDeclined:
-            HealthAccessDeclinedView(onContinue: { advance() })
+            HealthAccessDeclinedView(reason: declinedReason, onContinue: { advance() })
         case .dfg:
             DfGGovernanceStep(accent: frame.accent, onContinue: { advance() })
         case .name:

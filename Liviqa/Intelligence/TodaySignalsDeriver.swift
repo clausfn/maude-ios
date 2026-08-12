@@ -13,21 +13,69 @@ public nonisolated struct TodaySignals: Sendable, Equatable {
 
     // Last-7-day micro-trends for the Home chip sparklines (oldest→today, one
     // value per day that HAS data — no fabricated zeros). Empty ⇒ no sparkline.
+    //
+    // A series is SHORTER than the week whenever a day is missing, so its index
+    // is NOT a day number. Anything drawing these against a day axis must use
+    // `slots(for:over:)` below, which places each value on its own date and
+    // leaves a gap where nothing was recorded.
     public var sleepWeek: [Double]
     public var inRangeWeek: [Double]
     public var hrvWeek: [Double]
     public var rhrWeek: [Double]
+    /// The day each entry of the matching series belongs to (parallel, same
+    /// count, ascending). Empty on the labelled demo fixtures, which carry a
+    /// full week by construction — `DaySeries.aligned` handles that case and
+    /// refuses to guess for any short series.
+    public var sleepWeekDates: [Date]
+    public var inRangeWeekDates: [Date]
+    public var hrvWeekDates: [Date]
+    public var rhrWeekDates: [Date]
     /// Today's glucose readings (mmol/L, chronological) for the CGM-style day curve.
     public var glucoseToday: [Double]
 
     public init(sleep: String, inRange: String, hrv: String, rhr: String, inRangeIsClay: Bool,
                 sleepWeek: [Double] = [], inRangeWeek: [Double] = [],
-                hrvWeek: [Double] = [], rhrWeek: [Double] = [], glucoseToday: [Double] = []) {
+                hrvWeek: [Double] = [], rhrWeek: [Double] = [], glucoseToday: [Double] = [],
+                sleepWeekDates: [Date] = [], inRangeWeekDates: [Date] = [],
+                hrvWeekDates: [Date] = [], rhrWeekDates: [Date] = []) {
         self.sleep = sleep; self.inRange = inRange; self.hrv = hrv; self.rhr = rhr
         self.inRangeIsClay = inRangeIsClay
         self.sleepWeek = sleepWeek; self.inRangeWeek = inRangeWeek
         self.hrvWeek = hrvWeek; self.rhrWeek = rhrWeek
+        self.sleepWeekDates = sleepWeekDates; self.inRangeWeekDates = inRangeWeekDates
+        self.hrvWeekDates = hrvWeekDates; self.rhrWeekDates = rhrWeekDates
         self.glucoseToday = glucoseToday
+    }
+
+    /// The four week series, addressed as a pair so a caller can never reach for
+    /// the values and forget the dates.
+    public enum WeekSeries: Sendable, CaseIterable {
+        case sleep, inRange, hrv, rhr
+    }
+
+    public func values(_ series: WeekSeries) -> [Double] {
+        switch series {
+        case .sleep:   return sleepWeek
+        case .inRange: return inRangeWeek
+        case .hrv:     return hrvWeek
+        case .rhr:     return rhrWeek
+        }
+    }
+
+    public func dates(_ series: WeekSeries) -> [Date] {
+        switch series {
+        case .sleep:   return sleepWeekDates
+        case .inRange: return inRangeWeekDates
+        case .hrv:     return hrvWeekDates
+        case .rhr:     return rhrWeekDates
+        }
+    }
+
+    /// One slot per day of `window`, or nil when the series carries no dates and
+    /// is too short to place — in which case the caller must draw it WITHOUT day
+    /// labels rather than label it wrongly.
+    public func slots(for series: WeekSeries, over window: [Date]) -> [DaySlot]? {
+        DaySeries.aligned(values: values(series), dates: dates(series), over: window)
     }
 }
 
@@ -55,15 +103,28 @@ public nonisolated enum TodaySignalsDeriver {
         let hrv = latest(s.hrv).map { String(Int($0.rounded())) } ?? "—"
         let rhr = latest(s.restingHR).map { String(Int($0.rounded())) } ?? "—"
 
+        let sleepW = sleepWeekSeries(s)
+        let tirW   = tirWeekSeries(s, lo: tirLowMmol, hi: tirHighMmol)
+        let hrvW   = dailyWeekSeries(s.hrv)
+        let rhrW   = dailyWeekSeries(s.restingHR)
+
         return TodaySignals(
             sleep: sleep, inRange: inRange, hrv: hrv, rhr: rhr,
             inRangeIsClay: !s.glucose.isEmpty && tir < 70,
-            sleepWeek: sleepWeekSeries(s),
-            inRangeWeek: tirWeekSeries(s, lo: tirLowMmol, hi: tirHighMmol),
-            hrvWeek: dailyWeekSeries(s.hrv),
-            rhrWeek: dailyWeekSeries(s.restingHR),
-            glucoseToday: glucoseTodaySeries(s))
+            sleepWeek: sleepW.values,
+            inRangeWeek: tirW.values,
+            hrvWeek: hrvW.values,
+            rhrWeek: rhrW.values,
+            glucoseToday: glucoseTodaySeries(s),
+            sleepWeekDates: sleepW.dates,
+            inRangeWeekDates: tirW.dates,
+            hrvWeekDates: hrvW.dates,
+            rhrWeekDates: rhrW.dates)
     }
+
+    /// A week series and the days it actually covers, always built together.
+    private typealias WeekSeries = (values: [Double], dates: [Date])
+    private static let emptyWeek: WeekSeries = ([], [])
 
     /// Today's glucose readings (mmol/L) in chronological order; [] if <2 today.
     private static func glucoseTodaySeries(_ s: HealthSamples) -> [Double] {
@@ -84,33 +145,39 @@ public nonisolated enum TodaySignalsDeriver {
         return (0..<count).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
     }
 
+    /// Pair the last-7-day values with the days they came from, dropping days
+    /// with no reading. Under 2 days ⇒ empty (nothing to trend).
+    private static func weekSeries(_ valueFor: (Date) -> Double?) -> WeekSeries {
+        let pairs = recentDays().compactMap { d in valueFor(d).map { (d, $0) } }
+        guard pairs.count >= 2 else { return emptyWeek }
+        return (pairs.map(\.1), pairs.map(\.0))
+    }
+
     /// Daily-mean metric (HRV, resting HR) → last-7-day series, days with data only.
-    private static func dailyWeekSeries(_ metrics: [DailyMetric]) -> [Double] {
-        guard !metrics.isEmpty else { return [] }
+    private static func dailyWeekSeries(_ metrics: [DailyMetric]) -> WeekSeries {
+        guard !metrics.isEmpty else { return emptyWeek }
         var byDay: [Date: Double] = [:]
         for m in metrics { byDay[cal.startOfDay(for: m.date)] = m.value }   // already daily
-        let series = recentDays().compactMap { byDay[$0] }
-        return series.count >= 2 ? series : []
+        return weekSeries { byDay[$0] }
     }
 
     /// Per-day total asleep hours over the last 7 days, days with data only.
-    private static func sleepWeekSeries(_ s: HealthSamples) -> [Double] {
-        guard !s.sleep.isEmpty else { return [] }
+    private static func sleepWeekSeries(_ s: HealthSamples) -> WeekSeries {
+        guard !s.sleep.isEmpty else { return emptyWeek }
         // Union per night (dedupes overlapping iPhone + Watch segments), asleep
         // stages only — mirrors the SLEEP chip's nightly total.
         var byDay: [Date: [SleepReading]] = [:]
         for seg in s.sleep where asleepStages.contains(seg.stage) {
             byDay[cal.startOfDay(for: seg.date), default: []].append(seg)
         }
-        let series = recentDays().compactMap { day in
+        return weekSeries { day in
             byDay[day].map { SleepReading.mergedAsleepHours($0, asleep: asleepStages) }
         }
-        return series.count >= 2 ? series : []
     }
 
     /// Per-day time-in-range % over the last 7 days, days with glucose only.
-    private static func tirWeekSeries(_ s: HealthSamples, lo: Double, hi: Double) -> [Double] {
-        guard !s.glucose.isEmpty else { return [] }
+    private static func tirWeekSeries(_ s: HealthSamples, lo: Double, hi: Double) -> WeekSeries {
+        guard !s.glucose.isEmpty else { return emptyWeek }
         let low = min(lo, hi), high = max(lo, hi)
         var total: [Date: Int] = [:], inR: [Date: Int] = [:]
         for g in s.glucose {
@@ -118,11 +185,10 @@ public nonisolated enum TodaySignalsDeriver {
             total[d, default: 0] += 1
             if g.mmol >= low && g.mmol <= high { inR[d, default: 0] += 1 }
         }
-        let series = recentDays().compactMap { d -> Double? in
+        return weekSeries { d in
             guard let t = total[d], t > 0 else { return nil }
             return Double(inR[d] ?? 0) / Double(t) * 100
         }
-        return series.count >= 2 ? series : []
     }
 
     /// Most recent value in a daily series.

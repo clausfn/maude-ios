@@ -13,12 +13,18 @@
 // (kcal/min ÷ 8, clamped 0.5…2.0), and to ×1.0 (pure duration) when kcal is
 // absent. All three paths are printed in the screen's foot copy.
 //
-// INGESTION HONESTY: workouts, vo2Max and daily kcal ARE ingested; per-workout
-// heart-rate samples are NOT (T-FIT-01, the HR-in-interval query is an open
-// ingestion gap). The deriver accepts HR samples via a parameter so the avg-HR /
-// zone computation is complete and unit-tested; until ingestion supplies them,
-// the real screen simply omits avg-HR and the zone card (honest absence — the
-// designed zone anatomy renders from demo seeds only).
+// INGESTION (T-FIT-01 closed, 2026-08-13): workouts, vo2Max, daily kcal AND the
+// beats inside each recent workout interval are ingested — `HealthKitService`
+// reads `heartRate` bounded by the workout intervals into
+// `HealthSamples.workoutHeartRate`, and this deriver reads that stream by
+// default. Avg-HR and the zone card therefore render from the citizen's own
+// data when their watch recorded it, and stay honestly absent when it didn't
+// (a phone-only session, or a workout logged by hand).
+//
+// ZONES ARE PERSONAL, NOT POPULATION: every zone edge is a fraction of the
+// HIGHEST heart rate this citizen's OWN recent workouts recorded — never an
+// age formula (220−age), never a published athlete scale, and never a target.
+// The card says so in its foot copy.
 import Foundation
 
 public nonisolated struct FitnessDetail: Sendable, Equatable {
@@ -67,6 +73,10 @@ public nonisolated struct FitnessDetail: Sendable, Equatable {
     // Zones — the longest workout of the week, only when HR samples exist.
     public let zoneWorkoutTitle: String?
     public let zones: [ZoneShare]
+    /// The citizen's OWN highest recorded workout heart rate in this window —
+    /// the reference every zone edge is a fraction of. Printed on the card so
+    /// the scale can never be mistaken for a population or age-based one.
+    public let zoneOwnMaxHR: Int?
 
     // VO₂max long trend over the whole local window.
     public let vo2Series: [Double]
@@ -80,7 +90,8 @@ public nonisolated struct FitnessDetail: Sendable, Equatable {
     public init(weekLoadPoints: Int, weekCount: Int, weekDistanceKm: Double?,
                 weekMovingMin: Double, dominantType: String?, weekAvgHR: Int?,
                 loadWeeks: [WeekLoad], loadUsual: Double?, workouts: [WorkoutRow],
-                zoneWorkoutTitle: String?, zones: [ZoneShare], vo2Series: [Double],
+                zoneWorkoutTitle: String?, zones: [ZoneShare], zoneOwnMaxHR: Int? = nil,
+                vo2Series: [Double],
                 vo2Band: ClosedRange<Double>?, vo2Latest: Double?, vo2IsNewHigh: Bool,
                 vo2XLabels: [String]) {
         self.weekLoadPoints = weekLoadPoints; self.weekCount = weekCount
@@ -88,6 +99,7 @@ public nonisolated struct FitnessDetail: Sendable, Equatable {
         self.dominantType = dominantType; self.weekAvgHR = weekAvgHR
         self.loadWeeks = loadWeeks; self.loadUsual = loadUsual; self.workouts = workouts
         self.zoneWorkoutTitle = zoneWorkoutTitle; self.zones = zones
+        self.zoneOwnMaxHR = zoneOwnMaxHR
         self.vo2Series = vo2Series; self.vo2Band = vo2Band; self.vo2Latest = vo2Latest
         self.vo2IsNewHigh = vo2IsNewHigh; self.vo2XLabels = vo2XLabels
     }
@@ -98,19 +110,25 @@ public nonisolated enum FitnessDeriver {
     private static let cal = Calendar(identifier: .gregorian)
 
     /// A timestamped heart-rate sample (bpm) for the avg-HR / zone computation.
-    /// Supplied by ingestion once the HR-in-interval query lands (T-FIT-01).
+    /// Ingestion supplies these as `HealthSamples.workoutHeartRate` (T-FIT-01);
+    /// the parameter form stays for tests and for any future source.
     public struct HRSample: Sendable, Equatable {
         public let ts: Date
         public let bpm: Double
         public init(ts: Date, bpm: Double) { self.ts = ts; self.bpm = bpm }
     }
 
+    /// `hrSamples: nil` (the default) reads the ingested workout heart-rate
+    /// stream. Passing an explicit array overrides it — an empty array means
+    /// "no HR", which is how the honest-absence path is exercised in tests.
     public static func derive(from s: HealthSamples,
-                              hrSamples: [HRSample] = [],
+                              hrSamples: [HRSample]? = nil,
                               now: Date = Date()) -> FitnessDetail? {
         guard !s.workouts.isEmpty || !vo2Metrics(s).isEmpty else { return nil }
         let today = cal.startOfDay(for: now)
         let all = s.workouts.sorted { $0.start < $1.start }
+        let hrSamples = hrSamples
+            ?? s.workoutHeartRate.map { HRSample(ts: $0.ts, bpm: $0.bpm) }
 
         // Own observed max HR across ALL provided samples — the personal
         // reference for zone fractions (own data, never an age formula).
@@ -226,6 +244,7 @@ public nonisolated enum FitnessDeriver {
             workouts: rows,
             zoneWorkoutTitle: zoneTitle,
             zones: zones,
+            zoneOwnMaxHR: zones.isEmpty ? nil : ownMaxHR.map { Int($0.rounded()) },
             vo2Series: vo2Values.count >= 2 ? vo2Values : [],
             vo2Band: vo2Band,
             vo2Latest: vo2Latest,

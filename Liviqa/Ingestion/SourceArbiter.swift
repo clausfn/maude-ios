@@ -63,6 +63,10 @@ public extension HealthSamples {
             workouts:     WorkoutDeduplicator.dedupe(workouts).workouts,
             // Full-HealthKit streams: same §2.3 rule per logical slot.
             heartExtras:     SourceArbiter.arbitrate(heartExtras, key: dailyKey),
+            // Beats inside a workout: one logical slot per instant (T-FIT-01).
+            // Must be carried explicitly — a dropped stream here would silently
+            // re-open the avg-HR / zones gap after arbitration.
+            workoutHeartRate: SourceArbiter.arbitrate(workoutHeartRate) { $0.ts.timeIntervalSince1970 },
             insulin:         SourceArbiter.arbitrate(insulin)        { "\($0.kind.rawValue)@\($0.ts.timeIntervalSince1970)" },
             bloodPressure:   SourceArbiter.arbitrate(bloodPressure)  { $0.ts.timeIntervalSince1970 },
             afib:            SourceArbiter.arbitrate(afib)           { $0.ts.timeIntervalSince1970 },

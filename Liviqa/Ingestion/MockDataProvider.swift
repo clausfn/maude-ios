@@ -96,11 +96,16 @@ public struct MockDataProvider: HealthDataProvider {
             let deep = sleepHours * (0.12 + jitter(&rng, base: 0.01, spread: 0.02))
             let rem  = sleepHours * (0.20 + jitter(&rng, base: 0.01, spread: 0.03))
             let core = max(0.1, sleepHours - deep - rem)
-            for (stage, hrs) in [(SleepStage.deep, deep), (.core, core), (.rem, rem)] {
-                samples.sleep.append(SleepReading(
-                    date: day, stage: stage, hours: round(hrs * 10) / 10,
-                    source: source, tier: .estimate, provenance: .simulated))
-            }
+            // Laid out as a real night, not three anonymous totals: bedtime a
+            // little before midnight, three cycles (deep front-loaded, REM
+            // back-loaded) and one short wake-up. The stage TOTALS are exactly
+            // the figures above — the layout only distributes them in time, so
+            // every derived total is unchanged while the depth chart, the
+            // wake-up moment and bedtime consistency have something real to
+            // read. Deterministic: no RNG draws are consumed here.
+            samples.sleep += Self.night(endingOn: day, offset: offset,
+                                        deep: deep, core: core, rem: rem,
+                                        source: source, provenance: .simulated)
 
             // ~Every third day, a workout (drives next-morning RHR bump above).
             prevDayWorkout = offset % 3 == 0
@@ -111,6 +116,13 @@ public struct MockDataProvider: HealthDataProvider {
                     start: s, end: s.addingTimeInterval(dur * 60), type: "Cycling",
                     durMin: round(dur), kcal: round(dur * 9), distKm: round(dur / 3 * 10) / 10,
                     source: source, tier: .estimate, provenance: .simulated))
+                // Beats inside the ride (T-FIT-01's demo counterpart): a warm-up,
+                // a steady endurance block and one harder push, sampled once a
+                // minute. Deterministic (no RNG draws) so the demo user stays
+                // byte-identical run to run.
+                samples.workoutHeartRate += Self.rideHeartRate(
+                    start: s, durMin: dur, hard: offset % 6 == 0,
+                    source: source, provenance: .simulated)
                 // FR-PROV-02 demo: the most recent ride is ALSO logged by the
                 // bike computer (starts 40 s later, distance but no kcal) — the
                 // dedup folds it in and Data sources discloses the merge.
@@ -124,6 +136,57 @@ public struct MockDataProvider: HealthDataProvider {
             }
         }
         return samples
+    }
+
+    // MARK: night / ride shapes (deterministic — never touch the RNG)
+
+    /// One night's segments with real wall-clock times, ending on `day`.
+    /// Stage totals in = stage totals out; only their placement is invented,
+    /// and the placement is a plain published rule (three cycles, deep first,
+    /// REM last, one short wake-up in cycle three).
+    static func night(endingOn day: Date, offset: Int,
+                      deep: Double, core: Double, rem: Double,
+                      source: String, provenance: Provenance) -> [SleepReading] {
+        // Bedtime 22:36…23:00 the evening before — a person's own small drift,
+        // which is what the bedtime-consistency card reads.
+        let bedtime = day.addingTimeInterval(-(60 + Double((offset % 7) * 4)) * 60)
+        let deepShare = [0.50, 0.33, 0.17]      // deep is front-loaded
+        let remShare  = [0.17, 0.33, 0.50]      // REM is back-loaded
+        var out: [SleepReading] = []
+        var t = bedtime
+        func add(_ stage: SleepStage, _ hours: Double) {
+            guard hours > 0.001 else { return }
+            out.append(SleepReading(date: day, stage: stage,
+                                    hours: (hours * 100).rounded() / 100,
+                                    start: t, source: source,
+                                    tier: .estimate, provenance: provenance))
+            t = t.addingTimeInterval(hours * 3600)
+        }
+        for cycle in 0..<3 {
+            let coreSlice = core / 3
+            add(.core, coreSlice / 2)
+            add(.deep, deep * deepShare[cycle])
+            add(.core, coreSlice / 2)
+            if cycle == 2 { add(.awake, 0.2) }   // ~12 min up, then back down
+            add(.rem, rem * remShare[cycle])
+        }
+        return out
+    }
+
+    /// Heart-rate inside one ride: warm-up, endurance block, a push, cool-down.
+    /// Sampled once a minute (the same cadence a watch writes at rest).
+    static func rideHeartRate(start: Date, durMin: Double, hard: Bool,
+                              source: String, provenance: Provenance) -> [HeartRateSample] {
+        let minutes = max(1, Int(durMin.rounded()))
+        return (0..<minutes).map { m in
+            let f = Double(m) / Double(minutes)          // 0…1 through the ride
+            var bpm = 108 + 34 * sin(Double.pi * min(1, f * 1.15))   // arc
+            if f > 0.55 && f < 0.75 { bpm += hard ? 26 : 12 }        // the push
+            bpm += Double((m % 5) - 2)                               // small ripple
+            return HeartRateSample(ts: start.addingTimeInterval(Double(m) * 60),
+                                   bpm: (bpm * 10).rounded() / 10,
+                                   source: source, tier: .good, provenance: provenance)
+        }
     }
 
     // MARK: helpers

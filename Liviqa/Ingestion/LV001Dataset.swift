@@ -5,6 +5,14 @@
 // the PatternSeed.lv001 idiom. Loaded by AppState when the profile alias is LV001.
 import Foundation
 
+// INTERNAL CONSISTENCY (2026-08-13): a demo must never show two numbers for the
+// same thing. Two contradictions were carried here and are fixed:
+//   • the TIR ring said "GMI 6.8%" while the glucose detail this session opens
+//     (GlucoseDetailView.designSeed — LV001 ships aggregates, not raw readings,
+//     so `glucoseDetail` is deliberately nil) says 6.1%. The detail is the
+//     anchor: TIR 88%, average 6.2 mmol/L, GMI 6.1%.
+//   • every week sparkline ends on TODAY (see TodaySignalsDeriver.weekSeries),
+//     so the last point of each series must be the same number as its chip.
 enum LV001Dataset {
     static let passportStats = PassportStats(
         totalReadings:      9971,
@@ -19,7 +27,7 @@ enum LV001Dataset {
 
     static let rings: [MetricRing] = [
         .init(label: String(localized: "Sleep"), value: "7h 10", progress: 0.9, warn: false, subvalue: nil),
-        .init(label: "TIR", value: "88%", progress: 0.88, warn: false, subvalue: "GMI 6.8%"),
+        .init(label: "TIR", value: "88%", progress: 0.88, warn: false, subvalue: "GMI 6.1%"),
         .init(label: "HRV", value: "27 ms", progress: 0.34, warn: true, subvalue: nil),
         .init(label: String(localized: "Steps"), value: "5.5k", progress: 0.55, warn: false),
     ]
@@ -28,10 +36,11 @@ enum LV001Dataset {
     static let todaySignals = TodaySignals(
         sleep: "7h10", inRange: "88%", hrv: "27", rhr: "70",
         inRangeIsClay: false,
-        sleepWeek: [7.9, 7.4, 9.4, 8.7, 8.7, 8.1, 7.5],
-        inRangeWeek: [86, 86, 86, 100, 100, 100, 100],
-        hrvWeek: [31, 28, 27, 23, 23, 29, 24],
-        rhrWeek: [70, 73, 69, 72, 70, 71, 68],
+        // Each series ends on TODAY, so each last value IS its chip above.
+        sleepWeek: [7.9, 7.4, 9.4, 8.7, 8.7, 8.1, 7.17],
+        inRangeWeek: [86, 86, 86, 100, 100, 100, 88],
+        hrvWeek: [31, 28, 27, 23, 23, 29, 27],
+        rhrWeek: [70, 73, 69, 72, 70, 71, 70],
         glucoseToday: []
     )
 
