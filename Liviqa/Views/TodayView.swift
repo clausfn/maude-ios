@@ -92,6 +92,15 @@ struct TodayView: View {
                             .padding(.top, 14)
                     }
 
+                    // Degraded persistence is never silent: the on-disk store failed
+                    // to open (schema migration or disk fault) and this session runs
+                    // in memory — nothing recorded now survives a relaunch. Honest
+                    // system-fault banner (rust = boundary/system, not health amber).
+                    if appState.storeDegraded {
+                        storeDegradedBanner
+                            .padding(.top, 14)
+                    }
+
                     // UC-RSCH-1 — matched research opportunity (s09).
                     if let study = appState.researchOpportunity {
                         ResearchOpportunityCard(
@@ -172,6 +181,28 @@ struct TodayView: View {
             }
         }
         #endif
+    }
+
+    // MARK: — Degraded-store banner (in-memory fallback engaged)
+
+    private var storeDegradedBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "externaldrive.badge.exclamationmark")
+                .font(.lato(15)).foregroundStyle(LiviqaTheme.rust)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Storage couldn't open — new data isn't being saved")
+                    .font(.lato(13.5, .bold)).foregroundStyle(LiviqaTheme.ink)
+                Text("Anything already on this device is safe. Quit and reopen Liviqa to try again — if this keeps happening, tell us from Settings.")
+                    .font(.lato(12.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink2)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.rust2)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.rust.opacity(0.35), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: — Your health record (view/screenshot imported labs, diagnoses, medicine)

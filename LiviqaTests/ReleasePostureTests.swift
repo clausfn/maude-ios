@@ -139,6 +139,16 @@ struct ReleasePostureTests {
         try expectDebugGated(file: "Liviqa/Views/InAppPrivacyView.swift", marker: "PrivacyGrant.demo")
     }
 
+    @Test func providerForcingIsDebugGated() throws {
+        // A Release binary must never be steerable onto the mock data provider —
+        // the -uiTestAutoDemo / LIVIQA_DATA forcing branches in the provider
+        // resolver are compiled out of Release (Phase 0 audit fix, 2026-08-12).
+        try expectDebugGated(file: "Liviqa/AppState.swift",
+                             marker: #"arguments.contains("-uiTestAutoDemo")"#)
+        try expectDebugGated(file: "Liviqa/AppState.swift",
+                             marker: #"env["LIVIQA_DATA"] == "mock""#)
+    }
+
     // MARK: - Runtime verifier is wired
 
     @Test func releasePostureVerifyRunsAtLaunch() throws {

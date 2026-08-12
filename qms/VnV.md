@@ -163,3 +163,17 @@ hooks, 0 `PBXShellScriptBuildPhase` entries). Actual enforcement as of
 2026-07-03: `T-PROV-01` runs as a blocking step in `build-ios.sh` (before
 xcodebuild; `set -e` aborts the build); `T-NDG-06*` suites run in Xcode.
 Standing up real CI with both as required checks remains an open owner action.
+
+## Full-suite run — 2026-08-12 (PR-104 Phase 0, develop @ `530b32d`)
+
+`xcodebuild test` (Debug, iPhone 17 simulator, `-only-testing:LiviqaTests`):
+**161 tests in 34 suites — ALL PASS** (0.5 s). First recorded full-suite run
+since PR-103; includes the wave's new suites (`ReleasePostureTests` now 12
+checks incl. `providerForcingIsDebugGated`, `ReceiptDecodeTests`,
+`SleepMergeTests`, `EraseOrderingTests`, `JournalSyncMappingTests`) and the
+blocking FR-NDG-06 suites (T-NDG-06/06b/06c green).
+
+Named test gaps recorded in RTM (PR-104 rows, to author): **T-SUND-01**
+(extraction fixtures), **T-REC-01** (record-store ingest/dedup), **T-REC-02**
+(tiering presentation-only), **T-RSCH-05** (contribution explicit-only) — plus
+the still-open PR-102 gaps (T-DEL-01, T-RSCH-01, T-CONSENT-REACT-01).

@@ -42,11 +42,18 @@ final class AppState {
     /// Pure, testable resolution. Forced demo for UI-test/screenshot runs and
     /// `LIVIQA_DATA=mock`; forced real for `LIVIQA_DATA=healthKit`; otherwise real
     /// when the platform has Health, demo when it doesn't.
+    ///
+    /// The forcing branches are DEBUG-only: a Release binary must never be
+    /// steerable onto the mock provider, even via launch arguments (posture —
+    /// launch args aren't settable on TestFlight installs, but the seam stays
+    /// closed regardless; lint: ReleasePostureTests.providerForcingIsDebugGated).
     static func resolveProviderKind(arguments: [String],
                                     env: [String: String],
                                     realAvailable: Bool) -> DataProviderKind {
+        #if DEBUG
         if arguments.contains("-uiTestAutoDemo") || env["LIVIQA_DATA"] == "mock" { return .mock }
         if env["LIVIQA_DATA"] == "healthKit" { return .healthKit }
+        #endif
         return realAvailable ? .healthKit : .mock
     }
 
@@ -58,14 +65,21 @@ final class AppState {
     // on-disk store can't open (e.g. a schema migration between builds), we log it
     // loudly and fall back to an in-memory container so the app keeps functioning this
     // session — a visible, understood failure instead of silent data loss.
-    private let modelContainer: ModelContainer? = AppState.openStore()
+    private let storeOpen: (container: ModelContainer?, diskFailed: Bool) = AppState.openStore()
+    private var modelContainer: ModelContainer? { storeOpen.container }
 
-    private static func openStore() -> ModelContainer? {
+    /// True when the on-disk store failed to open and this session runs on the
+    /// in-memory fallback (or no store at all). Surfaced as a Home banner —
+    /// degraded persistence must never be silent: on a TestFlight device a broken
+    /// schema migration would otherwise read as "all my data vanished".
+    var storeDegraded: Bool { storeOpen.diskFailed }
+
+    private static func openStore() -> (container: ModelContainer?, diskFailed: Bool) {
         do {
-            return try LiviqaStore.makeContainer()
+            return (try LiviqaStore.makeContainer(), false)
         } catch {
             print("‼️ LiviqaStore: on-disk container failed to open (\(error)). Falling back to in-memory for this session.")
-            return try? LiviqaStore.makeContainer(inMemory: true)
+            return (try? LiviqaStore.makeContainer(inMemory: true), true)
         }
     }
 
@@ -543,8 +557,14 @@ final class AppState {
                 if let d = conditionOnsets[cond.icd10] { cond.onsetDate = d }
             }
         }
-        store.ingest(observations: rows.obs, conditions: rows.cond,
-                     medications: rows.med, source: source)
+        do {
+            try store.ingest(observations: rows.obs, conditions: rows.cond,
+                             medications: rows.med, source: source)
+        } catch {
+            // The import did NOT persist — say so instead of letting the record
+            // render this session and vanish on relaunch (silent-data-loss posture).
+            lastError = String(localized: "Your imported record couldn't be saved to this device. Nothing was lost from the source — please try the import again.")
+        }
         reloadHealthRecord()
     }
 

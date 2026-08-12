@@ -2,6 +2,41 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-08-12 — Sundhed.dk on-device record wave (PR-104, dated catch-up) + A7 skin record
+
+_Catch-up entry: the decisions below were taken 2026-07-07→2026-08-10 without
+contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
+
+- **D-SUND-A (2026-07-09, in code): in-app WKWebView self-access connect,
+  superseding the out-of-app posture.** The DataAccess analysis (2026-07-09)
+  recommended out-of-app (desktop + extension); the shipped decision is Path A
+  in-app — citizen signs in with MitID themselves, an injected interceptor
+  captures the SPA's own responses, everything reduces on device. Rationale in
+  code: sanctioned Trifork/sundhed.dk self-access test. **Regularisation open:**
+  written sanction artifact + DPIA v02 (RK-SUND-01). Path B (PDF import) kept
+  as the fallback path.
+- **D-REC-01 (2026-07-10): one canonical on-device record store.** Labs,
+  conditions and medications from ANY source land in a single source-agnostic
+  SwiftData store (per-source dedup/supersession, file-protected, no CloudKit)
+  instead of per-feature caches — sharing and research read from one place,
+  and the store leaves the device only via the explicit contribution path
+  (FR-RSCH-05).
+- **D-REC-02 (2026-08-10): diagnoses shown in plain language, tiered.**
+  Everyday names + start dates at month precision; major conditions lead,
+  minor/admin collapse. Tiering is presentation-only (full list reachable);
+  display-only of the citizen's own record — no interpretation (RK-REC-01).
+- **D-STORE-P (2026-07-10, `d9f4df6`): file-protection posture.**
+  `.completeUntilFirstUserAuthentication` across the store and its WAL/SHM
+  siblings; container-open failure = loud + in-memory fallback, made
+  user-visible 2026-08-12 (`storeDegraded` banner, PR-104 Phase 0).
+- **A7 "Morning/Evening Edition" skin (2026-07-07, `a83e55a`) — recorded.**
+  Theme.swift v03 deployed the Claude Design A7 handoff tokens app-wide as a
+  SKIN (plaster/fjord palette, Charter serif verdicts, SF Pro body, IBM Plex
+  Mono numbers; evening = deep marine) — IA/structure/copy unchanged; the
+  structural A7 build-out (33 of 66 handoff screens) is a separate tracked
+  effort. Supersedes A6 "Daylight" as the visual system of record; canonical
+  A7 register row = open action in `00_Canonical/REGISTER.md`.
+
 ## 2026-06-16 — A6 "Daylight" re-skin: six-colour palette, SF Pro, iris .icon, Liquid Glass (PR-96)
 
 - **Goal.** Land the locked A6 "Daylight" brand — a six-colour palette (Punch Red ·

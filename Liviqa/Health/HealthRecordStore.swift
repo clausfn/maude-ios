@@ -133,7 +133,7 @@ struct HealthStore {
     func ingest(observations: [HealthObservation],
                 conditions: [HealthCondition],
                 medications: [HealthMedication],
-                source: HealthDataSource) {
+                source: HealthDataSource) throws {
         let src = source.rawValue
         let now = Date()
         let cal = Calendar.current
@@ -194,7 +194,16 @@ struct HealthStore {
             }
         }
 
-        try? context.save()
+        // NEVER `try?` here: a swallowed save is silent data loss — the imported
+        // record renders this session (in-context objects) and vanishes on relaunch,
+        // the exact failure mode the d9f4df6 store fix condemned. Propagate so the
+        // caller can tell the user their import did NOT stick.
+        do {
+            try context.save()
+        } catch {
+            print("‼️ HealthStore.ingest: context.save() FAILED — imported record will not survive relaunch: \(error)")
+            throw error
+        }
     }
 
     // MARK: Read (for display — multi-source aware)
