@@ -2,6 +2,60 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-08-12 (night) — A7.2 full-screen program: census v01 + requirements diff (PR-107 opens)
+
+- **Directive (CN, 2026-08-12):** build **every** designed screen in the A7.2
+  package — the full-screen program, not a per-screen negotiation. The evening
+  entry's "anatomy is in scope" ruling is hereby extended package-wide.
+- **Census v01 filed** (`Liviqa_A72_ScreenCensus_v01_20260812.md`, DfG Works
+  Liviqa root; registered in `00_Canonical/REGISTER.md`): **74 screen rows
+  across 9 areas — 23 MISSING · 31 ANATOMY-DIFFERS · 1 RESKIN-ONLY ·
+  19 MATCHES.** Widest gap: Onboarding & auth (11-step designed flow vs four
+  gate screens). Healthiest: Watch (all three screens match) and Care & PRO
+  (real plumbing, presentational gaps). Largest single builds: Trends
+  (orphaned view + demo copy), ConsultView full-bleed stage, Liviqa PRO
+  (console-side, missing, with a real iOS contract gap), the encrypted
+  document store, and glucose/heart/fitness metric details.
+- **SRS v06 diff proposal filed**
+  (`Liviqa_SRS_v06_DiffProposal_A72_20260812.md`, DfG Works Liviqa root):
+  new UC-25 (study-enrollment uniqueness check — census working id "UC-20"
+  re-keyed; UC-20 is taken in UseCases v04), UC-26 (health-literacy
+  preference), UC-27 (calm notification micro-loops); amendments to UC-02
+  (honest sample-data mode), UC-16 (persisted backup posture), UC-19 (PMS
+  intake screen), UC-21 (receipt slip, coordinated with the pending DfG
+  Passport proposal); 22 new/changed FR-/NFR- rows (FR-TOD-05/06, FR-XPL-01,
+  FR-CTX-04, FR-FIT-01, FR-VIT-01, NFR-SEC-08, FR-SET-02′, FR-NOT-01/02,
+  FR-WID-01, FR-JRN-04, FR-ING-15, FR-DFG-07, FR-RSCH-06/07, FR-WAL-09,
+  FR-PMS-01, FR-IDD-01, FR-LIT-01, FR-ARCH-06, FR-REC-03), all appended to
+  `qms/RTM.md` as `[PROV — SRS v06 pending]`. The proposal **absorbs the five
+  open `[PROV]` rows** (FR-ING-14, FR-REC-01/02, FR-RSCH-05, and the repo
+  "NFR-REL-02" → NFR-REL-03; repo "NFR-REL-01" → NFR-REL-04 — both RTM labels
+  collide with different SRS v05 meanings and re-key on ratification).
+  **SRS v05 remains the locked canon until CN ratifies.**
+- **Standing rails restated for the whole wave:** red = clinical glucose TIR
+  only; the FR-NDG-06 output allow-list is a designated blocking control
+  (T-NDG-06* never skipped); provenance{REAL,SIMULATED,EXTERNAL} never
+  renders; shares are summaries/derived-only (the package's own "Every
+  reading" mode contradicts its "Locked on" plate — flagged as an open QMS
+  ruling, nothing weakened meanwhile); AFib lane display-only,
+  route-to-cardiologist (D9/OD-11); glucose mmol/L with GMI as the HbA1c
+  headline (OD-07); honest-data posture T1 (no fabricated counters, results,
+  or recipients in Release). Safety-path items flagged for `/qms/RISK.md`
+  touches: FR-PMS-01 (PMS channel), FR-RSCH-07 (consent defaults),
+  FR-WAL-09 (CE-stub claim gating), plus the chat safety-line reword
+  (designated control — counsel memo required before any copy change).
+- **Bevel absorb mapping — source = live ClickUp** (all 7 tasks fetched from
+  Liviqa/Backlog, study dated 2026-08-12): top-5 absorbs ①–⑤ map to
+  FR-WID-01, FR-XPL-01, FR-CTX-04, FR-REC-03, FR-NOT-02. Biological Age
+  stays PARKED with its boundary flag (collides with baseline-relative
+  philosophy, the FR-NDG-06 normality ban, and the wellness boundary);
+  smart alarm / cycle tracking / AI-memory visibility remain adapt-later;
+  supplement logging already shipped. Task z8nrz7c35v is the external-testing
+  gating task (sundhed.dk written blessing, DPIA re-sign, self-signup lock),
+  not a Bevel record.
+- **PR-107 opens** to carry the paperwork (this entry, the RTM block, the
+  register rows); the build waves follow per census effort ratings.
+
 ## 2026-08-12 (evening) — A7.2 screen ANATOMY is in scope, starting with Home (PR-106)
 
 - **Decision (CN, 2026-08-12, on seeing the reskinned build vs the design

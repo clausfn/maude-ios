@@ -54,7 +54,7 @@ struct DfGOnboardingView: View {
             }
         }
         .sheet(isPresented: $showLearnMore) {
-            LearnMoreSheet(isPresented: $showLearnMore)
+            DfGLearnMoreSheet(isPresented: $showLearnMore)
         }
     }
 }
@@ -395,8 +395,10 @@ private struct Page3View: View {
 // Brian beta feedback 2026-06-13 (FB-AGtO8N6h #3): "most explanation text needs
 // rework (tooltip box?)". A short summary line + an ⓘ that taps to reveal detail,
 // so the onboarding leads with one idea and tucks the depth a tap away.
+// Internal (not private) since A7.2: DfGGovernanceStep in the unified
+// onboarding flow reuses ExpandableNote + ConsentCheckRow + DfGLearnMoreSheet.
 
-private struct ExpandableNote: View {
+struct ExpandableNote: View {
     let summary: String
     let detail: String
     @State private var expanded = false
@@ -444,7 +446,7 @@ private struct ExpandableNote: View {
 
 // MARK: - Consent check row (opt-in research consents)
 
-private struct ConsentCheckRow: View {
+struct ConsentCheckRow: View {
     @Binding var isOn: Bool
     let title: String
     let detail: String
@@ -559,7 +561,7 @@ private struct BackupOptionCard: View {
 
 // MARK: - Learn more sheet
 
-private struct LearnMoreSheet: View {
+struct DfGLearnMoreSheet: View {
     @Binding var isPresented: Bool
 
     var body: some View {

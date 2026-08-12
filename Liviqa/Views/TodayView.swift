@@ -141,46 +141,81 @@ struct TodayView: View {
                             .padding(.top, 10)
                     }
 
-                    // A7.2 Home anatomy (screen-home.jsx): verdict hero + day-arc ·
-                    // momentum · signals 2×2 · quiet/attention · week · share · colophon.
-                    // Cold start keeps the honest calibrating card in the hero slot.
-                    Group {
-                        if coldStart {
-                            baselineBuildingCard
-                        } else {
-                            heroBlock
-                        }
-                    }
-                    .padding(.top, 16)
+                    // A7.2 Home anatomy (screen-home.jsx). Day edition: verdict hero +
+                    // day-arc · momentum · signals 2×2 · quiet/attention · week · share.
+                    // Evening edition (post-21:00 — "a designed ending, not an inversion"):
+                    // closing note · momentum · day-score ring · month trend · signals ·
+                    // quiet/attention · tomorrow hook. Cold start always keeps the honest
+                    // calibrating card in the hero slot.
+                    if isEveningEdition && !coldStart {
+                        closingNote
+                            .padding(.top, 16)
 
-                    // Since last week — momentum vs the user's own baseline.
-                    if let items = momentumItems {
-                        momentumStrip(items)
+                        if let items = momentumItems {
+                            momentumStrip(items)
+                                .padding(.top, 14)
+                        }
+
+                        // How today scored — transparent, decomposed arithmetic.
+                        if let segs = dayScoreSegments {
+                            scoreCard(segs)
+                                .padding(.top, 14)
+                        }
+
+                        if let trend = recoveryTrend {
+                            monthTrendCard(trend)
+                                .padding(.top, 14)
+                        }
+
+                        signalsGrid
                             .padding(.top, 14)
-                    }
 
-                    signalsGrid
-                        .padding(.top, 14)
-
-                    // ONE earned attention card — or the quiet all-clear line.
-                    Group {
-                        if coldStart {
-                            EmptyView()
-                        } else if !nudges.isEmpty {
-                            attentionCard
-                        } else {
-                            quietLine
+                        Group {
+                            if !nudges.isEmpty { attentionCard } else { quietLine }
                         }
-                    }
-                    .padding(.top, 16)
-
-                    // Zoom out from today → the full week (correlation view).
-                    weekCard
                         .padding(.top, 16)
 
-                    // Sharing status — the standing "who can see your week" card.
-                    shareCard
-                        .padding(.top, 14)
+                        tomorrowHook
+                            .padding(.top, 16)
+                    } else {
+                        Group {
+                            if coldStart {
+                                baselineBuildingCard
+                            } else {
+                                heroBlock
+                            }
+                        }
+                        .padding(.top, 16)
+
+                        // Since last week — momentum vs the user's own baseline.
+                        if let items = momentumItems {
+                            momentumStrip(items)
+                                .padding(.top, 14)
+                        }
+
+                        signalsGrid
+                            .padding(.top, 14)
+
+                        // ONE earned attention card — or the quiet all-clear line.
+                        Group {
+                            if coldStart {
+                                EmptyView()
+                            } else if !nudges.isEmpty {
+                                attentionCard
+                            } else {
+                                quietLine
+                            }
+                        }
+                        .padding(.top, 16)
+
+                        // Zoom out from today → the full week (correlation view).
+                        weekCard
+                            .padding(.top, 16)
+
+                        // Sharing status — the standing "who can see your week" card.
+                        shareCard
+                            .padding(.top, 14)
+                    }
 
                     colophon
                         .padding(.top, 22)
@@ -697,6 +732,202 @@ struct TodayView: View {
         return coldStart ? [] : pillar.week
     }
 
+    // MARK: — Evening edition (post-21:00 — closing note, day score, month trend)
+
+    /// The evening edition begins at 21:00 and runs until the small hours.
+    /// DEBUG env `LIVIQA_EDITION=evening|day` forces either for snapshot QA.
+    private var isEveningEdition: Bool {
+        #if DEBUG
+        if let e = ProcessInfo.processInfo.environment["LIVIQA_EDITION"] {
+            return e == "evening"
+        }
+        #endif
+        let h = Calendar.current.component(.hour, from: Date())
+        return h >= 21 || h < 4
+    }
+
+    private var closingNote: some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(String(localized: "Closing note").uppercased())
+                    .font(.liviqaKicker(11)).tracking(1.4)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text(closingHeadline)
+                    .font(.liviqaSerif(23)).kerning(-0.2).lineSpacing(3)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .padding(.top, 8)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(LiviqaTheme.clay)
+                    .frame(width: 44, height: 3)
+                    .opacity(0.85)
+                    .padding(.vertical, 10)
+                Text("Sleep well — tomorrow's edition arrives with your morning readings.")
+                    .font(.lato(13.5)).lineSpacing(3)
+                    .foregroundStyle(LiviqaTheme.ink2)
+            }
+            Spacer(minLength: 8)
+            IrisDayArc(progress: dayProgress, size: 76)
+        }
+    }
+
+    /// Allow-listed closing verdicts, derived from the same week helpers as
+    /// the morning hero — never medical, never a surprise at bedtime.
+    private var closingHeadline: String {
+        switch weekTone {
+        case .uneven:    return String(localized: "An uneven day — it happens.")
+        case .improving: return String(localized: "Today added to a good week.")
+        case .steady:    return String(localized: "Today held steady.")
+        }
+    }
+
+    /// The evening day score: three visible fractions, added up. Sleep is last
+    /// night vs an 8 h reference, glucose is today's time in range, recovery is
+    /// today's HRV vs the user's OWN week mean. No model, no opacity — the
+    /// legend shows the exact arithmetic (the anti-score-opacity stance).
+    private var dayScoreSegments: [ScoreSegment]? {
+        if coldStart { return nil }
+        guard let s = signals else {
+            return isDemoData
+                ? [ScoreSegment(name: String(localized: "Sleep"),    val: 42, max: 50, color: LiviqaTheme.accentSleep),
+                   ScoreSegment(name: String(localized: "Glucose"),  val: 24, max: 30, color: LiviqaTheme.accentGlucose),
+                   ScoreSegment(name: String(localized: "Recovery"), val: 15, max: 20, color: LiviqaTheme.accentRecovery)]
+                : nil
+        }
+        var segs: [ScoreSegment] = []
+        if let hours = s.sleepWeek.last {
+            segs.append(ScoreSegment(name: String(localized: "Sleep"),
+                                     val: min(hours / 8, 1) * 50, max: 50,
+                                     color: LiviqaTheme.accentSleep))
+        }
+        if let tir = s.inRangeWeek.last {
+            segs.append(ScoreSegment(name: String(localized: "Glucose"),
+                                     val: tir / 100 * 30, max: 30,
+                                     color: LiviqaTheme.accentGlucose))
+        }
+        if s.hrvWeek.count >= 4, let hrv = s.hrvWeek.last {
+            let mean = s.hrvWeek.dropLast().reduce(0, +) / Double(s.hrvWeek.count - 1)
+            segs.append(ScoreSegment(name: String(localized: "Recovery"),
+                                     val: min(hrv / max(mean, 1), 1) * 20, max: 20,
+                                     color: LiviqaTheme.accentRecovery))
+        }
+        return segs.count >= 2 ? segs : nil   // one domain alone isn't a "day"
+    }
+
+    private func scoreCard(_ segs: [ScoreSegment]) -> some View {
+        let score = Int(segs.reduce(0) { $0 + $1.val }.rounded())
+        return HStack(spacing: 16) {
+            ScoreRing(score: score, segments: segs, size: 96)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(String(localized: "How today scored").uppercased())
+                    .font(.liviqaKicker(9)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text(scoreHeadline(segs, score))
+                    .font(.liviqaSerif(16.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink)
+                    .padding(.top, 5).padding(.bottom, 8)
+                ForEach(segs) { seg in
+                    HStack(spacing: 7) {
+                        Circle().fill(seg.color).frame(width: 7, height: 7)
+                        Text(seg.name)
+                            .font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink2)
+                        Spacer()
+                        Text("\(Int(seg.val.rounded()))/\(Int(seg.max))")
+                            .font(.lato(12.5)).monospacedDigit()
+                            .foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    .padding(.top, 3)
+                }
+            }
+        }
+        .padding(.horizontal, 17).padding(.vertical, 16)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
+    }
+
+    private func scoreHeadline(_ segs: [ScoreSegment], _ score: Int) -> String {
+        if score >= 75, let top = segs.max(by: { $0.val / $0.max < $1.val / $1.max }) {
+            return String(localized: "A good day — mostly thanks to \(top.name.lowercased()).")
+        }
+        if score >= 60 { return String(localized: "A steady day.") }
+        return String(localized: "A lighter day — they happen.")
+    }
+
+    struct RecoveryTrend {
+        let data: [Double]
+        let avg: Double
+        let kicker: String
+        let labels: [String]
+    }
+
+    /// Real data: the 7-day HRV series we actually hold (labelled as such).
+    /// A true 30-day series awaits a deriver extension; the demo seeds show
+    /// the full month the design intends.
+    private var recoveryTrend: RecoveryTrend? {
+        if coldStart { return nil }
+        if let s = signals, s.hrvWeek.count >= 5 {
+            let avg = s.hrvWeek.reduce(0, +) / Double(s.hrvWeek.count)
+            return RecoveryTrend(data: s.hrvWeek, avg: avg,
+                                 kicker: String(localized: "Recovery · Last 7 days"), labels: [])
+        }
+        guard isDemoData else { return nil }
+        let df = DateFormatter(); df.dateFormat = "d MMM"
+        let cal = Calendar.current
+        let labels = [-29, -15, 0].compactMap { off in
+            cal.date(byAdding: .day, value: off, to: Date()).map(df.string(from:))
+        }
+        return RecoveryTrend(data: [66, 64, 67, 63, 65, 68, 66, 70, 67, 69, 72, 70, 73, 74],
+                             avg: 67, kicker: String(localized: "Recovery · Last 30 days"),
+                             labels: labels)
+    }
+
+    private func monthTrendCard(_ trend: RecoveryTrend) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(trend.kicker.uppercased())
+                .font(.liviqaKicker(9)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text(trendingUp(trend.data, by: 2)
+                 ? String(localized: "Your month, quietly on the way up.")
+                 : String(localized: "Holding close to your own line."))
+                .font(.liviqaSerif(16.5)).lineSpacing(2)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 5).padding(.bottom, 10)
+            MonthTrendLine(data: trend.data, avg: trend.avg,
+                           color: LiviqaTheme.clay, color2: LiviqaTheme.accentSleep,
+                           height: 92, labels: trend.labels)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 17).padding(.top, 15).padding(.bottom, 12)
+        .background(LiviqaTheme.paper2)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
+    }
+
+    private var tomorrowHook: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(localized: "Tomorrow").uppercased())
+                .font(.liviqaKicker(9)).tracking(1.2)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text(tomorrowLine)
+                .font(.liviqaSerif(14.5)).italic().lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 17).padding(.vertical, 14)
+        .background(LiviqaTheme.paper2.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
+    }
+
+    /// Honest hook only: a real open question from the user's own series, or
+    /// the plain promise of tomorrow's edition. Never an invented experiment.
+    private var tomorrowLine: String {
+        if let s = signals, let d = weekDelta(s.sleepWeek), d < -0.25 {
+            return String(localized: "We'll see if tonight turns the sleep dip around.")
+        }
+        return String(localized: "Your morning readings write tomorrow's front page.")
+    }
+
     // MARK: — Momentum strip (Since last week — vs the user's OWN baseline)
 
     struct MomentumItem: Identifiable {
@@ -780,7 +1011,7 @@ struct TodayView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 15).padding(.vertical, 12)
-        .background(Color.white.opacity(0.55))
+        .background(LiviqaTheme.paper2.opacity(0.55))   // half-plate in BOTH modes
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(LiviqaTheme.line, lineWidth: 1))
     }
