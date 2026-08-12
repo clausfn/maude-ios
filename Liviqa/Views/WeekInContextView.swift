@@ -75,13 +75,37 @@ struct WeekInContextView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
+            weekScroll
+                #if DEBUG
+                // Snapshot hook (same family as Home): screenshot below the fold.
+                .task {
+                    if ProcessInfo.processInfo.environment["LIVIQA_SCROLL_TO"] == "bottom" {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        proxy.scrollTo("week-bottom", anchor: .bottom)
+                    }
+                }
+                #endif
+        }
+    }
+
+    private var weekScroll: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
 
-                // 1. App bar
-                LiviqaAppBar(title: "Your Week", showMark: false)
+                // 1. App bar (tab name — the week verdict hero below carries "Your week")
+                LiviqaAppBar(title: "Insights", showMark: false)
 
                 VStack(alignment: .leading, spacing: 0) {
+
+                    // 1b. Week verdict hero (d-insights.jsx DWeek) — the week's ONE
+                    // sentence, derived from the same grid the card below shows.
+                    if !week.days.isEmpty {
+                        weekHero
+                            .padding(.horizontal, 20)
+                            .padding(.top, 6)
+                            .padding(.bottom, 14)
+                    }
 
                     // 2a. Weekly time-in-range trend (gradient area + draw-in)
                     tirTrendCard
@@ -133,6 +157,7 @@ struct WeekInContextView: View {
                     regulatoryNoteCard
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
+                        .id("week-bottom")
 
                     // 6. Section header — weekly metrics
                     LiviqaSectionHeader(label: "This week")
@@ -161,6 +186,51 @@ struct WeekInContextView: View {
             // The real multi-step share flow (same presentation as Settings).
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
+    }
+
+    // MARK: - Week verdict hero (A7.2 DWeek)
+
+    /// Days with at least one clearly-off or worth-noticing signal.
+    private var hardDayCount: Int {
+        week.days.filter { d in d.values.contains { $0 == .outlier || $0 == .high } }.count
+    }
+
+    /// Honest verdict grammar: "everything else held" is only claimed when
+    /// exactly ONE day carried the deviations the grid shows.
+    private var weekVerdict: String {
+        if let c = clusterDay, c < week.days.count {
+            let day = week.days[c].localizedDayName
+            return hardDayCount == 1
+                ? String(localized: "\(day) was the hard day — everything else held.")
+                : String(localized: "\(day) stood out most this week.")
+        }
+        return String(localized: "A steady week, day after day.")
+    }
+
+    private var weekHeroSub: String {
+        clusterDay != nil
+            ? String(localized: "One day shows up across several of your signals — the grid below shows where.")
+            : String(localized: "Nothing stood out across your signals this week.")
+    }
+
+    private var weekHero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(String(localized: "Your week").uppercased())
+                .font(.liviqaKicker(11)).tracking(1.4)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Text(weekVerdict)
+                .font(.liviqaSerif(23)).kerning(-0.2).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink)
+                .padding(.top, 8)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(LiviqaTheme.moss)
+                .frame(width: 44, height: 3)
+                .padding(.vertical, 10)
+            Text(weekHeroSub)
+                .font(.lato(13.5)).lineSpacing(3)
+                .foregroundStyle(LiviqaTheme.ink2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - "Your day" glass-timeline entry (flagged)
@@ -280,6 +350,17 @@ struct WeekInContextView: View {
 
     private var correlationGridCard: some View {
         VStack(alignment: .leading, spacing: 10) {
+
+            // How to read it (A7.2 DWeek header)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(String(localized: "\(metricLabels.count) signals · 7 days").uppercased())
+                    .font(.liviqaKicker(9)).tracking(1.2)
+                    .foregroundStyle(LiviqaTheme.ink3)
+                Text("Read down a column to see a day; across a row to see a signal.")
+                    .font(.liviqaSerif(15)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink)
+            }
+            .padding(.bottom, 2)
 
             // Day column headers
             HStack(spacing: 0) {
@@ -443,6 +524,13 @@ struct WeekInContextView: View {
                     .padding(.vertical, 4)
                     .background(LiviqaTheme.clay2)
                     .clipShape(Capsule())
+            }
+
+            // Serif pattern headline (A7.2 DWeek) — named from the grid itself.
+            if let c = clusterDay, c < week.days.count {
+                Text(String(localized: "A harder \(week.days[c].localizedDayName), felt across your signals."))
+                    .font(.liviqaSerif(16.5)).lineSpacing(2)
+                    .foregroundStyle(LiviqaTheme.ink)
             }
 
             // Pattern note
