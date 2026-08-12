@@ -93,6 +93,30 @@ struct AppLockSetupView: View {
     }
 }
 
+// MARK: - App-switcher privacy cover
+
+/// Opaque cover shown while the scene is `.inactive` and the app lock is on, so
+/// the snapshot iOS takes for the app switcher never contains the citizen's
+/// readings. Deliberately inert: no Face ID prompt, no state, no data — a system
+/// alert or share sheet must not cost the user an authentication round-trip.
+/// The real lock still runs on background→active (see LiviqaApp).
+struct AppPrivacyCover: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(stops: [
+                .init(color: Color(hex: 0x0E5F5A), location: 0),
+                .init(color: Color(hex: 0x0B3F4E), location: 0.52),
+                .init(color: Color(hex: 0x122C46), location: 1)
+            ], startPoint: UnitPoint(x: 0.31, y: 0.04),
+               endPoint: UnitPoint(x: 0.69, y: 0.96))
+            .ignoresSafeArea()
+            OnboardingIrisMark(size: 66)
+        }
+        .transition(.opacity)
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Runtime lock screen
 
 /// Minimal blur + retry lock. Reuses the cover palette; auto-prompts on appear.

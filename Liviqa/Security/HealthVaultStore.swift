@@ -8,8 +8,9 @@
 // Crypto (the same local-store rail as EncryptedAnchorStore):
 //   • every document is sealed with AES-256-GCM (KeyVault DEK → CryptoBox);
 //   • the DEK at rest is ECIES-wrapped to a P-256 key whose private half lives
-//     in the Secure Enclave (KeyVault; software fallback on SE-less simulators,
-//     recorded in `KeyVault.isHardwareBacked` — the UI copy follows it honestly);
+//     in the Secure Enclave (KeyVault; software-key fallback where no enclave
+//     can mint, recorded in `KeyVault.protection`/`isHardwareBacked` — the UI
+//     copy follows it honestly and never claims enclave protection it lacks);
 //   • the metadata INDEX is sealed too — document names ("HIV test result.pdf")
 //     are as sensitive as their contents, so no plaintext name ever hits disk;
 //   • files are written atomic + NSFileProtectionComplete (unreadable while the
@@ -72,7 +73,15 @@ public struct VaultDocumentMeta: Codable, Identifiable, Equatable, Sendable {
 
 public final class HealthVaultStore {
 
-    public enum VaultStoreError: Error, Equatable { case unwritable, missingDocument }
+    public enum VaultStoreError: Error, Equatable {
+        case unwritable
+        case missingDocument
+        /// An index file exists but does not open with this device's key — the
+        /// documents it describes are sealed and cannot be listed. Writing is
+        /// refused in this state: a new index would overwrite the old one and
+        /// destroy the only record of what is on disk.
+        case unreadableIndex
+    }
 
     private let box: CryptoBox
     private let directory: URL
@@ -89,10 +98,15 @@ public final class HealthVaultStore {
                 fileManager: FileManager = .default) {
         self.box = box
         self.fileManager = fileManager
-        let base = directory ?? Self.defaultDirectory(fileManager: fileManager)
-        self.directory = base
+        self.directory = Self.scopeDirectory(userScope: userScope, directory: directory,
+                                             fileManager: fileManager)
+    }
+
+    private static func scopeDirectory(userScope: String, directory: URL?,
+                                       fileManager: FileManager) -> URL {
+        (directory ?? defaultDirectory(fileManager: fileManager))
             .appendingPathComponent("health-vault", isDirectory: true)
-            .appendingPathComponent(Self.hex(userScope), isDirectory: true)
+            .appendingPathComponent(hex(userScope), isDirectory: true)
     }
 
     /// Build from the shared KeyVault DEK (device-bound, Secure-Enclave wrapped).
@@ -110,6 +124,25 @@ public final class HealthVaultStore {
         try loadIndex().sorted { $0.addedAt > $1.addedAt }
     }
 
+    /// Can a document be added right now? True for an empty space and for a
+    /// readable one; false only when an index exists that this key can't open,
+    /// because adding would overwrite it. The "Add a document" affordance is
+    /// enabled from exactly this answer.
+    public var canAddDocuments: Bool {
+        do { _ = try loadIndex(); return true } catch { return false }
+    }
+
+    /// Is there anything sealed in this scope at all? Answered from the file
+    /// system alone (no key needed), so a caller that could not even provision a
+    /// key can still tell "nothing has been stored yet" from "documents exist".
+    public static func hasSealedData(userScope: String,
+                                     directory: URL? = nil,
+                                     fileManager: FileManager = .default) -> Bool {
+        let dir = scopeDirectory(userScope: userScope, directory: directory, fileManager: fileManager)
+        let files = (try? fileManager.contentsOfDirectory(atPath: dir.path)) ?? []
+        return !files.isEmpty
+    }
+
     /// Decrypt one document's bytes, or nil when the id is unknown. Throws if the
     /// blob fails GCM authentication — a tampered byte is an error, never garbage.
     public func open(_ id: UUID) throws -> Data? {
@@ -123,9 +156,15 @@ public final class HealthVaultStore {
 
     /// Seal `data` and persist it, appending a metadata row. The plaintext never
     /// touches disk — it is encrypted the moment it's added.
+    ///
+    /// Throws `.unreadableIndex` (before writing anything) when an index exists
+    /// that this key can't open: adding on top of it would replace the record of
+    /// documents that are still on disk. `canAddDocuments` answers the same
+    /// question ahead of time, so the UI can disable the affordance honestly.
     @discardableResult
     public func add(name: String, data: Data, source: String,
                     addedAt: Date = Date()) throws -> VaultDocumentMeta {
+        var index = try loadIndex()           // refuses on an unreadable index
         let meta = VaultDocumentMeta(name: name,
                                      kind: .infer(fromName: name),
                                      addedAt: addedAt,
@@ -139,17 +178,24 @@ public final class HealthVaultStore {
         } catch {
             throw VaultStoreError.unwritable
         }
-        var index = (try? loadIndex()) ?? []
         index.append(meta)
-        try saveIndex(index)
+        do {
+            try saveIndex(index)
+        } catch {
+            // The blob is on disk but unlisted — remove it rather than leave an
+            // orphan the citizen can never see or delete.
+            try? fileManager.removeItem(at: documentURL(for: meta.id))
+            throw error
+        }
         return meta
     }
 
     /// Delete one document: the encrypted blob is removed from disk and the
     /// metadata row dropped. There is no trash — deletion is immediate and final.
+    /// Refuses on an unreadable index for the same reason `add` does.
     public func delete(_ id: UUID) throws {
+        var index = try loadIndex()
         try? fileManager.removeItem(at: documentURL(for: id))
-        var index = (try? loadIndex()) ?? []
         index.removeAll { $0.id == id }
         try saveIndex(index)
     }
@@ -163,11 +209,19 @@ public final class HealthVaultStore {
 
     private var indexURL: URL { directory.appendingPathComponent("index.vault") }
 
+    /// No index file ⇒ an empty space (a normal, writable first-run state).
+    /// An index file that won't open or decode ⇒ `.unreadableIndex` — the two
+    /// must never be conflated: the first invites the citizen to add a document,
+    /// the second must not be written over.
     private func loadIndex() throws -> [VaultDocumentMeta] {
         guard fileManager.fileExists(atPath: indexURL.path) else { return [] }
         let sealed = try Data(contentsOf: indexURL)
-        let plain = try box.open(sealed)
-        return try JSONDecoder().decode([VaultDocumentMeta].self, from: plain)
+        do {
+            let plain = try box.open(sealed)
+            return try JSONDecoder().decode([VaultDocumentMeta].self, from: plain)
+        } catch {
+            throw VaultStoreError.unreadableIndex
+        }
     }
 
     private func saveIndex(_ index: [VaultDocumentMeta]) throws {
@@ -197,5 +251,89 @@ public final class HealthVaultStore {
 
     private static func hex(_ s: String) -> String {
         SHA256.hash(data: Data(s.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - Opening the space: the four states a screen may be in
+
+/// What the encrypted space can do right now. The two FAILURE classes are the
+/// point of this type and must never be collapsed into one message:
+///
+///   • `.lockedUntilDeviceUnlock` / `.keyUnavailable` — RECOVERABLE. Either the
+///     phone hasn't been unlocked since boot, or no key could be prepared yet.
+///     Nothing is lost, nothing is claimed lost, and a retry (or a first unlock)
+///     fixes it. Where a key CAN be prepared this state never appears at all:
+///     the space simply initialises empty and accepts documents.
+///   • `.sealedDataUnreadable` — the genuinely unreadable case: documents are on
+///     disk sealed to key material this device no longer has. The honest message
+///     stays, adding is refused (it would overwrite the index), and NOTHING is
+///     deleted or re-keyed. Recovery is a deliberate user decision, not ours.
+public enum VaultAccess: Equatable, Sendable {
+    case ready
+    case lockedUntilDeviceUnlock
+    case sealedDataUnreadable
+    case keyUnavailable
+
+    /// True only when adding a document is actually possible.
+    public var canAddDocuments: Bool { self == .ready }
+
+    /// True when simply trying again later is the right advice.
+    public var isRetryable: Bool { self == .lockedUntilDeviceUnlock || self == .keyUnavailable }
+}
+
+/// One attempt to open the space: the store (when there is one), the state the
+/// screen must render, and the documents already read. Never throws — the whole
+/// point is that every failure lands in a named, honest state.
+public struct HealthVaultSession {
+    public let store: HealthVaultStore?
+    public let access: VaultAccess
+    public let documents: [VaultDocumentMeta]
+
+    public init(store: HealthVaultStore?, access: VaultAccess, documents: [VaultDocumentMeta]) {
+        self.store = store; self.access = access; self.documents = documents
+    }
+
+    public static func open(keyVault: KeyVault = .shared,
+                            userScope: String,
+                            directory: URL? = nil) -> HealthVaultSession {
+        open(userScope: userScope, directory: directory) { try keyVault.cryptoBox() }
+    }
+
+    /// Same, over any key provider — the seam the failure-class tests drive, so
+    /// each state can be proven without a locked phone or a wiped Keychain.
+    public static func open(userScope: String,
+                            directory: URL? = nil,
+                            boxProvider: () throws -> CryptoBox) -> HealthVaultSession {
+        let box: CryptoBox
+        do {
+            box = try boxProvider()
+        } catch {
+            return HealthVaultSession(store: nil,
+                                      access: classifyKeyFailure(error, userScope: userScope,
+                                                                 directory: directory),
+                                      documents: [])
+        }
+        let store = HealthVaultStore(box: box, userScope: userScope, directory: directory)
+        do {
+            return HealthVaultSession(store: store, access: .ready,
+                                      documents: try store.documents())
+        } catch {
+            // A locked file is a wait; anything else means the index itself is
+            // sealed beyond this key.
+            let access: VaultAccess = KeyFailure.isDeviceLocked(error)
+                ? .lockedUntilDeviceUnlock : .sealedDataUnreadable
+            return HealthVaultSession(store: store, access: access, documents: [])
+        }
+    }
+
+    private static func classifyKeyFailure(_ error: any Error, userScope: String,
+                                           directory: URL?) -> VaultAccess {
+        if KeyFailure.isDeviceLocked(error) { return .lockedUntilDeviceUnlock }
+        if let c = error as? CryptoError, c == .sealedKeyUnreadable {
+            // Only call the data unreadable when there IS data.
+            return HealthVaultStore.hasSealedData(userScope: userScope, directory: directory)
+                ? .sealedDataUnreadable : .keyUnavailable
+        }
+        return .keyUnavailable
     }
 }

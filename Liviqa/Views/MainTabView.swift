@@ -177,6 +177,20 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .liviqaOpenEdition)) { _ in
             tab = .home
         }
+        // A tapped earned-attention alert (FR-NOT-02) opens the EVIDENCE view of
+        // the nudge it was about — the alert says only that something is worth a
+        // look; the shown work lives on the card. AppState resolves the headline
+        // to a live card (again after the feed rebuilds on a cold launch); an
+        // unresolved link simply leaves the user on the edition.
+        .onReceive(NotificationCenter.default.publisher(for: .liviqaOpenAttention)) { _ in
+            tab = .home
+        }
+        .onChange(of: appState.attentionDeepLink) { _, nudge in
+            guard let nudge else { return }
+            tab = .home
+            selectedNudge = nudge
+            appState.attentionDeepLink = nil
+        }
         #if DEBUG
         .sheet(isPresented: $debugOpenChat) { ChatView(nudges: appState.nudges) }
         .fullScreenCover(isPresented: $debugOpenThread) {

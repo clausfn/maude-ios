@@ -10,6 +10,11 @@
 // they arrive via `xcrun simctl push booted dev.liviqa.app <payload>` with
 // userInfo {"type":"research"} (no APNs cloud / Partisia needed).
 //
+// It is ALSO where the FR-NOT-02 background wake is registered: BGTaskScheduler
+// requires its launch handler to exist before the app finishes launching, and
+// this delegate is the only pre-scene hook a SwiftUI app has. The wake itself
+// lives in BackgroundRefresh.swift.
+//
 // NOTE: live remote delivery also needs the Push Notifications capability +
 // aps-environment entitlement and an APNs-provisioned backend. Until then,
 // registration fails gracefully (didFailToRegister) — no crash — and the local
@@ -26,6 +31,11 @@ extension Notification.Name {
     /// Posted when a local edition note (morning/evening — FR-NOT-02) is TAPPED
     /// → MainTabView fronts the Home tab (the edition surface).
     static let liviqaOpenEdition = Notification.Name("LiviqaOpenEdition")
+    /// Posted when an earned-attention alert (FR-NOT-02) is TAPPED. `object` is
+    /// the nudge headline the alert was about, so AppState can open THAT card's
+    /// evidence view — the shown work, which is the point of the alert. Absent
+    /// object ⇒ open the edition (Home).
+    static let liviqaOpenAttention = Notification.Name("LiviqaOpenAttention")
 }
 
 private func isResearchPayload(_ info: [AnyHashable: Any]) -> Bool {
@@ -38,11 +48,32 @@ private func isEditionPayload(_ info: [AnyHashable: Any]) -> Bool {
     (info["type"] as? String) == "edition"
 }
 
+private func isAttentionPayload(_ info: [AnyHashable: Any]) -> Bool {
+    (info["type"] as? String) == "attention"
+}
+
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // Receive willPresent (foreground banners) and didReceive (taps).
         UNUserNotificationCenter.current().delegate = self
+        // FR-NOT-02 earned-attention loop: the BGTaskScheduler launch handler
+        // MUST be registered before launch finishes, or iOS throws when the task
+        // fires. Scheduling the first wake is safe here too (it is a no-op when
+        // the preference is off, or when the platform refuses).
+        BackgroundRefresh.register()
+        BackgroundRefresh.schedule()
+        // Re-arm the next opportunistic wake every time the app leaves the
+        // foreground (iOS holds one pending request per identifier, so this just
+        // refreshes the earliest-begin date). This is a NotificationCenter
+        // observer rather than `applicationDidEnterBackground` on purpose: this
+        // is a scene-based SwiftUI app, where that delegate method is never
+        // called — the UIApplication notification still is.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { BackgroundRefresh.schedule() }
+            }
         return true
     }
 
@@ -80,14 +111,21 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .list])
     }
 
-    /// Tapping routes to the right surface: a research invitation opens the
-    /// consent flow (UC-RSCH); an edition note (FR-NOT-02) fronts Home.
+    /// Tapping routes to the surface the note is ABOUT (FR-NOT-02 §3): a
+    /// research invitation opens the consent flow (UC-RSCH); a morning/evening
+    /// edition note fronts Home (Home IS the edition); an earned-attention alert
+    /// opens the evidence view of the very nudge that earned it.
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let info = response.notification.request.content.userInfo
         if isResearchPayload(info) {
             NotificationCenter.default.post(name: .liviqaOpenResearch, object: nil)
+        } else if isAttentionPayload(info) {
+            // `nudge` is the headline the alert was built from — unrendered
+            // routing data, never shown in the banner.
+            NotificationCenter.default.post(name: .liviqaOpenAttention,
+                                            object: info["nudge"] as? String)
         } else if isEditionPayload(info) {
             NotificationCenter.default.post(name: .liviqaOpenEdition, object: nil)
         }

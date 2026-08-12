@@ -131,6 +131,121 @@ struct HealthVaultStoreTests {
         #expect(try b.open(meta.id) == nil)
     }
 
+    // MARK: - The two failure classes (robustness, FR-ING-15)
+
+    /// RECOVERABLE class. A scope with no key material yet is not an error at
+    /// all: the space initialises empty, reports `.ready`, and accepts a
+    /// document. This is the state that was wrongly rendering as "unreadable".
+    @Test func freshSpaceIsReadyAndWritable() throws {
+        let dir = tempDir()
+        let box = CryptoBox(key: SymmetricKey(size: .bits256))
+        let session = HealthVaultSession.open(userScope: "local-user-A", directory: dir) { box }
+
+        #expect(session.access == .ready)
+        #expect(session.access.canAddDocuments)
+        #expect(session.documents.isEmpty)
+        let store = try #require(session.store)
+        #expect(store.canAddDocuments)
+        _ = try store.add(name: "First letter.pdf", data: Data([0x01]), source: "Files")
+        #expect(try store.documents().count == 1)
+    }
+
+    /// RECOVERABLE class. A key that cannot be provisioned right now is reported
+    /// as `.keyUnavailable` / `.lockedUntilDeviceUnlock` — retryable states that
+    /// never claim documents are unreadable, because none may even exist.
+    @Test func unprovisionableKeyIsRecoverableNotUnreadable() throws {
+        let dir = tempDir()
+
+        let locked = HealthVaultSession.open(userScope: "local-user-A", directory: dir) {
+            throw CryptoError.keychain(errSecInteractionNotAllowed)
+        }
+        #expect(locked.access == .lockedUntilDeviceUnlock)
+        #expect(locked.access.isRetryable)
+        #expect(!locked.access.canAddDocuments)
+
+        let unavailable = HealthVaultSession.open(userScope: "local-user-A", directory: dir) {
+            throw CryptoError.keyMaterialUnavailable
+        }
+        #expect(unavailable.access == .keyUnavailable)
+        #expect(unavailable.access.isRetryable)
+
+        // Sealed key material, but nothing sealed on disk ⇒ still not "unreadable
+        // documents": there are none.
+        let noData = HealthVaultSession.open(userScope: "local-user-A", directory: dir) {
+            throw CryptoError.sealedKeyUnreadable
+        }
+        #expect(noData.access == .keyUnavailable)
+        #expect(!HealthVaultStore.hasSealedData(userScope: "local-user-A", directory: dir))
+    }
+
+    /// UNREADABLE class. Documents sealed to key material this device no longer
+    /// holds: the honest state, with adding refused so the index can't be
+    /// replaced — and nothing on disk touched.
+    @Test func sealedDataUnreadableIsReportedAndNonDestructive() throws {
+        let dir = tempDir()
+        let ownKey = CryptoBox(key: SymmetricKey(size: .bits256))
+        let writer = makeStore(box: ownKey, dir: dir)
+        let kept = try writer.add(name: "Cardiology letter.pdf",
+                                  data: Data(repeating: 0x7A, count: 64), source: "Files")
+        let indexBefore = try Data(contentsOf: scopeDir(dir).appendingPathComponent("index.vault"))
+        let filesBefore = try FileManager.default.contentsOfDirectory(atPath: scopeDir(dir).path).sorted()
+
+        // Same files, a different device key.
+        let session = HealthVaultSession.open(userScope: "local-user-A", directory: dir) {
+            CryptoBox(key: SymmetricKey(size: .bits256))
+        }
+        #expect(session.access == .sealedDataUnreadable)
+        #expect(!session.access.canAddDocuments)
+        #expect(!session.access.isRetryable)
+        #expect(session.documents.isEmpty)
+
+        let stranger = try #require(session.store)
+        #expect(!stranger.canAddDocuments)
+        #expect(throws: HealthVaultStore.VaultStoreError.unreadableIndex) {
+            try stranger.add(name: "Intruder.pdf", data: Data([0xFF]), source: "Files")
+        }
+        #expect(throws: HealthVaultStore.VaultStoreError.unreadableIndex) {
+            try stranger.delete(kept.id)
+        }
+
+        // NOTHING was deleted, re-keyed or overwritten.
+        let indexAfter = try Data(contentsOf: scopeDir(dir).appendingPathComponent("index.vault"))
+        #expect(indexAfter == indexBefore)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: scopeDir(dir).path).sorted() == filesBefore)
+
+        // And the real key still opens everything it did before.
+        let recovered = makeStore(box: ownKey, dir: dir)
+        #expect(try recovered.documents().map(\.id) == [kept.id])
+        #expect(try recovered.open(kept.id) == Data(repeating: 0x7A, count: 64))
+        #expect(recovered.canAddDocuments)
+    }
+
+    /// A key that cannot read the index must not be able to erase it by adding —
+    /// the specific data-loss path: `add` used to start a fresh index and write
+    /// it over the old one.
+    @Test func addNeverOverwritesAnUnreadableIndex() throws {
+        let dir = tempDir()
+        let realKey = CryptoBox(key: SymmetricKey(size: .bits256))
+        let owner = makeStore(box: realKey, dir: dir)
+        let a = try owner.add(name: "A.pdf", data: Data([0x0A]), source: "Files")
+        let b = try owner.add(name: "B.pdf", data: Data([0x0B]), source: "Files")
+
+        let stranger = makeStore(box: CryptoBox(key: SymmetricKey(size: .bits256)), dir: dir)
+        for i in 0 ..< 3 {
+            #expect(throws: (any Error).self) {
+                try stranger.add(name: "junk\(i).pdf", data: Data([0xEE]), source: "Files")
+            }
+        }
+        // No stray blob was left behind by the refused writes, and both original
+        // documents are still listed and openable by the real key.
+        let blobs = try blobFiles(in: scopeDir(dir))
+        #expect(blobs.count == 2)
+        let reopened = makeStore(box: realKey, dir: dir)
+        #expect(Set(try reopened.documents().map(\.id)) == [a.id, b.id])
+        #expect(try reopened.open(a.id) == Data([0x0A]))
+        #expect(try reopened.open(b.id) == Data([0x0B]))
+    }
+
     /// Kind inference drives the list icons — spot-check the mapping.
     @Test func kindIsInferredFromTheFileName() {
         #expect(VaultDocumentKind.infer(fromName: "labs.PDF") == .pdf)

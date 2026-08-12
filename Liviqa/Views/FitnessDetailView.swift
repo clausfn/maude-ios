@@ -18,6 +18,8 @@ import SwiftUI
 struct FitnessDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// FR-XPL-01 — the hero verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: FitnessDetail? { appState.fitnessDetail }
 
@@ -35,6 +37,7 @@ struct FitnessDetailView: View {
                                stat: model.stat,
                                unit: "training-load points this week",
                                sub: model.sub)
+                    SeeWhyHeroRow { seeWhy = fitnessWhy(model) }
                     if !model.stats.isEmpty { MetricStatRow(items: model.stats) }
                     if model.loadWeeks.count >= 2 { loadCard(model) }
                     if !model.workouts.isEmpty { workoutsCard(model) }
@@ -48,9 +51,22 @@ struct FitnessDetailView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed — this week's load against the user's OWN
+    /// previous weeks. There is no target here, and the disclosure repeats it.
+    private func fitnessWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.fitnessHero(
+            verdict: m.verdict,
+            weekCount: detail?.weekCount ?? m.workouts.count,
+            loadPoints: Int(m.stat) ?? 0,
+            loadUsual: m.loadUsual,
+            weeksCompared: m.loadWeeks.count,
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model

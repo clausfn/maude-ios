@@ -6,6 +6,17 @@
 // would contain a forbidden construction is dropped (and trapped in debug, since
 // the engine should never author one). AFib is display-only (D9): the only
 // cardiac output is route-to-clinician, never an interpretation.
+//
+// FR-CTX-04 (context flags): `context` is a SUPPRESSION GATE, never an input.
+// On a day the user has marked (travelling / unwell / off-routine) the
+// baseline-COMPARISON streams are not run at all, so the app stops reading a
+// life event as a drift from the user's usual. The gate can only ever remove
+// candidates — there is no branch here that emits, re-ranks or rewrites a nudge
+// because a flag exists, which is the FR-NDG-06 interaction rule (designated
+// control, proven by T-CTX-04). Safety routing (AFib → clinician) and the plain
+// number echo are outside the gate on purpose: a self-declared travel note must
+// never silence a safety route or hide the user's own reading.
+//
 // Pure Foundation — no SwiftData/HealthKit/SwiftUI. Android-portable.
 import Foundation
 
@@ -14,17 +25,23 @@ public nonisolated struct NudgeEngine: Sendable {
 
     public func generate(samples: HealthSamples,
                          signals: ClinicalSignals = .init(),
+                         context: [ContextWindow] = [],
                          now: Date = Date(),
                          cap: Int = 4) -> [EngineNudge] {
         var candidates: [EngineNudge] = []
 
+        // Never gated — safety route (D9) and a plain echo of the user's own number.
         candidates += afibNudge(signals)            // displayOnly, top priority
-        candidates += glucoseNudge(samples)         // watch
-        candidates += workoutGlucoseNudge(samples)  // watch (§6.2 lead example)
-        candidates += recoveryNudge(samples)        // wellness (HRV)
-        candidates += sleepNudge(samples)           // wellness
-        candidates += activityNudge(samples)        // wellness
         candidates += restingHRNumber(samples)      // watch (number echo)
+
+        // FR-CTX-04 gate: baseline-comparison streams only run on an unmarked day.
+        if !ContextFlagDeriver.suppressesBaselineDeviations(on: now, windows: context) {
+            candidates += glucoseNudge(samples)         // watch
+            candidates += workoutGlucoseNudge(samples)  // watch (§6.2 lead example)
+            candidates += recoveryNudge(samples)        // wellness (HRV)
+            candidates += sleepNudge(samples)           // wellness
+            candidates += activityNudge(samples)        // wellness
+        }
 
         // FR-NDG-06: nothing forbidden ever ships. Drop (and trap) violators.
         let safe = candidates.filter { nudge in

@@ -15,6 +15,8 @@ import SwiftUI
 struct ActivityDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// FR-XPL-01 — the hero verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: ActivityWeekDetail? { appState.activityDetail }
 
@@ -32,6 +34,7 @@ struct ActivityDetailView: View {
                                stat: model.stat,
                                unit: model.statUnit,
                                sub: model.sub)
+                    SeeWhyHeroRow { seeWhy = activityWhy(model) }
                     if !model.stats.isEmpty { MetricStatRow(items: model.stats) }
                     if model.steps.count >= 2 { stepsCard(model) }
                     if model.kcal.count >= 2 { energyCard(model) }
@@ -43,9 +46,24 @@ struct ActivityDetailView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed — and the honest note that the "usual line"
+    /// only exists once there are PRIOR weeks to average.
+    private func activityWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.activityHero(
+            verdict: m.verdict,
+            daysAboveUsual: detail?.daysAboveUsual ?? 0,
+            usualSteps: m.usualSteps ?? 0,
+            usualFromHistory: detail?.usualFromHistory ?? (detail == nil),
+            pctVsUsual: detail?.pctVsUsual,
+            weekStepsTotal: detail?.weekStepsTotal ?? Int(m.steps.reduce(0, +)),
+            dayCount: m.steps.count,
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model

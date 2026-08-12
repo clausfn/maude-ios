@@ -66,11 +66,41 @@ struct WeekInContextView: View {
         }
     }
 
+    /// FR-CTX-04 fill for a day the user marked: one flat slate tint whatever
+    /// the level, so magnitude can't leak back in through colour. "No data"
+    /// still reads as empty — marking a day never invents a reading for it.
+    private func neutralFill(_ level: CorrelationLevel) -> Color {
+        level == .noData ? LiviqaTheme.gridEmpty : LiviqaTheme.accentFinance.opacity(0.16)
+    }
+
+    // MARK: - Context flags (FR-CTX-04) — marked days read NEUTRAL
+
+    /// Column indices the user has marked (travelling / unwell / off-routine).
+    /// `CorrelationDay.dateOffset` gives each column a real date, so this
+    /// mapping is exact — no day is guessed.
+    private var markedDays: Set<Int> {
+        let windows = appState.contextWindows
+        guard !windows.isEmpty else { return [] }
+        return Set(week.days.enumerated().compactMap { i, day in
+            ContextFlagDeriver.isMarked(day.dayDate, in: windows) ? i : nil
+        })
+    }
+
+    /// The flag kind covering a column, for the readout wording.
+    private func markedKind(_ dayIndex: Int) -> ContextFlagKind? {
+        guard dayIndex < week.days.count else { return nil }
+        return ContextFlagDeriver
+            .window(covering: week.days[dayIndex].dayDate, in: appState.contextWindows)?.kind
+    }
+
     /// The cluster column — the day with the most "worth noticing" signals.
     /// A lit column is the whole point of the heatmap; we ring it and name it.
+    /// Marked days are excluded: the user already told us their life explains
+    /// that day, so it must not be crowned the week's hard day.
     private var clusterDay: Int? {
+        let marked = markedDays
         var best: (idx: Int, score: Int)? = nil
-        for (i, day) in week.days.enumerated() {
+        for (i, day) in week.days.enumerated() where !marked.contains(i) {
             let score = day.values.reduce(0) { $0 + ($1 == .outlier ? 2 : $1 == .high ? 1 : 0) }
             if score > 0, best == nil || score > best!.score { best = (i, score) }
         }
@@ -193,9 +223,13 @@ struct WeekInContextView: View {
 
     // MARK: - Week verdict hero (A7.2 DWeek)
 
-    /// Days with at least one clearly-off or worth-noticing signal.
+    /// Days with at least one clearly-off or worth-noticing signal. Marked days
+    /// don't count — a day the user flagged is not "a hard day" to explain.
     private var hardDayCount: Int {
-        week.days.filter { d in d.values.contains { $0 == .outlier || $0 == .high } }.count
+        let marked = markedDays
+        return week.days.enumerated()
+            .filter { i, d in !marked.contains(i) && d.values.contains { $0 == .outlier || $0 == .high } }
+            .count
     }
 
     /// Honest verdict grammar: "everything else held" is only claimed when
@@ -207,11 +241,22 @@ struct WeekInContextView: View {
                 ? String(localized: "\(day) was the hard day — everything else held.")
                 : String(localized: "\(day) stood out most this week.")
         }
-        return String(localized: "A steady week, day after day.")
+        // "Steady, day after day" would overclaim across days the user told us
+        // were atypical — say what is actually true of the rest of the week.
+        return markedDays.isEmpty
+            ? String(localized: "A steady week, day after day.")
+            : String(localized: "Steady around the days you marked.")
     }
 
     private var weekHeroSub: String {
-        clusterDay != nil
+        let marked = markedDays.count
+        if marked > 0 {
+            let days = marked == 1
+                ? String(localized: "One day you marked is")
+                : String(localized: "\(marked) days you marked are")
+            return String(localized: "\(days) drawn plain below — still recorded, just not read as a drift from your usual.")
+        }
+        return clusterDay != nil
             ? String(localized: "One day shows up across several of your signals — the grid below shows where.")
             : String(localized: "Nothing stood out across your signals this week.")
     }
@@ -375,8 +420,9 @@ struct WeekInContextView: View {
                     Text(day.localizedDayLetter)
                         .font(.liviqaKicker(9))
                         .tracking(0.5)
-                        .foregroundStyle(dayIndex == clusterDay ? LiviqaTheme.clayText
-                                         : (selected?.day == dayIndex ? LiviqaTheme.ink : LiviqaTheme.ink3))
+                        .foregroundStyle(markedDays.contains(dayIndex) ? LiviqaTheme.accentFinance
+                                         : (dayIndex == clusterDay ? LiviqaTheme.clayText
+                                            : (selected?.day == dayIndex ? LiviqaTheme.ink : LiviqaTheme.ink3)))
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -400,16 +446,24 @@ struct WeekInContextView: View {
                                 ? day.values[rowIndex]
                                 : .noData
                             let isSel = selected == SelectedCell(day: dayIndex, metric: rowIndex)
+                            let isMarked = markedDays.contains(dayIndex)
                             Button {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selected = SelectedCell(day: dayIndex, metric: rowIndex)
                                 }
                             } label: {
-                                GridCell(color: fill(level), selected: isSel,
-                                         cluster: dayIndex == clusterDay)
+                                // FR-CTX-04: a marked day never takes the
+                                // deviation ramp — neutral fill + hatch, even
+                                // when the underlying level is `.outlier`.
+                                GridCell(color: isMarked ? neutralFill(level) : fill(level),
+                                         selected: isSel,
+                                         cluster: !isMarked && dayIndex == clusterDay,
+                                         marked: isMarked)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("\(label), \(day.localizedDayName): \(level.accessibilityLabel)")
+                            .accessibilityLabel(isMarked
+                                ? "\(label), \(day.localizedDayName): \(String(localized: "marked day, not read as a deviation"))"
+                                : "\(label), \(day.localizedDayName): \(level.accessibilityLabel)")
                         }
                     }
                 }
@@ -444,17 +498,27 @@ struct WeekInContextView: View {
            sel.metric < week.days[sel.day].values.count {
             let level = week.days[sel.day].values[sel.metric]
             let dayName = week.days[sel.day].localizedDayName
+            let kind = markedKind(sel.day)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Text("\(dayName) · \(metricLabels[sel.metric].capitalized)")
                         .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
                     Spacer()
-                    StatusPill(text: level.accessibilityLabel.capitalized,
-                               dot: fill(level),
-                               bg: level == .outlier ? LiviqaTheme.clay2 : LiviqaTheme.moss2,
-                               fg: level == .outlier ? LiviqaTheme.clay : LiviqaTheme.moss)
+                    if let kind {
+                        StatusPill(text: kind.label,
+                                   dot: LiviqaTheme.accentFinance,
+                                   bg: LiviqaTheme.accentFinance.opacity(0.12),
+                                   fg: LiviqaTheme.accentFinance)
+                    } else {
+                        StatusPill(text: level.accessibilityLabel.capitalized,
+                                   dot: fill(level),
+                                   bg: level == .outlier ? LiviqaTheme.clay2 : LiviqaTheme.moss2,
+                                   fg: level == .outlier ? LiviqaTheme.clay : LiviqaTheme.moss)
+                    }
                 }
-                Text(readout(metric: sel.metric, level: level, day: dayName))
+                Text(kind == nil
+                     ? readout(metric: sel.metric, level: level, day: dayName)
+                     : markedReadout(metric: sel.metric, level: level, day: dayName))
                     .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
             }
             .transition(.opacity)
@@ -486,6 +550,16 @@ struct WeekInContextView: View {
         }
     }
 
+    /// FR-CTX-04 readout for a marked day: name what IS there (no data stays no
+    /// data), then say plainly why it isn't being called a deviation.
+    private func markedReadout(metric: Int, level: CorrelationLevel, day: String) -> String {
+        let m = metricLabels[metric].lowercased()
+        if level == .noData {
+            return String(localized: "No \(m) recorded on \(day). You marked that day, so it isn't read as a drift from your usual either way.")
+        }
+        return String(localized: "\(day)'s \(m) was recorded and kept. You marked that day, so Liviqa isn't reading it as a drift from your usual.")
+    }
+
     // MARK: - Legend
 
     private var gridLegend: some View {
@@ -500,6 +574,12 @@ struct WeekInContextView: View {
                 LegendSwatch(color: fill(.high),    label: "Mild")
                 LegendSwatch(color: fill(.outlier), label: "Worth noticing")
                 LegendSwatch(color: fill(.noData),  label: "No data")
+            }
+            // Only present when the week actually contains a marked day —
+            // never a legend entry for a state that isn't on screen.
+            if !markedDays.isEmpty {
+                LegendSwatch(color: LiviqaTheme.accentFinance.opacity(0.16),
+                             label: "Marked", hatched: true)
             }
             Spacer()
         }
@@ -656,11 +736,22 @@ private struct GridCell: View {
     let color: Color
     var selected: Bool = false
     var cluster: Bool = false   // part of the lit cluster column
+    /// FR-CTX-04 — the user marked this day (travelling / unwell / off-routine).
+    /// The cell renders NEUTRAL: no deviation ramp, no alarm tint, plus the
+    /// shared diagonal hatch so the state survives colour-blindness and
+    /// greyscale (same helper the TIR zones use — one hatch in the app).
+    var marked: Bool = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 6)
             .fill(color)
             .frame(width: 28, height: 28)
+            .overlay {
+                if marked {
+                    ZoneHatch(color: LiviqaTheme.accentFinance.opacity(0.45))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
             .frame(maxWidth: .infinity)
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
@@ -677,12 +768,20 @@ private struct GridCell: View {
 private struct LegendSwatch: View {
     let color: Color
     let label: String
+    /// FR-CTX-04 "marked" swatch — carries the same hatch as the grid cell.
+    var hatched: Bool = false
 
     var body: some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(color)
                 .frame(width: 10, height: 10)
+                .overlay {
+                    if hatched {
+                        ZoneHatch(color: LiviqaTheme.accentFinance.opacity(0.55))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                }
             Text(label)
                 .font(.liviqaKicker(8))
                 .foregroundStyle(LiviqaTheme.ink4)

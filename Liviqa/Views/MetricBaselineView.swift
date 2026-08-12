@@ -25,6 +25,10 @@ struct MetricBaselineView: View {
     let metric: BaselineMetric
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// FR-XPL-01 — the "your usual" verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
+    /// Area ⑨ entry point: the matching method note, straight from this screen.
+    @State private var learnTopic: LearnTopic? = nil
 
     /// The real learned baseline for this domain, when the deriver has one.
     private var live: DomainBaseline? {
@@ -69,9 +73,11 @@ struct MetricBaselineView: View {
                         sparkCard(series)
                     }
                     howCard
+                    learnRow
                     stubs
                 } else {
                     emptyState
+                    learnRow
                 }
 
                 Spacer(minLength: 12)
@@ -79,9 +85,50 @@ struct MetricBaselineView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
+        .sheet(item: $learnTopic) { topic in
+            LearnArticleView(topic: topic, appState: appState)
+        }
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The method note behind THIS band: HRV gets its own topic (Area ⑨), every
+    /// other domain gets the published "your usual" note.
+    private var learnLink: LearnTopic { metric.short == "HRV" ? .hrv : .usualBand }
+
+    private var learnRow: some View {
+        Button { learnTopic = learnLink } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "book")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(learnLink == .hrv ? "What is HRV?" : "How “your usual” is worked out")
+                    .font(.lato(13.5, .bold))
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 6)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 11, weight: .bold))
+            }
+            .foregroundStyle(LiviqaTheme.moss)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.moss3, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+    }
+
+    /// The verdict decomposed: today's figure, the days the band was learned
+    /// from, the band itself, and the one-line arithmetic that produced it.
+    private var baselineWhy: SeeWhyExplanation {
+        SeeWhyExplainer.baseline(
+            name: metric.short, verdict: verdictText, value: value, unit: unit,
+            band: band, learnedFromDays: live?.learnedFromDays,
+            seriesCount: live?.series.count ?? 0,
+            isSeed: live == nil, method: learnLink)
     }
 
     // MARK: - Header (kicker → serif verdict → big number)
@@ -121,6 +168,9 @@ struct MetricBaselineView: View {
                 .foregroundStyle(LiviqaTheme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 8)
+            // FR-XPL-01 — the band is a verdict too, so it opens like one.
+            SeeWhyChip { seeWhy = baselineWhy }
+                .padding(.top, 12)
         }
         .padding(.horizontal, 20)
     }

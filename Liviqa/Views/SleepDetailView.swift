@@ -18,6 +18,8 @@ import SwiftUI
 struct SleepDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
+    /// FR-XPL-01 — the hero verdict and the three score legs, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: SleepWeekDetail? { appState.sleepDetail }
 
@@ -30,6 +32,7 @@ struct SleepDetailView: View {
 
                 if let model {
                     hero(model)
+                    SeeWhyHeroRow { seeWhy = sleepWhy(model) }
                     if !model.stats.isEmpty { MetricStatRow(items: model.stats) }
                     if model.showDemoDepthChart { demoDepthCard }
                     if !model.stageRows.isEmpty { stageCard(model) }
@@ -46,9 +49,26 @@ struct SleepDetailView: View {
             .padding(.bottom, 28)
         }
         .background(LiviqaTheme.paper)
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed: last night, the real nights behind the week
+    /// average, the difference, and — where the ring renders — each score leg's
+    /// arithmetic with its fixed references named out loud.
+    private func sleepWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.sleepHero(
+            verdict: m.verdict,
+            asleepMin: m.asleepMin,
+            weekMeanMin: Int((m.weekMeanHours * 60).rounded()),
+            nightCount: m.nights.count,
+            rest: m.score?.rest, depth: m.score?.depth, rhythm: m.score?.rhythm,
+            deepMin: m.stageRows.first(where: { $0.0 == "Deep" })?.1 ?? 0,
+            remMin: m.stageRows.first(where: { $0.0 == "REM" })?.1 ?? 0,
+            source: detail?.source,
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model (derived figures → fixed descriptive templates)

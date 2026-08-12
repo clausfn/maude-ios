@@ -20,6 +20,8 @@ struct HeartDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
     @State private var showShare = false
+    /// FR-XPL-01 — the hero verdict, opened.
+    @State private var seeWhy: SeeWhyExplanation? = nil
 
     private var detail: HeartWeekDetail? { appState.heartDetail }
 
@@ -37,6 +39,7 @@ struct HeartDetailView: View {
                                stat: model.stat,
                                unit: "bpm resting",
                                sub: model.sub)
+                    SeeWhyHeroRow { seeWhy = heartWhy(model) }
                     if model.bp.count >= 2 { bpCard(model) }
                     if model.rhrSeries.count >= 2 { rhrCard(model) }
                     if let afib = model.afibLine { afibCard(model, line: afib) }
@@ -51,9 +54,22 @@ struct HeartDetailView: View {
         .sheet(isPresented: $showShare) {
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
+        .seeWhySheet($seeWhy, appState: appState)
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar)
         #endif
+    }
+
+    /// The hero verdict decomposed. The AFib lane is deliberately NOT part of
+    /// this: it is display-only, so there is no derivation to disclose (OD-11).
+    private func heartWhy(_ m: Model) -> SeeWhyExplanation {
+        SeeWhyExplainer.heartHero(
+            verdict: m.verdict,
+            rhrLatest: detail?.rhrLatest ?? Int(m.stat),
+            band: m.rhrBand,
+            windowDays: detail?.rhrWindowDays ?? m.rhrSeries.count,
+            seriesCount: m.rhrSeries.count,
+            isSeed: detail == nil)
     }
 
     // MARK: - Screen model (derived figures → fixed descriptive templates)
