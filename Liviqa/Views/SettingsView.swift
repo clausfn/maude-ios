@@ -382,13 +382,14 @@ struct SettingsView: View {
 
     private func connectedSourceRow(icon: String, color: Color, label: String, status: String, statusColor: Color) -> some View {
         HStack(spacing: 14) {
+            // A7.2 pattern 1: SOLID icon square + white glyph (adjacent label carries meaning).
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(color.opacity(0.12))
+                    .fill(color)
                     .frame(width: 32, height: 32)
                 Image(systemName: icon)
                     .font(.lato(13))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.white)
             }
             .padding(.leading, 16)
 
@@ -772,13 +773,14 @@ struct SettingsView: View {
 
     private func settingsNavRow(icon: String, color: Color, label: String, detail: String) -> some View {
         HStack(spacing: 14) {
+            // A7.2 pattern 1: SOLID icon square + white glyph.
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(color.opacity(0.12))
+                    .fill(color)
                     .frame(width: 32, height: 32)
                 Image(systemName: icon)
                     .font(.lato(13))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.white)
             }
             .padding(.leading, 16)
             Text(label)
