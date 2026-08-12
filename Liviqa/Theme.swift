@@ -57,7 +57,11 @@ enum LiviqaTheme {
     static let ink     = Color.dyn(0x2A4FAE, 0xF0EAE0)
     static let ink2    = Color.dyn(0x48598E, 0xF0EAE0, 1, 0.68)
     static let ink3    = Color.dyn(0x535F8C, 0xF0EAE0, 1, 0.45)   // datelines, captions, kickers; tab-bar inactive (5.45:1 on paper)
-    static let ink4    = Color.dyn(0x8C96BB, 0xF0EAE0, 1, 0.30)   // decorative ONLY — fails AA for text on both grounds (2.56/2.92:1)
+    // APPROVED DEVIATION (a11y): the package's ink4 0x8C96BB fails even the 3:1
+    // large-text floor on both grounds (2.56/2.92:1). Darkened one step to 0x7E88B0
+    // (≥3.0:1) so the hint tier is at least large-text/UI legible; body-size text
+    // still belongs in ink3 or darker (iOS .tertiaryLabel convention).
+    static let ink4    = Color.dyn(0x7E88B0, 0xF0EAE0, 1, 0.30)
 
     // Borders / dividers — cool hairlines
     static let line    = Color.dyn(0xD9E4F2, 0xF0EAE0, 1, 0.14)

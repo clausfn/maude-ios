@@ -148,16 +148,35 @@ struct GlucoseCurveView: View {
         return h - CGFloat(min(1, max(0, frac))) * h
     }
     // PR-99: AGP clinical zones — soft horizontal bands; curve stays readable on top.
+    // PR-105 (A7.2 frozen colour-safety ramp): bands are NEVER colour-alone — very-low
+    // carries a HATCH overlay, very-high carries DOTS, and every band that has room
+    // renders a small in-band text label. Deuteranopia-safe by construction.
     @ViewBuilder private func clinicalZones(_ h: CGFloat) -> some View {
-        zoneBand(yMin, 3.0, LiviqaTheme.tirVeryLow, h)   // very low (L2 hypo)
-        zoneBand(3.0, low, LiviqaTheme.tirLow, h)         // low (L1 hypo)
-        zoneBand(low, high, LiviqaTheme.tirTarget, h)     // target 3.9–10.0
-        zoneBand(high, 13.9, LiviqaTheme.tirHigh, h)      // high (L1 hyper)
-        zoneBand(13.9, yMax, LiviqaTheme.tirVeryHigh, h)  // very high (L2 hyper)
+        zoneBand(yMin, 3.0, LiviqaTheme.tirVeryLow, h, pattern: .hatch, label: "VERY LOW")
+        zoneBand(3.0, low, LiviqaTheme.tirLow, h, label: "LOW")
+        zoneBand(low, high, LiviqaTheme.tirTarget, h, label: "IN RANGE")
+        zoneBand(high, 13.9, LiviqaTheme.tirHigh, h, label: "HIGH")
+        zoneBand(13.9, yMax, LiviqaTheme.tirVeryHigh, h, pattern: .dots, label: "VERY HIGH")
     }
-    @ViewBuilder private func zoneBand(_ a: Double, _ b: Double, _ c: Color, _ h: CGFloat) -> some View {
+    private enum ZonePattern { case none, hatch, dots }
+    @ViewBuilder private func zoneBand(_ a: Double, _ b: Double, _ c: Color, _ h: CGFloat,
+                                       pattern: ZonePattern = .none, label: String? = nil) -> some View {
         let top = y(b, h), bot = y(a, h)
-        Rectangle().fill(c.opacity(0.12)).frame(height: max(0, bot - top)).offset(y: top)
+        let bandH = max(0, bot - top)
+        ZStack(alignment: .topTrailing) {
+            Rectangle().fill(c.opacity(0.12))
+            if pattern == .hatch { ZoneHatch(color: c.opacity(0.30)) }
+            if pattern == .dots  { ZoneDots(color: c.opacity(0.30)) }
+            if let label, bandH >= 13 {
+                Text(label)
+                    .font(.system(size: 7, weight: .bold))
+                    .tracking(0.4)
+                    .foregroundStyle(c)
+                    .padding(.trailing, 3).padding(.top, 1.5)
+            }
+        }
+        .frame(height: bandH).offset(y: top).clipped()
+        .accessibilityHidden(true)   // the y-axis labels + headline carry the values
     }
     private func x(_ i: Int, _ w: CGFloat) -> CGFloat {
         values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
@@ -628,5 +647,47 @@ extension View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: item.wrappedValue)
+    }
+}
+
+// MARK: - TIR zone pattern overlays (PR-105 colour-safety: never colour-alone)
+
+/// Diagonal hatch — overlays the VERY-LOW clinical band.
+private struct ZoneHatch: View {
+    var color: Color
+    var body: some View {
+        Canvas { ctx, size in
+            var p = Path()
+            let step: CGFloat = 6
+            var x: CGFloat = -size.height
+            while x < size.width {
+                p.move(to: CGPoint(x: x, y: size.height))
+                p.addLine(to: CGPoint(x: x + size.height, y: 0))
+                x += step
+            }
+            ctx.stroke(p, with: .color(color), lineWidth: 1)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Dot grid — overlays the VERY-HIGH clinical band.
+private struct ZoneDots: View {
+    var color: Color
+    var body: some View {
+        Canvas { ctx, size in
+            let step: CGFloat = 7
+            var y: CGFloat = 2.5
+            while y < size.height {
+                var x: CGFloat = 2.5
+                while x < size.width {
+                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 2, height: 2)),
+                             with: .color(color))
+                    x += step
+                }
+                y += step
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
