@@ -1,146 +1,128 @@
-// HealthKitPrimerView.swift — HealthKit permission primer · v01 2026-05-22
-// Shown once after first sign-in, before the iOS system HealthKit dialog.
-// Design ref: Privacy_Onboarding_DesignBrief_v01_20260522.md (Screen 2 — Primer)
+// HealthKitPrimerView.swift — HealthKit permission primer · v02 2026-08-12
+// A7.2 restyle to the designed anatomy (f-onboarding.jsx step 3): StepHead,
+// six DOMAIN-COLOURED rows with fjord checkmarks, watch-glyph primary, quiet
+// skip with sub-line, teal lock card. The REAL paths are unchanged: onConnect
+// sets dataProviderKind=.healthKit + triggers the system read-authorization
+// sheet (wired by the caller); skip routes to demo — never an error
+// (FR-ING-02). Embedded as step 3 of OnboardingFlowView; skip surfaces
+// HealthAccessDeclinedView there.
+// Per-type purpose strings live on as the row sublabels (the design dropped
+// them; the census asked to keep them reachable).
 import SwiftUI
 
 struct HealthKitPrimerView: View {
+    /// First name captured upstream (nil → generic headline).
+    var greetName: String? = nil
     var onConnect: () -> Void
     var onSkip:    () -> Void
 
-    // Data types: (SF symbol, type label, purpose)
-    private let dataTypes: [(String, String, String)] = [
-        ("drop.fill",
-         "Blood glucose",
-         "To show your glucose trends and time-in-range patterns."),
-        ("bed.double.fill",
-         "Sleep analysis",
-         "To correlate sleep quality with meals, activity, and glucose."),
-        ("figure.walk",
-         "Activity & workouts",
-         "To detect movement patterns and correlate with other signals."),
-        ("heart.fill",
-         "Heart rate",
-         "To surface resting HR trends and flag unusual readings.")
-    ]
-
-    var body: some View {
-        ZStack {
-            LiviqaTheme.paper.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-
-                // Header
-                VStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(LiviqaTheme.moss2)
-                            .frame(width: 72, height: 72)
-                        Image(systemName: "heart.text.square.fill")
-                            .font(.lato(32))
-                            .foregroundStyle(LiviqaTheme.moss)
-                    }
-                    .padding(.top, 56)
-
-                    Text("Connect Apple Health")
-                        .font(.liviqaSerif(24))
-                        .kerning(-0.2)
-                        .foregroundStyle(LiviqaTheme.ink)
-                        .padding(.top, 4)
-
-                    Text("Liviqa reads only what it needs.\nNothing leaves your device without your consent.")
-                        .font(.lato(13.5))
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(2.5)
-                        .padding(.horizontal, 32)
-                        .padding(.top, 4)
-                }
-
-                // Data type rows
-                VStack(spacing: 0) {
-                    ForEach(Array(dataTypes.enumerated()), id: \.offset) { idx, item in
-                        let (symbol, label, purpose) = item
-                        dataTypeRow(symbol: symbol, label: label, purpose: purpose)
-                        if idx < dataTypes.count - 1 {
-                            Divider()
-                                .background(LiviqaTheme.line2)
-                                .padding(.leading, 52)
-                        }
-                    }
-                }
-                .background(LiviqaTheme.paper2)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 0.5))
-                .shadow(color: LiviqaTheme.cardShadow, radius: 6, y: 2)
-                .padding(.horizontal, 20)
-                .padding(.top, 32)
-
-                // Privacy note
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.fill")
-                        .font(.lato(11))
-                        .foregroundStyle(LiviqaTheme.ink4)
-                    Text("Apple Health access is read-only. Liviqa cannot write to or modify your health records.")
-                        .font(.lato(11.5))
-                        .foregroundStyle(LiviqaTheme.ink4)
-                        .lineSpacing(1.5)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 18)
-
-                Spacer()
-
-                // Actions
-                VStack(spacing: 12) {
-                    Button(action: onConnect) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "heart.fill")
-                                .font(.lato(14))
-                            Text("Connect Apple Health")
-                                .font(.lato(15, .bold))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(LiviqaTheme.moss)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
-
-                    Button(action: onSkip) {
-                        Text("Skip for now — connect later in Settings")
-                            .font(.lato(13))
-                            .foregroundStyle(LiviqaTheme.ink3)
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 48)
-            }
-        }
+    // (SF symbol, domain colour, type label, purpose — kept as the sublabel)
+    private var dataTypes: [(String, Color, String, String)] {
+        [("bed.double.fill", LiviqaTheme.accentSleep,
+          String(localized: "Sleep"),
+          String(localized: "To correlate sleep quality with meals, activity, and glucose.")),
+         ("drop.fill", LiviqaTheme.accentGlucose,
+          String(localized: "Blood glucose"),
+          String(localized: "To show your glucose trends and time-in-range patterns.")),
+         ("waveform.path.ecg", LiviqaTheme.accentRecovery,
+          String(localized: "Heart-rate variability"),
+          String(localized: "To read recovery against your own baseline.")),
+         ("heart.fill", LiviqaTheme.accentHeart,
+          String(localized: "Resting heart rate"),
+          String(localized: "To surface resting HR trends and flag unusual readings.")),
+         ("figure.outdoor.cycle", LiviqaTheme.accentRecovery,
+          String(localized: "Workouts"),
+          String(localized: "To detect movement patterns and correlate with other signals.")),
+         ("figure.walk", LiviqaTheme.accentRecovery,
+          String(localized: "Steps & active energy"),
+          String(localized: "To see daily activity next to sleep and glucose."))]
     }
 
-    private func dataTypeRow(symbol: String, label: String, purpose: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: symbol)
-                .font(.lato(16))
-                .foregroundStyle(LiviqaTheme.moss)
-                .frame(width: 24)
-                .padding(.top, 2)
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    OnbStepHead(
+                        kicker: String(localized: "Step 3 of 9"),
+                        title: greetName.map { String(localized: "Connect Apple Health, \($0).") }
+                            ?? String(localized: "Connect Apple Health."),
+                        lead: String(localized: "Liviqa reads these — and only these — right here on your phone. It's read-only, and nothing is uploaded."),
+                        accent: LiviqaTheme.accentGlucose, compact: true)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(label)
-                    .font(.lato(13.5, .bold))
-                    .foregroundStyle(LiviqaTheme.ink)
-                Text(purpose)
-                    .font(.lato(12.5))
-                    .foregroundStyle(LiviqaTheme.ink3)
-                    .lineSpacing(1.5)
-                    .fixedSize(horizontal: false, vertical: true)
+                    // Six domain-coloured rows, each with a fjord checkmark
+                    VStack(spacing: 0) {
+                        ForEach(Array(dataTypes.enumerated()), id: \.offset) { idx, item in
+                            let (symbol, color, label, purpose) = item
+                            if idx > 0 { Divider().overlay(LiviqaTheme.line) }
+                            HStack(alignment: .center, spacing: 11) {
+                                OnbIconChip(systemName: symbol, color: color, side: 26, corner: 8)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(label)
+                                        .font(.lato(14, .semibold))
+                                        .foregroundStyle(LiviqaTheme.ink)
+                                    Text(purpose)
+                                        .font(.lato(11))
+                                        .lineSpacing(2)
+                                        .foregroundStyle(LiviqaTheme.ink3)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(LiviqaTheme.moss)
+                                    .accessibilityHidden(true)
+                            }
+                            .padding(.vertical, 9)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(LiviqaTheme.paper2)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16)
+                        .stroke(LiviqaTheme.line, lineWidth: 1))
+                    .padding(.top, 4)
+                }
+                .padding(.horizontal, 26)
             }
+            .scrollBounceBehavior(.basedOnSize)
 
-            Spacer(minLength: 0)
+            VStack(spacing: 10) {
+                OnbPrimaryButton(label: String(localized: "Connect Apple Health"),
+                                 icon: "applewatch", action: onConnect)
+                OnbQuietButton(label: String(localized: "Skip — explore with sample data"),
+                               sub: String(localized: "You can connect real data any time in Settings"),
+                               action: onSkip)
+                // Teal lock card
+                HStack(spacing: 9) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LiviqaTheme.moss.opacity(0.14))
+                            .frame(width: 26, height: 26)
+                        Image(systemName: "lock")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(LiviqaTheme.moss)
+                    }
+                    .accessibilityHidden(true)
+                    Text("Reading happens on-device. Nothing leaves without your permission.")
+                        .font(.lato(12))
+                        .lineSpacing(3)
+                        .foregroundStyle(LiviqaTheme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(LiviqaTheme.moss2)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12)
+                    .stroke(LiviqaTheme.moss3, lineWidth: 1))
+            }
+            .padding(.horizontal, 26)
+            .padding(.top, 14)
+            .padding(.bottom, 20)
         }
-        .padding(.vertical, 13)
-        .padding(.horizontal, 16)
+        // No own background — the onboarding flow provides the paper ground
+        // and the per-step ambient glow behind this step.
     }
 }

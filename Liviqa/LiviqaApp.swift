@@ -1,6 +1,10 @@
 // LiviqaApp.swift — Phase 1 entry point. Injects AppState; gates on session.
-// Onboarding flow: PrivacyDeclaration (once) → Auth → HealthKitPrimer (once) → DfGOnboarding (once) → MainTabView
-// v03 2026-05-22
+// Onboarding flow (A7.2): PrivacyDeclaration (once, FR-REG-01) →
+// OnboardingFlowView (the designed 9-step flow: why → sign-in → Apple Health
+// → Data for Good → name → Passport → sharing → backup → app lock → literacy
+// → how it works → ready) → MainTabView. A returning signed-out user (gates
+// already set) gets the restyled AuthView standalone, not the whole flow.
+// v04 2026-08-12
 import SwiftUI
 
 @main
@@ -18,6 +22,8 @@ struct LiviqaApp: App {
     @State private var debugIDP: IDProvider? = nil
     @State private var debugGlassLab = false
     @State private var debugDayLab = false
+    @State private var debugMitIDPrompt = false
+    @State private var debugIdentityVerify = false
     #endif
 
     // One-time flags — persist across launches
@@ -32,17 +38,32 @@ struct LiviqaApp: App {
     @AppStorage("onboardingVersion") private var seenOnboardingVersion = 0
     static let currentOnboardingVersion = 1
 
+    // Face ID app lock (NFR-SEC): while enabled, the AppLockScreen overlays on
+    // wake (cold launch + background→active). Reads UserDefaults directly at
+    // init so a cold launch starts locked without a flash of content.
+    @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @State private var isLocked = UserDefaults.standard.bool(forKey: "appLockEnabled")
+    @Environment(\.scenePhase) private var scenePhase
+
     // Runtime theme (Midnight default) — flips every LiviqaTheme.* token at the root.
     // Default to Paper — the Design System v2 ground (warm paper, ink, moss/clay).
     // Users can still switch to Midnight in Settings; the dynamic tokens flip the app.
     @AppStorage("liviqaThemeMode") private var themeModeRaw = LiviqaTheme.Mode.paper.rawValue
     private var themeMode: LiviqaTheme.Mode { LiviqaTheme.Mode(rawValue: themeModeRaw) ?? .midnight }
 
+    /// The designed flow shows while any of its legacy gates are open — a
+    /// fresh install AND the once-per-version replay both land here. It embeds
+    /// sign-in as step 2 (auto-skipped for an already-signed-in replay).
+    private var needsOnboardingFlow: Bool {
+        !hasSeenHealthKitPrimer || !hasSeenDfGOnboarding
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
                 if !hasSeenPrivacyDeclaration {
-                    // Screen 1 — privacy declaration (first launch only, before auth)
+                    // Screen 1 — privacy declaration (first launch only, before
+                    // anything else; FR-REG-01 regulatory — do not reorder).
                     PrivacyDeclarationView {
                         hasSeenPrivacyDeclaration = true
                     }
@@ -53,34 +74,36 @@ struct LiviqaApp: App {
                         LiviqaTheme.paper.ignoresSafeArea()
                         ProgressView().tint(LiviqaTheme.ink)
                     }
+                } else if needsOnboardingFlow {
+                    // Screens 2…10 — the A7.2 designed flow (cover → … → ready).
+                    // Completion sets ALL legacy gates so the existing
+                    // version-replay logic keeps working unchanged.
+                    OnboardingFlowView {
+                        hasSeenHealthKitPrimer = true
+                        hasSeenDfGOnboarding   = true
+                        seenOnboardingVersion  = Self.currentOnboardingVersion
+                    }
                 } else if appState.session == nil {
-                    // Screen 2 — sign in / demo mode
+                    // Returning signed-out user — the restyled sign-in, standalone.
                     AuthView()
-                } else if !hasSeenHealthKitPrimer {
-                    // Screen 3 — HealthKit primer (once, after first sign-in)
-                    HealthKitPrimerView {
-                        // Connect → switch to real on-device Health data and request read
-                        // authorization now (FR-ING-01/02). The system permission sheet
-                        // appears; ingestion + nudges then refresh against the user's
-                        // real HealthKit data. (Skip stays on demo data — never an error.)
-                        appState.dataProviderKind = .healthKit
-                        Task { await appState.refreshFromHealth() }
-                        hasSeenHealthKitPrimer = true
-                    } onSkip: {
-                        // FR-ING-02: skipped authorization routes to demo data, not an error.
-                        hasSeenHealthKitPrimer = true
-                    }
-                } else if !hasSeenDfGOnboarding {
-                    // Screen 4 — consent governance intro (once, after HealthKit)
-                    DfGOnboardingView {
-                        hasSeenDfGOnboarding = true
-                    }
                 } else {
                     // Main app
                     MainTabView()
                 }
             }
             .environment(appState)
+            // Face ID app lock — minimal runtime overlay (blur-free, honest):
+            // covers everything incl. the onboarding while locked.
+            .overlay {
+                if isLocked {
+                    AppLockScreen { isLocked = false }
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background && appLockEnabled {
+                    isLocked = true
+                }
+            }
             #if DEBUG
             .fullScreenCover(isPresented: $debugWallet) {
                 DfGWalletLoginView(onComplete: { _ in debugWallet = false },
@@ -97,6 +120,21 @@ struct LiviqaApp: App {
                         .background(LiviqaTheme.paper.ignoresSafeArea())
                 }
                 .environment(appState)   // covers don't inherit the env automatically
+            }
+            // Onboarding satellites (LIVIQA_ONB_STEP=mitid|identity)
+            .fullScreenCover(isPresented: $debugMitIDPrompt) {
+                MitIDPromptView(onCancel: { debugMitIDPrompt = false }) {
+                    // The real linking use case the prompt fronts (FR-ING-14).
+                    SundhedWebSessionView(
+                        ingest: appState.supabase as? SundhedIngesting,
+                        citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
+                    )
+                }
+                .environment(appState)
+            }
+            .fullScreenCover(isPresented: $debugIdentityVerify) {
+                IdentityVerifyView(onContinue: { _ in debugIdentityVerify = false },
+                                   onBack: { debugIdentityVerify = false })
             }
             #endif
             .preferredColorScheme(themeMode.colorScheme)   // Paper (light) by default
@@ -117,6 +155,33 @@ struct LiviqaApp: App {
                 if ProcessInfo.processInfo.arguments.contains("-dayLab") {
                     hasSeenPrivacyDeclaration = true
                     debugDayLab = true
+                    return
+                }
+                // Snapshot hook (A7.2): force the onboarding flow open at a frame.
+                // LIVIQA_ONB_STEP=<0..10|declined|lock|literacy|mitid|identity>
+                if let raw = ProcessInfo.processInfo.environment["LIVIQA_ONB_STEP"] {
+                    hasSeenPrivacyDeclaration = true
+                    seenOnboardingVersion = Self.currentOnboardingVersion
+                    isLocked = false
+                    switch raw {
+                    case "mitid":
+                        // Keep the flow (cover) behind the sheet — MainTabView
+                        // would fire the push-permission prompt over the shot.
+                        hasSeenHealthKitPrimer = false; hasSeenDfGOnboarding = false
+                        debugMitIDPrompt = true
+                    case "identity":
+                        hasSeenHealthKitPrimer = false; hasSeenDfGOnboarding = false
+                        debugIdentityVerify = true
+                    default:
+                        // In-flow frames: open the flow; OnboardingFlowView reads
+                        // the same env and jumps. Frames past sign-in need a
+                        // session so step 2 doesn't intercept.
+                        hasSeenHealthKitPrimer = false
+                        hasSeenDfGOnboarding = false
+                        if raw != "0", raw != "1", raw != "2", appState.session == nil {
+                            appState.signInDemo()
+                        }
+                    }
                     return
                 }
                 // Snapshot hook: open the DfG Wallet login flow directly.

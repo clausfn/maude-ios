@@ -76,6 +76,16 @@ struct MetricDetailView: View {
     private let dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
     var body: some View {
+        // A7.2 Area ③: glucose gets the rebuilt DGlucose editorial screen (the
+        // app's single clinical-red surface). Other pillars keep the legacy body.
+        if pillar == .glucose {
+            GlucoseDetailView()
+        } else {
+            legacyBody
+        }
+    }
+
+    private var legacyBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 NavBackHeader(onBack: { dismiss() }) { EmptyView() }

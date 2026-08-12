@@ -138,6 +138,21 @@ struct GlucoseCurveView: View {
     /// PR-99: show the clinical AGP Time-in-Range zones (red/yellow/green) instead of
     /// the single personal target band. Default off ⇒ existing look unchanged.
     var showsClinicalZones: Bool = false
+    // A7.2 Area ③ (GlucoseDayCurve anatomy) — all defaulted off so existing call
+    // sites render exactly as before.
+    /// x-positions as hour-of-day (0…24) per value, so real CGM points sit at
+    /// their true wall-clock time. nil keeps the even index spacing.
+    var hours: [Double]? = nil
+    /// Re-stroke the out-of-range curve segments in the clinical red mark
+    /// (RK-ALARM-01: red lives ONLY inside the clinical glucose charts). Gate on
+    /// the same `clinicalTIRZones` flag as the zones at the call site.
+    var redOutOfRange: Bool = false
+    /// In-chart target label ("target 3.9–10.0 mmol/L"), drawn at the top edge of
+    /// the in-range band — the chart carries its own labels (never colour-alone).
+    var targetLabel: String? = nil
+    /// Peak annotation ("11.2 · 13:40"): leader + dot + right-aligned label at the
+    /// day's highest point, rendered only when that point is above target.
+    var peakLabel: String? = nil
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var shown = false
@@ -178,8 +193,21 @@ struct GlucoseCurveView: View {
         .frame(height: bandH).offset(y: top).clipped()
         .accessibilityHidden(true)   // the y-axis labels + headline carry the values
     }
+    /// Mask covering the regions above the target-high and below the target-low
+    /// lines — the clinical re-stroke shows only there.
+    private func outOfRangeMask(w: CGFloat, h: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Rectangle().frame(height: max(0, y(high, h)))
+            Spacer(minLength: 0)
+            Rectangle().frame(height: max(0, h - y(low, h)))
+        }
+        .frame(width: w, height: h)
+    }
     private func x(_ i: Int, _ w: CGFloat) -> CGFloat {
-        values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
+        if let hours, hours.count == values.count {
+            return CGFloat(min(24, max(0, hours[i])) / 24) * w
+        }
+        return values.count <= 1 ? 0 : CGFloat(i) / CGFloat(values.count - 1) * w
     }
     private func points(_ w: CGFloat, _ h: CGFloat) -> [CGPoint] {
         values.enumerated().map { CGPoint(x: x($0.offset, w), y: y($0.element, h)) }
@@ -235,6 +263,12 @@ struct GlucoseCurveView: View {
                                 .offset(y: y(high, h))
                         }
                 }
+                if let targetLabel {
+                    Text(targetLabel)
+                        .font(.liviqaKicker(8)).tracking(0.4)
+                        .foregroundStyle(LiviqaTheme.tirTarget)
+                        .offset(x: 4, y: y(high, h) + 2)
+                }
                 if values.count > 1 {
                     let pts = points(w, h)
                     smoothedArea(pts, h).fill(LinearGradient(
@@ -243,6 +277,35 @@ struct GlucoseCurveView: View {
                     smoothedLine(pts).trim(from: 0, to: max(0.0001, t))
                         .stroke(LiviqaTheme.clay, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
                         .animation(.easeOut(duration: 1.0), value: t)
+                    // Clinical re-stroke: the SAME curve, masked to the out-of-range
+                    // regions, in the clinical red mark (glucose-only, RK-ALARM-01).
+                    if redOutOfRange {
+                        smoothedLine(pts).trim(from: 0, to: max(0.0001, t))
+                            .stroke(LiviqaTheme.clinRed, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                            .animation(.easeOut(duration: 1.0), value: t)
+                            .mask { outOfRangeMask(w: w, h: h) }
+                    }
+                    // Peak annotation — only when the day's highest point is above target.
+                    if let peakLabel,
+                       let maxIdx = values.indices.max(by: { values[$0] < values[$1] }),
+                       values[maxIdx] > high {
+                        let peak = pts[maxIdx]
+                        Path { p in
+                            p.move(to: CGPoint(x: peak.x, y: peak.y - 7))
+                            p.addLine(to: CGPoint(x: peak.x, y: 14))
+                        }
+                        .stroke(LiviqaTheme.clinRed.opacity(0.5), lineWidth: 1)
+                        .opacity(t)
+                        Circle().fill(LiviqaTheme.clinRed).frame(width: 7, height: 7)
+                            .position(peak).opacity(t)
+                        Text(peakLabel)
+                            .font(.liviqaMono(10))
+                            .foregroundStyle(LiviqaTheme.clinRed)
+                            .frame(width: w, alignment: .trailing)
+                            .padding(.trailing, 2)
+                            .offset(y: 1)
+                            .opacity(t)
+                    }
                     Circle().fill(LiviqaTheme.clay).frame(width: 8, height: 8)
                         .overlay(Circle().stroke(LiviqaTheme.paper2, lineWidth: 2))
                         .position(pts[pts.count - 1]).opacity(t)
@@ -652,8 +715,10 @@ extension View {
 
 // MARK: - TIR zone pattern overlays (PR-105 colour-safety: never colour-alone)
 
-/// Diagonal hatch — overlays the VERY-LOW clinical band.
-private struct ZoneHatch: View {
+/// Diagonal hatch — overlays the VERY-LOW clinical band. Internal so the glucose
+/// detail's TIR proportion bar (GlucoseDetailView) reuses the SAME pattern — the
+/// deuteranopia closure stays one implementation.
+struct ZoneHatch: View {
     var color: Color
     var body: some View {
         Canvas { ctx, size in
@@ -671,8 +736,9 @@ private struct ZoneHatch: View {
     }
 }
 
-/// Dot grid — overlays the VERY-HIGH clinical band.
-private struct ZoneDots: View {
+/// Dot grid — overlays the VERY-HIGH clinical band. Internal: shared with the
+/// glucose detail's TIR proportion bar (see ZoneHatch note).
+struct ZoneDots: View {
     var color: Color
     var body: some View {
         Canvas { ctx, size in

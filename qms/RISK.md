@@ -2,6 +2,41 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## A7.2 Area ③ — Glucose detail rebuilt to the DGlucose anatomy (branch claude/a72-electric-ink, 2026-08-12)
+
+- **RK-ALARM-01 — clinical red EXTENDED inside the glucose clinical charts,
+  lock re-affirmed.** New token `clinRed 0xDA2F46` (package `clinRed`; dark
+  lift `0xF0637A`, ≈4.8:1 on plate) renders in exactly three places, all
+  inside the glucose clinical charts: (1) the out-of-range re-stroke of the
+  day curve, (2) its above-target peak annotation, (3) the excursion caps on
+  the week range bars. It appears nowhere as accent, border, chrome, or text
+  outside those charts — the red-is-clinical-glucose-only lock holds, and the
+  glucose detail remains the app's single red surface. Never colour-alone:
+  the red marks coincide with position outside the labelled target band, the
+  frozen PR-105 zone ramp keeps its hatch/dots/in-band labels, the TIR
+  proportion bar names every band in a key with mmol/L ranges (extremes also
+  patterned), and each week bar prints its own numeric TIR%. Both charts also
+  carry VoiceOver values. The `clinicalTIRZones` flag reverts the day curve
+  AND the red re-stroke AND the week-bar red caps to the personal-band idiom
+  in one switch (no half-clinical state).
+- **GMI derivation (HbA1c headline, OD glucose lane) — display-only.** New
+  `GlucoseDetailDeriver` computes GMI = 3.31 + 0.02392 × mean mg/dL from the
+  full on-device window, and refuses to emit it below 14 distinct days of
+  readings (CGM consensus minimum) — the chip is absent, never an estimated
+  stand-in. mmol/L canonical everywhere (OD-07). All screen sentences are
+  fixed descriptive templates from derived numbers (no generated language,
+  no diagnosis framing); week-over-week claims render only when the previous
+  week actually has readings (unit-tested, `GlucoseDetailDeriverTests`).
+- **FR-REG-04 — insulin stays data-layer only.** The design package's
+  "insulin dots" row is deliberately NOT implemented: `InsulinReading` keeps
+  no render path. Rendering dose events on the glucose curve would create the
+  first insulin surface and re-open RK-GLU-01; recorded here as a conscious
+  design deviation, not an omission.
+- **Demo-honesty:** the design-package seed story renders only when no
+  derivation exists AND the session is demo-tagged; a real device without
+  glucose shows an honest empty state. Derived data always wins (no
+  demo-over-real). `provenance` untouched — still never renders.
+
 ## PR-105 — A7.2 "Electric Ink" reskin: colour-semantic decisions (2026-08-12, CN sign-offs recorded)
 
 - **RK-ALARM-01 — amber attention semantic RENEWED for A7.2.** The attention

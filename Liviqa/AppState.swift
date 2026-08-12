@@ -115,6 +115,11 @@ final class AppState {
     /// Live Home "signals vs your normal" chips, derived from real HealthKit
     /// samples. nil ⇒ no real data yet → Home shows the demo seeds.
     var todaySignals: TodaySignals? = nil
+    /// Glucose metric-detail derivation (week TIR bands, GMI, per-day spans,
+    /// today's timed curve points). nil ⇒ no glucose in the last week → the
+    /// detail screen shows its clearly-demo seeds (demo mode) or an honest
+    /// empty state (real-data mode).
+    var glucoseDetail: GlucoseWeekDetail? = nil
     /// Dual-recording merges from the last fetch (FR-PROV-02) — sessions that
     /// arrived from two trackers and were counted once. Shown in Data sources.
     var workoutMerges: [WorkoutMerge] = []
@@ -366,6 +371,11 @@ final class AppState {
             email: nil
         )
         profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date(), alias: "LV001")
+        // A name declared in onboarding beats the pseudonymous alias for
+        // greetings (the alias stays LV001 for recipients/consult).
+        if let local = UserDefaults.standard.string(forKey: Self.displayNameKey), !local.isEmpty {
+            profile?.displayName = local
+        }
         // Mock wallet/care seeds are DEBUG-only (T1). All Release entry points to
         // signInDemo are already gated (AuthView demo button, wallet/eID flags),
         // this keeps the fabricated grants out even if a new caller slips in.
@@ -438,6 +448,7 @@ final class AppState {
         // 5. Liviqa UserDefaults leftovers.
         citizenCredentialValidUntil = nil
         UserDefaults.standard.removeObject(forKey: Self.initialBackfillKey)
+        UserDefaults.standard.removeObject(forKey: Self.displayNameKey)   // declared name (UC-01)
         // 6. Reset every health-derived in-memory surface to first-launch seeds
         //    (demo in DEBUG, EMPTY in Release — ColdStartSeeds.swift) so no trace
         //    of the erased data survives in the running session.
@@ -445,6 +456,7 @@ final class AppState {
         rings           = ColdStart.rings
         nudges          = ColdStart.nudges
         todaySignals    = nil
+        glucoseDetail   = nil
         sleepSummary    = nil
         workoutMerges   = []
         passportStats   = ColdStart.passportStats
@@ -604,6 +616,35 @@ final class AppState {
     @MainActor
     func loadProfile() async {
         do { profile = try await supabase.fetchProfile() } catch { /* non-fatal */ }
+        // Device-declared name (onboarding name capture) overlays a missing
+        // backend name — the daily edition greets with what the user typed.
+        if let local = UserDefaults.standard.string(forKey: Self.displayNameKey),
+           !local.isEmpty,
+           (profile?.displayName ?? "").isEmpty {
+            profile?.displayName = local
+        }
+    }
+
+    // MARK: - Declared display name (UC-01 name capture — device-local)
+
+    /// UserDefaults key for the locally-declared first name. The name never
+    /// leaves the device; it only feeds the greeting surfaces
+    /// (`profile?.displayName` consumers: Today greeting, Settings, avatar).
+    static let displayNameKey = "liviqa.profile.displayName"
+
+    /// Persist the name typed in onboarding and reflect it on the in-memory
+    /// profile immediately (creating a local profile when none is loaded yet).
+    @MainActor
+    func setDisplayName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        UserDefaults.standard.set(trimmed, forKey: Self.displayNameKey)
+        if profile != nil {
+            profile?.displayName = trimmed
+        } else if let session {
+            profile = UserProfile(id: session.userId, displayName: trimmed,
+                                  avatarURL: nil, createdAt: nil, alias: nil)
+        }
     }
 
     // MARK: - On-device health pipeline (L1 → L2 → L3)
@@ -690,6 +731,7 @@ final class AppState {
                     passport: PassportStatsDeriver.derive(from: samples),
                     grid: CorrelationDeriver.derive(from: samples),
                     signals: TodaySignalsDeriver.derive(from: samples),
+                    glucose: GlucoseDetailDeriver.derive(from: samples),
                     sleep: SleepDeriver.derive(from: samples))
             }.value
             // With REAL data, trust the engine even when it finds nothing — clear
@@ -718,6 +760,8 @@ final class AppState {
             correlationWeek = CorrelationWeek.from(d.grid)
             // Home signal chips — show the user's OWN latest values (nil keeps seeds).
             todaySignals = d.signals
+            // Glucose detail screen — same samples, same honesty rule.
+            glucoseDetail = d.glucose
             // Sleep-stage breakdown for the real sleep visualisation.
             sleepSummary = d.sleep
         } catch {
@@ -740,6 +784,10 @@ final class AppState {
         correlationWeek = LV001Dataset.correlationWeek
         rings           = LV001Dataset.rings
         todaySignals    = LV001Dataset.todaySignals
+        // LV001 ships composed aggregates, not raw glucose samples — a detail
+        // derived from the MOCK provider's series would contradict the canned
+        // 88% chips above. nil → the glucose screen shows its demo seeds.
+        glucoseDetail   = nil
         #endif
     }
 
@@ -905,5 +953,6 @@ private struct DerivedHealth: Sendable {
     let passport: DerivedPassportStats
     let grid: CorrelationGrid
     let signals: TodaySignals?
+    let glucose: GlucoseWeekDetail?
     let sleep: SleepSummary?
 }

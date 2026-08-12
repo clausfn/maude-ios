@@ -72,6 +72,10 @@ struct StudyConsentView: View {
     @State private var selected: Set<String>
     @State private var joined: Bool
     @State private var working = false
+    /// UC-20 (proposed): study enrollment passes the identity-dedup chooser
+    /// first (IdentityVerifyView; verification itself stubbed UI-only —
+    /// choosing a method or "continue without verifying" proceeds to join).
+    @State private var showIdentityVerify = false
 
     init(study: ResearchStudy, startJoined: Bool = false) {
         self.study = study
@@ -154,8 +158,7 @@ struct StudyConsentView: View {
 
             VStack(spacing: 10) {
                 Button {
-                    working = true
-                    Task { await appState.joinStudy(study, scopes: selected); working = false; joined = true }
+                    showIdentityVerify = true
                 } label: {
                     Text(working ? "Joining…" : "Approve & join")
                         .font(.lato(16, .bold)).foregroundStyle(LiviqaTheme.invertFG)
@@ -168,6 +171,16 @@ struct StudyConsentView: View {
                     .font(.lato(14, .semibold)).foregroundStyle(LiviqaTheme.ink3)
             }
             .padding(.horizontal, 20).padding(.bottom, 20)
+        }
+        .fullScreenCover(isPresented: $showIdentityVerify) {
+            IdentityVerifyView(
+                onContinue: { _ in
+                    showIdentityVerify = false
+                    working = true
+                    Task { await appState.joinStudy(study, scopes: selected); working = false; joined = true }
+                },
+                onBack: { showIdentityVerify = false }
+            )
         }
     }
 

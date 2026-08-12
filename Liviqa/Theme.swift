@@ -123,6 +123,13 @@ enum LiviqaTheme {
     static let tirTarget   = Color.dyn(0x00CC63, 0x4FE08F)   // 3.9–10.0      TARGET (clinical green)
     static let tirHigh     = Color.dyn(0xFFC533, 0xFFD76B)   // 10.1–13.9     L1 hyper (amber)
     static let tirVeryHigh = Color.dyn(0xB5561E, 0xD97E45)   // > 13.9        L2 hyper (sienna + dots)
+    /// Clinical out-of-range MARK — glucose charts ONLY (RK-ALARM-01, package token
+    /// `clinRed` 0xDA2F46): the out-of-range re-stroke + peak annotation on the day
+    /// curve and the excursion caps on the week bars. NEVER an accent, border, or
+    /// text outside the glucose clinical charts. Always paired with a non-colour
+    /// signal (position outside the labelled band + worded/numeric annotation).
+    /// Dark lifted 0xF0637A, ≥3:1 on plate 0x13293B (≈4.8:1).
+    static let clinRed     = Color.dyn(0xDA2F46, 0xF0637A)
 
     // Graded deviation-heatmap ramp — sequential cool-neutral → amber, CAPPED at deep
     // amber (never red; the single strongest outlier carries a non-colour ring).

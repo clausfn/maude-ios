@@ -1,10 +1,23 @@
-// AuthView.swift — Sign-in gate (Design System v2). Premium, paper-ground,
-// evidence-led. Apple primary · email secondary · demo a quiet tertiary.
-// v03 2026-06-09
+// AuthView.swift — Sign-in gate · v04 2026-08-12 (A7.2 restyle)
+// Designed anatomy (f-onboarding.jsx step 2): centered header ("A free
+// account — for you first."), 3-row benefits card, black Sign in with Apple,
+// collapsible "Use email instead", teal demo link (DEBUG), Keychain footnote.
+// ALL real GoTrue states kept from v03: error text, confirm-email-pending,
+// forgot-password (/recover), recovery deep link → SetNewPasswordView.
+// Embedded as step 2 of OnboardingFlowView (flowKicker set); also serves the
+// returning signed-out user standalone. The identity-wallet grid is not in
+// the A7.2 frame — it stays reachable behind its Config flags, tucked under
+// a quiet "More sign-in options" disclosure.
 import SwiftUI
 import AuthenticationServices
 
 struct AuthView: View {
+    /// "Step 2 of 9" when embedded in the onboarding flow; nil standalone.
+    var flowKicker: String? = nil
+    /// Flow hook for the DEBUG demo entry: the flow owns the demo session +
+    /// routing (demo skips the Apple Health primer, per the design).
+    var onDemoContinue: (() -> Void)? = nil
+
     /// Email surface mode — signup is the primary path for new citizens
     /// (open registration, CN 2026-07-07); sign-in one tap away.
     private enum EmailMode { case create, signIn }
@@ -23,6 +36,8 @@ struct AuthView: View {
     @State private var confirmEmailPending = false
     @State private var appleCoordinator = AppleSignInCoordinator()
     @State private var showWalletLogin = false
+    /// Wallet/eID grid disclosure (flag-gated flows; not in the A7.2 frame).
+    @State private var showMoreOptions = false
     /// Set-new-password flow, opened by a GoTrue recovery deep link (the reset
     /// link the citizen received by e-mail). `nil` = no reset in progress.
     @State private var recovery: RecoveryContext? = nil
@@ -47,87 +62,37 @@ struct AuthView: View {
 
     var body: some View {
         ZStack {
-            LiviqaTheme.paper.ignoresSafeArea()
+            // Standalone carries its own paper ground; embedded rides the
+            // flow's canvas + ambient glow.
+            if flowKicker == nil {
+                LiviqaTheme.paper.ignoresSafeArea()
+            }
 
             VStack(spacing: 0) {
-                Spacer(minLength: 40)
-
-                // ── Brand hero ──
-                VStack(spacing: 14) {
-                    LiviqaApertureMark(size: 60)
-                    Text("Liviqa")
-                        .font(.lato(40, .black))
-                        .kerning(LiviqaTheme.Tracking.wordmark)
-                        .foregroundStyle(LiviqaTheme.ink)
-                    Text("Your own data, understood.\nNot averages — yours.")
-                        .font(.lato(14))
-                        .lineSpacing(3)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                }
-                .padding(.bottom, 44)
-
-                // ── Sign-in ──
-                VStack(spacing: 11) {
-                    if Config.authEnabled {
-                        if Config.appleSignInAvailable {
-                            appleButton
-                        }
-
-                        if Config.dfgWalletLoginEnabled || Config.nationalIDLoginEnabled {
-                            walletGrid
-                        }
-
-                        if showEmailForm {
-                            emailForm
-                        } else {
-                            secondaryButton(String(localized: "Continue with email"), icon: "envelope") {
-                                withAnimation(.easeInOut(duration: 0.2)) { showEmailForm = true }
-                            }
-                        }
-
-                        if let error = appState.lastError {
-                            Text(error)
-                                .font(.lato(12))
-                                .foregroundStyle(LiviqaTheme.rust)
-                                .multilineTextAlignment(.center)
-                                .padding(.top, 2)
-                                .padding(.horizontal, 4)
-                        }
+                ScrollView {
+                    VStack(spacing: 0) {
+                        header
+                        benefitsCard
+                            .padding(.top, 18)
+                            .padding(.bottom, 16)
+                        signInStack
                     }
-
-                    // Quiet demo path (no account) — DEBUG-ONLY (T1 TestProd):
-                    // signInDemo() seeds fabricated grants/threads, so a Release/
-                    // TestFlight build must not offer it. Real sign-in only there.
-                    #if DEBUG
-                    Button {
-                        appState.signInDemo()
-                    } label: {
-                        Text(Config.authEnabled ? "Continue without an account" : "Enter Liviqa")
-                            .font(.lato(13, .bold))
-                            .foregroundStyle(LiviqaTheme.ink3)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                    }
-                    .padding(.top, Config.authEnabled ? 2 : 0)
-                    #endif
+                    .padding(.horizontal, 26)
+                    .padding(.top, flowKicker == nil ? 28 : 0)
+                    .padding(.bottom, 12)
                 }
-                .padding(.horizontal, 28)
+                .scrollBounceBehavior(.basedOnSize)
 
-                Spacer()
-
-                // ── Sovereignty footer ──
-                VStack(spacing: 7) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.system(size: 15))
-                        .foregroundStyle(LiviqaTheme.moss)
-                    Text("Your data stays on your device.\nNothing leaves without your consent.")
-                        .font(.lato(11.5)).lineSpacing(2)
-                        .foregroundStyle(LiviqaTheme.ink3)
-                        .multilineTextAlignment(.center)
+                // Lock footnote — pinned under the scroll
+                HStack(spacing: 7) {
+                    Image(systemName: "lock")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("Sign-in keys are stored in the iOS Keychain.")
+                        .font(.lato(11.5))
                 }
-                .padding(.horizontal, 36)
-                .padding(.bottom, 32)
+                .foregroundStyle(LiviqaTheme.ink3)
+                .padding(.top, 6)
+                .padding(.bottom, 16)
             }
         }
         // Password-reset completion: the e-mailed recovery link opens the app
@@ -185,22 +150,150 @@ struct AuthView: View {
         #endif
     }
 
+    // MARK: — Designed header
+
+    private var header: some View {
+        VStack(spacing: 0) {
+            if let flowKicker {
+                Text(flowKicker.uppercased())
+                    .font(.liviqaKicker(10.5))
+                    .tracking(LiviqaTheme.Tracking.kicker)
+                    .foregroundStyle(LiviqaTheme.moss)
+            }
+            Text("A free account — for you first.")
+                .font(.liviqaSerif(26, .bold, relativeTo: .title2))
+                .kerning(LiviqaTheme.Tracking.h1)
+                .foregroundStyle(LiviqaTheme.ink)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(LiviqaTheme.moss)
+                .frame(width: 44, height: 3)
+                .padding(.vertical, 12)
+                .accessibilityHidden(true)
+            Text("Liviqa is yours to use alone, free. An account — held by the non-profit Data for Good Foundation — only stores your name and email, and unlocks a few things when you want them.")
+                .font(.lato(13.5))
+                .lineSpacing(4)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 320)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // What an account (DfG) enables — 3-row benefits card.
+    private var benefitsCard: some View {
+        OnbCard {
+            OnbBenefitRow(icon: "doc.on.doc",
+                          title: String(localized: "Keep your setup"),
+                          sub: String(localized: "Restore your Passport and settings if you change phones."))
+            OnbBenefitRow(icon: "sparkles",
+                          title: String(localized: "Contribute to research"),
+                          sub: String(localized: "When you choose to, your patterns join a group of people so studies can learn from them. Always anonymous, always grouped — never your individual readings."),
+                          divider: true)
+            OnbBenefitRow(icon: "gift",
+                          title: String(localized: "Earn tokens — keep or give them away"),
+                          sub: String(localized: "A token is a thank-you the Foundation gives you for taking part in a study. It holds no health data. Keep them, or pass them to a charitable cause for the public good."),
+                          divider: true)
+        }
+    }
+
+    // MARK: — Sign-in stack
+
+    private var signInStack: some View {
+        VStack(spacing: 10) {
+            if Config.authEnabled {
+                if Config.appleSignInAvailable {
+                    appleButton
+                }
+
+                if showEmailForm {
+                    emailForm
+                } else {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { showEmailForm = true }
+                    } label: {
+                        Text("Use email instead")
+                            .font(.lato(14.5, .semibold))
+                            .foregroundStyle(LiviqaTheme.ink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(LiviqaTheme.ink.opacity(0.10))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if let error = appState.lastError {
+                    Text(error)
+                        .font(.lato(12))
+                        .foregroundStyle(LiviqaTheme.rust)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 2)
+                        .padding(.horizontal, 4)
+                }
+
+                // Identity-wallet flows (simulated, flag-gated) — kept reachable
+                // behind a quiet disclosure; not part of the A7.2 frame.
+                if Config.dfgWalletLoginEnabled || Config.nationalIDLoginEnabled {
+                    if showMoreOptions {
+                        walletGrid
+                    } else {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { showMoreOptions = true }
+                        } label: {
+                            Text("More sign-in options")
+                                .font(.lato(12.5, .semibold))
+                                .foregroundStyle(LiviqaTheme.ink3)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Quiet demo path (no account) — DEBUG-ONLY (T1 TestProd):
+            // signInDemo() seeds fabricated grants/threads, so a Release/
+            // TestFlight build must not offer it. Real sign-in only there.
+            #if DEBUG
+            Button {
+                if let onDemoContinue {
+                    onDemoContinue()
+                } else {
+                    appState.signInDemo()
+                }
+            } label: {
+                Text(Config.authEnabled ? "Try it without an account →" : "Enter Liviqa")
+                    .font(.lato(13.5, .semibold))
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+            }
+            .buttonStyle(.plain)
+            #endif
+        }
+    }
+
     // MARK: — Buttons
 
     private var appleButton: some View {
         Button {
             Task { await appleSignIn() }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 9) {
                 Image(systemName: "apple.logo").font(.system(size: 17, weight: .medium))
-                Text("Continue with Apple").font(.lato(16, .bold))
+                Text("Sign in with Apple").font(.lato(15, .semibold))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-            .background(LiviqaTheme.invertBG)
-            .foregroundStyle(LiviqaTheme.invertFG)
+            .padding(.vertical, 14)
+            .background(Color.black)
+            .foregroundStyle(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+        .buttonStyle(.plain)
     }
 
     // Identity-wallet sign-in: AltID · e-Boks ID · iGrant.io · DfG — a 2×2 grid of
@@ -269,21 +362,6 @@ struct AuthView: View {
         .buttonStyle(.plain)
     }
 
-    private func secondaryButton(_ title: String, icon: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon).font(.system(size: 14, weight: .medium))
-                Text(title).font(.lato(15, .bold))
-            }
-            .foregroundStyle(LiviqaTheme.ink)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(LiviqaTheme.paper2)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
-        }
-    }
-
     // MARK: — Email form (create-account first; sign-in one tap away)
 
     @ViewBuilder
@@ -341,7 +419,7 @@ struct AuthView: View {
             } label: {
                 Group {
                     if appState.isSigningIn {
-                        ProgressView().tint(LiviqaTheme.invertFG)
+                        ProgressView().tint(.white)
                     } else {
                         Text(emailMode == .create
                              ? String(localized: "Create account")
@@ -351,8 +429,8 @@ struct AuthView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(LiviqaTheme.invertBG)
-                .foregroundStyle(LiviqaTheme.invertFG)
+                .background(LiviqaTheme.moss)
+                .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .disabled(appState.isSigningIn || email.isEmpty || password.isEmpty)
@@ -443,7 +521,7 @@ struct AuthView: View {
             .font(.lato(15))
             .foregroundStyle(LiviqaTheme.ink)
             .padding(14)
-            .background(LiviqaTheme.paper)
+            .background(LiviqaTheme.paper2)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 1))
     }
@@ -513,7 +591,7 @@ struct AuthView: View {
 /// new password back so `AuthView` can sign the citizen straight in. Builds its
 /// own auth client against `Config.supabaseAuthURL` — the same GoTrue the app
 /// signs in with — so it needs no wiring into the private backend service.
-/// Design System v2: paper ground · ink text · moss accent · high-contrast CTA.
+/// A7.2: paper ground · ink text · moss accent · high-contrast CTA.
 private struct SetNewPasswordView: View {
     let accessToken: String
     let onComplete: (_ email: String?, _ newPassword: String) -> Void

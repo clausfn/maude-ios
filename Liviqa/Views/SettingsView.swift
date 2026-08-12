@@ -2,6 +2,7 @@
 // Three zones: My Data (profile + connected sources) / Consent & Sharing (audit trail)
 // / Regulatory (disclaimer, privacy policy, delete). This is the trust layer.
 import SwiftUI
+import LocalAuthentication
 #if os(iOS)
 import UIKit
 #endif
@@ -33,6 +34,9 @@ struct SettingsView: View {
     @AppStorage("crossSourceCards")   private var crossSourceCards = false
     @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @AppStorage("liviqa.appLanguage") private var appLanguage = "system"
+    // Face ID app lock (NFR-SEC) — runtime overlay wired in LiviqaApp.
+    @AppStorage("appLockEnabled")     private var appLockEnabled = false
+    @State private var appLockNote: String? = nil
 
     // Navigation destinations
     @State private var showDataSources    = false
@@ -62,10 +66,14 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $showDataSources)    { DataSourcesView() }
         .navigationDestination(isPresented: $showHealthPassport) { HealthPassportView() }
         .navigationDestination(isPresented: $showSundhedImport)  {
-            SundhedWebSessionView(
-                ingest: appState.supabase as? SundhedIngesting,
-                citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
-            )
+            // A7.2: one calm MitID prompt fronts the real linking session
+            // (FR-ING-11 anatomy — the check happens with the official provider).
+            MitIDPromptView(onCancel: { showSundhedImport = false }) {
+                SundhedWebSessionView(
+                    ingest: appState.supabase as? SundhedIngesting,
+                    citizenId: appState.profile?.alias ?? appState.session?.userId.uuidString
+                )
+            }
         }
         .navigationDestination(isPresented: $showConsentLedger)  { ConsentLedgerView() }
         .navigationDestination(isPresented: $showNudgeSettings)  { NotificationSettingsView() }
@@ -255,6 +263,50 @@ struct SettingsView: View {
                     statusColor: LiviqaTheme.ink4
                 )
             }
+            .background(LiviqaTheme.paper2)
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+
+            // Account & security — Face ID app lock (NFR-SEC; overlay in LiviqaApp)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: Binding(
+                    get: { appLockEnabled },
+                    set: { on in
+                        appLockNote = nil
+                        if on {
+                            let ctx = LAContext()
+                            var err: NSError?
+                            if ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) {
+                                appLockEnabled = true
+                            } else {
+                                appLockNote = String(localized: "Face ID isn't available on this device right now.")
+                            }
+                        } else {
+                            appLockEnabled = false
+                        }
+                    }
+                )) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "faceid")
+                            .foregroundStyle(LiviqaTheme.moss)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Face ID app lock")
+                                .font(.footnote)
+                                .foregroundStyle(LiviqaTheme.ink)
+                            Text("Liviqa asks for Face ID each time it wakes.")
+                                .font(.caption)
+                                .foregroundStyle(LiviqaTheme.ink4)
+                        }
+                    }
+                }
+                .tint(LiviqaTheme.moss)
+                if let appLockNote {
+                    Text(appLockNote)
+                        .font(.caption)
+                        .foregroundStyle(LiviqaTheme.clayText)
+                }
+            }
+            .padding(14)
             .background(LiviqaTheme.paper2)
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
