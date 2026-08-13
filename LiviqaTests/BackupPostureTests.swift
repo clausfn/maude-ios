@@ -18,37 +18,39 @@ struct BackupPostureTests {
     /// silently stops persisting — so the test names it explicitly.
     private let key = "backupPreference"
 
-    private func withCleanDefaults(_ body: () -> Void) {
-        let saved = UserDefaults.standard.string(forKey: key)
-        UserDefaults.standard.removeObject(forKey: key)
-        body()
-        if let saved { UserDefaults.standard.set(saved, forKey: key) }
-        else { UserDefaults.standard.removeObject(forKey: key) }
+    /// A private defaults domain per test. The posture is stored under a single
+    /// shared key, so reading and writing it in `UserDefaults.standard` let the
+    /// tests below race: one sets `.iCloud` while the other has just cleared the
+    /// key and is asserting the first-launch fallback. Same key, same reads —
+    /// just nobody else's domain, and the test host's real defaults stay clean.
+    private func freshDefaults() -> UserDefaults {
+        let name = "backup-posture-tests-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: name)!
+        d.removePersistentDomain(forName: name)
+        return d
     }
 
     @Test func chosenPostureRoundTrips() {
-        withCleanDefaults {
-            for choice in [BackupPreference.onDevice, .iCloud, .sovereign] {
-                UserDefaults.standard.set(choice.rawValue, forKey: key)
-                let restored = BackupPreference(
-                    rawValue: UserDefaults.standard.string(forKey: key) ?? "")
-                #expect(restored == choice)
-            }
+        let defaults = freshDefaults()
+        for choice in [BackupPreference.onDevice, .iCloud, .sovereign] {
+            defaults.set(choice.rawValue, forKey: key)
+            let restored = BackupPreference(
+                rawValue: defaults.string(forKey: key) ?? "")
+            #expect(restored == choice)
         }
     }
 
     @Test func unsetOrUnknownFallsBackToOnDevice() {
-        withCleanDefaults {
-            // Nothing stored yet (first launch).
-            let fresh = BackupPreference(
-                rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .onDevice
-            #expect(fresh == .onDevice)
-            // A legacy / corrupted value must not imply a backup exists.
-            UserDefaults.standard.set("someRetiredOption", forKey: key)
-            let legacy = BackupPreference(
-                rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .onDevice
-            #expect(legacy == .onDevice)
-        }
+        let defaults = freshDefaults()
+        // Nothing stored yet (first launch).
+        let fresh = BackupPreference(
+            rawValue: defaults.string(forKey: key) ?? "") ?? .onDevice
+        #expect(fresh == .onDevice)
+        // A legacy / corrupted value must not imply a backup exists.
+        defaults.set("someRetiredOption", forKey: key)
+        let legacy = BackupPreference(
+            rawValue: defaults.string(forKey: key) ?? "") ?? .onDevice
+        #expect(legacy == .onDevice)
     }
 
     /// The in-memory mirror the rest of the app reads starts at the same honest
