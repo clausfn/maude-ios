@@ -47,9 +47,13 @@ struct ResearchHubView: View {
                     Image(systemName: "checkmark.circle")
                         .font(.lato(17, .semibold))
                         .foregroundStyle(LiviqaTheme.moss)
+                    // Scoped claim (§6.3 / OD-D11) — see DonationCopy. Unchanged
+                    // wording for every non-donor; the donor's own sentence when
+                    // a donation grant is active.
                     (Text("Your numbers are ")
                      + Text("always grouped with \(ResearchStudy.groupingPhrase(cohortK: 5))").bold()
-                     + Text(" — never shown alone. Your individual readings never leave this phone."))
+                     + Text(" — never shown alone. ")
+                     + Text(DonationCopy.readingsClaim(donating: appState.hasActiveDonationGrant)))
                         .font(.lato(13)).lineSpacing(2.5)
                         .foregroundStyle(LiviqaTheme.ink2)
                         .fixedSize(horizontal: false, vertical: true)

@@ -172,7 +172,13 @@ struct StudyConsentView: View {
                     // Grouping promise — A7.2 register; k ≥ 5 stands (NFR-RSCH-04).
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "shield.lefthalf.filled").font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
-                        Text("Your numbers are always grouped with \(ResearchStudy.groupingPhrase(cohortK: study.cohortK)) — never shown alone. Your individual readings never leave this phone. Leave any time.")
+                        // The readings claim is scoped, not hard-coded: true as
+                        // written for every non-donor (which is everyone in a
+                        // shipped build), and replaced by the donor's own
+                        // sentence when a donation grant is active (§6.3,
+                        // OD-D11 — never tell a donor something untrue on a
+                        // consent screen). DonationCopy is the only source.
+                        Text("Your numbers are always grouped with \(ResearchStudy.groupingPhrase(cohortK: study.cohortK)) — never shown alone. \(DonationCopy.readingsClaim(donating: appState.hasActiveDonationGrant)) Leave any time.")
                             .font(.lato(11.5)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink3)
                     }
                 }

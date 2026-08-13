@@ -153,7 +153,8 @@ struct WalletView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
                     .padding(.top, 10)
 
-                    Text("Off by default · always your choice. Your numbers are only ever grouped with \(ResearchStudy.groupingPhrase(cohortK: 5)) — your individual readings never leave this phone. Turn off any time.")
+                    // Scoped claim (§6.3 / OD-D11) — see DonationCopy.
+                    Text("Off by default · always your choice. Your numbers are only ever grouped with \(ResearchStudy.groupingPhrase(cohortK: 5)). \(DonationCopy.readingsClaim(donating: appState.hasActiveDonationGrant)) Turn off any time.")
                         .font(.lato(11.5))
                         .lineSpacing(2)
                         .foregroundStyle(LiviqaTheme.ink3)

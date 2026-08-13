@@ -214,9 +214,13 @@ struct InAppPrivacyView: View {
                     Text(grant.recipientName)
                         .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.ink)
                         .lineLimit(1)
+                    // Per-RECIPIENT claim (§6.3): a clinician still sees only
+                    // summaries whether or not this person is also a donor, and
+                    // the donation grant is never described in words written for
+                    // a summaries-only recipient. See DonationCopy.
                     Text(grant.isActive
-                         ? "Summaries only · your individual readings never leave this phone"
-                         : "Stopped — sees nothing")
+                         ? DonationCopy.recipientRowClaim(recipientType: grant.recipientType)
+                         : String(localized: "Stopped — sees nothing"))
                         .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3)
                 }
                 Spacer()

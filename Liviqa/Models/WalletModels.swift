@@ -33,6 +33,14 @@ enum RecipientType: String, Codable, CaseIterable {
     case employer   = "employer"
     case insurance  = "insurance"
     case publicGood = "public_good"
+    /// The app's own maker, acting as CONTROLLER — today only the donated-data
+    /// programme (DON-2026-01, §2.6 / OD-D2). A distinct value on purpose:
+    /// overloading `public_good` would mean a donor reading their own consent
+    /// record is told the recipient is a public-good project rather than Data
+    /// for Good itself. It is never offered in any citizen-facing recipient
+    /// picker (those iterate `GrantRecipientChoice`, not this enum) — asserted
+    /// by `DonationConsentTests.controllerInternalIsNotOfferedToCitizens`.
+    case controllerInternal = "controller_internal"
 
     var label: String {
         switch self {
@@ -41,6 +49,7 @@ enum RecipientType: String, Codable, CaseIterable {
         case .employer:   return String(localized: "Employer")
         case .insurance:  return String(localized: "Insurance")
         case .publicGood: return String(localized: "Public Good")
+        case .controllerInternal: return String(localized: "Data for Good — donor programme")
         }
     }
 }

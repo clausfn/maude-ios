@@ -8,6 +8,12 @@ DEST="${1:-platform=iOS Simulator,name=iPhone 17}"
 # on exit 1. Wired here 2026-07-03 (PR-102, launch audit — was previously inert).
 bash scripts/guard_provenance.sh Liviqa
 
+# T-DON-02 — donation is an EXPORT, never an upload. BLOCKING: fails the build
+# if any transport construct, endpoint, or payload decoder appears in the
+# donation path (DON-2026-01, programme doc §4.5/§6). Wired the day it was
+# written, per the same document's warning about inert guards.
+bash scripts/guard_donation_egress.sh .
+
 # Dead-CTA guard (PR-102 wave 3, launch audit): no live empty `Button { }`
 # closures may ship in Liviqa/ views. Disabled honest stubs (SOON chip +
 # .disabled(true), JournalView "Scan the label" pattern) are exempt via an
