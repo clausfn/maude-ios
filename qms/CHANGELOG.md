@@ -2,6 +2,24 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-112 — Donor programme DON-2026-01, app side: a sealed EXPORT the donor performs (2026-08-13, branch `claude/a72-electric-ink`)
+
+**584 tests / 81 suites PASS**; Debug + donor-flag (`-D LIVIQA_DONOR`) builds green; provenance guard green; new blocking donation-egress guard green and mutation-checked.
+
+**CN decision recorded (2026-08-13, verbatim):** *"forget about anonymity. We need to have a cloud version of the data. and a permit to use it for the training."* This resolves OD-D1 **against** the programme document's own v01 recommendation (the corpus is for model training, not verification only) and abandons anonymity as a strategy — the corpus is identifiable special-category data protected by lawful basis, consent, encryption, access control and governance. Recorded as a controller decision with its date; the app side is unaffected by it (the app never trains, never uploads, never holds a corpus).
+
+### What shipped
+- **`Liviqa/Donation/`** — programme constants + compile-time donor gate; Encodable-only payload and a pure assembler (four streams, REAL provenance only, device-class source normalisation, whole-week date shift with original UTC offsets carried); `LVDN1` X25519+HKDF+AES-GCM seal with no `open` side in the app; sealed device-local consent + export ledger reusing `WalletGrant`/`WalletEvent`; the export coordinator (assemble → seal → one file → share sheet).
+- **`DonorExportView`** + a Settings entry, both behind the compile-time donor flag; every shipped binary has a constant `false`.
+- **Conditional copy (§6.3 / OD-D11):** "Your individual readings never leave this phone." is unchanged, verbatim, for every non-donor; an active donation grant swaps it for a sentence that names the exception specifically. Single-sourced in `DonationCopy`, lint-guarded against re-hard-coding.
+- **`scripts/guard_donation_egress.sh`** wired BLOCKING into `build-ios.sh` the day it was written.
+
+### What did not change
+`T-RSCH-05` and `T-SUND-01` are green and **unweakened** — the export model exists so that no invariant test had to be relaxed to ship this. Nothing about a non-donor's experience, copy or storage changes.
+
+### Not closed here (owner/counsel, §7.3 gates)
+DPIA v02, ROPA entry, Scaleway DPA, access agreements and custodian key ceremony (the programme public key is deliberately unset, so an export refuses on screen until it exists), the erasure drill, the repo-lint half of T-DON-03, and **correcting the §2.3 consent text, which currently promises donors the opposite of the training decision**. No donation may be collected until these are satisfied.
+
 ## PR-111 — INCIDENT: fabricated journal entries and cross-account journal exposure (2026-08-13, branch `claude/a72-electric-ink`)
 
 **Reported by internal TestFlight testers**, who sent screenshots of journal entries containing glucose values (6.2 and 7.1 mmol/L) on accounts they had just created. **536 tests / 77 suites PASS**; build green; provenance guard green.

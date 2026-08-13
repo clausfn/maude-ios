@@ -59,6 +59,7 @@ struct SettingsView: View {
     @State private var showShare          = false
     @State private var showAccount        = false
     @State private var showDelete         = false
+    @State private var showDonorExport    = false
     /// FR-CTX-04 — review/clear the user's own context flags.
     @State private var showContextFlags   = false
 
@@ -68,6 +69,10 @@ struct SettingsView: View {
                 displaySection
                 myDataSection
                 consentSection
+                // Donor programme (DON-2026-01). `isDonorBuild` is a
+                // compile-time false in every shipped binary, so no citizen
+                // sees this row and nothing about their app changes.
+                if DonationProgramme.isDonorBuild { donorSection }
                 regulatorySection
             }
             .padding(.horizontal, 20)
@@ -97,6 +102,7 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $showPrivacy)        { InAppPrivacyView() }
         .navigationDestination(isPresented: $showAccount)        { AccountSecurityView() }
         .navigationDestination(isPresented: $showDelete)         { DeleteDataView() }
+        .navigationDestination(isPresented: $showDonorExport)    { DonorExportView() }
         .sheet(isPresented: $showShare) {
             ShareWithClinicianView(nudge: nil, onDismiss: { showShare = false })
         }
@@ -630,6 +636,40 @@ struct SettingsView: View {
     }
 
     // MARK: — Zone 2: Consent & Sharing
+
+    /// Donor-programme entry (DON-2026-01). Rendered only when the build was
+    /// compiled with `-D LIVIQA_DONOR`; the row states plainly that the app
+    /// sends nothing, because the whole point of the export model is that it
+    /// cannot.
+    private var donorSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            zoneHeader("DONOR PROGRAMME", icon: "shippingbox")
+            Button { showDonorExport = true } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "lock.doc")
+                        .font(.system(size: 15)).foregroundStyle(LiviqaTheme.brass)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Donate a copy to the engineers")
+                            .font(.lato(15, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                        Text(appState.hasActiveDonationGrant
+                             ? String(localized: "Agreement recorded · you export the file yourself")
+                             : String(localized: "Needs the reference from your signed form"))
+                            .font(.lato(11.5)).foregroundStyle(LiviqaTheme.ink3)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12)).foregroundStyle(LiviqaTheme.ink4)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(LiviqaTheme.paper2)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+    }
 
     private var consentSection: some View {
         VStack(alignment: .leading, spacing: 12) {

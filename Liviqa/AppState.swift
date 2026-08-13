@@ -124,6 +124,25 @@ final class AppState {
         return HealthStore(context: modelContainer.mainContext)
     }
 
+    // MARK: - Donor programme (DON-2026-01) — donor builds only
+    //
+    // Storage for `AppState+Donation.swift`. In every shipped build
+    // `DonationProgramme.isDonorBuild` is a compile-time `false`, so nothing
+    // ever loads into these and `hasActiveDonationGrant` is always false — the
+    // consent copy every citizen reads is unchanged.
+
+    /// Sealed device record of the donation grant, its consent events and the
+    /// log of every export. Empty except in a donor build with a recorded grant.
+    var donationRecordStorage: DonationRecord = .empty
+
+    /// True when a donor record exists on disk that this device's key cannot
+    /// open. Surfaced honestly rather than reported as "no donation".
+    var donationConsentUnreadable = false
+
+    /// The on-device container, for the donation extension's read-only pass over
+    /// the four donatable streams. Same store, no second copy.
+    var donationModelContainer: ModelContainer? { modelContainer }
+
     // Display projections of the canonical record, refreshed from the store after any
     // ingest and on view appear. Newest-per-scopeKey labs (multi-source aware); all
     // conditions/meds (each tagged with its source).
@@ -274,6 +293,10 @@ final class AppState {
         if let stored = HealthContextStore.load() {
             healthContext = stored
         }
+        // Donor programme (DON-2026-01): restore the sealed donor record so the
+        // consent copy is correct from the first frame. Compile-time no-op in
+        // every shipped build — `isDonorBuild` is false there.
+        loadDonationConsent()
     }
 
     /// APNs device token for this install (sent to the backend once signed in).
@@ -578,6 +601,15 @@ final class AppState {
         // 2c-ii. Context flags (FR-CTX-04) — the user's own notes about their own
         //        life (travelling / unwell / off-routine) are personal data too.
         ContextFlagStore.delete()
+        // 2c-iii. Donor-programme record (FR-DON-04) — the sealed grant, its
+        //         consent events, the export log, and any sealed file still
+        //         staged for the share sheet. Device-side only: erasing the
+        //         donated corpus itself is the custodians' operation, and the
+        //         donor screen says so rather than implying this button reaches it.
+        DonationConsentStore.deleteAll()
+        DonationExport.purgeStaged()
+        donationRecordStorage = .empty
+        donationConsentUnreadable = false
         // 2d. Encrypted document store ("Health data space", FR-ING-15) — the
         //     blobs and their metadata index are removed from disk. The
         //     "Keep documents, erase the rest" path (ScrDeleteData, Area ⑧)

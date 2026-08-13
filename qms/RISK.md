@@ -2,6 +2,103 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Donated data programme DON-2026-01 — app side (2026-08-13, branch claude/a72-electric-ink)
+
+**Context and the decision this records.** CN, 2026-08-13, verbatim: *"forget about
+anonymity. We need to have a cloud version of the data. and a permit to use it for the
+training. You do what it needs to be able to work."* This RESOLVES OD-D1 of
+`Liviqa_DonorDataProgramme_v01_20260813.md` **against** that document's own
+recommendation: the donated corpus is for MODEL TRAINING, not verification only, and
+anonymity is abandoned as a strategy. The corpus is identifiable special-category health
+data; its protection is lawful basis + explicit consent + encryption + access control +
+governance, and never a claim of anonymisation. Recorded here as a controller decision
+with its date, not as a silent widening.
+
+**What the app side does and does not do.** The training decision does not change one line
+of app behaviour: the app assembles a consented extract, seals it, and hands it to the
+donor. It never trains, never uploads, never holds a corpus, and cannot read a donation
+back. Everything the decision DOES change — the §1.2(1) prohibition, the §2.3 consent
+text (which currently promises donors the opposite), DPIA v02, the ROPA entry, the
+consent-engine vocabulary — is owner/counsel work and is **not** closed by this section.
+**No donation may be collected until §7.3 is satisfied**, and the consent text must be
+corrected before it is put in front of a donor: shipping code whose consent form says
+"not used to train an AI model" while the programme intends training would be the single
+most damaging thing this programme could do.
+
+**RK-DON-01 — the corpus is breached.** Cause: an identifiable, sample-level physiological
+record of named individuals now exists at rest off-device. Harm: an Art. 33/34 notifiable
+special-category breach with named humans to notify. App-side controls: the payload is
+sealed on the donor's device with X25519+HKDF+AES-GCM to a programme public key whose
+private half never exists in the app, the repository, or on any laptop (two hardware
+tokens, two-person rule, §4.2/OD-D8); the store therefore never holds plaintext; the
+sealed file is authenticated (tampering fails, never yields different plaintext);
+plaintext exists only as an in-memory value between assembly and sealing and is never
+written to disk. Residual: everything after the file leaves the phone is governance, not
+code — isolation, access list, access log, erasure drill. Owner-side, unclosed here.
+
+**RK-DON-02 — donated data renders as a citizen's own data.** The §6 hard rule, and the
+failure mode is a well-intentioned engineer wiring a corpus reader "just to see the merge
+in the UI". Controls are STRUCTURAL, not policy: (a) the payload types are **Encodable
+only** — the app has no type that can decode a donation, so donated bytes cannot become
+values on any screen in any build; (b) there is no `open` side to the sealer and no
+recipient private key in the binary, so a sealed file is unreadable to the app even if a
+decoder appeared; (c) no importer, no `fileImporter`, asserted by lint; (d)
+`DataProviderKind` stays `{healthKit, mock, lv001}` — a `donated` provider fails the test
+run; (e) the existing pinned call-site counts (`T-SUND-01`, `T-REC-01`) mean a corpus
+loader cannot reach the store without moving a number a green test already guards.
+`T-DON-02` (`DonationEgressTests` + the blocking `guard_donation_egress.sh`) enforces (a)–(d).
+
+**RK-DON-03 — donated values reach a repository and become unerasable.** Git history,
+forks, clones, CI caches and mirrors put a committed fixture beyond recall — no
+withdrawal can reach it (§5.3). App-side prevention: the app writes NO donated value
+anywhere but the sealed file (single `.write(to:)`, of sealed bytes, in a temporary
+staging directory that is purged on every export, on withdrawal, and on demand); no
+donated value is ever a fixture, seed or demo (every test in this wave builds its own
+synthetic rows). Residual: the repo-lint half of §5.3's T-DON-03 (no donor code, donor
+register schema or high-entropy fixture block anywhere in the repo) is a REPOSITORY
+control and is not implemented by this PR — flagged as an open owner action.
+
+**RK-DON-04 — an export happens without, or after, consent.** Cause: a flag left on, a
+withdrawn donor, an expired grant, a build shipped with the donor surfaces reachable.
+Controls: the flow requires a compile-time `-D LIVIQA_DONOR` (shipped binaries have a
+constant `false`); a pure gate refuses on no-donor-build, no grant, wrong recipient type,
+inactive grant, expired grant, empty scope, missing programme key, demo data, and empty
+window — each with its own on-screen reason; the grant expires at 12 months with no
+auto-renew; withdrawal deactivates the grant, appends a `consentRevoked` ledger event and
+purges any staged file. Every export appends a `dataAccessed` ledger row carrying the
+stream counts and the sealed file's SHA-256 — what left and when, never a value. Verified
+by `T-DON-05`.
+
+**RK-DON-05 — a donor is told something untrue on a consent screen.** Four surfaces
+carried "Your individual readings never leave this phone." verbatim; for a donor that
+sentence is false, and a false sentence on a consent screen corrodes every other promise
+the product makes (§6.3, OD-D11). Control: the claim is a single-sourced function of
+whether an active donation grant exists. **For every non-donor — everyone, in every
+shipped build — the sentence renders unchanged, character for character** (asserted
+verbatim by `T-DON-06`). For a donor it is replaced by a sentence that names the
+exception specifically rather than softening the claim, and a lint fails the test run if
+any view hard-codes the original sentence again.
+
+**RK-DON-06 — fabricated or someone else's data enters the corpus.** Cause: a donor build
+running on demo/mock data, or an LV001 fixture in the store. Controls: the assembler
+drops every row whose provenance is not REAL (demo seeds are SIMULATED, LV001 is
+EXTERNAL), and the gate refuses outright while the session is showing demo data. A
+corpus that is meant to expose what synthetic data cannot must not be contaminated by
+synthetic data. Verified by `T-DON-03`/`T-DON-05`.
+
+**RK-DON-07 — a device name identifies the donor.** HealthKit source names are
+user-editable and routinely carry a person's own name ("Claus' Apple Watch"). Left alone,
+every donated row would have carried it. Control: sources are normalised to a device class
+from a fixed allow-list; an unrecognised name becomes `unknown-<6 hex>` salted with the
+grant reference, so two different devices stay distinguishable (dedup and arbitration
+defects need that) while the string never leaves. Verified by `T-DON-03`.
+
+**Not mitigated here, and named so it is not assumed:** consent validity under power
+imbalance (§2.2, OD-D5), the lawful basis for the controller donating his own data, the
+isolated environment and its access log, the erasure drill, the Scaleway DPA, the ROPA
+entry, DPIA v02, and the correction of the donor consent text to match the training
+decision. Each is a §7.3 gate and none of them is a code control.
+
 ## Data honesty — Settings asserted state it had never looked up (2026-08-13, branch claude/a72-electric-ink)
 
 **RK-SET-01 (NEW) — a trust surface stated facts about the citizen's data that
