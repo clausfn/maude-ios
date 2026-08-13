@@ -2,6 +2,31 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-111 — INCIDENT: fabricated journal entries and cross-account journal exposure (2026-08-13, branch `claude/a72-electric-ink`)
+
+**Reported by internal TestFlight testers**, who sent screenshots of journal entries containing glucose values (6.2 and 7.1 mmol/L) on accounts they had just created. **536 tests / 77 suites PASS**; build green; provenance guard green.
+
+### What it was
+The three entries are `JournalView.demoSeed` **verbatim** — the app's own hardcoded placeholder text, not any person's readings. No citizen data was exposed and nothing left any device (the journal has no upload path). The entries were dated **10 June**: a build from before the July launch-audit gate wrote them into `journal.v1.json`, and every update since read the file back. The `#if DEBUG` gate stopped new seeding; nothing ever removed what was already on disk.
+
+### The more serious finding, same file
+`journal.v1.json` was **device-scoped, not account-scoped**, and `signOut()` deleted nothing — it cleared an in-memory array that nothing ever loaded into, while `JournalView` held its own `@State` read straight from disk. **Any new account on a used device opened the previous person's journal.** Today's contents were our seeds; on a device where someone had written real entries, it would have been theirs.
+
+### A third defect, found while fixing the first two
+`DataSourcesView`'s "add a note" inserted into `AppState.journalEntries` (the list nothing loads) and then called `JournalStore.save()` on it — **overwriting the entire journal file with that single note**. Silent, complete loss of the citizen's own writing. Fixed: load → prepend → save, into the scope it loaded from.
+
+### Fixes
+- **Account-scoped journal:** `<AppSupport>/journal/<sha256(accountID)>/journal.v1.json`, following `EncryptedAnchorStore`'s hashing discipline but scoped by the signed-in ACCOUNT (the exposure was between accounts on one device). No unscoped path exists any more. Sign-out now leaves nothing addressable while deleting nothing.
+- **Legacy adoption, not deletion:** the old file is migrated into the opening account's scope only when that account has no journal, only after the entries are written AND read back at the new path, never over an existing journal, and never when the entries name a different author. **Residual risk stated plainly:** pre-10.101 files carry no author and local entries have `userId == nil`, so if the first account to open after the update is not the author, that account adopts them — once, after which the exposure is closed permanently (today every account sees them, every time). Deleting unattributed files would guarantee no adoption but would destroy real writing to defend against a case we cannot detect, which the non-destructive rule forbids. Operational control: testers who shared a device should erase and re-import rather than trust an adopted journal.
+- **Seed purge:** exact whole-body match against our own three strings only — a citizen who wrote about a 6.2 fasting glucose in their own words keeps their entry (tested: prefixes, seed-plus-own-sentence, and own-words variants are all preserved). Nothing is logged.
+- **Seed can no longer reach Release by any path:** `JournalSeedPostureTests` asserts the bodies are constructed only inside `#if DEBUG` anywhere in `Liviqa/`, that the denylist matches the seed verbatim (editing the seed without the denylist fails the build), that the store never constructs an entry, and that `save` filters seeds and the bytes on disk agree.
+- **Name resolution** (`DisplayNameResolution.swift`, pure): the declared onboarding name wins; a backend `displayName` equal to the local-part of the account's own email is treated as a placeholder, not a name; an address is never rendered as a person's name; no name known → greet without one. `setDisplayName` refuses addresses.
+- **Settings tells the truth:** the hardcoded "Apple Health — Connected", "Health Vault — 3 files" and "Sundhedsplatformen — Not connected" literals are replaced by real state, read through the SAME call the destination screen makes so the counts cannot disagree; unknown states say so rather than defaulting to reassurance. `SettingsTruthTests` fails if a status literal returns.
+- RISK: RK-JRNL-XACCT-01, RK-JRNL-FABRIC-01, RK-ACC-NAME-01. RTM: FR-JRNL-SCOPE-01, FR-JRNL-SEED-01, FR-ACC-NAME-01, FR-JRNL-PERSIST-01 amended.
+
+### Deferred, recorded
+The journal file is still plaintext JSON under `NSFileProtectionComplete` rather than CryptoBox-sealed like the vault — scoping was the incident; encryption is a separate, riskier change (key availability on unsigned builds). The path hash is a namespace, not a secret.
+
 ## PR-110 — Design-QA fixes: scroll edge (really), accessibility chrome, HRV single-source, heart weight (2026-08-13 overnight, branch `claude/a72-electric-ink`)
 
 Driven by a 91-frame sweep in both themes plus large-text frames (`20_Build/a72_designqa_20260813/`). **485 tests / 73 suites PASS** (was 463/70). Build green, provenance guard green.

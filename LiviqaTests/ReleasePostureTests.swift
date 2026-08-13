@@ -131,7 +131,11 @@ struct ReleasePostureTests {
     }
 
     @Test func journalAndVaultDemoSeedsAreDebugGated() throws {
-        try expectDebugGated(file: "Liviqa/Views/JournalView.swift", marker: "demoSeed", wholeLine: true)
+        // 2026-08-13: the seed no longer sits behind an `initialSeed` indirection
+        // (the whole-line marker), so the check is now the STRONGER one — EVERY
+        // line mentioning demoSeed must be DEBUG-compiled. Deeper posture (the
+        // seed can't be persisted or read back) is `JournalSeedPostureTests`.
+        try expectDebugGated(file: "Liviqa/Views/JournalView.swift", marker: "demoSeed")
         try expectDebugGated(file: "Liviqa/Views/JournalView.swift", marker: "VaultDocument.demo")
     }
 

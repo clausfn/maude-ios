@@ -42,20 +42,51 @@ struct JournalView: View {
     @State private var provenanceOffer: WalletReceiptOffer?
     @State private var issuingProvenance: UUID?
 
-    // Persisted on device (file-protected). Loads saved entries; a fresh install
-    // starts with the demo set in DEBUG and EMPTY in Release (T1 cold-start
-    // honesty — fabricated entries must never read as the user's own words).
-    // Any add/edit/delete is auto-saved (onChange).
-    @State private var journalEntries: [JournalEntry] = JournalStore.load() ?? JournalView.initialSeed
+    // Persisted on device (file-protected), namespaced to the SIGNED-IN ACCOUNT
+    // (FR-JRNL-SCOPE-01). The array starts empty and is filled by `openJournal()`
+    // once an account is known — an account with no journal of its own therefore
+    // opens EMPTY, never on the previous account's entries. Signed out, nothing
+    // is loaded and nothing is written.
+    @State private var journalEntries: [JournalEntry] = []
+    /// The account whose journal is currently in `journalEntries`. Autosave is
+    /// refused while this is nil, so the pre-load empty array can never overwrite
+    /// a real file, and a sign-out can never write into the next account's scope.
+    @State private var loadedAccountID: String? = nil
+    /// What is believed to be on disk for `loadedAccountID` — so opening a
+    /// journal doesn't immediately rewrite the file it just read.
+    @State private var persistedSnapshot: [JournalEntry] = []
 
-    private static let initialSeed: [JournalEntry] = {
+    /// The account the journal belongs to right now (nil = signed out).
+    private var journalAccountID: String? { appState?.journalAccountID }
+
+    /// Open the signed-in account's journal: legacy-file migration + demo-seed
+    /// purge + load (see JournalStore). Demo entries are shown only in a DEBUG
+    /// demo session, and the store refuses to persist them in any build.
+    private func openJournal() {
+        guard let account = journalAccountID else {
+            loadedAccountID   = nil
+            persistedSnapshot = []
+            journalEntries    = []
+            return
+        }
+        let stored = JournalStore.openForAccount(account)
+        loadedAccountID   = account
+        persistedSnapshot = stored
         #if DEBUG
-        demoSeed
+        journalEntries = stored.isEmpty && (appState?.isDemoData ?? false) ? Self.demoSeed : stored
         #else
-        []
+        journalEntries = stored
         #endif
-    }()
+    }
 
+    /// Persist an edit into the scope it was loaded from.
+    private func persistJournal(_ entries: [JournalEntry]) {
+        guard let account = loadedAccountID, entries != persistedSnapshot else { return }
+        JournalStore.save(entries, forAccount: account)
+        persistedSnapshot = JournalStore.purgingLegacyDemoSeeds(entries)
+    }
+
+    #if DEBUG
     private static let demoSeed: [JournalEntry] = {
         var e1 = JournalEntry(
             body: "Woke up with a 6.2 fasting. Evening walk yesterday clearly helped — second night in a row inside range by morning.",
@@ -74,6 +105,7 @@ struct JournalView: View {
 
         return [e1, e2, e3]
     }()
+    #endif
 
     // Vault demo documents are DEBUG-only (T1): Release starts with an empty vault.
     @State private var vaultDocs: [VaultDocument] = {
@@ -186,8 +218,11 @@ struct JournalView: View {
                 .padding(.trailing, 20)
                 .padding(.bottom, 28)
         }
-        // Auto-persist every add/edit/delete to the device-local, file-protected store.
-        .onChange(of: journalEntries) { _, new in JournalStore.save(new) }
+        // Open the SIGNED-IN ACCOUNT's journal (and re-open if the account
+        // changes underneath the view — sign-out drops it to empty).
+        .task(id: journalAccountID) { openJournal() }
+        // Auto-persist every add/edit/delete into the scope it was loaded from.
+        .onChange(of: journalEntries) { _, new in persistJournal(new) }
         #if DEBUG
         // Deterministic screenshot of the ePRO provenance receipt (UC-24b).
         .task {

@@ -195,6 +195,12 @@ final class AppState {
     var journalEntries:  [JournalEntry] = []
     var journalSyncEnabled: Bool        = false
 
+    /// FR-JRNL-SCOPE-01 — the scope key the on-device journal is namespaced by:
+    /// the SIGNED-IN account. nil ⇒ no account ⇒ no journal may be read or
+    /// written (a signed-out device exposes nobody's entries, and nothing is
+    /// deleted to achieve that — see `JournalStore`).
+    var journalAccountID: String? { session?.userId.uuidString }
+
     // Context flags (FR-CTX-04) — the user's own "life explains this" markers.
     // Device-local (ContextFlagStore), restored at launch, wiped by deleteAllData.
     // Their ONLY effect on the engine is suppression (see NudgeEngine).
@@ -476,10 +482,9 @@ final class AppState {
         )
         profile = UserProfile(id: session!.userId, displayName: "LV001", avatarURL: nil, createdAt: Date(), alias: "LV001")
         // A name declared in onboarding beats the pseudonymous alias for
-        // greetings (the alias stays LV001 for recipients/consult).
-        if let local = UserDefaults.standard.string(forKey: Self.displayNameKey), !local.isEmpty {
-            profile?.displayName = local
-        }
+        // greetings (the alias stays LV001 for recipients/consult). Same single
+        // resolver as the real sign-in paths — no second rule.
+        applyResolvedDisplayName()
         // Mock wallet/care seeds are DEBUG-only (T1). All Release entry points to
         // signInDemo are already gated (AuthView demo button, wallet/eID flags),
         // this keeps the fabricated grants out even if a new caller slips in.
@@ -520,6 +525,11 @@ final class AppState {
         profile = nil
         grants = []
         walletEvents = []
+        // The journal is dropped from memory here; on disk it stays sealed in
+        // the departing account's own scope (FR-JRNL-SCOPE-01). The next account
+        // cannot address that path, so nothing of this citizen's writing is
+        // readable to them — and nothing of it is deleted either. `JournalView`
+        // reloads on the account change and lands empty.
         journalEntries = []
         lastError = nil
     }
@@ -545,9 +555,16 @@ final class AppState {
             }
             try? context.save()
         }
-        // 2. Journal file (Application Support/journal.v1.json).
-        if let journalURL = JournalStore.defaultURL() {
-            try? FileManager.default.removeItem(at: journalURL)
+        // 2. Journal — THIS account's scoped store, plus the pre-10.101
+        //    device-scoped file if it is still on disk (unattributed data this
+        //    erase is explicitly asked to remove). Other accounts' scopes are
+        //    left alone: their entries are another person's writing, not "my
+        //    data". Runs BEFORE signOut so the account id is still known.
+        if let account = journalAccountID {
+            JournalStore.eraseAccount(account)
+        }
+        if let legacyJournal = JournalStore.legacyURL() {
+            try? FileManager.default.removeItem(at: legacyJournal)
         }
         // 2b. PMS report outbox (FR-PMS-01) — queued safety reports are personal
         //     data too; the erase must not leave them behind.
@@ -719,7 +736,9 @@ final class AppState {
                     note: "Data held on this device. Raw HealthKit samples never leave your device and are read directly from Apple Health.",
                     grants: grants,
                     consentLedger: walletEvents,
-                    journal: JournalStore.load() ?? journalEntries))
+                    // The signed-in account's own journal only (FR-JRNL-SCOPE-01);
+                    // signed out there is nothing of "mine" to export.
+                    journal: journalAccountID.flatMap { JournalStore.load(forAccount: $0) } ?? []))
             }
             let df = DateFormatter()
             df.dateFormat = "yyyyMMdd-HHmm"
@@ -816,13 +835,26 @@ final class AppState {
     @MainActor
     func loadProfile() async {
         do { profile = try await supabase.fetchProfile() } catch { /* non-fatal */ }
-        // Device-declared name (onboarding name capture) overlays a missing
-        // backend name — the daily edition greets with what the user typed.
-        if let local = UserDefaults.standard.string(forKey: Self.displayNameKey),
-           !local.isEmpty,
-           (profile?.displayName ?? "").isEmpty {
-            profile?.displayName = local
-        }
+        applyResolvedDisplayName()
+    }
+
+    /// UC-01 / FR-ACC-NAME-01 — settle what the app may call this person, once,
+    /// for every surface that reads `profile?.displayName` (greeting, Settings,
+    /// avatar). The declared name wins; a backend value that is merely the
+    /// local-part of the account's own email is a placeholder and is dropped, so
+    /// an address (or a fragment of one) can never render as a name. Nothing
+    /// known ⇒ nil ⇒ the surfaces greet without a name.
+    @MainActor
+    func applyResolvedDisplayName(defaults: UserDefaults = .standard) {
+        // Read, resolve, then write back the whole struct: `profile?.x =
+        // f(profile?.x)` opens a write access to `profile` while reading it,
+        // which traps on exclusivity (caught by DisplayNameResolutionTests).
+        guard var resolvedProfile = profile else { return }
+        resolvedProfile.displayName = DisplayNameResolution.resolve(
+            declared: defaults.string(forKey: Self.displayNameKey),
+            backend:  resolvedProfile.displayName,
+            accountEmail: session?.email)
+        profile = resolvedProfile
     }
 
     // MARK: - Declared display name (UC-01 name capture — device-local)
@@ -835,10 +867,13 @@ final class AppState {
     /// Persist the name typed in onboarding and reflect it on the in-memory
     /// profile immediately (creating a local profile when none is loaded yet).
     @MainActor
-    func setDisplayName(_ name: String) {
+    func setDisplayName(_ name: String, defaults: UserDefaults = .standard) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        UserDefaults.standard.set(trimmed, forKey: Self.displayNameKey)
+        // An address is not a name, wherever it came from (FR-ACC-NAME-01).
+        guard !trimmed.isEmpty,
+              DisplayNameResolution.resolve(declared: trimmed, backend: nil,
+                                            accountEmail: session?.email) != nil else { return }
+        defaults.set(trimmed, forKey: Self.displayNameKey)
         if profile != nil {
             profile?.displayName = trimmed
         } else if let session {
