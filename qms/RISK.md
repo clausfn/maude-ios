@@ -2,6 +2,163 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Data honesty — Settings asserted state it had never looked up (2026-08-13, branch claude/a72-electric-ink)
+
+**RK-SET-01 (NEW) — a trust surface stated facts about the citizen's data that
+were written into the source.** Reported by internal TestFlight testers. The
+three "My data" rows in `SettingsView` carried their statuses as string
+literals — `status: "Connected"` (Apple Health), `status: "3 files"` (Health
+Vault), `status: "Not connected"` (Sundhedsplatformen) — so every citizen on
+every device saw the same three answers regardless of what was true. Observed
+consequences: a tester with an EMPTY encrypted space was told it held three
+files, and Apple Health read "Connected" on a phone whose Home was still
+showing the waiting-for-data state.
+
+Harm class: this is not a clinical hazard, it is a TRUST and INTEGRITY hazard on
+the surface whose whole job is to tell the citizen what the app holds and where
+it came from. A citizen who believes documents are stored when none are may
+delete their only copy elsewhere; a citizen told Apple Health is connected has
+no reason to fix a connection that never worked, and will read an empty app as
+"Liviqa has nothing to say about me" rather than "Liviqa is not reading
+anything". Both corrupt the informed picture the consent and data-sovereignty
+promises rest on.
+
+Controls now in place:
+- **Every status is derived** (`SettingsStatus`, pure Foundation): Apple Health
+  from the real provider/read outcome on `AppState`; the vault from
+  `HealthVaultSession.open`; Sundhed.dk from the persisted returning-user
+  record; the account row from the real session; the version row from the
+  bundle.
+- **Unknown is a first-class answer.** Before the first read completes the row
+  says "Not checked yet" / "Checking…" — it does not fall back to a reassuring
+  default. This is the same discipline as the HealthKit wording rule below.
+- **No number the app could not obtain.** In every non-`.ready` `VaultAccess`
+  state (locked-until-unlock, key-unavailable, sealed-data-unreadable) the row
+  names the state and prints NO count. Printing "0 files" over documents that
+  are on disk but sealed would be the most damaging possible sentence on that
+  row — it invites a reinstall, which would actually destroy them (the same
+  reasoning as RK-VAULT-02).
+- **Counts agree with the screen they link to.** Settings and Data sources now
+  call one shared counter (`DataSourcesView.connectedSourceCount`), and the
+  vault row is read with the same call the vault screen makes, so "N documents"
+  in Settings is the N that screen lists. Each row also pushes the screen its
+  status describes, so the two can be compared in one tap.
+- **Regression guard.** `SettingsTruthTests.statusArgumentsAreNeverLiterals`
+  parses every `connectedSourceRow` call in the source and fails the test run if
+  a `status:` argument becomes a string literal again — including one hidden
+  inside `String(localized:)`. Verified as a negative control (re-injecting
+  `status: String(localized: "3 files")` fails the suite).
+
+**HealthKit wording rule held (`AppState.HealthReadOutcome`).** HealthKit does
+not report READ authorisation — a denied read is specified to look exactly like
+an empty one. No Apple Health status added here claims a denial: the honest
+statuses are "No readings yet" (the read completed and every requested type came
+back empty) and "Couldn't be read" (the request threw).
+`noAppleHealthStatusEverClaimsADenial` asserts this over every case. The same
+correction was applied to the one-tap connect result in `DataSourcesView`, which
+previously ended with "Connected. As your Health data fills in…" whatever came
+back, and to its Release copy, which promised sample data a Release build never
+shows.
+
+**FR-WAL-09 claim gate widened to Settings.** The consent line under "Consent &
+sharing" asserted "All sharing changes are independently logged and cannot be
+altered" unconditionally, while the ledger screen it links to gates exactly that
+claim on real consent-engine evidence (`ConsentLedgerView.headerClaim`,
+T-WAL-09) and softens it to a design-intent statement while `CE_MODE=stub`.
+Settings now renders that same gated sentence, so the strong append-only claim
+cannot be made on Settings' own authority. Likewise the "You haven't shared data
+with anyone" card no longer renders while the consent record is still being
+read.
+
+**No clinical hazard introduced.** Nothing here touches the nudge engine, the
+AFib display-only lane (D9/FR-NDG-06), glucose units (OD-07), or any output
+allow-list; no data is written, deleted or re-keyed by these changes, and the
+vault is only OPENED for a count (read-only, no `add`/`delete` path added).
+`provenance` remains a data field and never renders (`guard_provenance.sh`
+green). Linked requirements: FR-SET-03 (new), FR-ARCH-05, FR-ING-15, FR-WAL-09.
+
+**Residual risk.** (a) In DEBUG demo builds the Apple Health row may read
+"Connected" from the demo seed — DEBUG-only, and Release cold-start seeds carry
+`isConnected: false`. (b) If the consent-grant fetch FAILS (rather than being in
+flight), Settings still renders the "no active sharing" card; distinguishing
+"loaded and empty" from "could not load" needs a loaded/failed flag on
+`AppState`, which this change does not own — carried as an open item.
+
+## Journal cross-account exposure + fabricated entries + identifier-as-name (data-honesty incident, 2026-08-13, branch claude/a72-electric-ink)
+
+Reported by internal TestFlight testers: glucose readings and journal entries
+they never wrote, and a greeting that used an Apple private-relay identifier as
+their name. Three hazards, all in the "what the app asserts about the citizen"
+class rather than the clinical lane. No nudge, no metric, no clinical output
+changed — but a fabricated entry that reads as the citizen's own words is an
+input a clinician could be shown in a consult, so this is treated as a
+data-integrity/privacy hazard, not cosmetics.
+
+- **RK-JRNL-XACCT-01 (NEW, high — one citizen reads, or shares, another
+  citizen's journal):** `journal.v1.json` lived at one DEVICE path, and
+  `AppState.signOut()` only cleared an in-memory array while `JournalView` held
+  its own `@State` loaded straight from disk. A second account on the same phone
+  (a shared TestFlight device, a resold phone) opened the previous person's
+  private writing, and the GDPR export (Art. 20) would have exported it as
+  theirs. **Mitigated by construction:** the store is now namespaced per ACCOUNT
+  (`journal/<sha256(accountID)>/journal.v1.json`), following the vault's
+  `EncryptedAnchorStore`/`LocalUserScope` shape but scoped to the signed-in
+  account, because the leak is between accounts on one device. No account id ⇒
+  no path ⇒ nothing readable and nothing writable; a new account starts EMPTY;
+  sign-out deletes nothing and leaves nothing addressable to the next account.
+  Export and "delete all my data" are likewise account-scoped (erase removes THIS
+  account's scope plus the unattributed legacy file — never another account's
+  scope, which is another person's writing). Tests: `JournalScopeTests`
+  (isolation, sign-out, erase). Linked: NFR-PRIV-01, FR-JRNL-SCOPE-01.
+  **RESIDUAL RISK — first-adopter ambiguity (accepted, low, stated plainly):**
+  the pre-10.101 file carries no author. On first run after the update it is
+  adopted into the FIRST signed-in account's scope. If the first account to open
+  the app is not the one that wrote the entries, that account adopts them — the
+  same visibility that exists today for every account, narrowed to exactly one
+  adoption and then closed forever. The alternative (deleting the unattributed
+  file) was rejected: it would destroy real writing to defend against a case we
+  cannot detect. Partial detection IS applied — entries whose `userId` names a
+  different account are never adopted, and the file is left intact for its
+  owner — but local entries carry no `userId`, so it does not cover the common
+  case. Operational control: testers who shared a device should erase and
+  re-import rather than trust an adopted journal.
+- **RK-JRNL-FABRIC-01 (NEW, high — fabricated entries read as the citizen's own
+  record):** three `JournalView.demoSeed` entries (one carrying a 6.2 mmol/L
+  fasting glucose) were written to the device store by a June build before the
+  seeding gate existed, and every later build read them back. The `#if DEBUG`
+  gate stopped new seeding but nothing cleaned up what was on disk.
+  **Mitigated:** a one-time, idempotent purge by EXACT whole-body match against
+  the app's own three strings, applied on read, on migration and on write. The
+  write-path filter is the structural fix — the seed cannot be persisted in any
+  configuration, which is precisely how a DEBUG value became "the citizen's
+  words". Narrowness is the safety property: a citizen who wrote their own note
+  about a 6.2 fasting glucose keeps it (prefix, suffix and quoting cases are
+  tested). Seeding is additionally gated on a demo session. Nothing containing
+  entry text is logged. Tests: `JournalSeedPostureTests` (source lints incl. "a
+  seed body compiled into Release anywhere fails", "the denylist is the seed
+  verbatim") + the purge tests in `JournalScopeTests`. Linked: FR-ARCH-05,
+  FR-JRNL-SEED-01.
+- **RK-ACC-NAME-01 (NEW, medium — an account identifier is shown to the citizen
+  as their name, and to a clinician in a consult):** `/me` returns the
+  private-relay mailbox name as `displayName`, and the onboarding-declared name
+  only applied when that value was EMPTY, so Home greeted "Good morning,
+  75sg6pvfys." **Mitigated:** one pure resolver (`DisplayNameResolution`)
+  decides — declared name wins; an "@"-bearing string or a value equal to the
+  local-part of the account's own email is a placeholder, not a name; nothing
+  known ⇒ no name rather than an invented or identifier one. Applied once in
+  `AppState`, so every surface reading `profile?.displayName` is fixed at the
+  source. Tests: `DisplayNameResolutionTests`. Linked: UC-01, NFR-PRIV-05,
+  FR-ACC-NAME-01. **Residual:** when the account email is unknown (a session
+  restored without it) a bare mailbox-shaped id cannot be recognised as such and
+  would still render; in the observed sovereign path `/me` always carries the
+  email. Follow-up (NOT in this change): `LiviqaAppBar.initials(nil)` falls back
+  to the letter "C" when no name is known — no longer an email fragment, but
+  still a stand-in; owner of the chrome to replace it with a neutral mark.
+
+No new clinical hazard; RK-NDG-*/RK-CARD-01/RK-GLU-01 controls untouched (no
+engine input, threshold or output surface changed). `scripts/guard_provenance.sh`
+green — no provenance field reaches a view.
+
 ## Ingestion — HR-in-interval + intra-night sleep (2026-08-13, branch claude/a72-electric-ink)
 
 Two ingestion gaps closed (T-FIT-01 workout heart-rate; sleep segment start

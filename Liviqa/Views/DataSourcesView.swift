@@ -87,11 +87,23 @@ struct DataSourcesView: View {
 
     /// Count of genuinely connected sources (mock vault/national rows excluded —
     /// the vault is a place, not a source; Sundhed connects via its own record).
-    private var connectedCount: Int {
-        let rows = appState.connectedSources.filter {
+    ///
+    /// PURE + SHARED so the number can never differ from the number Settings
+    /// prints on the row that pushes this screen (data-honesty incident
+    /// 2026-08-13: Settings counted `connectedSources.filter(\.isConnected)`
+    /// straight, which in a demo build counts the "Health Vault" seed row and
+    /// misses a Sundhed.dk connection — "3 connected" on a screen that then
+    /// said "Two sources connected"). Both call sites now call this.
+    nonisolated static func connectedSourceCount(_ sources: [DataSourceConnection],
+                                                 sundhedConnected: Bool) -> Int {
+        let rows = sources.filter {
             $0.isConnected && $0.name != "Health Vault" && $0.name != "Sundhedsplatformen"
         }
-        return rows.count + (sundhedLast != nil ? 1 : 0)
+        return rows.count + (sundhedConnected ? 1 : 0)
+    }
+
+    private var connectedCount: Int {
+        Self.connectedSourceCount(appState.connectedSources, sundhedConnected: sundhedLast != nil)
     }
 
     var body: some View {
@@ -323,9 +335,35 @@ struct DataSourcesView: View {
             appState.dataProviderKind = .healthKit
             await appState.refreshFromHealth()
             connecting = false
-            importedNote = appState.todaySignals == nil
-                ? String(localized: "Connected. As your Health data fills in, your own numbers replace the demo.")
-                : String(localized: "Synced — your Home now shows your own data.")
+            importedNote = Self.connectResultNote(
+                usingRealData: appState.usingRealData,
+                outcome: appState.healthReadOutcome,
+                isDemoData: appState.isDemoData)
+        }
+    }
+
+    /// What to say after the one-tap connect — the OUTCOME, never a hopeful
+    /// "Connected." (data-honesty incident 2026-08-13). Follows the
+    /// `AppState.HealthReadOutcome` wording rule: HealthKit cannot report read
+    /// authorisation, so an empty read is reported as an empty read and the two
+    /// possible explanations are offered without accusing anyone of a denial.
+    nonisolated static func connectResultNote(usingRealData: Bool,
+                                              outcome: AppState.HealthReadOutcome,
+                                              isDemoData: Bool) -> String {
+        if usingRealData || outcome == .readings {
+            return String(localized: "Synced — your Home now shows your own data.")
+        }
+        switch outcome {
+        case .readings:
+            return String(localized: "Synced — your Home now shows your own data.")
+        case .noReadings:
+            return isDemoData
+                ? String(localized: "No readings came through yet — either there's nothing recorded on this phone for these types, or reading isn't allowed. Until some arrive you'll see sample data, clearly marked.")
+                : String(localized: "No readings came through yet — either there's nothing recorded on this phone for these types, or reading isn't allowed. You can check in Health → Sharing → Apps → Liviqa.")
+        case .failed:
+            return String(localized: "Apple Health couldn't be read just now. Nothing has changed — you can try again.")
+        case .notAttempted:
+            return String(localized: "Apple Health isn't available on this device.")
         }
     }
 
@@ -929,9 +967,20 @@ struct ManualReadingSheet: View {
                                               unit: "h", effectiveDate: now,
                                               source: HealthDataSource.manual.rawValue)]
         case .note:
+            // FR-JRNL-SCOPE-01: read the SIGNED-IN account's journal, prepend,
+            // write it back. (It used to save `appState.journalEntries` — an
+            // in-memory list nothing ever loaded into — which overwrote the whole
+            // file with this one note.)
+            guard let account = appState.journalAccountID else {
+                dismiss()
+                onSaved(String(localized: "Your note couldn't be saved — you're not signed in."))
+                return
+            }
             let entry = JournalEntry(body: noteText.trimmingCharacters(in: .whitespacesAndNewlines))
-            appState.journalEntries.insert(entry, at: 0)
-            JournalStore.save(appState.journalEntries)
+            var entries = JournalStore.openForAccount(account)
+            entries.insert(entry, at: 0)
+            JournalStore.save(entries, forAccount: account)
+            appState.journalEntries = entries
             dismiss()
             onSaved(String(localized: "Note saved to your journal — on this device."))
             return

@@ -41,8 +41,16 @@ struct SettingsView: View {
     @AppStorage("appLockEnabled")     private var appLockEnabled = false
     @State private var appLockNote: String? = nil
 
+    /// The health data space's real state, read with the SAME call the vault
+    /// screen makes (`HealthVaultSession.open`) — so the count on this row is
+    /// the count that screen lists. nil access ⇒ not opened yet ⇒ "Checking…",
+    /// never a number.
+    @State private var vaultAccess: VaultAccess?
+    @State private var vaultDocumentCount = 0
+
     // Navigation destinations
     @State private var showDataSources    = false
+    @State private var showVault          = false
     @State private var showHealthPassport = false
     @State private var showSundhedImport  = false
     @State private var showConsentLedger  = false
@@ -72,6 +80,7 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .navigationDestination(isPresented: $showDataSources)    { DataSourcesView() }
+        .navigationDestination(isPresented: $showVault)          { HealthVaultView() }
         .navigationDestination(isPresented: $showHealthPassport) { HealthPassportView() }
         .navigationDestination(isPresented: $showSundhedImport)  {
             // A7.2: one calm MitID prompt fronts the real linking session
@@ -94,6 +103,13 @@ struct SettingsView: View {
         // FR-CTX-04 — review / end the days marked as travelling, unwell or
         // off-routine (same surface as the Today entry affordance).
         .sheet(isPresented: $showContextFlags) { ContextFlagSheet() }
+        // The vault row's count is read here and re-read on the way back from
+        // the vault, so adding or deleting a document there is reflected here.
+        .task { readVaultState() }
+        .onChange(of: showVault) { _, pushed in if !pushed { readVaultState() } }
+        // Data sources can add a document to the same space — re-read on return
+        // so this row never lags behind the store it reports on.
+        .onChange(of: showDataSources) { _, pushed in if !pushed { readVaultState() } }
         #if DEBUG
         // Snapshot hooks (A7.2 Area ⑧): with LIVIQA_TAB=settings —
         // LIVIQA_OPEN_ACCOUNT=1 → Account & security; LIVIQA_OPEN_NOTIFS=1 →
@@ -260,32 +276,47 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             zoneHeader("MY DATA", icon: "person.circle")
 
+            // Every status word in this card is DERIVED (SettingsStatus) — see
+            // the incident note above that type. Each row also pushes the screen
+            // its status is about, so the two can be compared in one tap.
             VStack(spacing: 1) {
                 profileRow
                 Divider().padding(.leading, 56)
-                connectedSourceRow(
-                    icon: "heart.fill",
-                    color: LiviqaTheme.accentHeart,
-                    label: "Apple Health",
-                    status: "Connected",
-                    statusColor: LiviqaTheme.moss
-                )
+                Button { showDataSources = true } label: {
+                    connectedSourceRow(
+                        icon: "heart.fill",
+                        color: LiviqaTheme.accentHeart,
+                        label: "Apple Health",
+                        status: appleHealthStatus.label,
+                        statusColor: statusColor(appleHealthStatus)
+                    )
+                }
+                .buttonStyle(.plain)
                 Divider().padding(.leading, 56)
-                connectedSourceRow(
-                    icon: "doc.fill",
-                    color: LiviqaTheme.clay,
-                    label: "Health Vault",
-                    status: "3 files",
-                    statusColor: LiviqaTheme.ink3
-                )
+                Button { showVault = true } label: {
+                    connectedSourceRow(
+                        icon: "doc.fill",
+                        color: LiviqaTheme.clay,
+                        label: "Health Vault",
+                        status: vaultStatus.label,
+                        statusColor: statusColor(vaultStatus)
+                    )
+                }
+                .buttonStyle(.plain)
                 Divider().padding(.leading, 56)
-                connectedSourceRow(
-                    icon: "cross.case.fill",
-                    color: LiviqaTheme.accentRecovery,
-                    label: "Sundhedsplatformen",
-                    status: "Not connected",
-                    statusColor: LiviqaTheme.ink4
-                )
+                Button {
+                    if Config.sundhedWebConnectEnabled { showSundhedImport = true }
+                    else { showDataSources = true }
+                } label: {
+                    connectedSourceRow(
+                        icon: "cross.case.fill",
+                        color: LiviqaTheme.accentRecovery,
+                        label: "Sundhedsplatformen",
+                        status: sundhedStatus.label,
+                        statusColor: statusColor(sundhedStatus)
+                    )
+                }
+                .buttonStyle(.plain)
             }
             .background(LiviqaTheme.paper2)
             .cornerRadius(12)
@@ -299,7 +330,10 @@ struct SettingsView: View {
                     icon: "key.fill",
                     color: LiviqaTheme.fjordBright,
                     label: String(localized: "Account & security"),
-                    detail: appState.session?.email ?? String(localized: "Demo session")
+                    // Was `?? "Demo session"` — which a signed-out session read
+                    // as a demo one.
+                    detail: SettingsStatus.accountDetail(email: appState.session?.email,
+                                                         signedIn: appState.session != nil)
                 )
                 .background(LiviqaTheme.paper2)
                 .cornerRadius(12)
@@ -386,7 +420,9 @@ struct SettingsView: View {
                         icon: "externaldrive.connected.to.line.below.fill",
                         color: LiviqaTheme.ink3,
                         label: "Data Sources",
-                        detail: "\(appState.connectedSources.filter(\.isConnected).count) connected"
+                        // The SAME counter the pushed screen's verdict band
+                        // uses — the two numbers cannot drift apart.
+                        detail: String(localized: "\(connectedSourceCount) connected")
                     )
                 }
                 .buttonStyle(.plain)
@@ -455,21 +491,98 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: — Derived state for the "My data" rows
+
+    /// Apple Health: the real provider/read outcome, never a constant.
+    private var appleHealthStatus: SettingsStatus.AppleHealth {
+        SettingsStatus.appleHealth(
+            rowConnected: appState.connectedSources
+                .first { $0.name == "Apple Health" }?.isConnected ?? false,
+            didAttemptFetch: appState.didAttemptHealthFetch,
+            outcome: appState.healthReadOutcome)
+    }
+
+    /// The vault: whatever `HealthVaultSession.open` last answered.
+    private var vaultStatus: SettingsStatus.Vault {
+        SettingsStatus.vault(access: vaultAccess, documentCount: vaultDocumentCount)
+    }
+
+    /// Sundhed.dk: the persisted returning-user record (the same read Data
+    /// sources uses for its "Connected" row).
+    private var sundhedStatus: SettingsStatus.Sundhed {
+        SettingsStatus.sundhed(
+            hasImportRecord: sundhedConnected,
+            connectAvailable: Config.sundhedWebConnectEnabled || Config.sundhedConnectEnabled)
+    }
+
+    private var sundhedConnected: Bool {
+        let citizenId = appState.profile?.alias ?? appState.session?.userId.uuidString
+        return SundhedWebSessionView.lastPullSummary(citizenId: citizenId) != nil
+    }
+
+    /// Connected-source count, computed by the counter Data sources itself uses.
+    private var connectedSourceCount: Int {
+        DataSourcesView.connectedSourceCount(appState.connectedSources,
+                                             sundhedConnected: sundhedConnected)
+    }
+
+    /// One open of the encrypted space — the same call, and therefore the same
+    /// answer, as the screen this row pushes.
+    private func readVaultState() {
+        let session = HealthVaultSession.open(keyVault: .shared,
+                                              userScope: LocalUserScope.current())
+        vaultAccess = session.access
+        vaultDocumentCount = session.documents.count
+    }
+
+    private func statusColor(_ s: SettingsStatus.AppleHealth) -> Color {
+        switch s {
+        case .connected:                 return LiviqaTheme.moss
+        case .noReadings, .couldNotRead: return LiviqaTheme.ink3
+        case .notCheckedYet, .notConnected: return LiviqaTheme.ink4
+        }
+    }
+
+    private func statusColor(_ s: SettingsStatus.Vault) -> Color {
+        switch s {
+        case .documents(let n):              return n == 0 ? LiviqaTheme.ink4 : LiviqaTheme.ink3
+        case .unreadable:                    return LiviqaTheme.clayText
+        case .checking, .lockedUntilUnlock, .unavailable: return LiviqaTheme.ink4
+        }
+    }
+
+    private func statusColor(_ s: SettingsStatus.Sundhed) -> Color {
+        s == .connected ? LiviqaTheme.moss : LiviqaTheme.ink4
+    }
+
     private var profileRow: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(LiviqaTheme.invertBG)
                     .frame(width: 40, height: 40)
-                Text(initials)
-                    .font(.lato(14, .semibold))
-                    .foregroundStyle(LiviqaTheme.invertFG)
+                if let initials {
+                    Text(initials)
+                        .font(.lato(14, .semibold))
+                        .foregroundStyle(LiviqaTheme.invertFG)
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.lato(14))
+                        .foregroundStyle(LiviqaTheme.invertFG)
+                }
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(appState.profile?.displayName ?? "Demo User")
+                // No "Demo User" stand-in: an unnamed profile says so rather
+                // than inventing a person (matches ProfileSheet).
+                Text(displayName ?? String(localized: "Your profile"))
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(LiviqaTheme.ink)
-                Text("Device-stored only · never uploaded")
+                // Was the flat claim "Device-stored only · never uploaded" —
+                // untrue of a name that arrived from the account.
+                Text(SettingsStatus.nameOrigin(
+                        shown: displayName,
+                        declaredOnDevice: UserDefaults.standard
+                            .string(forKey: AppState.displayNameKey)).label)
                     .font(.caption)
                     .foregroundStyle(LiviqaTheme.ink4)
                 if appState.walletVerified {
@@ -523,7 +636,11 @@ struct SettingsView: View {
             zoneHeader("CONSENT & SHARING", icon: "lock.shield")
 
             if appState.grants.isEmpty {
-                emptyGrantsCard
+                // "You haven't shared data with anyone" is a claim about the
+                // consent record — it may only be made once that record has
+                // actually been read back. While the read is in flight the card
+                // says so instead.
+                if appState.isLoadingWallet { checkingGrantsCard } else { emptyGrantsCard }
             } else {
                 VStack(spacing: 1) {
                     ForEach(appState.grants) { grant in
@@ -544,7 +661,7 @@ struct SettingsView: View {
                     Image(systemName: "link.circle")
                         .foregroundStyle(LiviqaTheme.ink4)
                         .font(.caption)
-                    Text("All sharing changes are independently logged and cannot be altered.")
+                    Text(consentLogClaim)
                         .font(.caption)
                         .foregroundStyle(LiviqaTheme.ink4)
                     Spacer()
@@ -556,6 +673,32 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 4)
         }
+    }
+
+    /// FR-WAL-09 — the SAME claim gate the ledger screen applies, and its exact
+    /// wording. This line used to make the strong claim unconditionally ("All
+    /// sharing changes are independently logged and cannot be altered"), so on
+    /// a stub-mode consent engine — where events carry no evidentiary receipt —
+    /// Settings promised something the screen it links to explicitly softens.
+    private var consentLogClaim: String {
+        let hasEvidence = appState.walletEvents.contains { $0.ce?.isEvidentiary == true }
+        return String(localized: "Every sharing change is recorded. ")
+             + ConsentLedgerView.headerClaim(hasEvidence: hasEvidence)
+    }
+
+    private var checkingGrantsCard: some View {
+        HStack(spacing: 12) {
+            ProgressView().controlSize(.small)
+            Text("Reading your sharing record…")
+                .font(.footnote)
+                .foregroundStyle(LiviqaTheme.ink3)
+            Spacer()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.paper2)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
     }
 
     private var emptyGrantsCard: some View {
@@ -719,7 +862,12 @@ struct SettingsView: View {
                 .foregroundStyle(LiviqaTheme.ink4)
                 .frame(width: 32)
                 .padding(.leading, 16)
-            Text("Version 1.0")
+            // Read from the bundle: "Version 1.0" was frozen in source while
+            // the build number moved every TestFlight upload, so a tester's
+            // report could never say which build they were on.
+            Text(SettingsStatus.versionLabel(
+                    short: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                    build: Bundle.main.infoDictionary?["CFBundleVersion"] as? String))
                 .font(.footnote)
                 .foregroundStyle(LiviqaTheme.ink4)
             Spacer()
@@ -779,13 +927,198 @@ struct SettingsView: View {
         return n == 1 ? String(localized: "1 past") : String(localized: "\(n) past")
     }
 
-    private var initials: String {
-        let name = appState.profile?.displayName ?? "Demo"
+    /// The name actually on record, or nil — never a stand-in.
+    private var displayName: String? {
+        let name = (appState.profile?.displayName ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : name
+    }
+
+    /// nil when there is no name to take initials from (the avatar falls back
+    /// to a person glyph rather than inventing "DE" for "Demo").
+    private var initials: String? {
+        guard let name = displayName else { return nil }
         let parts = name.split(separator: " ")
         if parts.count >= 2 {
             return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
         }
         return String(name.prefix(2)).uppercased()
+    }
+}
+
+// MARK: - Derived settings statuses (the truth behind every status word)
+//
+// DATA-HONESTY INCIDENT 2026-08-13. The three "My data" rows shipped with their
+// statuses WRITTEN IN — "Apple Health · Connected", "Health Vault · 3 files",
+// "Sundhedsplatformen · Not connected" — so they read identically for a
+// brand-new citizen with nothing connected. A tester saw "3 files" over an
+// empty vault and "Connected" while Home was still waiting for its first Apple
+// Health sample. Every status word below is now computed from state the app can
+// actually observe, and each genuinely-unknown case says so instead of guessing
+// a reassuring default.
+//
+// Pure Foundation (no SwiftUI, no HealthKit, no device) so the whole truth
+// table is testable without a simulator — LiviqaTests/SettingsTruthTests.swift.
+enum SettingsStatus {
+
+    // MARK: Apple Health
+    //
+    // WORDING RULE — see `AppState.HealthReadOutcome`: HealthKit does not report
+    // READ authorisation, and a denied read is specified to look exactly like an
+    // empty one. So no case here may claim access was denied, refused or
+    // blocked; `.noReadings` states precisely what was observed.
+    enum AppleHealth: Equatable {
+        /// A real read returned samples (or this session's source row is
+        /// genuinely marked connected).
+        case connected
+        /// The read completed and every requested type came back empty.
+        case noReadings
+        /// The read itself threw.
+        case couldNotRead
+        /// No read has completed yet — unknown, and said so.
+        case notCheckedYet
+        /// A read ran without ever asking HealthKit (no Health on this platform).
+        case notConnected
+
+        var label: String {
+            switch self {
+            case .connected:     return String(localized: "Connected")
+            case .noReadings:    return String(localized: "No readings yet")
+            case .couldNotRead:  return String(localized: "Couldn't be read")
+            case .notCheckedYet: return String(localized: "Not checked yet")
+            case .notConnected:  return String(localized: "Not connected")
+            }
+        }
+    }
+
+    static func appleHealth(rowConnected: Bool,
+                            didAttemptFetch: Bool,
+                            outcome: AppState.HealthReadOutcome) -> AppleHealth {
+        switch outcome {
+        case .readings:   return .connected
+        case .noReadings: return .noReadings
+        case .failed:     return .couldNotRead
+        case .notAttempted:
+            // No verdict from HealthKit this session. The source row is still
+            // truthful (a real read marked it, or a DEBUG demo seed set it).
+            if rowConnected { return .connected }
+            return didAttemptFetch ? .notConnected : .notCheckedYet
+        }
+    }
+
+    // MARK: Health data space (vault)
+    //
+    // The count comes from the SAME `HealthVaultSession.open` the vault screen
+    // uses, so the number here is the number the pushed screen lists. In every
+    // non-`.ready` state the count is genuinely unobtainable — those cases name
+    // the state and print NO number (a "0 files" over sealed documents would be
+    // the worst possible lie on this screen).
+    enum Vault: Equatable {
+        case checking
+        case documents(Int)
+        case lockedUntilUnlock
+        case unreadable
+        case unavailable
+
+        var label: String {
+            switch self {
+            case .checking:          return String(localized: "Checking…")
+            case .documents(let n):
+                if n == 0 { return String(localized: "Empty") }
+                return n == 1 ? String(localized: "1 document")
+                              : String(localized: "\(n) documents")
+            case .lockedUntilUnlock: return String(localized: "Locked for now")
+            case .unreadable:        return String(localized: "Can't be opened")
+            case .unavailable:       return String(localized: "Not available")
+            }
+        }
+
+        /// True only when the row is printing a real, obtained count.
+        var showsCount: Bool { if case .documents = self { return true }; return false }
+    }
+
+    static func vault(access: VaultAccess?, documentCount: Int) -> Vault {
+        switch access {
+        case .none:                          return .checking
+        case .ready?:                        return .documents(documentCount)
+        case .lockedUntilDeviceUnlock?:      return .lockedUntilUnlock
+        case .sealedDataUnreadable?:         return .unreadable
+        case .keyUnavailable?:               return .unavailable
+        }
+    }
+
+    // MARK: Sundhedsplatformen (national record)
+
+    enum Sundhed: Equatable {
+        case connected
+        case notConnected
+        /// The connect path itself isn't open in this build (lawful-basis gate).
+        case notAvailableYet
+
+        var label: String {
+            switch self {
+            case .connected:       return String(localized: "Connected")
+            case .notConnected:    return String(localized: "Not connected")
+            case .notAvailableYet: return String(localized: "Not available yet")
+            }
+        }
+    }
+
+    static func sundhed(hasImportRecord: Bool, connectAvailable: Bool) -> Sundhed {
+        if hasImportRecord { return .connected }
+        return connectAvailable ? .notConnected : .notAvailableYet
+    }
+
+    // MARK: Account row detail
+
+    static func accountDetail(email: String?, signedIn: Bool) -> String {
+        guard signedIn else { return String(localized: "Not signed in") }
+        if let email, !email.trimmingCharacters(in: .whitespaces).isEmpty { return email }
+        return String(localized: "Signed in")
+    }
+
+    // MARK: Where the displayed name came from
+    //
+    // The onboarding-declared name is device-local (`AppState.displayNameKey`,
+    // never uploaded); an account name arrives from `/me`. The old row asserted
+    // "Device-stored only · never uploaded" under BOTH.
+    enum NameOrigin: Equatable {
+        case none
+        case declaredOnDevice
+        case fromAccount
+
+        var label: String {
+            switch self {
+            case .none:             return String(localized: "No name saved on this device")
+            case .declaredOnDevice: return String(localized: "The name you gave Liviqa · kept on this phone")
+            case .fromAccount:      return String(localized: "From your Liviqa account")
+            }
+        }
+    }
+
+    static func nameOrigin(shown: String?, declaredOnDevice: String?) -> NameOrigin {
+        let name = (shown ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return .none }
+        let declared = (declaredOnDevice ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !declared.isEmpty, declared.caseInsensitiveCompare(name) == .orderedSame {
+            return .declaredOnDevice
+        }
+        return .fromAccount
+    }
+
+    // MARK: Version
+    //
+    // Was the literal "Version 1.0" — which stayed 1.0 across every TestFlight
+    // build, so a tester's report could never identify what they were running.
+    static func versionLabel(short: String?, build: String?) -> String {
+        let s = (short ?? "").trimmingCharacters(in: .whitespaces)
+        let b = (build ?? "").trimmingCharacters(in: .whitespaces)
+        switch (s.isEmpty, b.isEmpty) {
+        case (false, false): return String(localized: "Version \(s) (\(b))")
+        case (false, true):  return String(localized: "Version \(s)")
+        case (true, false):  return String(localized: "Build \(b)")
+        case (true, true):   return String(localized: "Version unavailable")
+        }
     }
 }
 
