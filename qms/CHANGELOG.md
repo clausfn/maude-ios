@@ -2,6 +2,33 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-110 — Design-QA fixes: scroll edge (really), accessibility chrome, HRV single-source, heart weight (2026-08-13 overnight, branch `claude/a72-electric-ink`)
+
+Driven by a 91-frame sweep in both themes plus large-text frames (`20_Build/a72_designqa_20260813/`). **485 tests / 73 suites PASS** (was 463/70). Build green, provenance guard green.
+
+### The scroll-edge fix in PR-109 did not work — two stacked bugs, now fixed AND verified on device
+PR-109's `liviqaScrollEdge()` was merged believing it worked; the sweep proved it did not (content at full opacity under the Dynamic Island in all six scrolled frames). Root causes, both reproduced on device before changing anything:
+1. **The band resolved to 14 pt.** It sized itself from `proxy.safeAreaInsets.top` inside a `GeometryReader` carrying `.ignoresSafeArea(edges: .top)` — ignoring an edge CONSUMES that inset for the subtree, so the proxy read 0 and the band rendered 0 + 14 pt: present, measurable, invisible.
+2. **`.overlay` lays out inside its host's safe area** even when the host's content does not — so the first corrected attempt drew a correct band *below* the clock while cards kept printing above it. (Caught in an intermediate frame before it could be reported as fixed.)
+Fix: the band ignores the top safe area to reach the Island strip, and takes its height from the WINDOW's inset (`LiviqaWindowInsets.top`) because the ignore has just zeroed every proxy reading. Opaque across the inset, then eased out; mirrored bottom band replaces the hard cut at the tab bar. Verified in both themes with before/after captures; scroll offset unchanged, so the `LIVIQA_SCROLL_TO=bottom` hook still lands identically. Extended in integration to Care, Journal, Privacy and Settings.
+
+### `.dynamicTypeSize` clamps in this codebase are INERT (worth knowing before relying on one again)
+The tab bar carried `.dynamicTypeSize(...xLarge)` and it did nothing: every Liviqa font resolves through `UIFontMetrics.scaledFont(for:)`, which reads the SYSTEM content-size category and never sees SwiftUI's environment clamp. So at accessibility sizes icons grew ~19→37 pt, six labels collided with no gutter, "Settings" truncated, and the taller bar sliced content that reserved a hard-coded 96 pt. Fixed by measuring the live `UIFontMetrics` scale and dividing it back out above a 1.25× cap (the intent that was always declared), a real gutter, two-line/scaling labels that never truncate a destination name, and a measured `contentBottomInset` replacing the fixed 96. Chart y-axis columns now size to their widest real label ("100 %" was rendering as "1…"). New row NFR-A11Y-03; NFR-UI-EDGE-01 rewritten to name both failure modes so this cannot regress silently. **One more inert clamp is documented and deliberately left**: `TodayView` Home signal cards carry the same ineffective clamp, but the sweep flagged no defect there and layout was not changed without evidence.
+
+### Two screens disagreed about the same HRV week (correctness)
+Recovery/Insights plotted Friday as the week's high; the HRV Learn page called Friday the low. Cause: `applyLV001DatasetIfNeeded()` replaces `todaySignals` with the LV001 composed aggregates AFTER derivation but leaves `hrvLearn` on the original stream — one week-shaped fact with two sources. **Real sessions were never affected** (both paths derive the same seven numbers from the same samples); it is a demo-dataset artefact, but it was visible and contradictory. `TodaySignals.hrvWeek` is now the single canonical week: the Learn detail re-anchors its series, ticks, low value, low day and dip/recovery flags onto it (the 60-day range/median keep naming their own window in copy), and the assistant's "dipped on <day>" template reads the reconciled object. Pinned by `namedExtremeMatchesTheCanonicalWeek` plus a negative control asserting the *un*-reconciled detail names a different day, so the fixture cannot go stale and start proving nothing.
+
+### Heart hero no longer borrows alarm weight
+A full-bleed crimson/pink hero carried the reassuring verdict "Resting lower than your usual band" — the app's heaviest red-family surface attached to a calm message, with the two themes differing sharply in chroma. `accentHeart` is UNCHANGED (CN-approved). What changed is treatment: a new hero weight where the full plate is reserved for verdicts that actually warrant attention and calm verdicts get a quiet tinted plate; because the quiet plate is alpha over each theme's own card, paper and midnight now carry equal weight. Pinned by `weightAndVerdictNeverDisagree`.
+
+### Copy and theme consistency
+- **"Sample data" no longer appears mid-sentence** ("Kept Sample data for counting" — the previous night's chip fix applied in a prose slot). A demo seed is never *named* as a device: the sentence omits it and the demo label moves to a header chip where a label belongs. New test T-DED-06 locks the rule; every prose interpolation of a source/recipient name in those files was swept.
+- **Midnight primary buttons read as disabled** (2.46:1 — "Share now", "Add to my DfG wallet" vs a cream sibling "Done"). Unified at token level with no new palette value (light = moss's light, dark = invertBG's dark): **14.64:1**, with disabled states still unmistakably quieter (10.1:1 separation from the live fill).
+- Heatmap "worth noticing" swatch no longer shifts severity between themes (bright yellow → the same orange as morning, lifted for the marine ground; still capped short of red).
+- Glucose peak annotation moved out of the zone key's corner into a padded caption ("Highest today 11.2 mmol/L at 13:40"); Vitals verdict gutter, Sleep annotation clipping, Journal/Care trailing insets, Activity double negative, and the declined screen's wrong step counter all fixed.
+
+**Deferred, recorded:** Reduce Transparency branch is code-verified only (`simctl` will not set it headlessly — needs one manual device check); the Glucose TIR key row still ends at the viewport edge and wants trailing content padding.
+
 ## PR-109 — Day-axis integrity, real sleep/HR ingestion, scroll edge, consult stage (2026-08-13 overnight, branch `claude/a72-electric-ink`)
 
 **463 tests / 70 suites PASS** (was 418/62). Build green, Release build green (warnings 36 → 2), provenance guard green.

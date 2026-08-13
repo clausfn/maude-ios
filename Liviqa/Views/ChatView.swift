@@ -432,7 +432,10 @@ struct ChatView: View {
             #endif
         }
         // A7.2 Area ⑨ — deeper derived facts (all optional; honest when absent).
-        s.hrvDetail = appState.hrvLearn
+        // Reconciled against the app's canonical HRV week (NFR-VIZ-DAY-02) so the
+        // assistant's "your HRV dipped on <day>" can never name a different day
+        // than the Recovery pillar and the Learn page draw.
+        s.hrvDetail = HRVLearnDeriver.reconciled(appState.hrvLearn, with: appState.todaySignals)
         if s.glucoseTIRpct7d != nil,
            let month = appState.trends?.month, !month.tirDaily.isEmpty {
             s.tirMonthPct = month.tirPeriodPct

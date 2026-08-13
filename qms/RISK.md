@@ -509,6 +509,88 @@ Residual: sparklines with no day axis (Home signal chips, the "This week" teaser
 still draw a compacted series. They carry no day labels and make no per-day
 claim, so nothing can be misread onto a date; left as-is deliberately.
 
+## Two screens, one signal, opposite claims (design-QA 2026-08-13)
+
+Sibling of RK-CHART-01 and found by the same sweep. DAY-01 fixed *where* a value
+is drawn; this is about *which series* is drawn at all.
+
+Hazard: **RK-CHART-02 — two surfaces describe the same signal, over the same
+window, and contradict each other.** The Recovery pillar and the Insights week
+plotted Friday as the week's HRV **high**; the HRV clinical detail annotated
+"20 ms — your low, Friday" and the plain tier read "Yours dipped on Friday."
+Both are labelled "this week", both draw the same seven day letters. Cause:
+`HRVLearnDetail` derives its week straight from the daily SDNN stream, while
+every other HRV surface plots `TodaySignals.hrvWeek`. With real data the two are
+the same seven numbers by construction (same samples, same "one value per day
+with data over the last 7 days" rule), so nothing ever disagreed in a real
+session — but `AppState.applyLV001DatasetIfNeeded()` REPLACES `todaySignals`
+with composed aggregates *after* derivation and left `hrvLearn` on the original
+stream. Consequence class: the citizen cannot tell which screen is true of their
+own body, and the app's core promise — that it only ever describes their own
+data — is the thing put in doubt. The same detail feeds the assistant's
+explain-a-drop template, so the contradiction could also be spoken.
+
+No clinical decision logic was affected: the nudge engine, the evidence gate and
+every aggregate work from dated samples, never from these display series. The
+FR-NDG-06 output allow-list is untouched — the templates were always allow-listed
+sentences; only the day they named was wrong.
+
+Controls now in place:
+
+- **One source for the week.** `HRVLearnDeriver.reconciled(_:with:)` re-anchors
+  every week-shaped fact (series, low value, low day, latest value, and the
+  copy built from them) onto the app's canonical week before any view sees it.
+  The Learn entry point and the assistant summary both go through it.
+- **One window rule.** Both the Recovery pillar and the Learn chart resolve their
+  seven days through `DaySeries.days(endingOn:count:)` + `DaySeries.aligned`, so
+  neither can define the window differently.
+- **The long window keeps its own figures, and names them.** Range, median and
+  the own-usual band still come from the up-to-60-day stream — no other surface
+  draws them — and the copy states that window ("Your 60-day range 18–34 ms")
+  next to a card kicked "This week", so a reader is never asked to reconcile two
+  spans silently.
+- **Regression tests that fail on the defect.**
+  `HRVLearnDeriverTests.namedExtremeMatchesTheCanonicalWeek` over four week
+  shapes, with `reconciliationActuallyMovesTheNamedDay` as the negative control:
+  it asserts that the *un*-reconciled detail names a different day, so the
+  fixture cannot quietly go stale and start proving nothing.
+
+Residual: reconciliation happens at the view/summary seam, not inside
+`AppState`, because the LV001 substitution that causes the divergence lives
+there. Any FUTURE surface that reads `appState.hrvLearn` directly would
+re-open the gap. The narrow fix — nulling `hrvLearn` alongside `glucoseDetail`
+in `applyLV001DatasetIfNeeded()`, which already carries exactly this reasoning
+for glucose — is recommended to the owner of `AppState.swift`; it would make
+the divergence impossible at the source rather than corrected downstream.
+
+## Hero weight as an alarm signal (design-QA 2026-08-13)
+
+Hazard: **RK-ALARM-01 (extension) — a reassuring message delivered at alarm
+weight.** The lock has always been about the clinical red MARK: `clinRed` is
+glucose-TIR-only, and Heart already used the approved rose substitute rather
+than the design package's saturated `#E62E3D`. The sweep showed the lock has a
+gap it did not cover: a non-red token still reads as an alarm when it fills the
+largest surface on the screen at full saturation. The Heart hero carried
+"Resting lower than your usual band." — a calm, allow-listed sentence — on a
+full-bleed crimson plate in paper and a bright rose plate in midnight, the two
+themes carrying visibly different emotional weight for identical content.
+Consequence class: a citizen reads alarm into a normal day, or (worse over time)
+learns to discount the treatment and misses the day it means something.
+
+Control: hero WEIGHT is now chosen by the verdict, on the same branch that picks
+the sentence (`HeartDetailView.Model.needsAttention` → `MetricHero.weight`). The
+full-bleed plate is reserved for "Resting above your usual band — worth a look";
+calm and descriptive verdicts get the quiet plate. Palette untouched:
+`accentHeart` 0xD9486B / 0xF07E9B stands exactly as approved (CN 2026-08-12) —
+this is treatment, not colour. Because the quiet plate is alpha over each
+theme's own card ground, paper and midnight now carry the same weight.
+`MetricDetailCopyTests.weightAndVerdictNeverDisagree` pins the coupling.
+
+Residual: the other domain heroes keep the full-bleed plate unconditionally.
+That is accepted — their tints (sleep indigo, glucose teal, recovery sea blue,
+body indigo) do not read as alarm at any area. If a future domain is given a
+warm tint, it inherits this rule rather than the default.
+
 ## A7.2 Area ⑨ — Knowledge base & AI behaviours (branch claude/a72-electric-ink, 2026-08-12)
 
 Six census rows: the two-tier HRV knowledge screen (new) and the four designed

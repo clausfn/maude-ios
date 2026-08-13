@@ -70,6 +70,9 @@ struct PlanConsultView: View {
                 .padding(.top, 5)
 
             kicker("Day").padding(.top, 18)
+            // The day strip runs edge to edge and carries the page gutter as
+            // its own content inset, so the last chip can never be sliced in
+            // half by the container's padding (design-QA 2026-08-13).
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(days, id: \.self) { d in
@@ -88,7 +91,9 @@ struct PlanConsultView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 20)
             }
+            .padding(.horizontal, -20)
             .padding(.top, 6)
 
             kicker("Time").padding(.top, 16)
@@ -174,11 +179,13 @@ struct PlanConsultView: View {
                 Task { await submitRequest() }
             } label: {
                 Text(submitting ? "Requesting…" : "Request this consultation")
-                    .font(.lato(15, .bold)).foregroundStyle(LiviqaTheme.invertFG)
+                    .font(.lato(15, .bold))
+                    // In flight = unavailable, and it says so by changing
+                    // treatment rather than by dimming the live slab.
+                    .foregroundStyle(submitting ? LiviqaTheme.primaryOffLabel : LiviqaTheme.invertFG)
                     .frame(maxWidth: .infinity).padding(.vertical, 15)
-                    .background(LiviqaTheme.invertBG)
+                    .background(submitting ? LiviqaTheme.primaryOffFill : LiviqaTheme.invertBG)
                     .clipShape(RoundedRectangle(cornerRadius: 13))
-                    .opacity(submitting ? 0.7 : 1)
             }
             .buttonStyle(.plain)
             .disabled(submitting)

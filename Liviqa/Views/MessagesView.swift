@@ -68,6 +68,7 @@ struct MessagesView: View {
             }
         }
         .background(LiviqaTheme.paper)
+        .liviqaScrollEdge()       // same edge treatment as the reading surfaces
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showPlan) {

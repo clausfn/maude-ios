@@ -165,6 +165,7 @@ struct JournalView: View {
                 }
             }
             .background(LiviqaTheme.paper.ignoresSafeArea())
+            .liviqaScrollEdge()       // same edge treatment as the reading surfaces
             .onTapGesture {
                 if composerExpanded && composerText.isEmpty {
                     withAnimation(.spring(response: 0.3)) {
@@ -258,6 +259,9 @@ struct JournalView: View {
 
     // MARK: Calendar strip
 
+    /// Scroll anchor for the strip's trailing inset (see `calendarStrip`).
+    private static let stripTrailingID = "journal-day-strip-end"
+
     private var calendarStrip: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -292,14 +296,21 @@ struct JournalView: View {
                         .buttonStyle(.plain)
                         .id(day)
                     }
+
+                    // Trailing content inset. The auto-scroll lands on THIS,
+                    // not on today's pill, so the selected pill keeps the page
+                    // gutter instead of being sliced by the screen edge
+                    // (design-QA 2026-08-13).
+                    Color.clear
+                        .frame(width: 14, height: 1)
+                        .id(Self.stripTrailingID)
                 }
-                .padding(.horizontal, 20)
+                .padding(.leading, 20)
+                .padding(.trailing, 6)
                 .padding(.vertical, 8)
             }
             .onAppear {
-                if let today = calendarDays.last {
-                    proxy.scrollTo(today, anchor: .trailing)
-                }
+                proxy.scrollTo(Self.stripTrailingID, anchor: .trailing)
             }
         }
     }
@@ -694,10 +705,10 @@ struct JournalView: View {
                     } label: {
                         Text("Save")
                             .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(LiviqaTheme.primaryLabel)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
-                            .background(LiviqaTheme.moss)
+                            .background(LiviqaTheme.primaryFill)
                             .cornerRadius(8)
                     }
                     .buttonStyle(.plain)

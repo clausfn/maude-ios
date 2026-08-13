@@ -66,8 +66,8 @@ struct TokenWalletView: View {
                             .font(.lato(13.5, .semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(LiviqaTheme.moss)
-                            .foregroundStyle(.white)
+                            .background(LiviqaTheme.primaryFill)
+                            .foregroundStyle(LiviqaTheme.primaryLabel)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .buttonStyle(.plain)
@@ -362,8 +362,8 @@ private struct DonateSheet: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(canAfford ? LiviqaTheme.invertBG : LiviqaTheme.line)
-                    .foregroundStyle(canAfford ? LiviqaTheme.invertFG : LiviqaTheme.ink4)
+                    .background(canAfford ? LiviqaTheme.invertBG : LiviqaTheme.primaryOffFill)
+                    .foregroundStyle(canAfford ? LiviqaTheme.invertFG : LiviqaTheme.primaryOffLabel)
                     .cornerRadius(8)
                 }
                 .disabled(!canAfford)

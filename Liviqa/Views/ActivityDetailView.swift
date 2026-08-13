@@ -162,12 +162,18 @@ extension ActivityDetailView.Model {
         }
 
         // Hero stat: % vs own usual — only with real prior-week history.
+        //
+        // The direction is said ONCE. It used to be in the sign AND in the words,
+        // which read as "−2 % fewer steps than your usual" — a double negative
+        // that literally claims the opposite of the data (sweep 2026-08-13). The
+        // number now carries the size, the unit line carries the direction.
         var stat: String? = nil
         var statUnit: String? = nil
         if let pct = d.pctVsUsual {
-            stat = pct >= 0 ? "+\(pct)" : "\(pct)"
-            statUnit = pct >= 0 ? "% more steps than your usual"
-                                : "% fewer steps than your usual"
+            stat = "\(abs(pct))"
+            if pct > 0 { statUnit = "% more steps than your usual" }
+            else if pct < 0 { statUnit = "% fewer steps than your usual" }
+            else { statUnit = "% — the same as your usual" }
         }
 
         var sub = ""
@@ -204,11 +210,16 @@ extension ActivityDetailView.Model {
             kcalHeadline: "Your burn, against your own usual.")
     }
 
-    /// The design package's demo story (d-insights.jsx DActivity), verbatim.
+    /// The design package's demo story (d-insights.jsx DActivity), verbatim —
+    /// except the hero stat, which drops the package's leading "+". The package
+    /// only ever drew the ABOVE-usual case, where "+12 % more" merely reads
+    /// redundantly; the below-usual case it never drew came out as "−2 % fewer".
+    /// One rule for both directions: the number is the size, the words are the
+    /// direction.
     static var designSeed: Self {
         .init(
             verdict: "You were on your feet on six days out of seven.",
-            stat: "+12",
+            stat: "12",
             statUnit: "% more steps than your usual",
             sub: "Walking to work, errands, an evening loop — Sunday was the longest at 12,600 steps.",
             stats: [("58,400", "STEPS THIS WEEK"), ("3,790", "KCAL BURNED"), ("4", "WORKOUTS LOGGED")],

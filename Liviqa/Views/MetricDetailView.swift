@@ -274,10 +274,10 @@ struct MetricDetailView: View {
         case .sleep:    series = .sleep
         default:        return nil
         }
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let window = (0..<7).reversed().compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
-        return sig.slots(for: series, over: window)
+        // One window rule for every surface that draws this week (NFR-VIZ-DAY-02):
+        // the Learn page's HRV chart resolves its axis through the very same
+        // `DaySeries.days(endingOn:count:)` call, so the two cannot drift.
+        return sig.slots(for: series, over: DaySeries.days(endingOn: Date(), count: 7))
     }
 
     /// Day letters taken from the slot dates themselves — never a fixed M–S row.

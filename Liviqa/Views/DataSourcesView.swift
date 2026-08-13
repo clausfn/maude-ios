@@ -19,11 +19,42 @@ import UniformTypeIdentifiers
 
 struct DataSourcesView: View {
 
-    /// Fixture source names never render as device names (shared rule with
-    /// the metric-detail source labels).
-    static func displaySource(_ raw: String) -> String {
-        raw.caseInsensitiveCompare("Mock") == .orderedSame
-            ? String(localized: "Sample data") : raw
+    /// A source name fit to stand INSIDE A SENTENCE — nil when the name is a
+    /// demo seed rather than a device. Design-QA 2026-08-13: mapping the
+    /// fixture to "Sample data" was right for a chip and wrong in prose
+    /// ("Kept Sample data for counting" read exactly like the fixture name it
+    /// replaced). Sentences drop the clause; the demo label goes on the card's
+    /// chip, where a label belongs.
+    nonisolated static func deviceName(_ raw: String) -> String? {
+        raw.caseInsensitiveCompare("Mock") == .orderedSame ? nil : raw
+    }
+
+    /// An enrichment field carries its own source suffix ("distance · Bike
+    /// computer"). Same rule: the field survives, a demo source is dropped.
+    nonisolated static func gainedField(_ raw: String) -> String {
+        let parts = raw.components(separatedBy: " · ")
+        guard parts.count > 1 else { return raw }
+        let source = parts.dropFirst().joined(separator: " · ")
+        guard let name = deviceName(source) else { return parts[0] }
+        return "\(parts[0]) · \(name)"
+    }
+
+    /// One merge, said in English. Never names a source that isn't a device.
+    nonisolated static func mergeSentence(_ m: WorkoutMerge) -> String {
+        let merged = m.merged.compactMap(deviceName).joined(separator: ", ")
+        var s: String
+        switch (deviceName(m.kept), merged.isEmpty) {
+        case (let kept?, false): s = String(localized: "Kept \(kept) for counting · merged \(merged)")
+        case (let kept?, true):  s = String(localized: "Kept \(kept) for counting")
+        case (nil, false):       s = String(localized: "Merged \(merged)")
+        case (nil, true):        s = ""
+        }
+        let gained = m.enrichedFields.map(gainedField).joined(separator: ", ")
+        if !gained.isEmpty {
+            s += s.isEmpty ? String(localized: "Gained \(gained)")
+                           : String(localized: " · gained \(gained)")
+        }
+        return s
     }
 
     @Environment(AppState.self) private var appState
@@ -397,9 +428,9 @@ struct DataSourcesView: View {
                         Text(sundhedLast == nil ? "Connect Sundhed.dk" : "Update from Sundhed.dk")
                             .font(.lato(14, .bold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LiviqaTheme.primaryLabel)
                     .frame(maxWidth: .infinity).padding(.vertical, 13)
-                    .background(LiviqaTheme.moss)
+                    .background(LiviqaTheme.primaryFill)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
@@ -781,9 +812,10 @@ struct ManualReadingSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Button { save() } label: {
                         Text("Save")
-                            .font(.lato(15, .bold)).foregroundStyle(.white)
+                            .font(.lato(15, .bold))
+                            .foregroundStyle(canSave ? LiviqaTheme.primaryLabel : LiviqaTheme.primaryOffLabel)
                             .frame(maxWidth: .infinity).padding(.vertical, 13)
-                            .background(canSave ? LiviqaTheme.moss : LiviqaTheme.ink4)
+                            .background(canSave ? LiviqaTheme.primaryFill : LiviqaTheme.primaryOffFill)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .buttonStyle(.plain)
@@ -948,25 +980,29 @@ extension DataSourcesView {
                 Text("Recorded twice — counted once")
                     .font(.lato(14, .bold))
                     .foregroundStyle(LiviqaTheme.ink)
+                Spacer(minLength: 6)
+                // The demo label lives HERE — a chip, not a stand-in device
+                // name in the sentence below.
+                if appState.isDemoData {
+                    Text(String(localized: "Sample data").uppercased())
+                        .font(.liviqaKicker(9)).tracking(0.8)
+                        .foregroundStyle(LiviqaTheme.clayText)
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .background(Capsule().fill(LiviqaTheme.clay2))
+                        .fixedSize()
+                }
             }
             ForEach(Array(appState.workoutMerges.prefix(3).enumerated()), id: \.offset) { _, m in
-                // The mock provider's internal name must never read as a device
-                // name in user copy (same rule as the detail-view source labels).
-                let kept = Self.displaySource(m.kept)
-                let merged = m.merged.map(Self.displaySource).joined(separator: ", ")
+                let sentence = Self.mergeSentence(m)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(m.type) · \(m.start.formatted(date: .abbreviated, time: .shortened))")
                         .font(.lato(13))
                         .foregroundStyle(LiviqaTheme.ink)
-                    Group {
-                        if m.enrichedFields.isEmpty {
-                            Text("Kept \(kept) for counting · merged \(merged)")
-                        } else {
-                            Text("Kept \(kept) for counting · merged \(merged) · gained \(m.enrichedFields.joined(separator: ", "))")
-                        }
+                    if !sentence.isEmpty {
+                        Text(verbatim: sentence)
+                            .font(.lato(12))
+                            .foregroundStyle(LiviqaTheme.ink2)
                     }
-                    .font(.lato(12))
-                    .foregroundStyle(LiviqaTheme.ink2)
                 }
             }
             Text("Two trackers logged the same session. Liviqa counts it once so minutes and energy are never doubled — and keeps the best of both recordings for insights.")

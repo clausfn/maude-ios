@@ -66,6 +66,7 @@ struct SettingsView: View {
             .padding(.vertical, 20)
         }
         .background(LiviqaTheme.paper.ignoresSafeArea())
+        .liviqaScrollEdge()       // same edge treatment as the reading surfaces
         .navigationTitle("Settings")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
