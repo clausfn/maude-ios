@@ -16,7 +16,51 @@ extension LiviqaTheme {
     static let accentBody = Color.dyn(0x5B5FC7, 0x9297EC)
 }
 
+// MARK: - Source names, fit for prose (T-DED-06, extended)
+//
+// Every domain hero ends its sub line with where the numbers came from —
+// "· Dexcom G7", "· Apple Watch". Two things must never land in that slot: the
+// mock provider's internal name ("Mock"), and the demo BADGE ("Sample data").
+// The badge is honest as a chip; dropped mid-sentence it reads as a device name,
+// which is exactly what the 2026-08-13 sweep caught on the Sleep hero
+// ("… Core 5h 31m · Sample data").
+//
+// Same rule the data-sources dedup card already holds (SourceCopyHonestyTests):
+// a demo seed is NEVER named in prose. The sentence drops the clause; the demo
+// disclosure stays where it belongs — the honesty chip driven by `isDemoData`.
+enum MetricSourceLabel {
+
+    /// The source as it may appear inside a sentence. nil when there is none to
+    /// name, and nil for the demo provider — the caller then omits the clause.
+    static func inProse(_ source: String?) -> String? {
+        guard let source else { return nil }
+        let name = source.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !isFixture(name) else { return nil }
+        return name
+    }
+
+    /// True for the demo provider's own names, however they reach us.
+    static func isFixture(_ source: String) -> Bool {
+        ["mock", "sample data", "sample", "demo"]
+            .contains(source.trimmingCharacters(in: .whitespaces).lowercased())
+    }
+}
+
 // MARK: - Editorial shell pieces (d-insights.jsx Hero / DCard / statRow)
+
+/// How much ink a domain hero spends on its tint. TREATMENT ONLY — both weights
+/// draw the SAME token; neither redefines a palette value (RK-ALARM-01 audit,
+/// 2026-08-13).
+///
+/// · `.solid` — the A7 signature: full-bleed tint, white type. The domain colour
+///   IS the surface. Right for the cool domains, and for a verdict that has
+///   actually earned the loudest surface on the screen.
+/// · `.quiet` — paper ground, a tint wash, a tint edge and a tint kicker, ink
+///   type. Identical anatomy and hierarchy (serif verdict over a 44 pt serif
+///   stat), a fraction of the chroma — and, because the wash and the edge are
+///   alpha over the theme's own card ground, it reads at the SAME weight in
+///   paper and in midnight instead of swinging with the token's dark value.
+enum MetricHeroWeight { case solid, quiet }
 
 /// Domain hero band: tinted gradient, kicker, serif verdict, big stat + unit,
 /// mono sub line, optional trailing view (e.g. a ScoreRing).
@@ -27,26 +71,42 @@ struct MetricHero<Trailing: View>: View {
     var stat: String? = nil
     var unit: String? = nil
     var sub: String? = nil
+    var weight: MetricHeroWeight = .solid
     @ViewBuilder var trailing: () -> Trailing
+
+    private var isQuiet: Bool { weight == .quiet }
+    private var kickerColor: Color { isQuiet ? tint : Color.white.opacity(0.72) }
+    private var headColor: Color { isQuiet ? LiviqaTheme.ink : .white }
+    private var unitColor: Color { isQuiet ? LiviqaTheme.ink3 : Color.white.opacity(0.75) }
+    private var subColor: Color { isQuiet ? LiviqaTheme.ink3 : Color.white.opacity(0.8) }
+
+    @ViewBuilder private var plate: some View {
+        if isQuiet {
+            LiviqaTheme.paper2.overlay(tint.opacity(0.10))
+        } else {
+            LinearGradient(colors: [tint, tint.opacity(0.9)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(kicker.uppercased())
                 .font(.liviqaKicker(10.5)).tracking(LiviqaTheme.Tracking.kicker)
-                .foregroundStyle(Color.white.opacity(0.72))
+                .foregroundStyle(kickerColor)
             Text(verdict)
                 .font(.liviqaSerif(21)).kerning(-0.2).lineSpacing(3)
-                .foregroundStyle(.white)
+                .foregroundStyle(headColor)
                 .padding(.top, 9)
             if let stat {
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
                     Text(stat)
                         .font(.liviqaSerif(44, .bold, relativeTo: .largeTitle))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(headColor)
                     if let unit {
                         Text(unit)
                             .font(.lato(15, .semibold))
-                            .foregroundStyle(Color.white.opacity(0.75))
+                            .foregroundStyle(unitColor)
                     }
                     Spacer(minLength: 0)
                     trailing()
@@ -56,16 +116,16 @@ struct MetricHero<Trailing: View>: View {
             if let sub {
                 Text(sub)
                     .font(.liviqaMono(12.5))
-                    .foregroundStyle(Color.white.opacity(0.8))
+                    .foregroundStyle(subColor)
                     .padding(.top, 10)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 20)
-        .background(
-            LinearGradient(colors: [tint, tint.opacity(0.9)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing))
+        .background(plate)
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20)
+            .stroke(tint.opacity(isQuiet ? 0.45 : 0), lineWidth: 1))
         .padding(.horizontal, 16)
         .accessibilityElement(children: .combine)
     }
@@ -73,9 +133,10 @@ struct MetricHero<Trailing: View>: View {
 
 extension MetricHero where Trailing == EmptyView {
     init(tint: Color, kicker: String, verdict: String, stat: String? = nil,
-         unit: String? = nil, sub: String? = nil) {
+         unit: String? = nil, sub: String? = nil,
+         weight: MetricHeroWeight = .solid) {
         self.init(tint: tint, kicker: kicker, verdict: verdict, stat: stat,
-                  unit: unit, sub: sub, trailing: { EmptyView() })
+                  unit: unit, sub: sub, weight: weight, trailing: { EmptyView() })
     }
 }
 
@@ -520,25 +581,36 @@ struct DotBandStrip: View {
 
     private func fmt(_ v: Double) -> String { String(format: "%.\(decimals)f", v) }
 
+    // Three columns, not one plot with things floating over its ends: the band
+    // edge values on the left, the dots in the middle, the verdict word on the
+    // right. The old geometry sized the plot to `w - 78` but printed the verdict
+    // centred at `w - 26`, so the last dot and the word landed on top of each
+    // other on both Vitals charts (sweep 2026-08-13) — and "Worth a look", the
+    // longer of the two verdict words, ran off the card entirely. The gutter is
+    // now wide enough for the longest word and the plot stops before it.
+    private static let axisGutter: CGFloat = 40
+    private static let verdictGutter: CGFloat = 72
+    private static let verdictGap: CGFloat = 8
+
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             GeometryReader { geo in
                 let w = geo.size.width, h = geo.size.height
-                let plotW = w - 78          // room for edge values + verdict
+                let plotW = max(24, w - Self.axisGutter - Self.verdictGutter - Self.verdictGap)
                 let span = max(0.0001, maxV - minV)
                 let y: (Double) -> CGFloat = { v in
                     6 + (1 - CGFloat((v - minV) / span)) * (h - 12)
                 }
                 let x: (Int) -> CGFloat = { i in
-                    values.count <= 1 ? 40 + plotW / 2
-                        : 40 + CGFloat(i) / CGFloat(values.count - 1) * plotW
+                    values.count <= 1 ? Self.axisGutter + plotW / 2
+                        : Self.axisGutter + CGFloat(i) / CGFloat(values.count - 1) * plotW
                 }
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(color.opacity(0.13))
                         .frame(width: plotW,
                                height: max(3, y(band.lowerBound) - y(band.upperBound)))
-                        .offset(x: 40, y: y(band.upperBound))
+                        .offset(x: Self.axisGutter, y: y(band.upperBound))
                     Text(fmt(band.upperBound))
                         .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
                         .position(x: 18, y: y(band.upperBound))
@@ -558,7 +630,15 @@ struct DotBandStrip: View {
                     Text(verdict)
                         .font(.lato(11, .bold))
                         .foregroundStyle(color)
-                        .position(x: w - 26, y: y((band.lowerBound + band.upperBound) / 2))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        // Flushed to the card's text edge: the short word
+                        // ("Typical") then sits as far from the last dot as the
+                        // gutter allows, and the long one ("Worth a look") still
+                        // fits without reaching back into the plot.
+                        .frame(width: Self.verdictGutter, alignment: .trailing)
+                        .position(x: Self.axisGutter + plotW + Self.verdictGap
+                                     + Self.verdictGutter / 2,
+                                  y: y((band.lowerBound + band.upperBound) / 2))
                 }
             }
             .frame(height: height)
@@ -742,6 +822,17 @@ struct SleepDepthChart: View {
 
     private var depths: [Double] { Self.stageDepth }   // awake pokes above
 
+    /// Width reserved for one sounding label ("CORE" over "5h 31m").
+    private static let soundingWidth: CGFloat = 62
+
+    /// Keep a centred label of `width` fully inside `lo…hi`.
+    private func clamped(_ centre: CGFloat, lo: CGFloat, hi: CGFloat,
+                         width: CGFloat) -> CGFloat {
+        let half = width / 2
+        guard hi - lo > width else { return (lo + hi) / 2 }
+        return min(max(centre, lo + half), hi - half)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             GeometryReader { geo in
@@ -780,7 +871,11 @@ struct SleepDepthChart: View {
                                      LiviqaTheme.accentSleep.opacity(0.38)],
                             startPoint: .top, endPoint: .bottom))
                     line.stroke(inkLine, style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
-                    // soundings — stage totals printed in open water
+                    // Soundings — stage totals printed in open water. The label is
+                    // CENTRED on its stage, so a stage that sits late in the night
+                    // used to hang off the right edge of the card ("REM 1h 25m",
+                    // sweep 2026-08-13). It is now given a known width and kept
+                    // inside the plot, the same clamp the wake-up marker uses.
                     ForEach(Array(soundings.enumerated()), id: \.offset) { _, sd in
                         VStack(spacing: 1) {
                             Text(sd.name)
@@ -790,9 +885,13 @@ struct SleepDepthChart: View {
                                 .font(.liviqaSerif(12.5, .regular)).italic()
                                 .foregroundStyle(LiviqaTheme.ink2)
                         }
+                        .lineLimit(1).minimumScaleFactor(0.75)
                         .padding(.horizontal, 3)
+                        .frame(width: Self.soundingWidth)
                         .background(LiviqaTheme.paper2.opacity(0.72))
-                        .position(x: x(sd.t), y: y(sd.depth) - 12)
+                        .position(x: clamped(x(sd.t), lo: padL, hi: w - padR,
+                                             width: Self.soundingWidth),
+                                  y: y(sd.depth) - 12)
                     }
                     // the one wake-up, breaking the surface
                     if let wakeT {

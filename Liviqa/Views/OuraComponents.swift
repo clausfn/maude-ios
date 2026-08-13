@@ -215,7 +215,11 @@ struct GlucoseCurveView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            // y-axis: top, target high, target low, bottom
+            // y-axis: top, target high, target low, bottom.
+            // The column takes the width its WIDEST REAL LABEL needs (never less
+            // than 26) instead of a fixed 26 — at accessibility text sizes a
+            // hard 26 pt clipped "100%" down to "1…" and wrapped "92%" onto two
+            // lines (design-QA sweep, 13 Aug).
             VStack(alignment: .trailing) {
                 Text(fmt(yMax))
                 Spacer()
@@ -225,8 +229,11 @@ struct GlucoseCurveView: View {
                 Spacer()
                 Text(fmt(yMin))
             }
+            .lineLimit(1)
             .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
-            .frame(width: 26, height: height, alignment: .trailing)
+            .frame(minWidth: 26, alignment: .trailing)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(height: height)
 
             VStack(spacing: 6) {
                 plot.frame(height: height)
@@ -578,6 +585,10 @@ struct AreaTrendChart: View {
         .accessibilityValue(a11ySummary)
     }
 
+    /// The axis column sizes to its WIDEST REAL LABEL (never below 30 pt) rather
+    /// than to a fixed 30 — at accessibility text sizes a hard 30 truncated the
+    /// Insights TIR axis "100%" to "1…" and wrapped "92%" onto two lines
+    /// (design-QA sweep, 13 Aug). The plot simply takes the remaining width.
     private var yAxis: some View {
         VStack(alignment: .trailing) {
             Text(axisLabel(dataHi))
@@ -588,9 +599,12 @@ struct AreaTrendChart: View {
             }
             Text(axisLabel(dataLo))
         }
+        .lineLimit(1)
         .font(.liviqaMono(9))
         .foregroundStyle(LiviqaTheme.ink4)
-        .frame(width: 30, height: height, alignment: .trailing)
+        .frame(minWidth: 30, alignment: .trailing)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(height: height)
     }
 
     private var plotAndLabels: some View {

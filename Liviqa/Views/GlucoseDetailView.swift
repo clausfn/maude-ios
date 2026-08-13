@@ -178,10 +178,42 @@ struct GlucoseDetailView: View {
                     hours: m.todayHours,
                     redOutOfRange: clinicalTIRZones,
                     targetLabel: clinicalTIRZones ? "target 3.9–10.0 mmol/L" : nil,
-                    peakLabel: clinicalTIRZones ? m.peakLabel : nil)
+                    peakLabel: nil)
+                if clinicalTIRZones, let peak = m.peakLabel,
+                   let highest = m.todayValues.max(), highest > Self.targetHighMmol {
+                    peakCaption(peak)
+                }
             }
         }
     }
+
+    /// The day's peak, named on its own line under the curve.
+    ///
+    /// It used to print INSIDE the plot, pinned to the top-right corner — the
+    /// same corner the clinical zone key uses. The 2026-08-13 sweep caught it
+    /// overprinting the "HIGH" band label in midnight and running flush to the
+    /// card edge in paper. The corner belongs to the zone key; the annotation now
+    /// sits in the card's own padding, identically in both themes, and reads as a
+    /// sentence rather than a fragment.
+    private func peakCaption(_ label: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Circle()
+                .fill(LiviqaTheme.clinRed)
+                .frame(width: 7, height: 7)
+                .offset(y: -1)
+            Text(label)
+                .font(.liviqaMono(11))
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The clinical target ceiling the day curve draws (mmol/L, OD-07). Kept here
+    /// so the caption and the chart agree on what counts as a peak.
+    private static let targetHighMmol = 10.0
 
     private func weekBarsCard(_ m: Model) -> some View {
         dCard(kicker: "The week, day by day", headline: m.weekHeadline) {
@@ -305,9 +337,7 @@ private extension GlucoseDetailView.Model {
 
         var sub = String(format: "Average %.1f mmol/L", d.avgMmol)
         if let gmi = d.gmiPct { sub += String(format: " · GMI %.1f%%", gmi) }
-        if let src = d.source {
-            sub += " · \(src.caseInsensitiveCompare("Mock") == .orderedSame ? String(localized: "Sample data") : src)"
-        }
+        if let src = MetricSourceLabel.inProse(d.source) { sub += " · \(src)" }
 
         // Today card headline from the excursion counts — descriptive only.
         var todayHeadline: String? = nil
@@ -353,11 +383,20 @@ private extension GlucoseDetailView.Model {
             sub: sub,
             tirHeadline: "\(pct) of every 100 readings in your target zone.",
             bandPcts: d.bandPcts,
-            tirFoot: "mmol/L · \(d.source ?? "Apple Health") · every band is named in the key above; the two extremes are also patterned",
+            // The source clause is DROPPED for a demo seed rather than renamed —
+            // and "Apple Health" only stands in when a real fetch simply carried
+            // no device name (T-DED-06 rule, sweep 2026-08-13).
+            tirFoot: ["mmol/L",
+                      d.source == nil ? "Apple Health" : MetricSourceLabel.inProse(d.source),
+                      "every band is named in the key above; the two extremes are also patterned"]
+                .compactMap { $0 }.joined(separator: " · "),
             todayHeadline: todayHeadline,
             todayValues: d.today.map(\.mmol),
             todayHours: d.today.map(\.hour),
-            peakLabel: d.todayPeak.map { String(format: "%.1f · %@", $0.mmol, $0.timeText) },
+            peakLabel: d.todayPeak.map {
+                String(format: String(localized: "Highest today %.1f mmol/L at %@"),
+                       $0.mmol, $0.timeText)
+            },
             weekHeadline: weekHeadline,
             days: d.days,
             compareSentence: compareSentence,
@@ -377,7 +416,7 @@ private extension GlucoseDetailView.Model {
             todayHeadline: "One spike after lunch; back in range by mid-afternoon.",
             todayValues: [5.4, 5.1, 4.9, 5.2, 6.8, 6.1, 5.7, 7.9, 11.2, 8.4, 6.6, 6.2, 7.1, 6.2],
             todayHours: [0, 2, 4, 6, 7.5, 9, 11, 12.5, 13.7, 15, 16.5, 18, 19.5, 21],
-            peakLabel: "11.2 after lunch · 13:40",
+            peakLabel: "Highest today 11.2 mmol/L at 13:40, after lunch",
             weekHeadline: "Each bar is one day's span — Wednesday and today reached above target.",
             days: [
                 .init(label: "M", lo: 4.4, hi: 9.2,  tirPct: 84, isToday: false),

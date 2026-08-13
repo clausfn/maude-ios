@@ -339,11 +339,10 @@ extension SleepDetailView.Model {
             subParts.append("Deep \(Self.minText(d.deepMin)) · REM \(Self.minText(d.remMin)) · Core \(Self.minText(d.coreMin))")
         }
         // The mock provider's internal name must never read as a device name —
-        // in demo the honest label is the same one the chip uses.
-        if let src = d.source {
-            subParts.append(src.caseInsensitiveCompare("Mock") == .orderedSame
-                            ? String(localized: "Sample data") : src)
-        }
+        // and neither may the demo BADGE: "… Core 5h 31m · Sample data" reads as
+        // a device too (sweep 2026-08-13). MetricSourceLabel names the dataset in
+        // words that can only be read as English.
+        if let src = MetricSourceLabel.inProse(d.source) { subParts.append(src) }
 
         var stats: [(String, String)] = d.hasStageDetail
             ? [(Self.minText(d.deepMin), "DEEP"),

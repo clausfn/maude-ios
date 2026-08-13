@@ -97,7 +97,9 @@ struct OnbBenefitRow: View {
     }
 }
 
-/// Fjord-accent primary CTA.
+/// The primary CTA. ONE filled treatment per edition (`primaryFill`): fjord
+/// teal + white in Morning, warm off-white + marine at night — a mid-teal slab
+/// on marine reads as disabled (design-QA 2026-08-13).
 struct OnbPrimaryButton: View {
     let label: String
     var icon: String? = nil
@@ -113,10 +115,10 @@ struct OnbPrimaryButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(LiviqaTheme.moss)
-            .foregroundStyle(.white)
+            .background(LiviqaTheme.primaryFill)
+            .foregroundStyle(LiviqaTheme.primaryLabel)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .shadow(color: LiviqaTheme.moss.opacity(0.35), radius: 10, y: 6)
+            .shadow(color: LiviqaTheme.primaryGlow, radius: 10, y: 6)
         }
         .buttonStyle(.plain)
     }

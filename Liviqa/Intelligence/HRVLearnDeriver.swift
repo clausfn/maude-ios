@@ -90,6 +90,67 @@ public nonisolated struct HRVLearnDetail: Sendable, Equatable {
     }
 }
 
+// MARK: - One "this week", app-wide (2026-08-13, NFR-VIZ-DAY-02)
+//
+// THE BUG THIS EXISTS TO KILL. `HRVLearnDetail` derives its week straight from
+// the daily SDNN stream. Every OTHER HRV surface — the Home chip sparkline, the
+// Insights week, the Recovery pillar — plots `TodaySignals.hrvWeek`. With real
+// data those are the same seven numbers by construction (both are "one value per
+// day WITH data, over the last 7 days", from the same samples), so nothing ever
+// disagreed in a real session.
+//
+// But any path that REPLACES `todaySignals` AFTER derivation — the LV001
+// goldmine fill in AppState, which swaps in composed aggregates — leaves the two
+// reading DIFFERENT series over the SAME window under the SAME day letters. The
+// 2026-08-13 design sweep caught exactly that: the Recovery pillar and the
+// Insights week drew Friday as the week's HIGH while this page named "20 ms —
+// your low, Friday" and the plain tier said "Yours dipped on Friday". Two
+// screens, one signal, one week, opposite claims.
+//
+// The fix is to give the week ONE source. Whenever the app has a canonical week,
+// every week-shaped figure the Learn page and the assistant read is re-anchored
+// onto it. The up-to-60-day figures (range, median, own-usual band) keep coming
+// from the long window, which no other surface draws — so nothing else moves.
+public extension HRVLearnDetail {
+
+    /// Re-anchor every WEEK-shaped figure onto the app's canonical HRV week.
+    /// The long-window statistics (`windowDays`, range, median, band) are left
+    /// exactly as derived — only the seven days, and the facts read off them,
+    /// are replaced. Under 2 recorded days there is nothing to anchor to and the
+    /// detail is returned untouched.
+    func anchored(toWeek slots: [DaySlot]) -> HRVLearnDetail {
+        let placed = slots.compactMap { s in s.value.map { (date: s.date, value: $0) } }
+        guard placed.count >= 2 else { return self }
+
+        let values = placed.map(\.value)
+        // "Below your usual" is still measured against the LONG window's own
+        // band — that is the only place a usual exists, and it is the same band
+        // the copy already names.
+        let usualLo = usualBand?.lowerBound ?? Double(medianMs)
+
+        var lowMs: Int? = nil
+        var lowDayName: String? = nil
+        if let lowIdx = values.indices.min(by: { values[$0] < values[$1] }) {
+            lowMs = Int(values[lowIdx].rounded())
+            lowDayName = HRVLearnDeriver.dayName(placed[lowIdx].date)
+        }
+
+        return HRVLearnDetail(
+            // The latest daily value is a week-shaped fact too: the Home chip and
+            // the Recovery hero both print the last day of this same series.
+            latestMs: Int((values.last ?? Double(latestMs)).rounded()),
+            windowDays: windowDays,
+            rangeLoMs: rangeLoMs, rangeHiMs: rangeHiMs,
+            medianMs: medianMs, usualBand: usualBand,
+            weekSeries: values,
+            weekTicks: placed.map { HRVLearnDeriver.dayInitial($0.date) },
+            weekLowMs: lowMs,
+            weekLowDayName: lowDayName,
+            dippedBelowUsual: (values.min() ?? .infinity) < usualLo,
+            recoveredToUsual: (values.last ?? 0) >= usualLo)
+    }
+}
+
 public nonisolated enum HRVLearnDeriver {
 
     private static let cal = Calendar(identifier: .gregorian)
@@ -155,16 +216,43 @@ public nonisolated enum HRVLearnDeriver {
             recoveredToUsual: recovered)
     }
 
+    // MARK: The canonical week (see the HRVLearnDetail.anchored note above)
+
+    /// `TodaySignals.hrvWeek` placed on the last seven calendar days — the SAME
+    /// `DaySeries.aligned` call the Recovery pillar makes, so the two screens can
+    /// only ever draw the same seven days. nil ⇒ the app has no canonical week
+    /// (no signals, or a short series carrying no dates, which cannot be placed
+    /// honestly) and the deriver's own week stands.
+    public static func canonicalWeek(_ signals: TodaySignals?,
+                                     now: Date = Date()) -> [DaySlot]? {
+        guard let signals else { return nil }
+        let window = DaySeries.days(endingOn: now, count: 7)
+        return DaySeries.aligned(values: signals.hrvWeek,
+                                 dates: signals.hrvWeekDates,
+                                 over: window)
+    }
+
+    /// The HRV detail as every surface must read it: the long window's own
+    /// statistics, the week anchored to the app's canonical week. This is the
+    /// only supported way to hand an `HRVLearnDetail` to a view.
+    public static func reconciled(_ detail: HRVLearnDetail?,
+                                  with signals: TodaySignals?,
+                                  now: Date = Date()) -> HRVLearnDetail? {
+        guard let detail else { return nil }
+        guard let slots = canonicalWeek(signals, now: now) else { return detail }
+        return detail.anchored(toWeek: slots)
+    }
+
     // MARK: Weekday labels (EN copy rail — copy EN like the rest of A7.2)
 
-    private static func dayName(_ d: Date) -> String {
+    public static func dayName(_ d: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "EEEE"
         return f.string(from: d)
     }
 
-    private static func dayInitial(_ d: Date) -> String {
+    public static func dayInitial(_ d: Date) -> String {
         String(dayName(d).prefix(1))
     }
 }

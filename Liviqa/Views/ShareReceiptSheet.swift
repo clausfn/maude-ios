@@ -187,8 +187,11 @@ struct ShareReceiptSheet: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(LiviqaTheme.moss)
-                .foregroundStyle(.white)
+                // Primary treatment (see LiviqaTheme.primaryFill): teal + white
+                // by day, off-white + marine at night — the same slab as `Done`
+                // on the sibling share sheet.
+                .background(LiviqaTheme.primaryFill)
+                .foregroundStyle(LiviqaTheme.primaryLabel)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)

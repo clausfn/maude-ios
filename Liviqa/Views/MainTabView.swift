@@ -3,6 +3,9 @@
 // v04: Avatar tap → ProfileSheet (universal). Settings accessible from ProfileSheet footer.
 // Design ref: Liviqa_App_UI_Aperture_v01_20260521.html (tab bar)
 import SwiftUI
+#if canImport(UIKit)
+import UIKit   // UIFontMetrics — the bar caps its own type growth (see barTypeScale)
+#endif
 
 // Information architecture: Home · Insights · Care · Journal · Privacy · Settings.
 // Care (clinician messaging + video consult) is a first-class tab so it's directly
@@ -53,6 +56,17 @@ private struct TabFrameKey: PreferenceKey {
     }
 }
 
+/// The floating bar's MEASURED height, so the scrolling content above it can
+/// reserve exactly the room it takes. A hard-coded 96 was right at the default
+/// text size and far too small at accessibility sizes, where the bar grows and
+/// sliced the last row of every screen in half (design-QA sweep, 13 Aug).
+private struct TabBarHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @State private var tab: LiviqaTab = {
@@ -74,6 +88,7 @@ struct MainTabView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("liquidGlass") private var glassOn = true
     @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots (bar space) → hit-test + rest pill
+    @State private var barHeight: CGFloat = 96                // measured floating-bar height → content bottom inset
     @State private var dragLoc: CGPoint? = nil               // finger location in bar space while pressing; nil = idle
     private let tabBarSpace = "liviqaTabBar"
     #if DEBUG
@@ -154,10 +169,16 @@ struct MainTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.bottom, appState.detailDepth == 0 ? 96 : 0)
+            // Reserve the room the bar ACTUALLY takes, not a fixed 96 — at
+            // accessibility text sizes the bar is much taller and used to slice
+            // the last row of the scrolling content in half.
+            .padding(.bottom, appState.detailDepth == 0 ? contentBottomInset : 0)
 
             if appState.detailDepth == 0 {
                 tabBar
+                    .background(GeometryReader { g in
+                        Color.clear.preference(key: TabBarHeightKey.self, value: g.size.height)
+                    })
             }
 
             // Incoming instant call (a clinician started a consult) — consent-first.
@@ -170,6 +191,9 @@ struct MainTabView: View {
                 .transition(.opacity)
                 .zIndex(100)
             }
+        }
+        .onPreferenceChange(TabBarHeightKey.self) { h in
+            if h > 0 { barHeight = h }
         }
         .animation(.easeInOut(duration: 0.25), value: appState.incomingConsult?.id)
         // A tapped edition note (FR-NOT-02 local morning/evening loop) deep-links
@@ -311,6 +335,23 @@ struct MainTabView: View {
         }
     }
 
+    /// Room reserved beneath the scrolling content for the floating bar: the
+    /// bar's own measured height plus a breathing gap, never less than the
+    /// original 96 (so the default text size is unchanged byte-for-byte).
+    private var contentBottomInset: CGFloat { max(96, barHeight + 20) }
+
+    /// Every Liviqa font resolves through `UIFontMetrics`, which reads the
+    /// SYSTEM content-size category — SwiftUI's `.dynamicTypeSize(...)` clamp
+    /// never reaches it, which is why the bar's existing cap was inert and six
+    /// labels collided at accessibility sizes. So the bar measures the live
+    /// scale and divides it back out above the cap: the intent that was always
+    /// declared here, now actually applied. Body text elsewhere is untouched.
+    private var barTypeScale: CGFloat {
+        let live = UIFontMetrics(forTextStyle: .body).scaledValue(for: 100) / 100
+        let cap: CGFloat = 1.25          // ≈ xxLarge — the bar stops growing here
+        return live > cap ? cap / live : 1
+    }
+
     /// Reduce Transparency or Increase Contrast → opaque bar instead of glass.
     private var useSolidBar: Bool { reduceTransparency || contrast == .increased }
 
@@ -350,7 +391,9 @@ struct MainTabView: View {
     }
 
     private var tabRow: some View {
-        HStack(spacing: 0) {
+        // A real gutter between slots: at accessibility sizes the six labels used
+        // to run together with literally zero gap ("JournalPrivacySettin…").
+        HStack(spacing: 2) {
             ForEach(LiviqaTab.allCases, id: \.self) { item in
                 tabCell(item)
             }
@@ -359,16 +402,20 @@ struct MainTabView: View {
 
     @ViewBuilder private func tabCell(_ item: LiviqaTab) -> some View {
         let active = tab == item
+        let k = barTypeScale
         VStack(spacing: 3) {
             // A7.2 pattern 3: inactive items are SOLID ink3 (5.45:1 on paper — never
             // ink-at-low-opacity), icon stroke one weight up, labels semibold.
             Image(systemName: active ? item.symbolFilled : item.symbol)
-                .font(.lato(19, .medium))
+                .font(.lato(19 * k, .medium))
+            // A destination name is never truncated: it shrinks (down to 70 %)
+            // and, if it still cannot fit on one line, wraps onto a second.
             Text(item.title)
-                .font(.lato(10, active ? .bold : .semibold))
+                .font(.lato(10 * k, active ? .bold : .semibold))
                 .tracking(0.2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.7)
             // Flag-off keeps the legacy dot; with glass on, the resting selection is the
             // chip below (which becomes the glass lens on touch).
             Circle().fill(LiviqaTheme.moss)
@@ -376,6 +423,7 @@ struct MainTabView: View {
                 .opacity(!glassOn && active && dragLoc == nil ? 1 : 0)
         }
         .foregroundStyle(active ? LiviqaTheme.ink : LiviqaTheme.ink3)
+        .padding(.horizontal, 2)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
         .background(GeometryReader { g in
@@ -488,7 +536,9 @@ struct MainTabView: View {
             // Detach from the screen edges so it reads as a floating surface.
             .padding(.horizontal, 16)
             .padding(.bottom, 6)
-            // Cap growth so the six labels never wrap ("Settings" → "Setting s").
+            // Cap growth for any SwiftUI-native text inside the bar. This alone
+            // is NOT enough — Liviqa's own fonts scale through UIFontMetrics and
+            // never see this clamp — which is what `barTypeScale` handles.
             .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 

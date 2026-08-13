@@ -58,6 +58,10 @@ struct LearnArticle {
         let ticks: [String]
         let unit: String
         let annotation: String?
+        /// The day axis this series sits on, when the app has one. Present ⇒ the
+        /// chart draws one column per calendar day (gaps stay gaps) — the same
+        /// placement the Recovery pillar uses, so the two can't drift apart.
+        var slots: [DaySlot]? = nil
     }
 
     let topic: LearnTopic
@@ -99,8 +103,17 @@ enum LearnLibrary {
 
     /// The HRV article, filled with the user's own figures where the deriver
     /// has them and honest still-learning framing where it doesn't.
-    static func hrv(detail: HRVLearnDetail?, weekFallback: [Double] = []) -> LearnArticle {
+    ///
+    /// `detail` must already be reconciled against the app's canonical HRV week
+    /// (`HRVLearnDeriver.reconciled`) — see the entry point at the foot of this
+    /// file. `weekSlots` is that same canonical week, handed on so this chart
+    /// places its days exactly as the Recovery pillar does.
+    static func hrv(detail: HRVLearnDetail?, weekFallback: [Double] = [],
+                    weekSlots: [DaySlot]? = nil) -> LearnArticle {
         let tint = LiviqaTheme.accentRecovery
+        // Day letters come from the axis when there is one, so a value can never
+        // be printed under another day's letter.
+        let slotTicks = weekSlots?.map { HRVLearnDeriver.dayInitial($0.date) }
 
         // Live "what it means for you" card (plain tier).
         let meaningHeadline: String
@@ -126,11 +139,13 @@ enum LearnLibrary {
         var weekChart: LearnArticle.WeekChart? = nil
         var weekHeadline: String? = nil
         if let d = detail, d.weekSeries.count >= 2 {
-            weekChart = .init(series: d.weekSeries, ticks: d.weekTicks,
-                              unit: " ms", annotation: d.weekLowAnnotation)
+            weekChart = .init(series: d.weekSeries, ticks: slotTicks ?? d.weekTicks,
+                              unit: " ms", annotation: d.weekLowAnnotation,
+                              slots: weekSlots)
             weekHeadline = d.weekHeadline
         } else if weekFallback.count >= 2 {
-            weekChart = .init(series: weekFallback, ticks: [], unit: " ms", annotation: nil)
+            weekChart = .init(series: weekFallback, ticks: slotTicks ?? [],
+                              unit: " ms", annotation: nil, slots: weekSlots)
             weekHeadline = String(localized: "Your last days, against your own spread.")
         }
 
@@ -407,7 +422,8 @@ struct LearnArticleView: View {
             MetricDCard(kicker: kicker, headline: headline) {
                 VStack(alignment: .leading, spacing: 8) {
                     AreaTrendChart(values: chart.series, tint: article.tint,
-                                   height: 120, xTicks: chart.ticks, unit: chart.unit)
+                                   height: 120, xTicks: chart.ticks, unit: chart.unit,
+                                   daySlots: chart.slots)
                     if let annotation = chart.annotation {
                         HStack(spacing: 6) {
                             Circle().fill(article.tint).frame(width: 6, height: 6)
@@ -521,9 +537,15 @@ extension LearnArticleView {
     init(topic: LearnTopic, appState: AppState, startTier: LearnTier? = nil) {
         switch topic {
         case .hrv:
+            // ONE "this week" (NFR-VIZ-DAY-02). The deriver owns the up-to-60-day
+            // figures; the seven days are always the app's canonical HRV week —
+            // the same series the Recovery pillar and the Insights week plot — so
+            // this page can never name a different day as the week's extreme.
+            let signals = appState.todaySignals
             self.init(article: LearnLibrary.hrv(
-                detail: appState.hrvLearn,
-                weekFallback: appState.todaySignals?.hrvWeek ?? []),
+                detail: HRVLearnDeriver.reconciled(appState.hrvLearn, with: signals),
+                weekFallback: signals?.hrvWeek ?? [],
+                weekSlots: HRVLearnDeriver.canonicalWeek(signals)),
                 startTier: startTier)
         // Method notes (FR-XPL-01) carry no live figures by design — see
         // LearnLibrary.methodNote — so they need nothing from AppState.

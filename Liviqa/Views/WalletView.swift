@@ -193,6 +193,7 @@ struct WalletView: View {
                 .padding(.horizontal, 20)
             }
         }
+        .liviqaScrollEdge()       // same edge treatment as the reading surfaces
         .task {
             if appState.grants.isEmpty {
                 await appState.loadWallet()

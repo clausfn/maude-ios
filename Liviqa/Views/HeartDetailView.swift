@@ -33,12 +33,23 @@ struct HeartDetailView: View {
                     .padding(.horizontal, 20)
 
                 if let model {
+                    // HERO WEIGHT (RK-ALARM-01 audit, 2026-08-13). The token is
+                    // unchanged — accentHeart rose-punch, exactly as approved.
+                    // What changed is how much of the screen it fills: the
+                    // full-bleed plate is now reserved for the one verdict that
+                    // asks the reader to look ("Resting above your usual band"),
+                    // and every calm or descriptive verdict gets the quiet plate
+                    // — rose kicker, rose edge, rose wash, ink type. A reassuring
+                    // sentence no longer arrives on the loudest surface in the
+                    // app, and the two themes carry the same weight because the
+                    // wash and the edge are alpha over each theme's own card.
                     MetricHero(tint: LiviqaTheme.accentHeart,
                                kicker: "Heart · this week",
                                verdict: model.verdict,
                                stat: model.stat,
                                unit: "bpm resting",
-                               sub: model.sub)
+                               sub: model.sub,
+                               weight: model.needsAttention ? .solid : .quiet)
                     SeeWhyHeroRow { seeWhy = heartWhy(model) }
                     if model.bp.count >= 2 { bpCard(model) }
                     if model.rhrSeries.count >= 2 { rhrCard(model) }
@@ -76,6 +87,9 @@ struct HeartDetailView: View {
 
     struct Model {
         var verdict: String
+        /// True only for the one verdict that asks the reader to look. Drives the
+        /// hero's WEIGHT (see the note at the call site) — never its colour.
+        var needsAttention: Bool = false
         var stat: String
         var sub: String
         var bp: [(sys: Int, dia: Int)]
@@ -177,11 +191,17 @@ extension HeartDetailView.Model {
     /// Derived figures → fixed descriptive templates (no generated language).
     init(derived d: HeartWeekDetail) {
         // Verdict from the OWN band only ("Calm" family — allow-list vocabulary).
+        // `attention` is set on the SAME branch that picks the sentence, so the
+        // hero's weight can never drift away from what the sentence says.
         let verdict: String
+        var attention = false
         if let latest = d.rhrLatest, let band = d.rhrBand {
             if band.contains(Double(latest)) { verdict = "Your heart is running calm." }
             else if Double(latest) < band.lowerBound { verdict = "Resting lower than your usual band." }
-            else { verdict = "Resting above your usual band — worth a look." }
+            else {
+                verdict = "Resting above your usual band — worth a look."
+                attention = true
+            }
         } else {
             verdict = "Your heart, as recorded this week."
         }
@@ -228,6 +248,7 @@ extension HeartDetailView.Model {
 
         self.init(
             verdict: verdict,
+            needsAttention: attention,
             stat: d.rhrLatest.map(String.init) ?? "—",
             sub: subParts.joined(separator: " · "),
             bp: d.bp.map { ($0.sys, $0.dia) },
@@ -250,6 +271,7 @@ extension HeartDetailView.Model {
     static var designSeed: Self {
         .init(
             verdict: "Your heart is running calm.",
+            needsAttention: false,
             stat: "58",
             sub: "121/78 latest · home cuff + Apple Watch",
             bp: [(122, 79), (126, 82), (119, 77), (124, 80), (131, 86), (121, 78),

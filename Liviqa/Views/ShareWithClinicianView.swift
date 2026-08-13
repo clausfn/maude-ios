@@ -132,6 +132,10 @@ struct ShareWithClinicianView: View {
             : !recipientName.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// The share can be previewed once there is a recipient AND at least one
+    /// area — the single source of truth for the primary button's state.
+    private var canPreview: Bool { anySelected && recipientReady }
+
     var body: some View {
         ZStack(alignment: .top) {
             LiviqaTheme.paper.ignoresSafeArea()
@@ -338,12 +342,15 @@ struct ShareWithClinicianView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(LiviqaTheme.moss.opacity(anySelected && recipientReady ? 1 : 0.4))
-                .foregroundStyle(.white)
+                // Available vs unavailable is a change of TREATMENT, never a
+                // dimmed primary: a 40 %-alpha fill was the same colour family
+                // as the live button (design-QA 2026-08-13).
+                .background(canPreview ? LiviqaTheme.primaryFill : LiviqaTheme.primaryOffFill)
+                .foregroundStyle(canPreview ? LiviqaTheme.primaryLabel : LiviqaTheme.primaryOffLabel)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
-            .disabled(!(anySelected && recipientReady))
+            .disabled(!canPreview)
         }
     }
 
@@ -565,8 +572,10 @@ struct ShareWithClinicianView: View {
                     .font(.lato(15, .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(LiviqaTheme.moss.opacity(isSending ? 0.5 : 1))
-                    .foregroundStyle(.white)
+                    // In flight = not available: the quiet treatment, not a
+                    // half-alpha copy of the live one.
+                    .background(isSending ? LiviqaTheme.primaryOffFill : LiviqaTheme.primaryFill)
+                    .foregroundStyle(isSending ? LiviqaTheme.primaryOffLabel : LiviqaTheme.primaryLabel)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)

@@ -20,6 +20,12 @@ enum OnbFrame: String, CaseIterable {
     case cover, why, signIn, health, healthDeclined, dfg, name,
          passport, sharing, backup, appLock, literacy, howLearns, ready
 
+    /// Off-path frames are a CONSEQUENCE of a step, not a step of their own:
+    /// the declined screen is where the Apple Health step lands when you skip
+    /// it, so it keeps the bar's position but claims no number. Showing "3/9"
+    /// on it read as "you are on step 3" (design-QA 2026-08-13).
+    var isOffPath: Bool { self == .healthDeclined }
+
     /// Progress slot 1…9 (nil = chromeless cover/ready).
     var progressSlot: Int? {
         switch self {
@@ -207,11 +213,14 @@ struct OnboardingFlowView: View {
 
                 progressBar
 
-                Text("\(frame.progressSlot ?? 0)/9")
-                    .font(.liviqaMono(11))
-                    .fontWeight(.bold)
-                    .tracking(0.6)
-                    .foregroundStyle(LiviqaTheme.ink3)
+                // No counter on off-path frames — they are not step n.
+                if let slot = frame.progressSlot, !frame.isOffPath {
+                    Text("\(slot)/9")
+                        .font(.liviqaMono(11))
+                        .fontWeight(.bold)
+                        .tracking(0.6)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                }
             }
             .padding(.horizontal, 26)
             .padding(.top, 8)
@@ -234,7 +243,9 @@ struct OnboardingFlowView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Step \(frame.progressSlot ?? 0) of 9"))
+        .accessibilityLabel(frame.isOffPath
+                            ? String(localized: "Setup progress — the Apple Health step")
+                            : String(localized: "Step \(frame.progressSlot ?? 0) of 9"))
     }
 
     private func segmentColor(_ s: Int) -> Color {

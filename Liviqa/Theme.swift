@@ -80,6 +80,29 @@ enum LiviqaTheme {
     /// Solid squares in this colour REQUIRE an adjacent text label (fails 3:1 alone).
     static let fjordBright = Color.dyn(0x00B5AC, 0x5FB3AC)
 
+    // MARK: Primary action — ONE filled treatment per edition
+    //
+    // THE RULE (A7.2 BtnPrimary, shared.jsx): a primary action is a solid fill
+    // whose label is the ground colour. Morning = fjord-deep teal + white
+    // (4.93:1). Evening = the warm off-white plate + marine ink (≈13:1) — the
+    // canvas draws the evening primary as a LIGHT fill with a dark label, and
+    // that is what `Done`/`Continue`/`Request this consultation` already do.
+    //
+    // WHY THIS EXISTS (design-QA 2026-08-13): `moss` filled with white text is
+    // correct in Morning but only 2.46:1 in Evening (0x5FB3AC + white) — the
+    // muted-teal slab read as DISABLED beside a cream `Done` on a sibling
+    // sheet. No new palette value is introduced: the light value IS `moss`'s
+    // light value, the dark value IS `invertBG`'s dark value. Treatment, not
+    // palette. Disabled primaries use `primaryOffFill`/`primaryOffLabel` so
+    // "unavailable" stays visibly a different thing from "available".
+    static let primaryFill     = Color.dyn(0x077E77, 0xF0EAE0)
+    static let primaryLabel    = invertFG                       // white · marine
+    static let primaryOffFill  = line                           // flat hairline wash
+    static let primaryOffLabel = ink3
+    /// Lift under a primary CTA: the Morning teal glow the canvas draws, and a
+    /// plain shadow at night (a cream halo on marine would read as a glow).
+    static let primaryGlow     = Color.dyn(0x077E77, 0x000000, 0.35, 0.55)
+
     // Amber — ONLY the earned attention card (fill/border/dot; words stay ink).
     // DELIBERATELY MODE-SPLIT (A7.2): light = 0xFFC533, dark/watch stays 0xFFB703 —
     // a grep seeing "inconsistent" amber is seeing the spec, not a bug. NOTE: light
@@ -133,9 +156,15 @@ enum LiviqaTheme {
 
     // Graded deviation-heatmap ramp — sequential cool-neutral → amber, CAPPED at deep
     // amber (never red; the single strongest outlier carries a non-colour ring).
+    // SEVERITY MUST READ THE SAME IN BOTH EDITIONS (design-QA 2026-08-13): the
+    // old dark outlier 0xFFC53D was a bright yellow (L* 83) next to Morning's
+    // deep orange (L* 63) — the same cell read as a milder concern at night.
+    // The dark value is now the SAME orange, lifted one step for the marine
+    // ground (0xF08C1E, L* 68, hue 31° vs Morning's 33°, 6.0:1 on plate
+    // 0x13293B). Still capped short of red — red stays glucose-TIR only.
     static let devMed     = Color.dyn(0xDEE7F3, 0xF0EAE0, 1, 0.10)  // a little off
     static let devHigh    = Color.dyn(0xFFE9AC, 0xFFB703, 1, 0.30)  // clearly off your usual
-    static let devOutlier = Color.dyn(0xE0820C, 0xFFC53D)           // worth noticing (+ ring)
+    static let devOutlier = Color.dyn(0xE0820C, 0xF08C1E)           // worth noticing (+ ring)
 
     // Per-domain data colours (charts, rules, solid icon squares — never page chrome).
     // A7.2 saturated set; dark variants lifted for marine ground. APPROVED DEVIATION:

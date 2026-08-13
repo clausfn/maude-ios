@@ -98,6 +98,104 @@ struct HRVLearnDeriverTests {
         #expect(d?.meaningHeadline.contains("held close") == true)
     }
 
+    // ── ONE "this week", app-wide (NFR-VIZ-DAY-02). ──
+    //
+    // The 2026-08-13 design sweep caught the Recovery pillar and the Insights
+    // week drawing Friday as the week's HIGH while this page named "20 ms — your
+    // low, Friday". Both draw the last seven days; only their SOURCE differed.
+    // These tests fail the moment the two can disagree again.
+
+    /// The app's canonical HRV week, as every other surface plots it.
+    private func signals(_ week: [Double], dates: [Date] = []) -> TodaySignals {
+        TodaySignals(sleep: "7h10", inRange: "88%",
+                     hrv: String(Int((week.last ?? 0).rounded())), rhr: "70",
+                     inRangeIsClay: false, hrvWeek: week, hrvWeekDates: dates)
+    }
+
+    /// A 60-day stream whose OWN last-7-days low sits on `lowDaysAgo` — i.e. the
+    /// raw stream deliberately disagrees with the canonical week handed in.
+    private func streamWithLow(on lowDaysAgo: Int) -> HealthSamples {
+        var metrics = (7..<37).map { metric(daysAgo: $0, 27) }
+        for d in 0...6 { metrics.append(metric(daysAgo: d, d == lowDaysAgo ? 20 : 26)) }
+        return samples(metrics)
+    }
+
+    /// The day the canonical week's minimum actually falls on, computed the way
+    /// a reader computes it: find the lowest value, read its column's date.
+    private func lowDayOfCanonicalWeek(_ week: [Double]) -> String {
+        let slots = DaySeries.aligned(values: week, dates: [],
+                                      over: DaySeries.days(endingOn: now, count: 7))!
+        let placed = slots.compactMap { s in s.value.map { (s.date, $0) } }
+        let lowIdx = placed.indices.min(by: { placed[$0].1 < placed[$1].1 })!
+        return HRVLearnDeriver.dayName(placed[lowIdx].0)
+    }
+
+    @Test func namedExtremeMatchesTheCanonicalWeek() {
+        // Every shape here puts the low on a different day of the week, and the
+        // raw stream always disagrees (its own low is 6 days ago).
+        let weeks: [[Double]] = [
+            [31, 28, 27, 23, 23, 29, 27],   // the LV001 goldmine week
+            [20, 26, 23, 26, 25, 21, 25],
+            [44, 45, 46, 49, 50, 51, 39],   // low on the latest day
+            [39, 44, 45, 46, 49, 50, 51],   // low on the oldest day
+        ]
+        for week in weeks {
+            let d = HRVLearnDeriver.reconciled(
+                HRVLearnDeriver.derive(from: streamWithLow(on: 6), now: now),
+                with: signals(week), now: now)
+            #expect(d != nil)
+            // The page draws the canonical seven numbers, not its own.
+            #expect(d?.weekSeries == week)
+            // …and names the day that series' extreme actually falls on.
+            #expect(d?.weekLowDayName == lowDayOfCanonicalWeek(week),
+                    "learn page named \(d?.weekLowDayName ?? "nil") for \(week)")
+            #expect(d?.weekLowMs == Int((week.min() ?? 0).rounded()))
+            // The hero value is the last day of that same week — the figure the
+            // Home chip and the Recovery hero print.
+            #expect(d?.latestMs == Int((week.last ?? 0).rounded()))
+        }
+    }
+
+    @Test func reconciliationActuallyMovesTheNamedDay() {
+        // Guards the guard: without reconciliation these two DO disagree, which
+        // is exactly the shipped bug. If this ever stops differing, the fixture
+        // has gone stale and the test above proves nothing.
+        let week: [Double] = [31, 28, 27, 23, 23, 29, 27]
+        let raw = HRVLearnDeriver.derive(from: streamWithLow(on: 6), now: now)
+        let fixed = HRVLearnDeriver.reconciled(raw, with: signals(week), now: now)
+        #expect(raw?.weekLowDayName == dayName(daysAgo: 6))
+        #expect(fixed?.weekLowDayName == dayName(daysAgo: 3))
+        #expect(raw?.weekLowDayName != fixed?.weekLowDayName)
+        // The plain tier's sentence names the reconciled day too.
+        if fixed?.dippedBelowUsual == true {
+            #expect(fixed?.meaningHeadline.contains(dayName(daysAgo: 3)) == true)
+        }
+    }
+
+    @Test func datedCanonicalWeekPlacesEachValueOnItsOwnDay() {
+        // A gapped week: Wednesday-equivalent missing. Values must stay on their
+        // own dates, and the low must be named from the date it was recorded on.
+        let days = [6, 5, 4, 2, 1, 0].map {
+            cal.date(byAdding: .day, value: -$0, to: cal.startOfDay(for: now))!
+        }
+        let values: [Double] = [30, 29, 21, 28, 30, 27]
+        let d = HRVLearnDeriver.reconciled(
+            HRVLearnDeriver.derive(from: streamWithLow(on: 0), now: now),
+            with: signals(values, dates: days), now: now)
+        #expect(d?.weekSeries == values)
+        #expect(d?.weekLowMs == 21)
+        #expect(d?.weekLowDayName == dayName(daysAgo: 4))
+        #expect(d?.latestMs == 27)
+    }
+
+    @Test func noCanonicalWeekLeavesTheDerivedWeekAlone() {
+        // Nothing to anchor to ⇒ the deriver's own week stands (never blanked).
+        let raw = HRVLearnDeriver.derive(from: streamWithLow(on: 2), now: now)
+        #expect(HRVLearnDeriver.reconciled(raw, with: nil, now: now) == raw)
+        // A short, undated series cannot be placed on a day axis — same rule.
+        #expect(HRVLearnDeriver.reconciled(raw, with: signals([27, 26, 25]), now: now) == raw)
+    }
+
     // ── Fixed templates stay descriptive (guard-clean; FR-NDG-06 discipline). ──
 
     @Test func meaningTemplatesSurviveTheChatGuard() {
