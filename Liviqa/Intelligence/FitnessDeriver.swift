@@ -41,8 +41,12 @@ public nonisolated struct FitnessDetail: Sendable, Equatable {
 
     public struct WeekLoad: Sendable, Equatable {
         public let label: String        // "W1" … "now"
-        public let points: Double
-        public init(label: String, points: Double) { self.label = label; self.points = points }
+        /// Load for the week, or nil when the workout record does not yet cover
+        /// it. A week INSIDE the covered span with no workouts is a real 0 (a
+        /// rest week, which must stay visible) — only weeks before the first
+        /// recorded workout are absent.
+        public let points: Double?
+        public init(label: String, points: Double?) { self.label = label; self.points = points }
     }
 
     /// One HR training zone share (only when HR samples were provided).
@@ -165,18 +169,29 @@ public nonisolated enum FitnessDeriver {
         let weekAvgHR = weekHRs.isEmpty ? nil
             : Int((weekHRs.reduce(0, +) / Double(weekHRs.count)).rounded())
 
-        // — 4 week buckets (oldest → now), only buckets that HAVE workouts —
+        // — 4 week buckets (oldest → now), on the real week axis —
+        // A week with no workouts INSIDE the recorded span is a genuine rest
+        // week and keeps its slot at 0; a week before the first recorded
+        // workout has no record at all and stays nil. Dropping either would
+        // slide the remaining weeks together and hide a rest week entirely.
+        let firstRecorded = all.map(\.start).min()
         var buckets: [FitnessDetail.WeekLoad] = []
         for b in (0..<4).reversed() {           // b=0 is the current week
             let ws = all.filter {
                 let d = daysBetween($0.start, today)
                 return d >= b * 7 && d <= b * 7 + 6
             }
-            guard !ws.isEmpty else { continue }
-            buckets.append(.init(label: b == 0 ? "now" : "W\(4 - b)",
-                                 points: ws.map(load).reduce(0, +).rounded()))
+            let label = b == 0 ? "now" : "W\(4 - b)"
+            if !ws.isEmpty {
+                buckets.append(.init(label: label, points: ws.map(load).reduce(0, +).rounded()))
+            } else if let first = firstRecorded,
+                      daysBetween(first, today) >= b * 7 {
+                buckets.append(.init(label: label, points: 0))   // a real rest week
+            } else {
+                buckets.append(.init(label: label, points: nil)) // no record yet
+            }
         }
-        let prior = buckets.filter { $0.label != "now" }.map(\.points)
+        let prior = buckets.filter { $0.label != "now" }.compactMap(\.points)
         let loadUsual = prior.count >= 2 ? prior.reduce(0, +) / Double(prior.count) : nil
 
         // — Workout rows (this week, newest first) —

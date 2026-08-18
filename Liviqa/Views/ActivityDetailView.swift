@@ -61,8 +61,8 @@ struct ActivityDetailView: View {
             usualSteps: m.usualSteps ?? 0,
             usualFromHistory: detail?.usualFromHistory ?? (detail == nil),
             pctVsUsual: detail?.pctVsUsual,
-            weekStepsTotal: detail?.weekStepsTotal ?? Int(m.steps.reduce(0, +)),
-            dayCount: m.steps.count,
+            weekStepsTotal: detail?.weekStepsTotal ?? Int(m.steps.compactMap { $0 }.reduce(0, +)),
+            dayCount: m.steps.compactMap { $0 }.count,   // the RECORDED days — a denominator
             isSeed: detail == nil)
     }
 
@@ -74,11 +74,11 @@ struct ActivityDetailView: View {
         var statUnit: String?
         var sub: String
         var stats: [(String, String)]
-        var steps: [Double]
+        var steps: [Double?]
         var stepsLabels: [String]
         var usualSteps: Double?
         var stepsHeadline: String
-        var kcal: [Double]
+        var kcal: [Double?]
         var kcalLabels: [String]
         var usualKcal: Double?
         var kcalHeadline: String

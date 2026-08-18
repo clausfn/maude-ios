@@ -235,7 +235,10 @@ struct MetricDiscussButton: View {
 /// Columns for discrete-day series with a dashed "your usual N" line — the
 /// personal-baseline framing IS the chart (never a population target).
 struct UsualDayBars: View {
-    var values: [Double]
+    /// One slot per day of the window, on the REAL day axis. A day with no
+    /// recorded value is nil and draws nothing — the axis keeps its shape, so
+    /// remaining bars can never slide together and read as consecutive days.
+    var values: [Double?]
     var labels: [String]
     var usual: Double?
     var color: Color
@@ -244,7 +247,10 @@ struct UsualDayBars: View {
     /// Value formatter for the usual-line label + last-bar label.
     var fmt: (Double) -> String = { String(Int($0.rounded())) }
 
-    private var maxV: Double { max(values.max() ?? 1, usual ?? 0) * 1.12 }
+    private var maxV: Double { max(values.compactMap { $0 }.max() ?? 1, usual ?? 0) * 1.12 }
+    /// The most recent slot that HAS a value — the one that carries the emphasis
+    /// and the printed figure (never simply the last slot, which may be a gap).
+    private var lastFilled: Int? { values.lastIndex { $0 != nil } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -257,18 +263,20 @@ struct UsualDayBars: View {
                 let w = geo.size.width, h = geo.size.height
                 let slot = w / CGFloat(max(1, values.count))
                 ZStack(alignment: .topLeading) {
-                    ForEach(Array(values.enumerated()), id: \.offset) { i, v in
-                        let bh = max(3, h * CGFloat(v / maxV))
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(color.opacity(i == values.count - 1 ? 1 : 0.5))
-                            .frame(width: slot * 0.64, height: bh)
-                            .position(x: slot * (CGFloat(i) + 0.5), y: h - bh / 2)
-                        if i == values.count - 1 {
-                            Text(fmt(v))
-                                .font(.lato(10.5, .bold)).monospacedDigit()
-                                .foregroundStyle(LiviqaTheme.ink)
-                                .position(x: slot * (CGFloat(i) + 0.5),
-                                          y: max(7, h - bh - 10))
+                    ForEach(Array(values.enumerated()), id: \.offset) { i, slotValue in
+                        if let v = slotValue {
+                            let bh = max(3, h * CGFloat(v / maxV))
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(color.opacity(i == lastFilled ? 1 : 0.5))
+                                .frame(width: slot * 0.64, height: bh)
+                                .position(x: slot * (CGFloat(i) + 0.5), y: h - bh / 2)
+                            if i == lastFilled {
+                                Text(fmt(v))
+                                    .font(.lato(10.5, .bold)).monospacedDigit()
+                                    .foregroundStyle(LiviqaTheme.ink)
+                                    .position(x: slot * (CGFloat(i) + 0.5),
+                                              y: max(7, h - bh - 10))
+                            }
                         }
                     }
                     if let usual {
@@ -288,7 +296,7 @@ struct UsualDayBars: View {
                 ForEach(Array(labels.enumerated()), id: \.offset) { i, l in
                     Text(l)
                         .font(.liviqaKicker(9)).tracking(0.4)
-                        .foregroundStyle(i == labels.count - 1 ? LiviqaTheme.ink : LiviqaTheme.ink4)
+                        .foregroundStyle(i == lastFilled ? LiviqaTheme.ink : LiviqaTheme.ink4)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -296,7 +304,8 @@ struct UsualDayBars: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Daily bars\(unit.isEmpty ? "" : ", in \(unit)")")
-        .accessibilityValue(zip(labels, values).map { "\($0): \(fmt($1))" }
+        .accessibilityValue(zip(labels, values)
+            .map { label, v in v.map { "\(label): \(fmt($0))" } ?? "\(label): no data" }
             .joined(separator: ". ")
             + (usual.map { ". Your usual is \(fmt($0))." } ?? ""))
     }

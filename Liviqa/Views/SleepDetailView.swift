@@ -284,8 +284,8 @@ struct SleepDetailView: View {
     /// honest reduced anatomy, never an invented column.
     private func weekCard(_ m: Model) -> some View {
         MetricDCard(kicker: "Sleep · this week", headline: m.weekHeadline) {
-            UsualDayBars(values: m.nights.map(\.hours),
-                         labels: m.nights.map(\.label),
+            UsualDayBars(values: m.weekBars.map(\.hours),
+                         labels: m.weekBars.map(\.label),
                          usual: m.weekMeanHours,
                          color: LiviqaTheme.accentSleep,
                          unit: "hours asleep",
@@ -455,6 +455,9 @@ extension SleepDetailView {
 
         // — Week (W)
         var nights: [SleepWeekDetail.Night]
+        /// The duration fallback's bars on the REAL 7-day axis — one slot per
+        /// day of the window, nil where no night was recorded.
+        var weekBars: [(label: String, hours: Double?)]
         var weekMeanHours: Double
         var weekHeadline: String
         var weekClock: ClockWeekRender?
@@ -764,6 +767,7 @@ extension SleepDetailView {
 
             // — week (duration fallback figures)
             nights = d.nights
+            weekBars = Self.weekDurationBars(week: d.week, fallback: d.nights)
             weekMeanHours = mean
             let closeNights = d.nights.filter { abs($0.hours - mean) <= 0.5 }.count
             weekHeadline = d.nights.count >= 2
@@ -776,7 +780,7 @@ extension SleepDetailView {
             // — bedtime vs own usual
             if let b = d.bedtime {
                 bedtimeHeadline = "Within half an hour of your own usual, \(b.nightsNearUsual) of \(b.nightCount) nights."
-                bedtimeFoot = "\"Usual\" here is the average of your own bedtimes this week. There is no recommended hour on this page."
+                bedtimeFoot = "\"Usual\" here is the average of your own bedtimes this week — this card holds no recommended hour."
                 let top = Double(max(b.thisWeekMinutes, b.prevWeekMinutes ?? 0)) * 1.08
                 var rows: [MetricCompareRow] = [
                     MetricCompareRow(value: "\(b.thisWeekClock) avg", label: "THIS WEEK",
@@ -825,6 +829,26 @@ extension SleepDetailView {
 
         /// The W range → render fractions. The 22:00→14:00 axis is the
         /// deriver's (`SleepClockAxis`); marks every 4 clock hours.
+        /// The W duration fallback laid out on the full day axis: every day of
+        /// the window gets a slot and a day without a recorded night stays
+        /// empty, so remaining bars can never slide together and read as
+        /// consecutive nights. Falls back to the nights' own labels only when
+        /// the range carries no axis at all (an empty range).
+        private static func weekDurationBars(week: SleepWeekRange,
+                                             fallback: [SleepWeekDetail.Night])
+        -> [(label: String, hours: Double?)] {
+            guard !week.days.isEmpty else {
+                return fallback.map { (label: $0.label, hours: Optional($0.hours)) }
+            }
+            let cal = Calendar(identifier: .gregorian)
+            let symbols = cal.veryShortWeekdaySymbols
+            let byDay = Dictionary(uniqueKeysWithValues: week.nights.map { ($0.date, $0) })
+            return week.days.map { day in
+                let label = symbols[(cal.component(.weekday, from: day) - 1) % symbols.count]
+                return (label: label, hours: byDay[day].map { Double($0.asleepMin) / 60 })
+            }
+        }
+
         private static func clockWeek(week: SleepWeekRange,
                                       bedtime: SleepBedtimeWeek?) -> ClockWeekRender? {
             guard !week.columns.isEmpty, !week.days.isEmpty else { return nil }

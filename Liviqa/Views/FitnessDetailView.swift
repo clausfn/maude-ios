@@ -41,7 +41,7 @@ struct FitnessDetailView: View {
                                sub: model.sub)
                     SeeWhyHeroRow { seeWhy = fitnessWhy(model) }
                     if !model.stats.isEmpty { MetricStatRow(items: model.stats) }
-                    if model.loadWeeks.count >= 2 { loadCard(model) }
+                    if model.loadWeeks.compactMap(\.1).count >= 2 { loadCard(model) }
                     if !model.workouts.isEmpty { workoutsCard(model) }
                     if !model.zones.isEmpty { zonesCard(model) }
                     if model.vo2Series.count >= 2 { vo2Card(model) }
@@ -67,7 +67,7 @@ struct FitnessDetailView: View {
             weekCount: detail?.weekCount ?? m.workouts.count,
             loadPoints: Int(m.stat) ?? 0,
             loadUsual: m.loadUsual,
-            weeksCompared: m.loadWeeks.count,
+            weeksCompared: m.loadWeeks.compactMap(\.1).count,
             isSeed: detail == nil)
     }
 
@@ -78,7 +78,7 @@ struct FitnessDetailView: View {
         var stat: String
         var sub: String
         var stats: [(String, String)]
-        var loadWeeks: [(String, Double)]
+        var loadWeeks: [(String, Double?)]
         var loadUsual: Double?
         var loadHeadline: String
         var workouts: [FitnessDetail.WorkoutRow]

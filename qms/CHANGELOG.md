@@ -2,6 +2,18 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-116 — the QMS rows PR-115 owed, and the two defects writing them uncovered (2026-08-19, branch `claude/a72-electric-ink`, FR-SLP-11/12/13, FR-CTX-05, FR-VIZ-04)
+
+**docs(qms): the row debt, stated plainly.** PR-115 shipped the sleep-visualisation wave, the whole-person Home and the field-bug fixes, and merged **without** the requirement rows its own agents asked for. This entry closes that: FR-SLP-11 (one-truth night model), FR-SLP-12 (ranges state their true denominator and keep their axis), FR-SLP-13 (the sleep surfaces degrade honestly rather than estimate), FR-CTX-05 (the declared profile survives a locked launch), and RISK RK-CHART-02 / RK-COPY-01.
+
+**How the rows were written.** Not from memory — 40 claimed guarantees were put to independent adversarial verifiers against the shipped source. **35 came back NARROWER than claimed** and are recorded at their verified scope; 5 were confirmed as stated. Two of the narrowings were not wording but live defects, and both were fixed before any row describing them was written.
+
+**fix(charts): the day axis may not lie (FR-VIZ-04, RK-CHART-02).** Three sites dropped dayless slots before drawing, so a chart asserted continuity the record did not have — labels travelled correctly with the values, so nothing was mislabelled and three earlier reviews passed over it; the lie was in the spacing. ① `SleepDetailView.weekCard` drew only nights WITH data (a Mon/Wed/Fri week rendered as three adjacent bars) → now the full 7-day axis with nil gaps. ② `ActivityDeriver.series` compactMap-ped absent days out of the week for steps and active energy → the DRAWN series is now the whole window while the statistics still count recorded days only. ③ `FitnessDeriver` skipped week buckets with no workouts, **hiding a rest week** — the one thing a training-load chart most needs to show → a week inside the recorded span is a real measured 0 and keeps its slot, while weeks before the first recorded workout stay nil (a 0 there would invent a rest week that never happened). `UsualDayBars.values` is now `[Double?]`, so a gap is unrepresentable as a zero at the type level.
+
+**fix(copy): an absolute the same screen contradicted (RK-COPY-01).** The Sleep bedtime footnote read *"There is no recommended hour on this page."* The bedtime card is scrupulous — but the same page's sleep score divides by a fixed 8-hour reference and a 35% deep-and-REM share, and that page's own See-why panel says so out loud. Narrowed to the card it is actually true of, and pinned by a source lint so the page-wide absolute cannot return. The fixed references themselves remain, disclosed; whether they belong in a baseline-relative product is recorded as an open CN decision.
+
+Suite: **T-VIZ-04 = `LiviqaTests/DayAxisIntegrityTests`** (6 — sleep fallback axis, activity gaps, energy absent-vs-gap, fitness rest week, fitness pre-record weeks, copy lint). **Full unit run 879 tests / 109 suites — all green** (873 before this PR); UI target 130/130; `guard_provenance.sh` green.
+
 ## Universal HealthKit read — every data point, browsable, judged by no one (2026-08-19, branch `claude/a72-electric-ink`, FR-ING-19)
 
 **CN directive recorded (2026-08-19, verbatim):** *"I want all data from Apple HealthKit — every data point."* — OVERRULES the 2026-08-18 coverage audit's named-consumer rule; controller decision filed in `qms/DHF.md` with the date, addendum §6 appended to the audit doc.

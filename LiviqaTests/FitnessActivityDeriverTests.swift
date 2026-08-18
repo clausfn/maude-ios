@@ -136,7 +136,14 @@ struct ActivityDeriverTests {
         var s = HealthSamples()
         s.steps = [steps(8000, day: 0), steps(9000, day: -1), steps(7000, day: -2)]
         let d = try #require(ActivityDeriver.derive(from: s, now: now))
-        #expect(d.stepsWeek.count == 3)
+        // The DRAWN axis is the whole 7-day window — three recorded days sit on
+        // their own weekdays and the four unrecorded ones stay empty, so the
+        // bars can never slide together and read as three days in a row.
+        #expect(d.stepsWeek.count == 7)
+        #expect(d.stepsWeek.compactMap { $0 }.count == 3)
+        #expect(d.stepsWeek.suffix(3) == [7000, 9000, 8000])   // days −2, −1, today
+        #expect(d.stepsWeek.prefix(4).allSatisfy { $0 == nil })
+        #expect(d.stepsLabels.count == 7)
         #expect(d.usualFromHistory == false)
         #expect(d.pctVsUsual == nil)          // a week can't be compared to itself
         #expect(d.usualSteps == 8000)         // falls back to the week's own mean
@@ -155,7 +162,8 @@ struct ActivityDeriverTests {
         #expect(d.pctVsUsual == 10)           // (8800−8000)/8000
         #expect(d.daysAboveUsual == 2)
         #expect(d.longestDaySteps == 9000)
-        #expect(d.kcalWeek.count == 2)
+        #expect(d.kcalWeek.count == 7)                        // the window, not the readings
+        #expect(d.kcalWeek.compactMap { $0 }.count == 2)
     }
 
     @Test func fixedTemplatesPassNudgeGuard() throws {

@@ -214,7 +214,7 @@ public nonisolated enum TodaySignalsDeriver {
             stepsPctVsUsual: activity?.pctVsUsual,
             workoutsWeek: workoutCount(s, offsets: 0...6, today: today),
             workoutsPrevWeek: workoutCount(s, offsets: 7...13, today: today),
-            workoutLoadWeeks: fitness?.loadWeeks.map(\.points) ?? [],
+            workoutLoadWeeks: fitness?.loadWeeks.compactMap(\.points) ?? [],
             workoutLoadUsual: fitness?.loadUsual,
             weightSeries: weights,
             weightLatest: weights.last.map { String(format: "%.1f", $0) },
