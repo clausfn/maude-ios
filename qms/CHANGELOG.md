@@ -2,6 +2,18 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## HealthKit ingestion coverage audit — sleep-incident wave, non-sleep breadth (2026-08-18, branch `claude/a72-electric-ink`)
+
+**fix(ingestion):** cumulative daily roll-up (steps, active energy) no longer sums raw samples across sources — a Watch+iPhone citizen read up to ~2× steps/kcal (same hazard class as the PR-109 sleep double-count). New pure `DailyRollup`: the day's figure is the best-covering single source's total, never a cross-source sum (RTM FR-ING-17, RISK RK-ING-10, T-COV-01..04).
+
+**feat(ingestion):** nightly sleeping wrist temperature (`appleSleepingWristTemperature`) read with a named purpose — sleep-context deviation vs the citizen's OWN baseline; night-bucketed by the sleep `nightDay` rule, §2.3-arbitrated per night, deterministic mock coverage with zero RNG-draw impact on existing demo streams (RTM FR-ING-16, T-COV-05..08). Read-authorization set = exactly the set read (T-COV-09).
+
+**docs(audit):** `docs/HealthKit_Coverage_Audit_20260818.md` — every type read verified against reader + consumer; every type not read refused with a reason (cycle tracking, medications, symptoms, gait, ECG explicitly refused pending their own design + risk work). Report-only findings filed: primer "these — and only these" claim untrue since PR-46 (RK-ING-12, owner = onboarding surface); AFib "days observed" line lacks its 30/90-day window; `observedTypes` MVP-only drift recorded as a decision.
+
+**test(flake):** `BackupPostureTests` serialized (`@Suite(.serialized)`) — three tests raced one shared `UserDefaults` key under Swift Testing's default parallelism; zero assertions changed; 5/5 repeat runs green.
+
+Suites: ingestion/arbitration/coverage 22/22 green; full unit run 673 tests / 89 suites — all green except the parallel sleep agent's in-flight red `SleepPathAuditTests` (their incident-reproduction tests, sleep-owned). Guards green: `guard_provenance.sh`, `guard_donation_egress.sh`. Build `build/ddsl2`, Sim F8ACD7F7.
+
 ## PR-112 — Donor programme DON-2026-01, app side: a sealed EXPORT the donor performs (2026-08-13, branch `claude/a72-electric-ink`)
 
 **584 tests / 81 suites PASS**; Debug + donor-flag (`-D LIVIQA_DONOR`) builds green; provenance guard green; new blocking donation-egress guard green and mutation-checked.
@@ -19,6 +31,17 @@ _One entry per release/PR that touches a requirement or risk control. Maps to gi
 
 ### Not closed here (owner/counsel, §7.3 gates)
 DPIA v02, ROPA entry, Scaleway DPA, access agreements and custodian key ceremony (the programme public key is deliberately unset, so an export refuses on screen until it exists), the erasure drill, the repo-lint half of T-DON-03, and **correcting the §2.3 consent text, which currently promises donors the opposite of the training decision**. No donation may be collected until these are satisfied.
+
+## PR-114 — SLEEP INCIDENT RESOLVED: multi-source double-count + daily roll-up double-count + the diagnostics instrument (2026-08-18, branch `claude/a72-electric-ink`)
+
+CN's field report ("my sleep data was brutally wrong") diagnosed with red-run evidence on unmodified post-PR-109 code. **692 tests / 91 suites PASS**; both guards green; Release build green.
+
+- **CONFIRMED: sleep multi-source double-count.** Nightly totals summed per-stage unions ACROSS SOURCES: a real 7.5 h Watch night + one overlapping iPhone/third-party span derived as **11 h 03 m** on Home and the detail screen (12 h 18 m with a second stage-writing app), while union-style consumers computed 8 h 15 m — three contradicting figures on adjacent screens. `SourceArbiter` keyed sleep by (stage, night) so cross-source overlaps never met. Apple Health picks ONE source per night; Liviqa now does too: `SleepNightResolver` (stage detail > larger total > name, deterministic) + main-episode isolation (a >4 h unrecorded gap splits the bucket — **naps no longer merge into the night**, the second confirmed defect). Wired through `arbitrated()` so every consumer incl. the nudge engine gets the resolved stream. RK-SLP-07 states honestly what users saw.
+- **CONFIRMED, same class: cumulative daily roll-ups (steps, active energy) double-counted sources** — raw sample queries return every source's samples and `readDaily` summed them all; Watch+iPhone read up to ~2×. Fixed via pure `DailyRollup` (per-(day,source) totals, best-covering single source; documented trade-off: mixed-coverage days now under-count rather than inflate; exact merge is the named upgrade, FR-ING-17).
+- **Sound and now pinned:** inBed never counts; DST nights keep real durations; the t+6h bucket holds for shift workers; unrecorded gaps never count as sleep.
+- **FR-DIAG-01 — the instrument.** Settings → "Sleep diagnostics · 14-night report": every raw HK sample (source + bundle id + device, stage, start–end, drops marked) against every derived value with the exact computed-from and excluded-with-reason lists. Share-sheet export only (transport constructs lint-banned in Liviqa/Diagnostics/), Release-enabled so CN can run it on TestFlight, blocked in sample mode. RK-DIAG-01 covers the instrument's own leak hazard.
+- **Coverage audit** (`docs/HealthKit_Coverage_Audit_20260818.md`): full enumeration with per-type purpose; wrist temperature added (night-bucketed, arbitration-equal, mock coverage, consumer named) — types without a named consumer refused. `BackupPostureTests` serialized (shared-defaults flake).
+- **Follow-ups recorded:** untimed aggregated sleep undercounts in the union-style consumers (imported sleep only); a "second sleep source excluded" disclosure line on the Sleep detail (FR-PROV-02 style).
 
 ## PR-113 — Sample mode done right, calendar load as a real signal, Screen Time feasibility (2026-08-18, branch `claude/a72-electric-ink`)
 

@@ -66,6 +66,8 @@ struct SettingsView: View {
     @State private var showDonorExport    = false
     /// FR-CTX-04 — review/clear the user's own context flags.
     @State private var showContextFlags   = false
+    /// FR-DIAG-01 — the sleep diagnostics instrument (sleep incident 2026-08).
+    @State private var showSleepDiagnostics = false
 
     var body: some View {
         ScrollView {
@@ -113,6 +115,8 @@ struct SettingsView: View {
         // FR-CTX-04 — review / end the days marked as travelling, unwell or
         // off-routine (same surface as the Today entry affordance).
         .sheet(isPresented: $showContextFlags) { ContextFlagSheet() }
+        // FR-DIAG-01 — on-device sleep report, share-sheet export only.
+        .sheet(isPresented: $showSleepDiagnostics) { SleepDiagnosticsView() }
         // The vault row's count is read here and re-read on the way back from
         // the vault, so adding or deleting a document there is reflected here.
         .task { readVaultState() }
@@ -589,6 +593,23 @@ struct SettingsView: View {
                     .presentationDetents([.medium, .large])
             }
             #endif
+
+            // Sleep diagnostics (FR-DIAG-01, sleep incident 2026-08): a
+            // 14-night raw-vs-derived sleep report, built on device, exported
+            // only through the share sheet. Ships in Release too — the report
+            // this instrument exists for came from a TestFlight build.
+            Button { showSleepDiagnostics = true } label: {
+                settingsNavRow(
+                    icon: "moon.zzz.fill",
+                    color: LiviqaTheme.fjordBright,
+                    label: String(localized: "Sleep diagnostics"),
+                    detail: String(localized: "14-night report")
+                )
+                .background(LiviqaTheme.paper2)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
         }
     }
 

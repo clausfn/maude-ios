@@ -147,7 +147,13 @@ public nonisolated enum SleepDetailDeriver {
     private static let asleep: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
 
     public static func derive(from s: HealthSamples, now: Date = Date()) -> SleepWeekDetail? {
-        let segs = s.sleep.filter { asleep.contains($0.stage) && $0.hours > 0 }
+        // FR-SLP-10 (sleep incident 2026-08): one source per night, main sleep
+        // episode only — re-applied here (idempotent over `arbitrated()`) so an
+        // overlapping second source can never double-count a night, a nap can
+        // never join it, and the shape/awake anatomy below is drawn from the
+        // SAME chosen source as the totals.
+        let resolved = SleepNightResolver.resolvePerNight(s.sleep, calendar: cal)
+        let segs = resolved.filter { asleep.contains($0.stage) && $0.hours > 0 }
         guard !segs.isEmpty else { return nil }
 
         var byDay: [Date: [SleepReading]] = [:]
@@ -156,8 +162,10 @@ public nonisolated enum SleepDetailDeriver {
 
         // Awake segments live outside `segs` (they are not sleep) but belong to
         // the night's anatomy — kept per night bucket for the shape + tile.
+        // From `resolved`, so the awake tile counts the chosen source's night
+        // only, never a second tracker's overlapping wake-ups.
         var awakeByDay: [Date: [SleepReading]] = [:]
-        for seg in s.sleep where seg.stage == .awake && seg.hours > 0 {
+        for seg in resolved where seg.stage == .awake && seg.hours > 0 {
             awakeByDay[cal.startOfDay(for: seg.date), default: []].append(seg)
         }
 

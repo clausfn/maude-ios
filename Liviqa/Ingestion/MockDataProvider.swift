@@ -107,6 +107,17 @@ public struct MockDataProvider: HealthDataProvider {
                                         deep: deep, core: core, rem: rem,
                                         source: source, provenance: .simulated)
 
+            // Nightly sleeping wrist temperature (FR-ING-16): a personal
+            // baseline around 34.6–34.8 °C with the citizen's own small weekly
+            // drift; a poor night runs slightly warm — the deviation story the
+            // sleep-context card reads. Deterministic (NO RNG draws), so every
+            // other stream stays byte-identical run to run.
+            let wristBase = 34.62 + Double(offset % 7) * 0.03
+            samples.wristTemperature.append(WristTemperatureReading(
+                date: day,
+                celsius: ((wristBase + (poorNight ? 0.24 : 0)) * 100).rounded() / 100,
+                source: source, tier: .good, provenance: .simulated))
+
             // ~Every third day, a workout (drives next-morning RHR bump above).
             prevDayWorkout = offset % 3 == 0
             if offset % 3 == 0 {

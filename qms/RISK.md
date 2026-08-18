@@ -2,6 +2,120 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Sleep incident — the founder's own nights derived "brutally wrong" (2026-08-18, sleep-incident wave, branch claude/a72-electric-ink)
+
+**Why this is a risk section.** Sleep is a signal the nudge engine consumes
+(`NudgeEngine.sleepNudge` compares last night to the citizen's own baseline) and a
+headline figure on Home, Today, Trends, the Sleep detail screen and the Passport. A field
+report from CN's real device said the figures were "brutally wrong"; the device could not
+be inspected, so this wave built the inspection instrument (FR-DIAG-01) and audited the
+post-PR-109 sleep path against six failure shapes with pathological fixtures
+(`SleepPathAuditTests`, red-then-green — evidence, not plausibility).
+
+**RK-SLP-07 — a two-source night double-counts (7.5h derived as 11h03m; naps join the night).**
+- *What users actually saw (honest statement):* on any device where a second source wrote
+  sleep over a watch-staged night — the iPhone's own span, or a third-party sleep app —
+  the Home SLEEP chip and the Sleep detail screen showed the night inflated by roughly
+  the second source's whole span: a real 7.5h night rendered as **11h 03m** (test-pinned:
+  663 min pre-fix), and as **12h 18m** with a second stage-writing app. At the same time
+  Today/Trends/Correlation/Passport computed the same night differently (a full union →
+  8h 15m), so adjacent screens contradicted each other. Separately, an afternoon nap
+  landed in the same night bucket (t+6h rule) and grew "last night" and stretched the
+  night chart's axis to the nap's end. Since PR-109's union fix shipped, this is the
+  remaining — and now measured — mechanism consistent with the report. The nudge engine's
+  sleep input used the full-union figure, so short-night nudges were fed a number ~45 min
+  high for such nights (baseline-relative, so the bias partly cancels; still wrong).
+- *Cause 1 (double-count):* every nightly total in `SleepDeriver` / `SleepDetailDeriver` /
+  `BaselineDeriver` is the SUM of three per-stage-bucket unions (deep + REM +
+  core/unspecified). Correct for one source, whose stages partition the night; wrong
+  across sources — an undifferentiated span covers the same wall-clock minutes the
+  watch's deep/REM buckets already counted. `SourceArbiter` keyed sleep by (stage, night),
+  so different-stage segments from different sources never met, and all HealthKit sleep is
+  one tier — arbitration removed nothing.
+- *Cause 2 (nap merge):* the night bucket is a whole t+6h day; nothing separated the
+  night's episode from a nap in the same bucket.
+- *Mitigation (code, this branch):* `SleepNightResolver` (SourceArbiter.swift, pure,
+  portable): per night, ONE source — stage detail beats an undifferentiated span, then the
+  larger asleep total, then name (deterministic) — which is the stance Apple Health itself
+  takes (it shows one source per night; it does not union across apps, so Liviqa now
+  agrees with the screen the citizen checks it against). Then main-episode isolation: an
+  unrecorded gap > 4h splits the bucket into episodes and the episode with the most asleep
+  time is the night (recorded AWAKE bridges its gap; untimed aggregated sources are never
+  split — dropping data on a guess would be fabrication in reverse). Wired in
+  `arbitrated()` so EVERY consumer (nudge engine included) receives the resolved stream,
+  and re-applied idempotently inside both sleep derivers for callers that skip
+  arbitration. Exclusions are disclosed, not hidden: the FR-DIAG-01 report prints each
+  excluded segment with its reason.
+- *Verification:* `SleepPathAuditTests` (12 — shapes (a) multi-source, (b) naps,
+  (c) inBed, (d) DST 25h/23h nights, (e) 09:00–17:00 shift worker, (f) unrecorded gaps;
+  (a)+(b) were red pre-fix, the rest pin sound behaviour), `SleepNightResolverTests` (12),
+  all 25 pre-existing sleep tests unchanged and green. No live HealthKit store in any test.
+- *Residual:* when two sources cover DIFFERENT parts of one night (watch died at 03:00,
+  phone covered the rest), the chosen source's part alone is counted — the honest
+  direction (never inflate), identical to what Apple Health displays, and visible in the
+  diagnostics report. A same-source overlap of unspecified over stages remains summed
+  per-bucket (not observed from any real source; the diagnostics instrument would show
+  it). ACCEPTED.
+
+**RK-DIAG-01 — the instrument itself must not become a leak.**
+- *Hazard:* a diagnostics export that read broadly or uploaded would be a privacy defect
+  built in response to a data-quality defect.
+- *Mitigation:* FR-DIAG-01 reads sleep timing ONLY (`readSleepDiagnostics` touches the
+  `sleepAnalysis` type and nothing else); the report is a plain-text file built on device
+  and handed to the share sheet — the app has no upload path for it; provenance and tier
+  vocabulary never appear in the text (test-pinned); a structural lint fails the suite if
+  any transport construct enters `Liviqa/Diagnostics/` (same posture as T-DON-02). Sample
+  mode blocks generation (FR-SMP-04: sample mode never reads real data). T-DIAG-01
+  (`SleepDiagnosticsTests`, 8).
+
+## HealthKit coverage audit — the signal the nudge engine consumes must be the citizen's real day (2026-08-18, sleep-incident wave, branch claude/a72-electric-ink)
+
+**Why this is a risk section.** CN's field report of "brutally wrong" sleep figures is a
+data-quality incident on the signal the nudge engine and every personal-baseline surface
+consume. The parallel sleep workstream owns the sleep read path; this audit owns the
+NON-sleep breadth and found one defect of the same hazard class, added one new type with a
+named purpose, and refused a list of types on purpose grounds. Artifact:
+`docs/HealthKit_Coverage_Audit_20260818.md`.
+
+**RK-ING-10 — a daily figure is a cross-source sum (steps / active energy up to ~2×).**
+- *Hazard:* a Watch+iPhone citizen's steps and kcal read up to double on days both devices
+  were carried. Wrong inputs flow into the activity baseline, the Today ring and the
+  correlation grid — the citizen reads a day they did not have, and every "your usual"
+  band learned from those days is inflated. Same hazard class as the PR-109 sleep
+  double-count (multi-source overlap counted twice).
+- *Cause:* `readDaily` summed raw `HKSampleQuery` samples across ALL sources for
+  cumulative kinds; a raw sample query returns each source's samples for the same walk.
+- *Mitigation (code, this branch):* pure `DailyRollup` — per (day, source) totals, the
+  day's figure = the best-covering single source's total; sources never summed together;
+  single-source days keep their full total. Property-tested (T-COV-01..04), no HK store
+  constructed in any test.
+- *Residual:* a mixed-coverage day under-counts the segment only the other device saw —
+  the honest direction (never inflate). Exact source-priority merging is the named
+  upgrade path (RTM FR-ING-17). ACCEPTED.
+
+**RK-ING-11 — collection without purpose (new-type discipline).**
+- *Hazard:* "full capture" drift: reading sensitive HK families (cycle tracking,
+  medications, symptoms, gait, ECG) because they exist, without a surface that serves the
+  citizen — maximizing held special-category data and the blast radius of any future
+  defect or breach, and making the primer's honesty claim unmaintainable.
+- *Mitigation (process, this audit):* every read type now has a named consumer or a
+  dated RTM row naming its pending consumer (FR-ING-16/18); every considered-and-not-read
+  type is listed with its refusal in the audit doc §2. Cycle tracking, medications and
+  symptoms are explicitly refused pending their own design + DPIA touch; ECG/irregular
+  rhythm may only enter via a dedicated D9 wave with its own risk entry.
+- *Residual:* none new — the read set grew by exactly one type (nightly wrist
+  temperature), night-bucketed, arbitration-covered, mock-covered, never framed against a
+  population range. ACCEPTED.
+
+**RK-ING-12 — the primer's "these — and only these" claim is false (report-only; file owned elsewhere).**
+- *Hazard:* `HealthKitPrimerView` names six domains and claims exclusivity while the app
+  requests ~21 types. The iOS system sheet does show the true full list, so consent
+  itself stays informed — but the claim is ours and untrue, the exact failure mode the
+  2026-08-13 data-honesty incident taught. OPEN: needed change specified in the audit doc
+  §4.1 and RTM (report-only finding ①); owner = the onboarding surface.
+- *Interim control:* the system authorization sheet (Apple-rendered, per-type) is the
+  binding consent surface and is always truthful.
+
 ## Calendar load — reading how full a day was, without reading a person's life (2026-08-18, branch claude/a72-electric-ink)
 
 **Why this is a risk section.** Nothing clinical changes. Two things do: the app starts
