@@ -17,18 +17,41 @@ import Foundation
 
 // MARK: - Parsed value types
 
+/// What KIND of result a lab row is. Introduced (defect B, PR "electric-ink"
+/// export fixes) so a qualitative screen ("Negativ", "Ikke påvist") is stored AS
+/// WORDS and can never render as a numeric 0 + unit, and so zero-duration/volume
+/// collection rows are flagged as artifacts instead of masquerading as results.
+public enum SundhedResultKind: String, Equatable, Sendable, Codable {
+    case quantitative   // value + unit is the result
+    case qualitative    // the result is a word (negative / positive / not detected)
+    case artifact       // a collection/administrative row (e.g. 0-min urine collection)
+}
+
 /// One lab measurement (one analyte, one rekvisition/date). Aggregation into the
 /// contract's `by_variable` summary (latest/mean/n/scaled) happens in
 /// SundhedPayloadBuilder — this stays a flat, faithful reading.
 public struct SundhedLabMeasurement: Equatable, Sendable {
     public let catalogVar: String     // e.g. "hba1c", "egfr" (bundled crosswalk)
     public let component: String      // Danish IUPAC component, e.g. "Hæmoglobin"
-    public let specimen: String?      // "P" | "B" | "U" (from ";P" / ";B" / ";U")
+    public let specimen: String?      // full NPU system token: "P", "B", "U", "Pt(U)", "Hb(B)"
     public let unit: String           // reported unit, e.g. "mmol/L" ("%" after HbA1c conv.)
-    public let value: Double          // reported value (NGSP % for HbA1c)
+    public let value: Double          // reported value (NGSP % for HbA1c); 0 for qualitative rows
     public let scaleFactor: Double    // canonical-unit scale (1.0 unless crosswalk overrides)
     public let scaledValue: Double    // value * scaleFactor
-    public let date: Date?            // rekvisition date if present on the row
+    public let date: Date?            // SPECIMEN/result date when the source carries one; nil = not recorded
+    public let kind: SundhedResultKind        // quantitative | qualitative | artifact
+    public let text: String?                  // the source's own wording for a qualitative result
+    public let referenceInterval: String?     // the SOURCE's reference interval, when it supplied one
+
+    public init(catalogVar: String, component: String, specimen: String?, unit: String,
+                value: Double, scaleFactor: Double, scaledValue: Double, date: Date?,
+                kind: SundhedResultKind = .quantitative, text: String? = nil,
+                referenceInterval: String? = nil) {
+        self.catalogVar = catalogVar; self.component = component; self.specimen = specimen
+        self.unit = unit; self.value = value; self.scaleFactor = scaleFactor
+        self.scaledValue = scaledValue; self.date = date
+        self.kind = kind; self.text = text; self.referenceInterval = referenceInterval
+    }
 }
 
 /// One "Aktuel medicin" row. `atc` is nil when the active substance isn't in the
@@ -83,50 +106,73 @@ public enum SundhedParsers {
                     unit = u
                     idx = next   // consume the standalone unit line
                 }
-                if let catalogVar = decl.catalogVar, let unit, !unit.isEmpty {
-                    let active = ActiveAnalyte(catalogVar: catalogVar, component: decl.component,
-                                               specimen: decl.specimen, unit: unit)
-                    current = active
-                    // Flat single-line row ("Comp;Spec unit  8,5  21.03.2024")? Trust
-                    // an inline value ONLY when a rekvisition DATE is also present —
-                    // a bare declaration ("eGFR / 1,73m²(CKD-EPI)") has none, so its
-                    // qualifier digits (1,73) are never misread as a result.
-                    let d = firstDate(in: line)
-                    if d.date != nil, let v = numericResult(in: line, unit: unit, excludingDate: d.raw) {
-                        out.append(makeMeasurement(active, value: v, date: d.date))
-                    }
-                } else {
-                    current = nil   // unmapped analyte or unknown unit → skip its values
+                // Keep EVERY analyte (mirrors Path A): known components map to their
+                // catalog var; unknown ones become passthrough rows keyed
+                // "component;specimen" so plasma vs urine stay distinct. A unit is
+                // required only for NUMERIC readings; a unit-less analyte can still
+                // accept a QUALITATIVE result word ("Negativ", "Ikke påvist").
+                let scopeKey = decl.catalogVar
+                    ?? (decl.specimen.map { "\(decl.component);\($0)" } ?? decl.component)
+                let active = ActiveAnalyte(catalogVar: scopeKey,
+                                           component: decl.component,
+                                           specimen: decl.specimen,
+                                           unit: unit ?? "",
+                                           isMapped: decl.catalogVar != nil)
+                current = active
+                // Flat single-line row ("Comp;Spec unit  8,5  21.03.2024")? Trust
+                // an inline value ONLY when a rekvisition DATE is also present —
+                // a bare declaration ("eGFR / 1,73m²(CKD-EPI)") has none, so its
+                // qualifier digits (1,73) are never misread as a result.
+                let dDecl = firstDate(in: line)
+                if let q = qualitativeWord(in: line) {
+                    out.append(makeQualitative(active, text: q, date: dDecl.date))
+                } else if dDecl.date != nil, let unit, !unit.isEmpty,
+                          let v = numericResult(in: line, unit: unit, excludingDate: dDecl.raw) {
+                    out.append(makeMeasurement(active, value: v, date: dDecl.date))
                 }
                 continue
             }
 
             // 2) A value row for the active analyte. Pull the rekvisition date (if
-            //    any), drop it and the (digit-bearing) unit, then read the FIRST
-            //    number that remains (reference ranges/extra columns are ignored).
+            //    any), then EITHER a qualitative result word ("Negativ",
+            //    "Ikke påvist" — stored as words, defect B) OR the first number
+            //    that remains after dropping the date and the (digit-bearing)
+            //    unit (reference ranges/extra columns are ignored). Numeric
+            //    readings require a known unit; qualitative words do not.
             guard let cur = current else { continue }
             let d = firstDate(in: line)
-            guard let v = numericResult(in: line, unit: cur.unit, excludingDate: d.raw) else { continue }
+            if let q = qualitativeWord(in: line) {
+                out.append(makeQualitative(cur, text: q, date: d.date))
+                continue
+            }
+            guard !cur.unit.isEmpty,
+                  let v = numericResult(in: line, unit: cur.unit, excludingDate: d.raw) else { continue }
             out.append(makeMeasurement(cur, value: v, date: d.date))
         }
         return out
     }
 
-    /// A recognised analyte ready to accept value rows (component IS in the
-    /// crosswalk and its unit is known — no optionals to unwrap at the value site).
+    /// An analyte ready to accept value rows. `catalogVar` is the canonical
+    /// crosswalk key when `isMapped`, else the "component;specimen" passthrough
+    /// key (kept for the citizen's record, excluded from research downstream).
+    /// `unit` is "" when the source printed none — numeric readings then refuse
+    /// to attach; qualitative words still can.
     private struct ActiveAnalyte {
         let catalogVar: String
         let component: String
         let specimen: String?
         let unit: String
+        let isMapped: Bool
     }
 
     /// Build a measurement, applying the HbA1c IFCC→NGSP conversion and any
     /// canonical-unit scale factor. Never invents a value — the caller has one.
+    /// Zero readings in a duration/volume collection unit are flagged as
+    /// ARTIFACTS (a 0-min urine collection is bookkeeping, not a result).
     private static func makeMeasurement(_ cur: ActiveAnalyte, value reported: Double, date: Date?) -> SundhedLabMeasurement {
         var value = reported
         var unit = cur.unit
-        let scale = scaleFactor(for: cur.catalogVar)
+        let scale = cur.isMapped ? scaleFactor(for: cur.catalogVar) : 1.0
 
         // HbA1c is reported IFCC (mmol/mol) in DK — convert to NGSP (%) so the
         // shared figure is comparable to app/clinic targets.
@@ -134,6 +180,9 @@ public enum SundhedParsers {
             value = hba1cIFCCtoNGSP(reported)
             unit = "%"
         }
+        let kind: SundhedResultKind =
+            isCollectionArtifact(component: cur.component, unit: unit, value: value)
+                ? .artifact : .quantitative
         return SundhedLabMeasurement(
             catalogVar: cur.catalogVar,
             component: cur.component,
@@ -142,7 +191,25 @@ public enum SundhedParsers {
             value: value,
             scaleFactor: scale,
             scaledValue: (value * scale).roundedTo(3),
-            date: date
+            date: date,
+            kind: kind
+        )
+    }
+
+    /// Build a QUALITATIVE measurement: the result is the source's own wording,
+    /// value pinned to 0 and never rendered (the kind gates every display site).
+    private static func makeQualitative(_ cur: ActiveAnalyte, text: String, date: Date?) -> SundhedLabMeasurement {
+        SundhedLabMeasurement(
+            catalogVar: cur.catalogVar,
+            component: cur.component,
+            specimen: cur.specimen,
+            unit: "",
+            value: 0,
+            scaleFactor: 1.0,
+            scaledValue: 0,
+            date: date,
+            kind: .qualitative,
+            text: text
         )
     }
 
@@ -184,12 +251,16 @@ public enum SundhedParsers {
             left = String(line[..<slash.lowerBound]).trimmingCharacters(in: .whitespaces)
         }
 
-        // Specimen after ';' (B/P/U). Presence marks this as an analyte label.
+        // Specimen after ';'. Presence marks this as an analyte label. The FULL
+        // system token is kept ("P", "B", "U", "Pt(U)", "Hb(B)") — truncating to
+        // one letter turned "Pt(U)" (timed urine) into "P" (plasma), and the
+        // structured token is what the display layer maps to a specimen label
+        // (defect C: the suffix must never ride along inside the name).
         var specimen: String?
         let hasSpecimen = left.range(of: ";[A-Za-z]", options: .regularExpression) != nil
         if let semi = left.firstIndex(of: ";") {
             let spec = String(left[left.index(after: semi)...]).trimmingCharacters(in: .whitespaces)
-            specimen = spec.isEmpty ? nil : String(spec.prefix(1)).uppercased()
+            specimen = spec.isEmpty ? nil : spec
             left = String(left[..<semi]).trimmingCharacters(in: .whitespaces)
         }
 
@@ -201,7 +272,9 @@ public enum SundhedParsers {
             left = String(left[..<open]).trimmingCharacters(in: .whitespaces)
         }
 
-        let component = left.trimmingCharacters(in: .whitespaces)
+        // Decode HTML entities at parse time (defect C — "&#32" and friends must
+        // never survive into a stored name).
+        let component = LabNomenclature.decodeHTMLEntities(left.trimmingCharacters(in: .whitespaces))
         guard !component.isEmpty, component.rangeOfCharacter(from: .letters) != nil else { return nil }
 
         let catalogVar = SundhedParsers.catalogVar(forComponent: component)
@@ -252,6 +325,60 @@ public enum SundhedParsers {
         return firstNumber(in: s)
     }
 
+    // MARK: Qualitative results & collection artifacts (defect B)
+
+    /// Danish/English qualitative result tokens, longest first ("ikke påvist"
+    /// must win over "påvist"). Matching is case-insensitive on the whole line.
+    private static let qualitativeTokens: [String] = [
+        "ikke påvist", "ikke pavist", "not detected",
+        "påvist", "pavist", "detected",
+        "negativ", "negative", "neg.",
+        "positiv", "positive", "pos.",
+    ]
+
+    /// The qualitative result word on a line, in the SOURCE's own casing, or nil.
+    /// Word-boundary guarded so an analyte NAME containing a token can't match.
+    static func qualitativeWord(in line: String) -> String? {
+        let lower = line.lowercased()
+        for token in qualitativeTokens {
+            guard let r = lower.range(of: token) else { continue }
+            // Boundaries: not embedded in a longer word.
+            let beforeOK = r.lowerBound == lower.startIndex
+                || !(lower[lower.index(before: r.lowerBound)].isLetter)
+            let afterOK = r.upperBound == lower.endIndex
+                || !(lower[r.upperBound].isLetter)
+            guard beforeOK, afterOK else { continue }
+            return String(line[r])   // preserve the source's own casing
+        }
+        return nil
+    }
+
+    /// English display word for a qualitative source wording ("Negativ" →
+    /// "Negative", "Ikke påvist" → "Not detected"). Unknown wording is shown
+    /// as the source wrote it — never invented.
+    public static func qualitativeDisplayWord(_ sourceText: String) -> String {
+        switch sourceText.lowercased().trimmingCharacters(in: .whitespaces) {
+        case "ikke påvist", "ikke pavist", "not detected": return "Not detected"
+        case "påvist", "pavist", "detected":               return "Detected"
+        case "negativ", "negative", "neg.":                return "Negative"
+        case "positiv", "positive", "pos.":                return "Positive"
+        default: return sourceText
+        }
+    }
+
+    /// A ZERO reading in a duration/volume collection unit — or on a collection-
+    /// time analyte — is a bookkeeping artifact (e.g. a 0-min urine collection
+    /// row), not a result. Deliberately narrow: a genuine 0.0 count (basophils
+    /// 0.0 × 10⁹/L) has a non-collection unit and is NOT an artifact.
+    public static func isCollectionArtifact(component: String, unit: String, value: Double) -> Bool {
+        guard value == 0 else { return false }
+        let u = unit.lowercased().trimmingCharacters(in: .whitespaces)
+        let durationOrVolume: Set<String> = ["min", "min.", "h", "t", "timer", "døgn", "d", "ml", "l", "dl"]
+        if durationOrVolume.contains(u) { return true }
+        let c = component.lowercased()
+        return c.contains("opsamlingstid") || c.contains("opsamling") || c.contains("collection time")
+    }
+
     // MARK: Meds
 
     /// Parse the "Aktuel medicin (N)" card. Rows:
@@ -261,7 +388,9 @@ public enum SundhedParsers {
     public static func parseMeds(_ text: String) -> [SundhedMedItem] {
         var out: [SundhedMedItem] = []
         for raw in text.components(separatedBy: .newlines) {
-            let line = raw.trimmingCharacters(in: .whitespaces)
+            // Decode HTML entities up front (defect C: one FMK drug name carried a
+            // raw "&#32") so brand/substance/form are stored clean.
+            let line = LabNomenclature.decodeHTMLEntities(raw.trimmingCharacters(in: .whitespaces))
             // A med row has a parenthesised substance and the " / " column layout.
             guard line.contains("("), line.contains(")"), line.contains(" / ") else { continue }
             guard let substance = firstParenthesised(line) else { continue }

@@ -127,6 +127,51 @@ public extension SleepReading {
     }
 }
 
+/// One IN-BED span (HealthKit `.inBed`), retained as its OWN stream.
+///
+/// TYPE-LEVEL SEPARATION (sleep visualisation wave 2026-08): in-bed is not
+/// sleep and must never be summed into an asleep total. Before this wave the
+/// spans were dropped at ingestion; now they are kept — as `InBedSpan`, a type
+/// no asleep-total path accepts. `SleepReading.mergedAsleepHours` takes
+/// `[SleepReading]`; an `InBedSpan` cannot be passed to it, so the compiler,
+/// not a filter, enforces the boundary (test-pinned in SleepNightModelTests).
+///
+/// Time-in-bed per night = the RESOLVED source's in-bed union — or the asleep
+/// envelope when that source wrote no in-bed rows (`SleepNightBuilder`).
+public struct InBedSpan: Provenanced, Sendable, Equatable {
+    /// The NIGHT bucket — the day the night ends on (`SleepNightRule.nightDay`).
+    public let date: Date
+    /// Wall-clock start, when the source retained it.
+    public let start: Date?
+    public let hours: Double
+    public let source: String
+    public let tier: DataTier
+    public let provenance: Provenance
+    public init(date: Date, start: Date? = nil, hours: Double,
+                source: String, tier: DataTier, provenance: Provenance) {
+        self.date = date; self.start = start; self.hours = hours
+        self.source = source; self.tier = tier; self.provenance = provenance
+    }
+
+    public nonisolated var intervalStart: Date { start ?? date }
+    public nonisolated var intervalEnd: Date { intervalStart.addingTimeInterval(hours * 3600) }
+}
+
+/// Per-night sleep arbitration disclosure, carried through `arbitrated()` so
+/// the night model can still SAY what was excluded after the excluded segments
+/// themselves left the `sleep` stream (FR-SLP-10; Apple Health shows one
+/// source per night — Liviqa additionally discloses that a choice was made).
+/// Data-layer metadata: names a SOURCE, never a health value.
+public struct SleepNightExclusion: Sendable, Equatable {
+    /// The night bucket the exclusion belongs to.
+    public let night: Date
+    /// Deduplicated, sorted names of the sources the resolver did not choose.
+    public let excludedSources: [String]
+    public init(night: Date, excludedSources: [String]) {
+        self.night = night; self.excludedSources = excludedSources
+    }
+}
+
 public struct WorkoutReading: Provenanced, Sendable {
     public let start: Date
     public let end: Date
@@ -329,6 +374,15 @@ public struct HealthSamples: Sendable {
     public var steps: [DailyMetric]
     public var activeEnergy: [DailyMetric]
     public var sleep: [SleepReading]
+    /// IN-BED spans, a separate stream by TYPE (`InBedSpan`, not `SleepReading`)
+    /// so they can never leak into an asleep total. Time-in-bed derives here.
+    public var sleepInBed: [InBedSpan]
+    /// Nap episodes the night resolver separated from the main sleep episode
+    /// (FR-SLP-10). Kept OUT of `sleep` so every consumer that unions `sleep`
+    /// keeps counting the night only; the Sleep detail surfaces naps from here.
+    public var sleepNaps: [SleepReading]
+    /// Per-night source-exclusion disclosure from the resolver (metadata only).
+    public var sleepExclusions: [SleepNightExclusion]
     public var workouts: [WorkoutReading]
     // Full-HealthKit capture (additive; defaulted so existing callers/tests are
     // unaffected). `heartExtras` carries the extended heart/respiratory kinds.
@@ -346,6 +400,9 @@ public struct HealthSamples: Sendable {
     public init(glucose: [GlucoseReading] = [], hrv: [DailyMetric] = [],
                 restingHR: [DailyMetric] = [], steps: [DailyMetric] = [],
                 activeEnergy: [DailyMetric] = [], sleep: [SleepReading] = [],
+                sleepInBed: [InBedSpan] = [],
+                sleepNaps: [SleepReading] = [],
+                sleepExclusions: [SleepNightExclusion] = [],
                 workouts: [WorkoutReading] = [],
                 heartExtras: [DailyMetric] = [],
                 workoutHeartRate: [HeartRateSample] = [],
@@ -356,6 +413,8 @@ public struct HealthSamples: Sendable {
         self.glucose = glucose; self.hrv = hrv; self.restingHR = restingHR
         self.steps = steps; self.activeEnergy = activeEnergy
         self.sleep = sleep; self.workouts = workouts
+        self.sleepInBed = sleepInBed; self.sleepNaps = sleepNaps
+        self.sleepExclusions = sleepExclusions
         self.heartExtras = heartExtras; self.workoutHeartRate = workoutHeartRate
         self.insulin = insulin
         self.bloodPressure = bloodPressure; self.afib = afib
@@ -368,6 +427,7 @@ public struct HealthSamples: Sendable {
     public nonisolated var isEmpty: Bool {
         glucose.isEmpty && hrv.isEmpty && restingHR.isEmpty && steps.isEmpty
             && activeEnergy.isEmpty && sleep.isEmpty && workouts.isEmpty
+            && sleepInBed.isEmpty && sleepNaps.isEmpty
             && heartExtras.isEmpty && workoutHeartRate.isEmpty && insulin.isEmpty
             && bloodPressure.isEmpty && afib.isEmpty && bodyComposition.isEmpty
             && wristTemperature.isEmpty

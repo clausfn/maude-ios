@@ -1,4 +1,4 @@
-// HealthKitPrimerView.swift — HealthKit permission primer · v02 2026-08-12
+// HealthKitPrimerView.swift — HealthKit permission primer · v03 2026-08-19
 // A7.2 restyle to the designed anatomy (f-onboarding.jsx step 3): StepHead,
 // six DOMAIN-COLOURED rows with fjord checkmarks, watch-glyph primary, quiet
 // skip with sub-line, teal lock card. The REAL paths are unchanged: onConnect
@@ -8,6 +8,15 @@
 // HealthAccessDeclinedView there.
 // Per-type purpose strings live on as the row sublabels (the design dropped
 // them; the census asked to keep them reachable).
+//
+// v03 honesty fix (coverage-audit finding ①, closed under FR-ING-19): the lead
+// claimed Liviqa reads "these — and only these" six domains while the app
+// requests a wider set — untrue since PR-46's full capture, and impossible
+// once the universal layer asks for the full public set. The lead now claims
+// only what is true in every configuration: the six rows are the signals that
+// power the daily surfaces, the CITIZEN chooses the exact read set on Apple's
+// own sheet (which lists every requested type, honestly, by construction), and
+// read-only + on-device + nothing-uploaded stay claimed because they stay true.
 import SwiftUI
 
 struct HealthKitPrimerView: View {
@@ -51,7 +60,7 @@ struct HealthKitPrimerView: View {
                         kicker: String(localized: "Step 3 of 9"),
                         title: greetName.map { String(localized: "Connect Apple Health, \($0).") }
                             ?? String(localized: "Connect Apple Health."),
-                        lead: String(localized: "Liviqa reads these — and only these — right here on your phone. It's read-only, and nothing is uploaded."),
+                        lead: String(localized: "These six signals power your daily readout. You choose exactly what Liviqa may read on Apple's sheet — it's read-only, right here on your phone, and nothing is uploaded."),
                         accent: LiviqaTheme.accentGlucose, compact: true)
 
                     // Six domain-coloured rows, each with a fjord checkmark

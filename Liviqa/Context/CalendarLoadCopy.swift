@@ -155,6 +155,58 @@ public nonisolated enum CalendarLoadCopy {
         return guarded(sentence, fallback: fallback)
     }
 
+    // MARK: - When the connect tap fails (nothing may fail silently)
+    //
+    // Field report 10.103: with calendar access already denied in iOS, the
+    // system shows NO prompt and the request returns instantly — so the only
+    // honest response is a sentence at the point of the tap that says what iOS
+    // said and where it can be changed. Verified on-simulator 2026-08-19:
+    // denied ⇒ no dialog, silent false; write-only ⇒ iOS offers an upgrade
+    // prompt at least once ("Allow Full Access" / "Keep Add Only").
+
+    /// The sentence shown when a connect attempt ends without full access.
+    /// `state` is what `requestFullAccess` came back with.
+    static func connectFailureLine(afterRequest state: CalendarAccessState) -> String {
+        let fallback = String(localized: "iOS didn't grant calendar access, so nothing was read.")
+        let text: String
+        switch state {
+        case .denied:
+            text = String(localized: "iOS has calendar access switched off for Liviqa, so it will not ask again here and nothing was read. To connect, allow Full Access in iOS Settings, then come back and tap connect.")
+        case .restricted:
+            text = String(localized: "Calendar access is restricted on this device — for example by Screen Time — so iOS will not show Liviqa's request, and Liviqa cannot connect. Nothing was read.")
+        case .writeOnly:
+            text = String(localized: "iOS lets Liviqa add an event to your calendar, but not read one — so nothing was read. To connect, allow Full Access in iOS Settings.")
+        case .notDetermined, .fullAccess, .unavailable:
+            text = fallback + " " + String(localized: "You can try again, or allow Full Access in iOS Settings.")
+        }
+        return guarded(text, fallback: fallback)
+    }
+
+    /// Whether Liviqa's own page in iOS Settings is where the citizen can
+    /// actually change the answer. True for denied and write-only — the two
+    /// states whose switch really is on that page. NOT true for restricted:
+    /// a Screen Time (or profile) restriction does not appear there, so a
+    /// "fix it in Settings" button would point at a page that cannot fix it.
+    static func settingsCanFix(_ state: CalendarAccessState) -> Bool {
+        switch state {
+        case .denied, .writeOnly: return true
+        case .restricted, .notDetermined, .fullAccess, .unavailable: return false
+        }
+    }
+
+    /// No signed-in account to scope the numbers under.
+    static var connectNoAccountLine: String {
+        guarded(String(localized: "Sign in first — your calendar numbers are kept under your own account on this phone."),
+                fallback: String(localized: "Sign in first."))
+    }
+
+    /// iOS said yes but the opt-in record could not be written. Nothing is
+    /// connected and the sentence must not pretend otherwise.
+    static var connectOptInFailedLine: String {
+        guarded(String(localized: "Liviqa couldn't record your choice on this phone, so nothing was connected and nothing was read. Please try again."),
+                fallback: String(localized: "Nothing was connected. Please try again."))
+    }
+
     // MARK: - What the citizen is told BEFORE the permission prompt
 
     /// The exact list of numbers Liviqa keeps. Shown on the data-source screen

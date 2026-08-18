@@ -378,10 +378,18 @@ public struct SundhedImportView: View {
             Text("Lab results (\(rows.count))").font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
             ForEach(rows) { r in
                 HStack {
-                    Text(r.component).font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
+                    Text(LabNomenclature.displayName(forRawAnalyte: r.component))
+                        .font(.lato(13)).foregroundStyle(LiviqaTheme.ink2)
                     Spacer()
-                    Text("\(fmt(r.latest)) \(r.unit)")
-                        .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    // Qualitative screens show their WORDS ("Not detected") —
+                    // never a numeric 0 + unit (defect B).
+                    if let newest = r.readings.first, newest.kind == .qualitative {
+                        Text(SundhedParsers.qualitativeDisplayWord(newest.text ?? ""))
+                            .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    } else {
+                        Text("\(fmt(r.latest)) \(r.unit)")
+                            .font(.lato(13, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    }
                     Text("· n=\(r.n)").font(.lato(11)).foregroundStyle(LiviqaTheme.ink4)
                 }
             }
@@ -603,6 +611,9 @@ public struct SundhedImportView: View {
     /// entries not already present, never wiping the user's own self-declared data.
     @MainActor
     private func mergeForDisplay() {
+        // Complete any pending profile restore FIRST (locked-background-launch
+        // case, 10.103) so the merge lands on the stored profile, not a seed.
+        appState.retryHealthContextRestoreIfNeeded()
         // Medications — display brand (falling back to active substance) + the
         // strength/form as the "dose" line; tag the frequency as the source.
         var existingMedNames = Set(appState.healthContext.medications.map {
@@ -634,6 +645,10 @@ public struct SundhedImportView: View {
                 ConditionEntry(name: name, diagnosedYear: nil, notes: "Sundhed.dk (ICD-10)")
             )
         }
+        // Persist the merged profile — the appends above were memory-only, so
+        // imported meds/conditions silently vanished on relaunch (the same
+        // class as the original "edits died on relaunch" defect).
+        appState.saveHealthContext(appState.healthContext)
         // TODO: surface imported labs (parsedLabs) via the passport-stats (derived)
         // layer — labs are derived metrics, not self-declared HealthContext.
     }

@@ -48,12 +48,27 @@ public struct SundhedWebHarvest: Codable, Equatable, Sendable {
     /// crosswalk + unit scaling + HbA1c IFCC→NGSP conversion run on-device.
     public struct Lab: Codable, Equatable, Sendable {
         public var component: String        // "Hæmoglobin", "Alanintransaminase [ALAT]"
-        public var specimen: String?        // "B" | "P" | "U" (from ;P/;B/;U suffix)
+        public var specimen: String?        // full system token: "B", "P", "U", "Pt(U)"
         public var unit: String?            // "mmol/L", "U/L", "mmol/mol"
         public var latest: Double?
         public var mean: Double?
         public var n: Int
         public var latestDate: String?      // ISO-8601 of the newest rekvisition
+        /// Qualitative result TOKEN at the newest date ("Negativ", "Ikke påvist").
+        /// The in-page reducer emits it ONLY when the text matches the closed
+        /// qualitative-token allow-list — free-text narrative never crosses.
+        public var latestText: String?
+        /// The SOURCE's own reference interval, when the payload carried one.
+        public var refInterval: String?
+        /// Per-result readings, newest first (capped in-page) — each with its
+        /// REAL result date, so history lands with true dates (defect A).
+        public var readings: [Reading]?
+
+        public struct Reading: Codable, Equatable, Sendable {
+            public var v: Double?           // numeric value (nil for qualitative)
+            public var d: String?           // the row's own result date
+            public var t: String?           // qualitative token (allow-listed in-page)
+        }
     }
 
     /// One medication, keyed on the parenthesised ACTIVE SUBSTANCE. The card shows
@@ -90,14 +105,25 @@ public struct SundhedWebHarvest: Codable, Equatable, Sendable {
 // substance→ATC, HbA1c IFCC→NGSP, ICD-10 well-formedness) are applied here.
 extension SundhedWebHarvest {
 
-    /// ISO-8601 (with or without fractional seconds) → Date, best-effort.
+    /// ISO-8601 (with or without fractional seconds) → Date, best-effort; falls
+    /// back to the portal's printed shapes (dd-MM-yyyy / dd.MM.yyyy / yyyy-MM-dd)
+    /// so a real result date is never dropped just for its formatting.
     private static func parseDate(_ s: String?) -> Date? {
         guard let s, !s.isEmpty else { return nil }
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let d = f.date(from: s) { return d }
         f.formatOptions = [.withInternetDateTime]
-        return f.date(from: s)
+        if let d = f.date(from: s) { return d }
+        // Bare "yyyy-MM-dd(THH:mm:ss)" without zone, and printed Danish dates.
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .iso8601)
+        df.locale = Locale(identifier: "en_US_POSIX")
+        for fmt in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm"] {
+            df.dateFormat = fmt
+            if let d = df.date(from: s) { return d }
+        }
+        return SundhedParsers.firstDate(in: s).date
     }
 
     /// Reduce the coded harvest to the flat parser model types.
@@ -109,7 +135,6 @@ extension SundhedWebHarvest {
         // latest value; SundhedPayloadBuilder re-summarises into by_variable.
         var labMeasurements: [SundhedLabMeasurement] = []
         for lab in labs {
-            guard let reported = lab.latest ?? lab.mean else { continue }
             // Keep EVERY analyte the citizen has. Known Danish components map to their
             // canonical catalog var (LOINC/MPC-ready); UNKNOWN ones are kept for DISPLAY
             // under their own readable name — NEVER silently dropped. (The old
@@ -117,42 +142,79 @@ extension SundhedWebHarvest {
             // record because the crosswalk only knows ~15 analytes — the "labs
             // disappear" bug.) Passthrough rows carry scale 1.0 and are excluded from
             // the research payload downstream (they have no catalog code yet).
-            let mapped = SundhedParsers.catalogVar(forComponent: lab.component)
+            let component = LabNomenclature.decodeHTMLEntities(lab.component)
+            let mapped = SundhedParsers.catalogVar(forComponent: component)
             // Unmapped rows keep the SPECIMEN in the key so plasma vs urine
             // (Glukose;P / Glukose;U) stay DISTINCT — otherwise summarise() groups by
             // key and averages across specimens, silently merging/dropping one (the
             // exact loss this "keep everything" change is meant to prevent).
-            let scopeKey = mapped ?? (lab.specimen.map { "\(lab.component);\($0)" } ?? lab.component)
-            var value = reported
-            var unit = lab.unit ?? ""
-            if mapped == "hba1c", unit.lowercased().contains("mmol/mol") {
-                value = SundhedParsers.hba1cIFCCtoNGSP(reported)
-                unit = "%"
-            }
+            let scopeKey = mapped ?? (lab.specimen.map { "\(component);\($0)" } ?? component)
             let scale = mapped.map { SundhedParsers.scaleFactor(for: $0) } ?? 1.0
-            labMeasurements.append(SundhedLabMeasurement(
-                catalogVar: scopeKey,
-                component: lab.component,
-                specimen: lab.specimen,
-                unit: unit,
-                value: value,
-                scaleFactor: scale,
-                scaledValue: value * scale,
-                date: Self.parseDate(lab.latestDate)
-            ))
+
+            // Per-result readings when the reducer carried them (REAL dates per
+            // row — defect A); else the aggregate latest as a single reading.
+            struct RawReading { let value: Double?; let date: Date?; let text: String? }
+            var raws: [RawReading] = (lab.readings ?? []).map {
+                RawReading(value: $0.v, date: Self.parseDate($0.d), text: $0.t)
+            }
+            if raws.isEmpty {
+                raws = [RawReading(value: lab.latest ?? lab.mean,
+                                   date: Self.parseDate(lab.latestDate),
+                                   text: lab.latestText)]
+            }
+            for raw in raws {
+                // QUALITATIVE (defect B): the reducer's allow-listed token, or —
+                // for a row with NO numeric value — its short result wording.
+                // Sundhed encodes some negative screens as Vaerdi=0 + "Negativ";
+                // the token wins over the bogus zero.
+                let qualitative = raw.text.flatMap { SundhedParsers.qualitativeWord(in: $0) }
+                    ?? ((raw.value == nil && raw.text?.isEmpty == false) ? raw.text : nil)
+                if let q = qualitative {
+                    labMeasurements.append(SundhedLabMeasurement(
+                        catalogVar: scopeKey, component: component, specimen: lab.specimen,
+                        unit: "", value: 0, scaleFactor: 1.0, scaledValue: 0,
+                        date: raw.date, kind: .qualitative, text: q,
+                        referenceInterval: lab.refInterval))
+                    continue
+                }
+                guard let reported = raw.value else { continue }
+                var value = reported
+                var unit = lab.unit ?? ""
+                if mapped == "hba1c", unit.lowercased().contains("mmol/mol") {
+                    value = SundhedParsers.hba1cIFCCtoNGSP(reported)
+                    unit = "%"
+                }
+                let kind: SundhedResultKind = SundhedParsers.isCollectionArtifact(
+                    component: component, unit: unit, value: value) ? .artifact : .quantitative
+                labMeasurements.append(SundhedLabMeasurement(
+                    catalogVar: scopeKey,
+                    component: component,
+                    specimen: lab.specimen,
+                    unit: unit,
+                    value: value,
+                    scaleFactor: scale,
+                    scaledValue: value * scale,
+                    date: raw.date,
+                    kind: kind,
+                    referenceInterval: lab.refInterval
+                ))
+            }
         }
 
         // Meds: resolve ATC from the active substance (the card carries none),
         // same bundled crosswalk as Path B. Rows with no name are skipped.
         let medItems: [SundhedMedItem] = meds.compactMap { med in
-            let substance = (med.activeSubstance ?? "").trimmingCharacters(in: .whitespaces)
-            let brand = (med.brand ?? "").trimmingCharacters(in: .whitespaces)
+            // Entity-decode at parse time (defect C: FMK names carry "&#32").
+            let substance = LabNomenclature.decodeHTMLEntities(
+                (med.activeSubstance ?? "").trimmingCharacters(in: .whitespaces))
+            let brand = LabNomenclature.decodeHTMLEntities(
+                (med.brand ?? "").trimmingCharacters(in: .whitespaces))
             guard !substance.isEmpty || !brand.isEmpty else { return nil }
             return SundhedMedItem(
                 brand: brand.isEmpty ? substance : brand,
                 activeSubstance: substance.isEmpty ? brand : substance,
                 atc: med.atc ?? SundhedParsers.atc(forSubstance: substance),
-                form: med.form,
+                form: med.form.map { LabNomenclature.decodeHTMLEntities($0) },
                 dosage: nil,
                 reason: nil
             )
@@ -647,6 +709,9 @@ struct SundhedWebSessionView: View {
     /// own self-declared meds/conditions.
     @MainActor
     private func mergeForDisplay(_ h: SundhedWebHarvest) {
+        // Complete any pending profile restore FIRST (locked-background-launch
+        // case, 10.103) so the merge lands on the stored profile, not a seed.
+        appState.retryHealthContextRestoreIfNeeded()
         // Medications — display brand (falling back to active substance) + the
         // form as the "dose" line; tag the frequency as the source.
         var existingMedNames = Set(appState.healthContext.medications.map {
@@ -687,6 +752,10 @@ struct SundhedWebSessionView: View {
                 ConditionEntry(name: name, diagnosedYear: year, notes: "Sundhed.dk · ICD-10 \(code)")
             )
         }
+        // Persist the merged profile — the appends above were memory-only, so
+        // imported meds/conditions silently vanished on relaunch (the same
+        // class as the original "edits died on relaunch" defect).
+        appState.saveHealthContext(appState.healthContext)
         // TODO: surface imported labs (h.labs) via the passport-stats (derived)
         // layer — labs are derived metrics, not self-declared HealthContext, so
         // they are intentionally NOT merged here.
@@ -1346,6 +1415,24 @@ private struct SundhedWebView: UIViewRepresentable {
         var f = parseFloat(s);
         return isNaN(f) ? null : f;
       }
+      // Qualitative result token — CLOSED allow-list, so only a result WORD
+      // ("Negativ", "Ikke påvist") ever crosses the bridge; free-text
+      // comments/narrative never do (rule 3).
+      function qualToken(v) {
+        if (v === null || v === undefined) return null;
+        var t = String(v).trim();
+        if (!t || t.length > 20) return null;
+        return /^(ikke\s+p[åa]vist|p[åa]vist|negativ|positiv|neg\.?|pos\.?|ikke\s+fundet|not\s+detected|detected|negative|positive)$/i.test(t) ? t : null;
+      }
+      // The source's own reference interval — short interval strings only,
+      // never prose (length-capped), shown labelled as the source's.
+      function refText(row) {
+        var r = row.ReferenceInterval || row.Referenceinterval || row.referenceinterval
+             || row.Referencevaerdier || row.Referenceomraade || row.referenceomraade || null;
+        if (r === null || r === undefined) return null;
+        var t = String(r).trim();
+        return (t && t.length <= 40) ? t : null;
+      }
       // Defensive fallback: find the first array of objects that look like lab
       // results (a value-ish key + a date-ish key) anywhere in a JSON tree.
       function scanForResultArray(node, depth) {
@@ -1434,23 +1521,45 @@ private struct SundhedWebView: UIViewRepresentable {
           var unit = row.Enhed || row.enhed || row.unit || null;
           var val = num(row.Vaerdi != null ? row.Vaerdi
                       : (row.vaerdi != null ? row.vaerdi : row.value));
-          var date = row.Resultatdato || row.resultatdato
-                   || row.Provetagningsdato || row.date || null;
+          // Prefer the SPECIMEN date over the answer date when both exist —
+          // the specimen date is the clinical truth (defect A).
+          var date = row.Provetagningsdato || row.provetagningsdato
+                   || row.Resultatdato || row.resultatdato || row.date || null;
+          var txt = qualToken(row.Svartekst != null ? row.Svartekst
+                   : (row.svartekst != null ? row.svartekst
+                   : (row.ResultatTekst != null ? row.ResultatTekst
+                   : (row.Resultattekst != null ? row.Resultattekst
+                   : (row.resultattekst != null ? row.resultattekst : row.Tekstsvar)))));
+          var ref = refText(row);
           var key = component + "|" + (specimen || "");
           var b = by[key] || (by[key] = {
             component: component, specimen: specimen, unit: unit,
-            _sum: 0, _num: 0, n: 0, latest: null, latestDate: null
+            _sum: 0, _num: 0, n: 0, latest: null, latestDate: null,
+            latestText: null, refInterval: null, readings: []
           });
           if (!b.unit && unit) b.unit = unit;
+          if (!b.refInterval && ref) b.refInterval = ref;
           b.n += 1;                                        // count every row (n)
           if (val != null) { b._sum += val; b._num += 1; } // numerics into mean only
+          // One reading per row — its OWN date rides along (defect A), so
+          // history lands with real dates, not the pull date.
+          if (val != null || txt) {
+            b.readings.push({ v: val, d: date || null, t: txt || null });
+          }
           if (date && (!b.latestDate || String(date) > String(b.latestDate))) {
             b.latestDate = date;
             b.latest = val;                                // value at the newest date
+            b.latestText = txt || null;
           }
         });
         return Object.keys(by).map(function (k) {
           var b = by[k];
+          // Newest first; cap so the harvest stays a small coded aggregate.
+          b.readings.sort(function (a, c) {
+            var x = String(a.d || ""), y = String(c.d || "");
+            return x > y ? -1 : (x < y ? 1 : 0);
+          });
+          if (b.readings.length > 8) b.readings = b.readings.slice(0, 8);
           return {
             component: b.component,
             specimen: b.specimen,
@@ -1458,7 +1567,10 @@ private struct SundhedWebView: UIViewRepresentable {
             latest: b.latest,
             mean: b._num ? Math.round((b._sum / b._num) * 1000) / 1000 : null,
             n: b.n,
-            latestDate: b.latestDate
+            latestDate: b.latestDate,
+            latestText: b.latestText,
+            refInterval: b.refInterval,
+            readings: b.readings
           };
         });
       }

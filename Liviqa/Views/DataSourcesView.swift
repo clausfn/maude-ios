@@ -15,6 +15,7 @@
 import SwiftUI
 #if os(iOS)
 import UniformTypeIdentifiers
+import UIKit
 #endif
 
 struct DataSourcesView: View {
@@ -58,6 +59,8 @@ struct DataSourcesView: View {
     }
 
     @Environment(AppState.self) private var appState
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var showBankSheet = false
     @State private var showCalendarSheet = false
@@ -92,21 +95,38 @@ struct DataSourcesView: View {
     @State private var calendarAccess: CalendarAccessState = .notDetermined
     @State private var calendarDays = 0
 
+    /// A connect attempt that ended without a connection. Shown as an ALERT at
+    /// the point of the tap — field report 10.103: the failure note used to
+    /// render at the very bottom of this scroll view, below the fold, so a
+    /// denied request read as "nothing happened".
+    private struct CalendarConnectIssue: Identifiable {
+        let id = UUID()
+        let message: String
+        let settingsCanFix: Bool
+    }
+    @State private var calendarIssue: CalendarConnectIssue?
+
     /// Connected means BOTH: the citizen said yes, and iOS still allows the
     /// read. Either one going away shows as not connected, truthfully.
     private var calendarConnected: Bool { calendarOptedIn && calendarAccess == .fullAccess }
 
-    /// What the row says underneath its name. States the real situation,
-    /// including the awkward one (opted in, but iOS access was withdrawn).
-    private var calendarNote: String {
-        if calendarConnected {
-            let days = calendarDays == 1
+    /// What the row says underneath its name — PURE + STATIC so the truth
+    /// table is unit-testable (same discipline as `connectedSourceCount`).
+    /// States the real situation, including the two awkward ones: opted in but
+    /// iOS access withdrawn, and NOT opted in while iOS access is already
+    /// switched off (the 10.103 stuck state — the row must say where the
+    /// switch is before the citizen taps a button that cannot prompt).
+    nonisolated static func calendarRowNote(optedIn: Bool,
+                                            access: CalendarAccessState,
+                                            daysRead: Int) -> String {
+        if optedIn && access == .fullAccess {
+            let days = daysRead == 1
                 ? String(localized: "1 day read")
-                : String(localized: "\(calendarDays) days read")
+                : String(localized: "\(daysRead) days read")
             return String(localized: "How full your days are — \(days). Never what is in them.")
         }
-        if calendarOptedIn {
-            switch calendarAccess {
+        if optedIn {
+            switch access {
             case .denied, .restricted:
                 return String(localized: "You turned this on, but calendar access is off in iOS Settings, so nothing is being read.")
             case .writeOnly:
@@ -115,7 +135,20 @@ struct DataSourcesView: View {
                 return String(localized: "You turned this on, but iOS has not granted access, so nothing is being read.")
             }
         }
-        return String(localized: "Reads only how full your days are — never titles, people, places or notes")
+        switch access {
+        case .denied:
+            return String(localized: "iOS has calendar access switched off for Liviqa. Allow Full Access in iOS Settings, then connect here.")
+        case .restricted:
+            return String(localized: "Calendar access is restricted on this device — for example by Screen Time — so Liviqa cannot read how full your days are.")
+        case .writeOnly:
+            return String(localized: "iOS lets Liviqa add an event but not read one. Allow Full Access in iOS Settings, then connect here.")
+        default:
+            return String(localized: "Reads only how full your days are — never titles, people, places or notes")
+        }
+    }
+
+    private var calendarNote: String {
+        Self.calendarRowNote(optedIn: calendarOptedIn, access: calendarAccess, daysRead: calendarDays)
     }
 
     private func refreshCalendarState() {
@@ -126,25 +159,46 @@ struct DataSourcesView: View {
     }
 
     /// The citizen has read what is collected and pressed the button. Only now
-    /// is the opt-in written, and only then is iOS asked.
+    /// is the opt-in written, and only then is iOS asked. Every outcome SPEAKS
+    /// at the point of the tap (10.103: a pre-denied request shows no iOS
+    /// prompt at all, so silence here read as a dead button).
     private func connectCalendar() async {
-        guard let account = calendarAccount else {
-            importedNote = String(localized: "Sign in first — your calendar numbers are kept under your own account on this phone.")
-            return
-        }
-        let state = await CalendarLoadIngestor.requestFullAccess()
-        calendarAccess = state
-        guard state == .fullAccess else {
-            importedNote = String(localized: "iOS didn't grant calendar access, so nothing was read. You can change it in iOS Settings.")
-            refreshCalendarState()
-            return
-        }
-        CalendarLoadStore.optIn(forAccount: account)
-        await Task.detached(priority: .utility) { _ = CalendarLoadIngestor.refresh(accountID: account) }.value
+        let outcome = await CalendarLoadIngestor.connect(
+            accountID: calendarAccount,
+            request: { await CalendarLoadIngestor.requestFullAccess() },
+            optIn: { CalendarLoadStore.optIn(forAccount: $0) },
+            refresh: { account in
+                await Task.detached(priority: .utility) {
+                    _ = CalendarLoadIngestor.refresh(accountID: account)
+                }.value
+            },
+            daysRead: { CalendarLoadStore.load(forAccount: $0)?.days.count ?? 0 })
         refreshCalendarState()
-        importedNote = calendarDays > 0
-            ? String(localized: "Calendar connected — Liviqa kept \(calendarDays) days of numbers, and nothing else.")
-            : String(localized: "Calendar connected — nothing to read yet.")
+        switch outcome {
+        case .connected(let days):
+            importedNote = days > 0
+                ? String(localized: "Calendar connected — Liviqa kept \(days) days of numbers, and nothing else.")
+                : String(localized: "Calendar connected — nothing to read yet.")
+        case .noAccount:
+            calendarIssue = CalendarConnectIssue(message: CalendarLoadCopy.connectNoAccountLine,
+                                                 settingsCanFix: false)
+        case .optInFailed:
+            calendarIssue = CalendarConnectIssue(message: CalendarLoadCopy.connectOptInFailedLine,
+                                                 settingsCanFix: false)
+        case .accessNotGranted(let state):
+            calendarIssue = CalendarConnectIssue(
+                message: CalendarLoadCopy.connectFailureLine(afterRequest: state),
+                settingsCanFix: CalendarLoadCopy.settingsCanFix(state))
+        }
+    }
+
+    /// The one place the app can send the citizen to flip the calendar switch
+    /// iOS refuses to re-prompt on (verified: a denied request shows no
+    /// dialog). Opens Liviqa's own page in the Settings app.
+    private func openAppSettings() {
+        #if os(iOS)
+        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+        #endif
     }
 
     /// Revoking. Stops collection AND removes what was collected.
@@ -201,6 +255,7 @@ struct DataSourcesView: View {
                 disconnectCard
                 onDeviceStrip
                 vaultCard
+                dataBrowserCard
 
                 if let importedNote {
                     HStack(spacing: 7) {
@@ -225,7 +280,9 @@ struct DataSourcesView: View {
         .sheet(isPresented: $showCalendarSheet) {
             CalendarLoadSheet(connected: calendarConnected,
                               daysRead: calendarDays,
+                              access: calendarAccess,
                               onConnect: { showCalendarSheet = false; Task { await connectCalendar() } },
+                              onOpenSettings: { showCalendarSheet = false; openAppSettings() },
                               onDisconnect: { showCalendarSheet = false; disconnectCalendar() })
         }
         .sheet(isPresented: $showDisconnectSheet) { disconnectSheet }
@@ -235,6 +292,26 @@ struct DataSourcesView: View {
             }
         }
         .task { refreshCalendarState() }
+        // Coming back from iOS Settings (or anywhere): re-read both truths the
+        // row is a conjunction of, so a switch flipped outside the app shows
+        // here without a relaunch.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshCalendarState() }
+        }
+        // Every failed connect attempt speaks HERE, at the tap — never only in
+        // a note below the fold (field report 10.103). When Settings is where
+        // the answer lives, the alert takes the citizen there.
+        .alert(String(localized: "Calendar not connected"),
+               isPresented: Binding(get: { calendarIssue != nil },
+                                    set: { if !$0 { calendarIssue = nil } }),
+               presenting: calendarIssue) { issue in
+            if issue.settingsCanFix {
+                Button(String(localized: "Open iOS Settings")) { openAppSettings() }
+            }
+            Button(String(localized: "OK"), role: .cancel) {}
+        } message: { issue in
+            Text(issue.message)
+        }
         .navigationDestination(isPresented: $showVault) { HealthVaultView() }
         .navigationDestination(isPresented: $showSundhedWeb) {
             // The single calm MitID prompt (Area ① satellite) fronts the real
@@ -767,6 +844,34 @@ struct DataSourcesView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    /// "Everything you measure" — the breadth layer's named consumer
+    /// (FR-ING-19). Values only, never verdicts.
+    private var dataBrowserCard: some View {
+        NavigationLink { DataBrowserView() } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(LiviqaTheme.moss)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Everything you measure")
+                        .font(.lato(14.5, .semibold)).foregroundStyle(LiviqaTheme.ink)
+                    Text("Every Apple Health type you've shared, with its own history")
+                        .font(.lato(12)).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity)
+            .background(LiviqaTheme.paper2)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
     private var vaultCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button { showVault = true } label: {
@@ -1184,9 +1289,23 @@ extension DataSourcesView {
 struct CalendarLoadSheet: View {
     let connected: Bool
     let daysRead: Int
+    /// What iOS currently allows. The sheet's button must say the truth about
+    /// what tapping it will DO: with access already denied, iOS shows no
+    /// prompt at all (verified on-simulator 2026-08-19), so the only honest
+    /// button is the one that opens Settings.
+    let access: CalendarAccessState
     var onConnect: () -> Void
+    var onOpenSettings: () -> Void
     var onDisconnect: () -> Void
     @Environment(\.dismiss) private var dismiss
+
+    /// True when iOS will not show a permission prompt for this app again and
+    /// the switch really is on Liviqa's page in iOS Settings. (`restricted` is
+    /// NOT here: a Screen Time restriction never appears on that page, so a
+    /// Settings button would promise a fix the page cannot deliver.)
+    private var settingsIsTheOnlyPath: Bool {
+        access == .denied
+    }
 
     var body: some View {
         NavigationStack {
@@ -1236,6 +1355,29 @@ struct CalendarLoadSheet: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
+                    } else if settingsIsTheOnlyPath {
+                        // iOS will not prompt again for this app, so a button
+                        // that promises "iOS asks next" would be a lie. The
+                        // honest button goes where the switch actually is.
+                        Button(action: onOpenSettings) {
+                            Text("Allow Full Access in iOS Settings")
+                                .font(.lato(15, .bold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(LiviqaTheme.moss)
+                                .foregroundStyle(LiviqaTheme.invertBG)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        Text("iOS has calendar access switched off for Liviqa, so it cannot ask you again here. Allow Full Access in iOS Settings, then come back and connect.")
+                            .font(.lato(11.5))
+                            .foregroundStyle(LiviqaTheme.ink4)
+                    } else if access == .restricted {
+                        // No button at all: nothing a tap could do here would
+                        // work, and an honest sheet says so instead.
+                        Text("Calendar access is restricted on this device — for example by Screen Time — so iOS will not show Liviqa's request, and Liviqa cannot connect. Nothing has been read.")
+                            .font(.lato(12.5)).lineSpacing(2.5)
+                            .foregroundStyle(LiviqaTheme.ink2)
                     } else {
                         Button(action: onConnect) {
                             Text("Read how full my days are")
@@ -1247,7 +1389,9 @@ struct CalendarLoadSheet: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
-                        Text("iOS asks next. You can change your mind here or in iOS Settings at any time.")
+                        Text(access == .writeOnly
+                             ? String(localized: "iOS currently lets Liviqa add an event but not read one. It will ask whether to allow Full Access next.")
+                             : String(localized: "iOS asks next. You can change your mind here or in iOS Settings at any time."))
                             .font(.lato(11.5))
                             .foregroundStyle(LiviqaTheme.ink4)
                     }

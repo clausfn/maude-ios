@@ -2,6 +2,20 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## Universal HealthKit read — every data point, browsable, judged by no one (2026-08-19, branch `claude/a72-electric-ink`, FR-ING-19)
+
+**CN directive recorded (2026-08-19, verbatim):** *"I want all data from Apple HealthKit — every data point."* — OVERRULES the 2026-08-18 coverage audit's named-consumer rule; controller decision filed in `qms/DHF.md` with the date, addendum §6 appended to the audit doc.
+
+**feat(ingestion):** `UniversalHealthReader` + `UniversalSamples` (NEW) — full-set read authorization (120 quantity / 70 category / 2 correlation / 6 characteristic types on the iOS 26.5 SDK, plus workouts, ECG, audiogram, vision prescriptions, series types, state of mind, GAD-7/PHQ-9; share set EMPTY — read-only stays structural); anchored, batched, `hkUUID`-deduplicated storage of quantity + category samples + a characteristics snapshot in a parallel on-device SwiftData container (`cloudKitDatabase: .none`, file-protected, `UniversalHealthStore.eraseAll()`); the tuned pipelines' types are EXCLUDED from storage and universal rows can never enter those pipelines (RTM FR-ING-19; RISK RK-ING-13/14, RK-NDG-05; T-UNI-01..14).
+
+**feat(browser):** `DataBrowserView` "Everything you measure" (NEW) — every type with data: latest value + recorded unit, count, sources, 14-day DaySeries mini-chart (gaps stay gaps); NO sentences generated, no judgment vocabulary (lint-pinned); no synthetic stream — real store or honest empty state.
+
+**fix(honesty):** `HealthKitPrimerView` v03 — the "these — and only these" lead (untrue since PR-46; audit report-only finding ①) replaced with claims true in every configuration.
+
+**Integration lines REPORTED, not landed** (owning files belong to concurrent workflows this wave; layer dormant until they land together): ① `DataSourcesView`: `NavigationLink { DataBrowserView() } label: { DataBrowserEntryRow() }.buttonStyle(.plain)`; ② `AppState.deleteAllData`: `UniversalHealthStore.eraseAll()`.
+
+Suites: `UniversalReadTests` 14/14 green; **full unit run 873 tests / 108 suites — all green** (Sim F8ACD7F7, build `build/ddfb3`). Guards: `guard_donation_egress.sh` green; `guard_provenance.sh` red on `SleepDetailView.swift:912-959` (sleep workflow's in-flight sample builder — file owned by the concurrent sleep wave; this wave's SwiftUI files verified clean under the same pattern).
+
 ## HealthKit ingestion coverage audit — sleep-incident wave, non-sleep breadth (2026-08-18, branch `claude/a72-electric-ink`)
 
 **fix(ingestion):** cumulative daily roll-up (steps, active energy) no longer sums raw samples across sources — a Watch+iPhone citizen read up to ~2× steps/kcal (same hazard class as the PR-109 sleep double-count). New pure `DailyRollup`: the day's figure is the best-covering single source's total, never a cross-source sum (RTM FR-ING-17, RISK RK-ING-10, T-COV-01..04).
@@ -31,6 +45,29 @@ Suites: ingestion/arbitration/coverage 22/22 green; full unit run 673 tests / 89
 
 ### Not closed here (owner/counsel, §7.3 gates)
 DPIA v02, ROPA entry, Scaleway DPA, access agreements and custodian key ceremony (the programme public key is deliberately unset, so an export refuses on screen until it exists), the erasure drill, the repo-lint half of T-DON-03, and **correcting the §2.3 consent text, which currently promises donors the opposite of the training decision**. No donation may be collected until these are satisfied.
+
+## PR-115 — Sleep viz v2 · whole-person Home · goals & calendar field bugs · universal HealthKit · health-summary document (2026-08-19)
+
+Five waves integrated in one pass. **873 tests / 108 suites PASS**; both guards green; build green.
+
+### Field bugs from CN's 10.103 device — both root-caused with red-run proof
+- **"Goals and ranges get deleted" — TWO independent mechanisms.** (1) **Locked-launch clobber:** `healthcontext.v1.json` is written `NSFileProtectionComplete` and loaded once in `AppState.init`; the app cold-launches in the BACKGROUND routinely (BGTaskScheduler `.refresh`, HealthKit background delivery) — usually while the phone is locked, when the file EXISTS but reads FAIL. `load()` collapsed unreadable into nil = "never saved", so init kept the empty seed; the next Save wrote that seed over the stored profile (atomic rename ignores the read lock). **This is the same disease as the vault index and the journal note-save — unreadable treated as absent, third occurrence.** Fix: `LoadOutcome{loaded,absent,unreadable}`, a restore-retry on `protectedDataDidBecomeAvailable`/refresh/before-draft, and `saveHealthContext` as the single write path. (2) **Decimal-comma wipe:** the target editor parsed with `Double(String)` ("." only) while the Danish pad offers ONLY "," — and reformatted every keystroke, so typing a separator emptied the field under the cursor. CN literally could not enter a decimal range. Fix: String-backed draft, tolerant parse, no per-keystroke reformat. Found in passing: Sundhed imports merged memory-only (vanished on relaunch); ProfileSheet reseeded its draft on every `onAppear` (wiped unsaved edits); its draft defaulted to `.demo`. 14 tests.
+- **"I can't connect calendar" — a silent-denial UX hole, not a missing key.** The usage key IS in the shipped 10.103 archive (verified). On iOS 17+, when calendar TCC is already decided against the app, `requestFullAccessToEvents()` returns denied INSTANTLY with no prompt — and 10.98 already shipped a write-only consult request, so an earlier "Don't Allow" made the 10.103 connect button a silent no-op whose only feedback rendered off the fold. Fix: `ConnectOutcome` with an honest line for every outcome and a Settings deep-link where Settings can actually fix it (`restricted` correctly offers none).
+
+### Directive: every HealthKit data point (FR-ING-19, DHF override recorded)
+`UniversalHealthReader` requests the full public type set with an EMPTY share set (read-only stays structural), anchored/deduplicated into its own on-device store; `DataBrowserView` — "Everything you measure" — is the single named consumer, values only, no verdicts. The HealthKit primer's "these and only these" claim is rewritten because it stopped being true. **DPIA note for CN:** the at-rest surface widens from ~21 curated types to the full granted set.
+
+### Sleep visualisation v2 (CN: "build this much better")
+One-truth `SleepNight` model where asleep == deep+core+rem BY CONSTRUCTION; in-bed is a separate compiler-enforced type that cannot enter an asleep total; `assertInternalConsistency()`/`assertAgreement()` make the photographed same-screen contradiction unrepresentable. Block hypnogram (four lanes, draw-time merge disclosed, totals exact) supersedes the søkort; D/W/M/6M ranges; week = clock-positioned night columns on a wall-clock-true 22:00→14:00 axis (DST-safe, edge clips disclosed). Awake uses `rust`, never `clinRed`.
+
+### Whole-person Home (CN: "too focused on diabetes data")
+Home's fixed diabetic 2×2 is superseded by an availability-driven grid: canonical order, membership by data, no day-to-day shuffle; a CGM-less person sees no glucose card, a gym person sees Activity + Workouts. Day score composes from the domains present with FIXED weights and a SHRINKING denominator ("out of 90"), capped at three parts with the excluded domain named. Activity/Fitness/Body/Vitals get first-class Insights entries. Logged meals mark the glucose curve at their real time.
+
+### Health summary rebuilt as a document (CN: "not made for humans")
+**Lab dates were being replaced by the import date** — the parsers captured them; the payload summariser dropped them and the store stamped `Date()`. Now one observation per reading with a real `specimenDate`; undated rows say "date not recorded"; the pull date moved to the header. **Negative screens encoded as `0` are typed at parse** (quantitative/qualitative/artifact) and render as words — with basophils 0.0 pinned as a real measured zero. NPU suffixes, HTML entities and Danish/English names normalised. The export is now an A4 PDF: page 1 is the 90-second clinical read (identity + freshness, major diagnoses, current medicines, latest key values with real dates and personal priors), then ten clinical panels, artifacts appendixed. 59 tests incl. a golden file and a PDF text-layer test.
+
+### Integration applied here
+Data-browser entry in Data sources · `UniversalHealthStore.eraseAll()` in the erase path · the passport's share button now presents the PDF document · the sleep sample fixture moved out of the view layer so T-PROV-01 passes (a view file may never construct the provenance field).
 
 ## PR-114 — SLEEP INCIDENT RESOLVED: multi-source double-count + daily roll-up double-count + the diagnostics instrument (2026-08-18, branch `claude/a72-electric-ink`)
 

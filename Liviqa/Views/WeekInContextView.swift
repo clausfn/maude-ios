@@ -283,6 +283,33 @@ struct WeekInContextView: View {
                     weeklyMetricsRow
                         .padding(.horizontal, 16)
 
+                    // 7b. YOUR DATA, IN DEPTH — first-class entries for the
+                    // Activity / Fitness / Body / Vitals detail screens (CN
+                    // directive 2026-08-19: "Why don't I see activities, steps,
+                    // exercise?"). These screens existed with real ingestion but
+                    // their only entry was buried in the Passport; the defect was
+                    // exclusivity, so the Passport keeps its rows and the
+                    // Insights root gains these. Recorded as an A7.2-canvas
+                    // deviation in qms/DHF.md (2026-08-19).
+                    LiviqaSectionHeader(label: "Your data, in depth")
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+
+                    VStack(spacing: 0) {
+                        depthRow(pillar: .activity)
+                        Divider().background(LiviqaTheme.line2).padding(.leading, 44)
+                        depthRow(pillar: .fitness)
+                        Divider().background(LiviqaTheme.line2).padding(.leading, 44)
+                        depthRow(pillar: .body)
+                        Divider().background(LiviqaTheme.line2).padding(.leading, 44)
+                        depthRow(pillar: .vitals)
+                    }
+                    .background(LiviqaTheme.paper2)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line, lineWidth: 0.5))
+                    .shadow(color: LiviqaTheme.cardShadow, radius: 8, y: 2)
+                    .padding(.horizontal, 16)
+
                     // 8. Cross-source patterns (flag-gated; pitch data → default off)
                     if crossSourceCards {
                         LiviqaSectionHeader(label: "Cross-source patterns")
@@ -850,6 +877,32 @@ struct WeekInContextView: View {
                              deltaLabel: "No data yet",
                              deltaColor: LiviqaTheme.ink2)
         }
+    }
+
+    // MARK: - In-depth detail row (same anatomy as the Passport's entry rows —
+    // the row is duplicated rather than shared because Components.swift belongs
+    // to other concurrent work; the pattern is 20 lines of locked A7.2 anatomy).
+
+    private func depthRow(pillar: WellnessPillar) -> some View {
+        NavigationLink(destination: MetricDetailView(pillar: pillar)) {
+            HStack(spacing: 12) {
+                Image(systemName: pillar.icon)
+                    .font(.lato(13))
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .frame(width: 20)
+                Text(pillar.title)
+                    .font(.lato(13.5, .semibold))
+                    .foregroundStyle(LiviqaTheme.ink)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(LiviqaTheme.ink4)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private static func hoursMinutes(_ hours: Double) -> String {

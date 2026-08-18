@@ -26,6 +26,13 @@ import Foundation
 /// Last night drawn as a shape: the segments in time order on a 0…1 night axis,
 /// where the stage totals sit, and the one wake-up worth annotating. Present
 /// ONLY when the source retained intra-night times — never reconstructed.
+///
+/// DHF note (CN directive 2026-08-19): the BLOCK hypnogram — drawn from
+/// `SleepNight.segments` — supersedes the søkort line chart this shape was
+/// designed for. The shape is kept because it is derived from the SAME
+/// `SleepNight` object at near-zero cost and the view still consumes it while
+/// the block hypnogram lands; its soundings now carry the night's tile figures
+/// verbatim, so it cannot contradict the tiles either.
 public nonisolated struct SleepNightShape: Sendable, Equatable {
 
     /// Stage on the chart's own scale: 0 awake · 1 REM · 2 core · 3 deep.
@@ -121,76 +128,92 @@ public nonisolated struct SleepWeekDetail: Sendable, Equatable {
     public let weekMeanMin: Int
     /// Same figure for nights −13…−7; nil when that window has no nights.
     public let prevWeekMeanMin: Int?
-    /// Dominant source name among the window's segments (honest source line).
+    /// Dominant source name among the window's nights (honest source line).
     public let source: String?
     /// Last night as a shape — nil when the source kept no intra-night times.
     public let shape: SleepNightShape?
     /// Bedtime vs the citizen's own usual — nil below 3 timed nights.
     public let bedtime: SleepBedtimeWeek?
 
+    // — The one-truth surface (sleep visualisation wave 2026-08) —
+    /// LAST NIGHT as the one resolved model. The legacy figures above are
+    /// COPIES of this object's fields (assigned in `derive`, verified by
+    /// `assertAgreement()`), so hero, tiles, hypnogram and labels cannot
+    /// disagree: they all render one object.
+    public let night: SleepNight
+    /// W — 7 nights + clock-positioned stacked columns (22:00→14:00 axis).
+    public let week: SleepWeekRange
+    /// M — per-night duration on a 30-day day axis; gaps are gaps.
+    public let month: SleepLongRange
+    /// 6M — per-night duration on a 182-day axis + weekly stage aggregates.
+    public let sixMonths: SleepLongRange
+
     public init(asleepMin: Int, deepMin: Int, coreMin: Int, remMin: Int,
                 awakeMin: Int = 0,
                 nights: [Night], weekMeanMin: Int, prevWeekMeanMin: Int?,
                 source: String?, shape: SleepNightShape? = nil,
-                bedtime: SleepBedtimeWeek? = nil) {
+                bedtime: SleepBedtimeWeek? = nil,
+                night: SleepNight,
+                week: SleepWeekRange = .empty,
+                month: SleepLongRange = .empty,
+                sixMonths: SleepLongRange = .empty) {
         self.asleepMin = asleepMin; self.deepMin = deepMin
         self.coreMin = coreMin; self.remMin = remMin; self.awakeMin = awakeMin
         self.nights = nights; self.weekMeanMin = weekMeanMin
         self.prevWeekMeanMin = prevWeekMeanMin; self.source = source
         self.shape = shape; self.bedtime = bedtime
+        self.night = night; self.week = week
+        self.month = month; self.sixMonths = sixMonths
+    }
+
+    /// Proof for tests: the legacy figures and the shape agree with `night`
+    /// (the one object), and `night` itself is internally consistent. Empty
+    /// means no sleep surface reading this value can contradict itself.
+    public func assertAgreement() -> [String] {
+        var v = night.assertInternalConsistency()
+        if asleepMin != night.asleepMin { v.append("detail asleepMin != night") }
+        if deepMin != night.deepMin { v.append("detail deepMin != night") }
+        if coreMin != night.coreMin { v.append("detail coreMin != night") }
+        if remMin != night.remMin { v.append("detail remMin != night") }
+        if awakeMin != night.awakeMin { v.append("detail awakeMin != night") }
+        if let shape {
+            for (stage, tile) in [(3, night.deepMin), (1, night.remMin), (2, night.coreMin)] {
+                if let sounding = shape.soundings.first(where: { $0.stage == stage }),
+                   sounding.minutes != tile {
+                    v.append("shape sounding stage \(stage) \(sounding.minutes)m != tile \(tile)m")
+                }
+            }
+        }
+        if let weekNight = week.nights.last, weekNight.date == night.date,
+           weekNight != night {
+            v.append("week range's last night != the night model")
+        }
+        return v
     }
 }
 
 public nonisolated enum SleepDetailDeriver {
 
     private static let cal = Calendar(identifier: .gregorian)
-    private static let asleep: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
 
     public static func derive(from s: HealthSamples, now: Date = Date()) -> SleepWeekDetail? {
-        // FR-SLP-10 (sleep incident 2026-08): one source per night, main sleep
-        // episode only — re-applied here (idempotent over `arbitrated()`) so an
-        // overlapping second source can never double-count a night, a nap can
-        // never join it, and the shape/awake anatomy below is drawn from the
-        // SAME chosen source as the totals.
-        let resolved = SleepNightResolver.resolvePerNight(s.sleep, calendar: cal)
-        let segs = resolved.filter { asleep.contains($0.stage) && $0.hours > 0 }
-        guard !segs.isEmpty else { return nil }
+        // ONE MODEL PER NIGHT (FR-SLP-10 + sleep visualisation wave 2026-08):
+        // the builder re-applies the resolver (idempotent over `arbitrated()`),
+        // so an overlapping second source can never double-count a night and a
+        // nap can never join it — and EVERY figure below (hero, tiles, shape,
+        // week bars, ranges) is read off the same [SleepNight] array. The
+        // same-screen contradiction (tiles vs chart labels) is structurally
+        // impossible: there is no second arithmetic to disagree with.
+        let allNights = SleepNightBuilder.nights(from: s, calendar: cal)
+        guard let lastNight = allNights.last else { return nil }
 
-        var byDay: [Date: [SleepReading]] = [:]
-        for seg in segs { byDay[cal.startOfDay(for: seg.date), default: []].append(seg) }
-        guard let lastDay = byDay.keys.max() else { return nil }
-
-        // Awake segments live outside `segs` (they are not sleep) but belong to
-        // the night's anatomy — kept per night bucket for the shape + tile.
-        // From `resolved`, so the awake tile counts the chosen source's night
-        // only, never a second tracker's overlapping wake-ups.
-        var awakeByDay: [Date: [SleepReading]] = [:]
-        for seg in resolved where seg.stage == .awake && seg.hours > 0 {
-            awakeByDay[cal.startOfDay(for: seg.date), default: []].append(seg)
-        }
-
-        // Per-bucket union (two-source de-dup), then sum — each minute once.
-        func stageHours(_ night: [SleepReading], _ stages: Set<SleepStage>) -> Double {
-            SleepReading.mergedAsleepHours(night, asleep: stages)
-        }
-        func nightHours(_ night: [SleepReading]) -> Double {
-            stageHours(night, [.deep]) + stageHours(night, [.rem])
-                + stageHours(night, [.core, .asleepUnspecified])
-        }
-
-        let lastNight = byDay[lastDay] ?? []
-        let deepH = stageHours(lastNight, [.deep])
-        let remH  = stageHours(lastNight, [.rem])
-        let coreH = stageHours(lastNight, [.core, .asleepUnspecified])
-
+        let byDay = Dictionary(uniqueKeysWithValues: allNights.map { ($0.date, $0) })
         let today = cal.startOfDay(for: now)
         let symbols = cal.veryShortWeekdaySymbols
 
-        func nightsIn(_ fromOffset: Int, _ toOffset: Int) -> [(day: Date, hours: Double)] {
+        func nightsIn(_ fromOffset: Int, _ toOffset: Int) -> [SleepNight] {
             (fromOffset...toOffset).compactMap { off in
-                guard let d = cal.date(byAdding: .day, value: off, to: today),
-                      let segs = byDay[d] else { return nil }
-                return (d, nightHours(segs))
+                cal.date(byAdding: .day, value: off, to: today).flatMap { byDay[$0] }
             }
         }
 
@@ -198,39 +221,35 @@ public nonisolated enum SleepDetailDeriver {
         let prev = nightsIn(-13, -7)
         let nights = week.map { n in
             SleepWeekDetail.Night(
-                label: symbols[(cal.component(.weekday, from: n.day) - 1) % symbols.count],
-                hours: (n.hours * 10).rounded() / 10,
-                isLastNight: n.day == lastDay)
+                label: symbols[(cal.component(.weekday, from: n.date) - 1) % symbols.count],
+                hours: (Double(n.asleepMin) / 60 * 10).rounded() / 10,
+                isLastNight: n.date == lastNight.date)
         }
-        let weekMean = week.isEmpty ? nightHours(lastNight)
-            : week.map(\.hours).reduce(0, +) / Double(week.count)
-        let prevMean: Double? = prev.isEmpty ? nil
-            : prev.map(\.hours).reduce(0, +) / Double(prev.count)
+        let weekMeanMin = week.isEmpty ? lastNight.asleepMin
+            : Int((Double(week.map(\.asleepMin).reduce(0, +)) / Double(week.count)).rounded())
+        let prevMeanMin: Int? = prev.isEmpty ? nil
+            : Int((Double(prev.map(\.asleepMin).reduce(0, +)) / Double(prev.count)).rounded())
 
-        let source = Dictionary(grouping: segs, by: \.source)
-            .max { $0.value.count < $1.value.count }?.key
-
-        // — Intra-night surfaces (only where the source kept real times) —
-        let lastAwake = awakeByDay[lastDay] ?? []
-        let shape = nightShape(asleep: lastNight, awake: lastAwake)
-        // The AWAKE tile counts only wake-ups INSIDE the night, so it can never
-        // include time awake before falling asleep or after getting up.
-        let awakeMin = shape == nil ? 0
-            : Int((insideNight(lastAwake, asleep: lastNight) * 60).rounded())
-        let bedtimeWeek = bedtime(byDay: byDay, week: week.map(\.day), prev: prev.map(\.day))
+        // Honest source line: the source behind the most nights (ties by name).
+        let source = Dictionary(grouping: allNights.compactMap(\.source), by: { $0 })
+            .max { ($0.value.count, $1.key) < ($1.value.count, $0.key) }?.key
 
         return SleepWeekDetail(
-            asleepMin: Int(((deepH + remH + coreH) * 60).rounded()),
-            deepMin: Int((deepH * 60).rounded()),
-            coreMin: Int((coreH * 60).rounded()),
-            remMin: Int((remH * 60).rounded()),
-            awakeMin: awakeMin,
+            asleepMin: lastNight.asleepMin,
+            deepMin: lastNight.deepMin,
+            coreMin: lastNight.coreMin,
+            remMin: lastNight.remMin,
+            awakeMin: lastNight.awakeMin,
             nights: nights,
-            weekMeanMin: Int((weekMean * 60).rounded()),
-            prevWeekMeanMin: prevMean.map { Int(($0 * 60).rounded()) },
+            weekMeanMin: weekMeanMin,
+            prevWeekMeanMin: prevMeanMin,
             source: source,
-            shape: shape,
-            bedtime: bedtimeWeek)
+            shape: nightShape(of: lastNight),
+            bedtime: bedtime(week: week, prev: prev),
+            night: lastNight,
+            week: SleepNightBuilder.weekRange(nights: allNights, now: now, calendar: cal),
+            month: SleepNightBuilder.longRange(nights: allNights, now: now, dayCount: 30, calendar: cal),
+            sixMonths: SleepNightBuilder.longRange(nights: allNights, now: now, dayCount: 182, calendar: cal))
     }
 
     // MARK: - Intra-night shape (nil unless the source kept wall-clock times)
@@ -245,58 +264,46 @@ public nonisolated enum SleepDetailDeriver {
         }
     }
 
-    /// Awake hours that fall between falling asleep and getting up.
-    private static func insideNight(_ awake: [SleepReading],
-                                    asleep night: [SleepReading]) -> Double {
-        guard let lo = night.map(\.intervalStart).min(),
-              let hi = night.map(\.intervalEnd).max() else { return 0 }
-        return awake
-            .filter { $0.intervalStart >= lo && $0.intervalEnd <= hi }
-            .reduce(0) { $0 + $1.hours }
-    }
-
-    /// Last night drawn on a 0…1 axis. Returns nil — deliberately, rather than
-    /// guessing — when the segments carry no start times, when there are too
-    /// few of them to be an anatomy, or when the span is degenerate.
-    static func nightShape(asleep night: [SleepReading],
-                           awake: [SleepReading]) -> SleepNightShape? {
-        let timed = (night + awake).filter { $0.start != nil && $0.hours > 0 }
-            .sorted { $0.intervalStart < $1.intervalStart }
-        guard timed.count >= 3,
-              night.allSatisfy({ $0.start != nil }),
-              let lo = timed.first?.intervalStart,
-              let hi = timed.map(\.intervalEnd).max() else { return nil }
+    /// Last night drawn on a 0…1 axis — FROM THE ONE MODEL: the segments are
+    /// `night.segments`, the sounding figures are the night's OWN stage tiles
+    /// (`deepMin`/`remMin`/`coreMin`), so a chart label can never disagree with
+    /// a tile. Returns nil — deliberately, rather than guessing — when the
+    /// night is untimed, has too few segments to be an anatomy, or is
+    /// degenerate.
+    static func nightShape(of night: SleepNight) -> SleepNightShape? {
+        guard let segs = night.segments, segs.count >= 3,
+              let lo = segs.first?.start,
+              let hi = segs.map(\.end).max() else { return nil }
         let span = hi.timeIntervalSince(lo)
         guard span > 3600 else { return nil }
 
         func t(_ d: Date) -> Double { min(1, max(0, d.timeIntervalSince(lo) / span)) }
-        let segments = timed.map {
+        func dur(_ s: SleepNight.Segment) -> TimeInterval { s.end.timeIntervalSince(s.start) }
+        let segments = segs.map {
             SleepNightShape.Segment(stage: chartStage($0.stage),
-                                    t0: t($0.intervalStart), t1: t($0.intervalEnd))
+                                    t0: t($0.start), t1: t($0.end))
         }
 
-        // Soundings: each stage's TOTAL, printed over that stage's longest
-        // stretch — the figure is the real total, the position is just where
+        // Soundings: the tile figures themselves, printed over each stage's
+        // longest stretch — the figure IS the tile, the position is just where
         // there is room to print it.
         var soundings: [SleepNightShape.Sounding] = []
-        for stage in [3, 1, 2] {                     // deep, REM, core
-            let group = timed.filter { chartStage($0.stage) == stage }
-            guard let longest = group.max(by: { $0.hours < $1.hours }) else { continue }
-            let minutes = Int((group.reduce(0) { $0 + $1.hours } * 60).rounded())
-            guard minutes > 0 else { continue }
+        for (stage, minutes) in [(3, night.deepMin), (1, night.remMin), (2, night.coreMin)] {
+            guard minutes > 0,
+                  let longest = segs.filter({ chartStage($0.stage) == stage })
+                      .max(by: { dur($0) < dur($1) }) else { continue }
             soundings.append(.init(stage: stage,
-                                   t: (t(longest.intervalStart) + t(longest.intervalEnd)) / 2,
+                                   t: (t(longest.start) + t(longest.end)) / 2,
                                    minutes: minutes))
         }
 
         // The one wake-up worth annotating: the longest, and only from 5 min.
         var wake: SleepNightShape.Wake? = nil
-        if let longest = awake.filter({ $0.start != nil && $0.hours * 60 >= 5 })
-            .max(by: { $0.hours < $1.hours }),
-           longest.intervalStart >= lo, longest.intervalEnd <= hi {
-            wake = .init(t: (t(longest.intervalStart) + t(longest.intervalEnd)) / 2,
-                         clock: clock(longest.intervalStart),
-                         minutes: Int((longest.hours * 60).rounded()))
+        if let longest = segs.filter({ $0.stage == .awake && $0.minutes >= 5 })
+            .max(by: { dur($0) < dur($1) }) {
+            wake = .init(t: (t(longest.start) + t(longest.end)) / 2,
+                         clock: clock(longest.start),
+                         minutes: longest.minutes)
         }
 
         return SleepNightShape(segments: segments, soundings: soundings, wake: wake,
@@ -323,19 +330,13 @@ public nonisolated enum SleepDetailDeriver {
         return String(format: "%02d:%02d", m / 60, m % 60)
     }
 
-    /// The night's bedtime = when the citizen actually fell asleep (the first
-    /// asleep segment), not when they went to bed.
-    private static func bedtimeOf(_ night: [SleepReading]) -> Date? {
-        night.compactMap(\.start).min()
-    }
-
     /// Bedtime consistency against the citizen's OWN mean bedtime this week.
     /// nil below 3 timed nights — a "usual" drawn from one or two nights would
-    /// be a claim the data can't carry.
-    static func bedtime(byDay: [Date: [SleepReading]],
-                        week: [Date], prev: [Date]) -> SleepBedtimeWeek? {
-        func bedtimes(_ days: [Date]) -> [Int] {
-            days.compactMap { byDay[$0].flatMap(bedtimeOf) }.map(sinceEvening)
+    /// be a claim the data can't carry. The night's bedtime = when the citizen
+    /// actually fell asleep (`SleepNight.fellAsleep`), not when they went to bed.
+    static func bedtime(week: [SleepNight], prev: [SleepNight]) -> SleepBedtimeWeek? {
+        func bedtimes(_ nights: [SleepNight]) -> [Int] {
+            nights.compactMap(\.fellAsleep).map(sinceEvening)
         }
         let thisWeek = bedtimes(week)
         guard thisWeek.count >= 3 else { return nil }

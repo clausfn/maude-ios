@@ -2,6 +2,158 @@
 
 _Append-only dated log of design decisions, linked to the Architecture Decision Register (D1–D10, D-*). Ports to ISO 13485 §7.3. Version: 2026-06-03._
 
+## 2026-08-19 — Universal HealthKit read (FR-ING-19): CN overrules the named-consumer rule
+
+- **CN directive, verbatim (2026-08-19):** *"I want all data from Apple HealthKit — every data point."* Recorded here, with its date, as a controller decision that **OVERRIDES** the 2026-08-18 coverage audit's governing rule ("NO type is read without a named consumer", `docs/HealthKit_Coverage_Audit_20260818.md`). The replacement discipline: the read set is the FULL public set, the purpose is **completeness of the citizen's own record**, and the named consumer for the whole breadth layer is **DataBrowserView "Everything you measure"** — one consumer for all types, instead of one consumer per type.
+- **What was built** (parallel path by design this wave — `HealthKitService`/`HealthSamples` are owned by concurrent workflows; unification of the two readers is a named follow-up): `UniversalHealthReader` (full-set authorization with an EMPTY share set — read-only stays structural, FR-ARCH-04; anchored, batched, deduplicated ingest; deletions honoured), `UniversalSampleRow`/`UniversalHealthStore` (parallel SwiftData container, on-device only, `cloudKitDatabase: .none`, file-protected, `eraseAll()`), `DataBrowserView` (values only, no verdicts — FR-NDG-06 untouched because no sentences are generated), and the `HealthKitPrimerView` v03 honesty rewrite (audit finding ① closed).
+- **Scope decisions inside the directive:** AUTHORIZATION covers everything public (incl. ECG, audiogram, vision prescriptions, series types, state of mind, GAD-7/PHQ-9) so Apple's sheet is the complete, honest choice surface; STORAGE v1 persists quantity + category samples + a characteristics snapshot, and deliberately EXCLUDES the tuned pipelines' own types (breadth, never a second copy of the four core signals). Named refusals: clinical records + CDA documents (separate Apple flow, regional, no consumer). ECG/audiogram/state-of-mind/series storage: named follow-up.
+- **Integration lines REPORTED, not landed** (owning files belong to concurrent workflows this wave): ① `DataSourcesView` — `NavigationLink { DataBrowserView() } label: { DataBrowserEntryRow() }.buttonStyle(.plain)`; ② `AppState.deleteAllData` — `UniversalHealthStore.eraseAll()`. Both must land in the SAME integration PR: the layer is dormant until ① exists (nothing constructs the reader), so ②'s absence cannot strand data before then.
+- **DPIA implication flagged for CN's decision list:** the at-rest surface widens from ~21 curated types to the full granted set — potentially reproductive health, symptoms, mental-health assessments and audiology on the device store. Mitigations are the SAME discipline (encryption at rest, no cloud, no egress path, GDPR erase, no verdicts), but the DPIA's data-inventory section must be re-run before this ships to testers; the browser also makes the width visible to the citizen, which is the honest counterpart of asking for it.
+
+## 2026-08-19 — Sleep visualisation v2: block hypnogram supersedes the søkort; ranges + agreement proof (CN directive)
+
+- **Directive (CN, 2026-08-19).** CN compared Liviqa's sleep screen against the
+  Apple Health sleep UI rendering his own (now correctly resolved, PR-114)
+  nights and directed "build this much better". The A7 canvas's søkort
+  line-chart (charts.jsx `SleepDepthChart`, the "night as water" engraving) is
+  **superseded by a block hypnogram** — four stage lanes (Awake/REM/Core/Deep),
+  rounded segment blocks, 2pt connecting risers, hour gridlines from the
+  night's own clocks, the in-bed span as a faint underlay, wake-up annotations
+  only when one exists. **Deviation from the design package recorded here**;
+  the søkort code path was deleted rather than kept (its only consumer was the
+  sleep detail screen, so "trivially cheap" did not hold — dead chart code
+  would be untested paint).
+- **New anatomy** (`SleepDetailView` + three new chart primitives in
+  `MetricCharts.swift`): D · W · M · 6M range selector in the A7.2 segmented
+  style; TIME ASLEEP (serif, the verdict figure) and TIME IN BED (mono,
+  separate, "—" with its why when the source recorded none — never estimated,
+  never conflated); W = stage-striped night columns positioned at their OWN
+  clock time on the deriver's fixed 22:00→14:00 axis with the citizen's own
+  usual-bedtime band (never a recommended hour); M/6M = nightly duration on
+  the day axis, gaps rendered as gaps (DaySeries discipline); a Highlights
+  card of fixed descriptive templates (longest unbroken stretch, bedtime
+  consistency vs own usual, nap split-out disclosure, second-source exclusion
+  disclosure in the FR-PROV-02 stance, sleeping breathing rate vs own mean).
+- **The agreement proof (the prime rule made structural).** Every figure on
+  the screen is a stored property of ONE screen model computed once from ONE
+  `SleepWeekDetail` (itself copies of one `SleepNight`, deriver-asserted via
+  `assertAgreement()`), so the photographed same-screen contradiction (tiles
+  "Core 7h21m" vs chart "16h20m") has no code path. Held by three test layers
+  (`SleepScreenModelTests`): an **agreement walk** (every numeric token in
+  every renderable string must trace to an independently recomputed canonical
+  set), direct tile/hero/a11y equality assertions, and a **source lint** — no
+  `String(format:`/`minText(`/`.rounded()` may appear in the view section of
+  `SleepDetailView.swift`, so view code physically cannot format a figure.
+- **Draw-time legibility merge, disclosed.** A fragmented night keeps blocks
+  ≥ 2pt: sub-2pt segments merge into a touching neighbour AT DRAW TIME ONLY
+  (`SleepBlockHypnogram.drawBlocks`, pure geometry, test-pinned: spans
+  preserved, real unrecorded gaps never bridged, totals untouched) and the
+  caption switches to "Short stretches are drawn merged at this size — every
+  printed figure is exact."
+- **Colour rail.** Awake blocks/stripes use `LiviqaTheme.rust` (warm brick,
+  0xC13B34 / 0xEE9089) — from the clay/rust family, deliberately NOT `clinRed`
+  (0xDA2F46): red-as-alarm stays clinical-glucose-TIR-only (RK-ALARM-01).
+  Colour is never the only signal (lane labels + position). REM/Core/Deep
+  reuse the accentSleep ramp the stage tiles already carry.
+- **Score honesty.** A score leg missing for lack of nights renders "—" with
+  a fixed why-note, never a false 0; a genuine Rhythm 0 (a real ≥2h swing vs
+  the citizen's own week mean) is captioned as a measurement, not a fault.
+- **Demo discipline.** The design seed now goes THROUGH the real deriver from
+  a deterministic simulated fixture (provenance `.simulated`, fixture source
+  names that `MetricSourceLabel` keeps out of prose), so even the demo screen
+  cannot self-contradict; it renders only behind `isSampleMode`.
+- **Every sentence** the screen can emit passes NudgeGuard (FR-NDG-06,
+  designated control) — battery-tested across timed/untimed/sparse/demo
+  variants in `SleepScreenModelTests.everyRenderedSentencePassesTheGuard`.
+
+## 2026-08-19 — Adaptive Home signal grid (CN directive): Home shows what the person measures (FR-TOD-07)
+
+- **Directive (CN, 2026-08-19, verbatim intent):** *"Why don't I see activities,
+  steps, exercise? … too focused on diabetes data. This is an app for all
+  people, that collects data from gym, sleep, food etc."* This entry is the
+  **adaptive Home grid half** of the whole-person wave (the sibling entry below
+  covers navigation surfacing, the day-score composer, and food).
+- **DESIGN DEVIATION RECORDED:** the A7.2 canvas's fixed Sleep/Glucose/
+  Recovery/Heart 2×2 (screen-home.jsx SignalsGrid) is **superseded** by CN's
+  directive. The card ANATOMY is unchanged (left-rule, verdict word, mono
+  value, BaselineSpark over the own-usual band — extend, don't redesign);
+  what changed is **composition**: `TodaySignalsDeriver.homeCards(from:)`
+  renders the domains the person actually measures (min 2 · max 6, canonical
+  order sleep · glucose · activity · workouts · recovery · heart · body;
+  membership follows the data, order never shuffles). A gym person with no
+  CGM sees Sleep · Activity · Workouts · Heart and **no glucose card** — an
+  empty glucose card on a non-diabetic front page was the diabetes-first
+  defect. Glucose keeps its full clinical treatment whenever present.
+- **New cards claim nothing new:** Activity/Workouts/Body verdict words are
+  the shipped allow-list ("As usual" / "Above your usual" / "Below your
+  usual" / "Steady") against the person's OWN band (mean ±1σ of their real
+  series; workouts vs the mean of their own prior weeks, ±`SeeWhyExplainer.
+  loadUsualFraction`); every figure comes from the existing derivers
+  (ActivityDeriver, FitnessDeriver); each card opens its own FR-XPL-01
+  "See why". Momentum strip regains the canvas's own "Steps +12%" item —
+  droppable in PR-106 only because steps weren't in `TodaySignals` then.
+- **FR-TOD-08 integration closed:** the evening score card now composes via
+  `DayScoreComposer` (`TodayView.dayScore`) and renders `Score.verdict` +
+  `DayScoreComposer.seeWhy` — movement joins the evening score exactly as the
+  sibling entry specified; `ScoreRing` gained `outOf` so the spoken label
+  ("Day score N of M") tells the truth for a /90 or /80 composition.
+- **Honesty edges:** cold start renders four calibrating skeletons WITHOUT
+  glucose (the card appears with the first real reading); a min-2 pad renders
+  the skeleton, never a fabricated value; sample mode derives availability
+  from the sample record through the same pure function (full grid, labelled).
+- RTM row FR-TOD-07 filed (T-TOD-07 = `TodayGridAvailabilityTests`, 20 tests
+  incl. the FR-NDG-06 sweep). No safety-path change — descriptive wellness
+  cards only; the glucose lane, AFib lane and red=TIR rules untouched — no
+  RISK touch.
+
+## 2026-08-19 — Whole-person surfacing (CN directive): the app stops assuming a CGM persona
+
+- **Directive (CN, 2026-08-19, verbatim intent):** *"Why don't I see activities,
+  steps, exercise? … too focused on diabetes data. This is an app for all
+  people, that collects data from gym, sleep, food etc."*
+- **DESIGN DEVIATION RECORDED:** this directive **supersedes the A7.2 canvas's
+  fixed layouts** — the four-pillar Home grid and the fixed Sleep/Glucose/
+  Recovery day score both come from the original diabetic persona. The canvas
+  is not being redesigned; its anatomy is kept and its *composition* becomes
+  adaptive. (The adaptive Home grid itself is the parallel batch; this entry
+  covers navigation surfacing, movement in the day score, and food.)
+- **Un-buried the depth screens (FR-INS-01).** Activity/Fitness/Body/Vitals
+  existed with real ingestion but were reachable ONLY via HealthPassportView.
+  The Insights root (`WeekInContextView`) now carries a "Your data, in depth"
+  row-set (same locked A7.2 row anatomy); the Passport keeps its rows — the
+  defect was exclusivity, not location.
+- **EXERCISE row verified real, then pinned.** Post-PR-109 the week grid's
+  EXERCISE row derives from ingested active energy (workout-minutes fallback
+  only for an energy-less week) via `CorrelationDeriver` — verified end-to-end
+  (HealthKitService → AppState.refreshFromHealth → grid) and pinned by
+  `WholePersonSurfacingTests` so demo-fed/permanently-empty cannot return.
+- **Movement joins the evening day score honestly (FR-TOD-08).** The A7.2
+  design scored Sleep/50 Glucose/30 Movement/20; we shipped Recovery in
+  movement's slot because steps were not ingested then — they are now. NEW
+  `DayScoreComposer` (pure function, own file — the evening section of
+  `TodayView` is owned by the parallel batch): fixed per-domain weights
+  (50/30/20/20), at most three parts in priority sleep > glucose > movement >
+  recovery, denominator shrinks rather than re-weighting, capped-out domains
+  NAMED, verdicts from the shipped allow-list thresholded on the earned/possible
+  ratio, every line of arithmetic printed (anti-score-opacity held; FR-NDG-06
+  sweep in `DayScoreComposerTests`). **Integration (for the TodayView owner):**
+  replace `dayScoreLegs`/`dayScoreSegments`'s leg source with
+  `DayScoreComposer.compose(sleepHours: s.sleepWeek.last, tirPct:
+  s.inRangeWeek.last, stepsWeek: s.stepsWeek, hrvWeek: s.hrvWeek)` and render
+  `score.parts` / `DayScoreComposer.seeWhy(score, fromRealSignals:)`.
+- **Food, honestly (FR-JRN-05).** No nutrition tracker invented. The day's real
+  journal MEAL entries become wall-clock marks for the glucose day curve
+  (`MealMarkDeriver`, same 0…24 axis as `GlucoseWeekDetail.TodayPoint`) — the
+  honest version of the design's fabricated "after lunch" annotations; the
+  label states the journal fact ("Meal logged · HH:MM"), never causation.
+  **Integration (for the GlucoseDetailView owner):** `let meals =
+  MealMarkDeriver.marks(in: appState.journalEntries, on: Date())` overlaid on
+  the today-curve card. A food ROADMAP recommendation (HealthKit dietary types;
+  iOS 18 Apple Health food logging) is filed in the batch report for CN to
+  decide scope — deliberately not built ahead of that decision.
+- RTM rows FR-TOD-08 / FR-INS-01 / FR-JRN-05 filed (block dated 2026-08-19).
+  No safety-path change (descriptive wellness surfaces only) — no RISK touch.
+
 ## 2026-08-13 (early) — A7.2 full-screen program COMPLETE: all nine areas built (PR-106/107 waves closed)
 
 - **Outcome.** The 74-screen census is resolved to **0 MISSING at screen level**

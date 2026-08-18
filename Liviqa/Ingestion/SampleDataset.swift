@@ -101,7 +101,30 @@ public nonisolated enum SampleDataset {
             }
 
             s.glucose += glucoseDay(d)
-            s.sleep += night(d)
+            let nightSegs = night(d)
+            s.sleep += nightSegs
+            // The night's IN-BED span (separate stream, separate TYPE): a few
+            // minutes settling before the first segment and lingering after
+            // the last. Deterministic — no RNG draws.
+            if let lo = nightSegs.compactMap(\.start).min(),
+               let hi = nightSegs.map(\.intervalEnd).max() {
+                let bedStart = lo.addingTimeInterval(-8 * 60)
+                let bedHours = (hi.timeIntervalSince(bedStart) / 3600) + 7.0 / 60
+                s.sleepInBed.append(InBedSpan(
+                    date: day, start: bedStart,
+                    hours: (bedHours * 100).rounded() / 100,
+                    source: sourceName, tier: .estimate, provenance: .simulated))
+            }
+            // A Saturday-afternoon nap (deterministic): `arbitrated()` below
+            // runs the SAME resolver a real fetch runs, which separates it
+            // into `sleepNaps` — so sample mode exercises the nap surface the
+            // way a real device would, and the night totals never grow by it.
+            if cal.component(.weekday, from: day) == 7 {
+                s.sleep.append(SleepReading(
+                    date: day, stage: .asleepUnspecified, hours: 0.58,
+                    start: cal.date(byAdding: .minute, value: 14 * 60 + 30, to: day),
+                    source: sourceName, tier: .estimate, provenance: .simulated))
+            }
             s.workouts += d.workout.map { [$0] } ?? []
             s.workoutHeartRate += d.workout.map { workoutHeartRate(for: $0, hard: d.hardSession) } ?? []
 

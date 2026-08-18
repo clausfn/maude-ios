@@ -399,7 +399,9 @@ struct JournalView: View {
                     showMoodSheet = true
                 }
                 captureButton("Add meal", icon: "fork.knife", tint: LiviqaTheme.moss, bg: LiviqaTheme.moss2) {
-                    expandComposer(tag: "Meal", prompt: "What did you eat?")
+                    // MealMarkDeriver reads this same constant to surface logged
+                    // meals on the glucose day curve — one tag, two surfaces.
+                    expandComposer(tag: MealMarkDeriver.mealTag, prompt: "What did you eat?")
                 }
             }
             HStack(spacing: 8) {
