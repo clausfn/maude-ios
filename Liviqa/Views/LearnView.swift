@@ -199,7 +199,13 @@ enum LearnLibrary {
         clinicalTitle: String, clinicalVerdict: String,
         inPlainWords: String,
         methodHeadline: String,
-        methodRows: [LearnArticle.KeyValueRow]
+        methodRows: [LearnArticle.KeyValueRow],
+        // Most notes describe a purely baseline-relative rule, so the shared
+        // footer's absolute is true of them. The day score is not one of them:
+        // its own rows, printed a few hundred points above this footer, divide
+        // by fixed references. A note whose method contradicts its own footer
+        // teaches the citizen to discount both.
+        comparesOnlyToYou: Bool = true
     ) -> LearnArticle {
         LearnArticle(
             topic: topic,
@@ -224,7 +230,9 @@ enum LearnLibrary {
             methodKicker: String(localized: "The rule, line by line"),
             methodHeadline: methodHeadline,
             methodRows: methodRows,
-            clinicalFooter: String(localized: "Liviqa compares you only to yourself. Not a diagnostic measure."))
+            clinicalFooter: comparesOnlyToYou
+                ? String(localized: "Liviqa compares you only to yourself. Not a diagnostic measure.")
+                : String(localized: "Every comparison here is against your own days, except where a fixed reference is named above. Not a diagnostic measure."))
     }
 
     /// "Your usual" — the band every non-glucose verdict in the app is measured
@@ -274,7 +282,10 @@ enum LearnLibrary {
                 .init(label: String(localized: "Shown when"), value: String(localized: "At least 2 of the 3 legs have your data")),
                 .init(label: String(localized: "Sleep detail"), value: String(localized: "Same shape: rest 50 · depth 30 · rhythm 20")),
                 .init(label: String(localized: "Never"), value: String(localized: "A hidden model, or a leg you can't see")),
-            ])
+            ],
+            // The Sleep leg above divides by an 8-hour reference — this note
+            // may not then claim the app compares you only to yourself.
+            comparesOnlyToYou: false)
     }
 
     /// The evidence gate — why Liviqa stays quiet. Published because "we found

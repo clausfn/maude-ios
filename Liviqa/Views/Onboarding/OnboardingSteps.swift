@@ -595,7 +595,7 @@ struct DfGGovernanceStep: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 10)
 
-            Text("Each time you grant or withdraw access, that decision is written to an independent record. It cannot be edited, deleted, or backdated — by anyone, including Liviqa.")
+            Text("Each time you grant or withdraw access, that decision is written to an independent record. It is designed so that record cannot be edited, deleted, or backdated — by anyone, including Liviqa.")
                 .font(.lato(13.5))
                 .lineSpacing(4)
                 .foregroundStyle(LiviqaTheme.ink2)
@@ -631,7 +631,7 @@ struct DfGGovernanceStep: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(LiviqaTheme.moss3, lineWidth: 1))
             .padding(.top, 18)
 
-            Text("No one, including Liviqa, can alter this record.")
+            Text("It is designed so no one, including Liviqa, can alter this record.")
                 .font(.lato(11.5))
                 .italic()
                 .foregroundStyle(LiviqaTheme.ink4)
@@ -1367,7 +1367,7 @@ struct HowLearnsStep: View {
                              body: String(localized: "Once it knows your usual, it surfaces at most one quiet nudge a day, and only when something drifts from your own pattern. Good days stay calm."))
                     infoCard(icon: "sparkles", color: LiviqaTheme.moss,
                              title: String(localized: "Ask Liviqa, on device"),
-                             body: String(localized: "A private assistant answers questions about your own data — “why was Wednesday hard?” — running right on your iPhone. Nothing is sent away."))
+                             body: String(localized: "A private assistant answers questions about your own data — “why was Wednesday hard?” — running right on your iPhone. It stays there unless you switch on cloud answers yourself."))
 
                     // Calibration progress hint
                     VStack(alignment: .leading, spacing: 8) {

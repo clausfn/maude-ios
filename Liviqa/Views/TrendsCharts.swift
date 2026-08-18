@@ -216,6 +216,48 @@ struct DayReplayChart: View {
         return (lo, max(hi, lo + 1))
     }
 
+    /// The TIME span actually drawn. `DayReplay.Point` carries the real hour of
+    /// each reading (0…24) and this chart used to ignore it, spacing points by
+    /// index while labelling the handle "00:00 → now" — so a morning with six
+    /// readings and an afternoon with one drew as an evenly paced day, and the
+    /// scrub handle's position asserted a clock time the reading did not have.
+    static func hourSpan(_ points: [DayReplay.Point]) -> (lo: Double, hi: Double) {
+        let hours = points.map(\.hour)
+        let lo = hours.min() ?? 0
+        let hi = hours.max() ?? 24
+        return (lo, max(hi, lo + 0.01))      // never a zero-width axis
+    }
+    private var hourSpan: (lo: Double, hi: Double) { Self.hourSpan(points) }
+
+    /// The point whose real time is nearest a fraction of the drawn span —
+    /// so dragging to the middle of the axis lands on the middle of the DAY,
+    /// not on the middle reading.
+    static func nearestIndex(in points: [DayReplay.Point], toFraction f: Double) -> Int {
+        guard points.count > 1 else { return 0 }
+        let (h0, h1) = hourSpan(points)
+        let target = h0 + min(max(f, 0), 1) * (h1 - h0)
+        var best = 0
+        var bestGap = Double.infinity
+        for (i, p) in points.enumerated() {
+            let gap = abs(p.hour - target)
+            if gap < bestGap { bestGap = gap; best = i }
+        }
+        return best
+    }
+    private func nearestIndex(toFraction f: CGFloat) -> Int {
+        Self.nearestIndex(in: points, toFraction: Double(f))
+    }
+
+    /// Where a point sits on the drawn time axis, as a 0…1 fraction.
+    static func fraction(in points: [DayReplay.Point], of index: Int) -> Double {
+        guard points.count > 1, points.indices.contains(index) else { return 0 }
+        let (h0, h1) = hourSpan(points)
+        return (points[index].hour - h0) / (h1 - h0)
+    }
+    private func fraction(of index: Int) -> CGFloat {
+        CGFloat(Self.fraction(in: points, of: index))
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             GeometryReader { geo in
@@ -225,8 +267,7 @@ struct DayReplayChart: View {
                     h - CGFloat((min(max(v, lo), hi) - lo) / (hi - lo)) * (h - 12) - 6
                 }
                 let x: (Int) -> CGFloat = { i in
-                    points.count > 1
-                        ? 8 + CGFloat(i) / CGFloat(points.count - 1) * (w - 16) : 8
+                    points.count > 1 ? 8 + fraction(of: i) * (w - 16) : 8
                 }
                 let idx = min(max(scrubIndex, 0), points.count - 1)
                 ZStack(alignment: .topLeading) {
@@ -265,8 +306,7 @@ struct DayReplayChart: View {
                 .gesture(
                     DragGesture(minimumDistance: 0).onChanged { g in
                         let frac = (g.location.x - 8) / max(1, w - 16)
-                        scrubIndex = Int((frac * CGFloat(points.count - 1)).rounded())
-                            .clamped(to: 0...(points.count - 1))
+                        scrubIndex = nearestIndex(toFraction: frac)
                     }
                 )
             }
@@ -275,8 +315,7 @@ struct DayReplayChart: View {
             // Replay handle (00:00 → now) mirroring the chart position.
             GeometryReader { geo in
                 let w = geo.size.width
-                let frac = points.count > 1
-                    ? CGFloat(min(max(scrubIndex, 0), points.count - 1)) / CGFloat(points.count - 1) : 0
+                let frac = fraction(of: min(max(scrubIndex, 0), max(0, points.count - 1)))
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(LiviqaTheme.fjordBright.opacity(0.08))
@@ -298,8 +337,7 @@ struct DayReplayChart: View {
                 .gesture(
                     DragGesture(minimumDistance: 0).onChanged { g in
                         let frac = (g.location.x - 22) / max(1, w - 44)
-                        scrubIndex = Int((frac * CGFloat(points.count - 1)).rounded())
-                            .clamped(to: 0...(points.count - 1))
+                        scrubIndex = nearestIndex(toFraction: frac)
                     }
                 )
             }

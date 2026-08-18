@@ -29,7 +29,7 @@ struct VitalsDetailView: View {
 
                 if let model {
                     MetricHero(tint: LiviqaTheme.accentRecovery,
-                               kicker: "Vitals · last 14 nights",
+                               kicker: "Vitals · your recent nights",
                                verdict: model.verdict,
                                stat: model.stat,
                                unit: model.statUnit,
@@ -100,6 +100,11 @@ struct VitalsDetailView: View {
                          unit: v.unit,
                          color: LiviqaTheme.accentRecovery,
                          verdict: v.verdictWord,
+                         // The strip draws the readings it HAS, evenly spaced —
+                         // so the caption counts readings rather than claiming a
+                         // fortnight of nightly measurement that may not exist.
+                         caption: v.series.count == 1
+                             ? "1 reading" : "\(v.series.count) readings",
                          decimals: v.decimals)
         }
     }

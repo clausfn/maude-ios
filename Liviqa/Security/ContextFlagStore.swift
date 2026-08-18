@@ -26,14 +26,41 @@ enum ContextFlagStore {
     /// unreadable) — callers fall back to an empty set, never to a fabricated
     /// one. `url` is injectable so tests round-trip a temp file.
     static func load(from url: URL? = ContextFlagStore.defaultURL()) -> [ContextFlag]? {
-        guard let url, let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode([ContextFlag].self, from: data)
+        guard case .loaded(let flags) = loadOutcome(from: url) else { return nil }
+        return flags
+    }
+
+    /// What a read actually found. `absent` and `unreadable` are DIFFERENT
+    /// facts and the app must never collapse them: the file is written with
+    /// `.completeFileProtection`, so a background launch on a locked phone
+    /// reads nothing — and treating that as "never marked" loses every context
+    /// stretch the citizen recorded the moment they mark the next one. Same
+    /// discipline as `HealthContextStore.LoadOutcome`, which exists because
+    /// this exact shape destroyed goals and ranges in the field (10.103).
+    enum LoadOutcome: Equatable {
+        case loaded([ContextFlag])
+        case absent
+        case unreadable
+    }
+
+    static func loadOutcome(from url: URL? = ContextFlagStore.defaultURL()) -> LoadOutcome {
+        guard let url else { return .absent }
+        guard FileManager.default.fileExists(atPath: url.path) else { return .absent }
+        guard let data = try? Data(contentsOf: url),
+              let flags = try? JSONDecoder().decode([ContextFlag].self, from: data)
+        else { return .unreadable }
+        return .loaded(flags)
     }
 
     /// Atomically persist, file-protected. Failures are swallowed — marking a
     /// day must never crash the app.
     static func save(_ flags: [ContextFlag], to url: URL? = ContextFlagStore.defaultURL()) {
         guard let url, let data = try? JSONEncoder().encode(flags) else { return }
+        // FAIL CLOSED: never write over a file that exists but cannot be read
+        // right now — that is the citizen's own record of travelling / unwell /
+        // off-routine stretches, and the in-memory list we would be writing is
+        // the empty seed a failed read produced.
+        if case .unreadable = loadOutcome(from: url) { return }
         try? data.write(to: url, options: [.atomic, .completeFileProtection])
     }
 
