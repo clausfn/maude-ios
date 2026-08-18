@@ -167,3 +167,52 @@ struct DayAxisIntegrityTests {
             .appendingPathComponent("Liviqa/Views/SleepDetailView.swift").path
     }()
 }
+
+// MARK: - The day replay stands on the clock, not on the reading count
+
+/// `DayReplay.Point` carries the real hour of every reading, and the replay
+/// chart used to ignore it — spacing points evenly by index while labelling the
+/// scrub handle "00:00 → now". A morning of six readings and an afternoon of
+/// one therefore drew as an evenly paced day, and the handle's position
+/// asserted a clock time the reading did not have.
+struct DayReplayAxisTests {
+
+    private func pt(_ hour: Double, _ mmol: Double = 6.0) -> DayReplay.Point {
+        DayReplay.Point(hour: hour, mmol: mmol,
+                        timeText: String(format: "%02d:00", Int(hour)))
+    }
+
+    /// Readings clustered in the morning must sit in the LEFT part of the axis,
+    /// not spread evenly across it.
+    @Test func pointsSitAtTheirOwnClockPosition() {
+        // 07:00, 08:00, 09:00 … then one at 20:00.
+        let pts = [pt(7), pt(8), pt(9), pt(20)]
+
+        #expect(DayReplayChart.fraction(in: pts, of: 0) == 0)       // first ⇒ left edge
+        #expect(DayReplayChart.fraction(in: pts, of: 3) == 1)       // last  ⇒ right edge
+
+        // The 08:00 reading is 1 hour into a 13-hour span — near the left,
+        // NOT a third of the way across as index spacing would place it.
+        let f1 = DayReplayChart.fraction(in: pts, of: 1)
+        #expect(abs(f1 - 1.0 / 13.0) < 0.0001)
+        #expect(f1 < 0.2)
+    }
+
+    /// Dragging to the middle of the axis lands on the middle of the DAY.
+    @Test func scrubbingResolvesByClockNotByReadingCount() {
+        let pts = [pt(7), pt(8), pt(9), pt(20)]
+        // Midpoint of 07:00–20:00 is 13:30; the nearest reading is 09:00 (idx 2),
+        // not the middle reading of four.
+        #expect(DayReplayChart.nearestIndex(in: pts, toFraction: 0.5) == 2)
+        #expect(DayReplayChart.nearestIndex(in: pts, toFraction: 0) == 0)
+        #expect(DayReplayChart.nearestIndex(in: pts, toFraction: 1) == 3)
+    }
+
+    /// Readings sharing a timestamp must not produce a zero-width axis.
+    @Test func anInstantaneousSpanNeverDividesByZero() {
+        let pts = [pt(9), pt(9)]
+        let span = DayReplayChart.hourSpan(pts)
+        #expect(span.hi > span.lo)
+        #expect(DayReplayChart.fraction(in: pts, of: 1).isFinite)
+    }
+}

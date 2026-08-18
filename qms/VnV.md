@@ -49,6 +49,9 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-SLP-10 | Sleep screen agreement walk: every numeric token in every renderable string traces to an independently recomputed canonical set; score gate; untimed variant; every sentence FR-NDG-06 clean (`SleepScreenModelTests`) | Unit | **Yes** (carries an FR-NDG-06 leg) | **pass** — iOS Simulator |
 | T-CTX-05 | Declared profile survives a locked launch: three load outcomes, `unreadable` never collapsed to `absent`, retry on protected-data-available, single write path, comma/point decimal parse (`HealthContextPersistenceTests`, `HealthReadOutcomeTests`) | Unit | No | **pass** — iOS Simulator |
 | T-VIZ-04 | Day-axis integrity: sleep W fallback keeps the 7-day axis; activity gaps stay gaps; energy absent ≠ gap; a fitness rest week keeps its slot while pre-record weeks stay nil; the bedtime footnote may not claim the page holds no recommended hour (`DayAxisIntegrityTests`) | Unit + source lint | No | **pass** — iOS Simulator |
+| T-STORE-01 | Fail-closed stores: an empty read never deletes stored history (and a real read still replaces the window); the journal refuses to overwrite a file it cannot decode; context flags tell absent from unreadable and refuse the clobbering write (`StoreFailClosedTests`) | Unit | No | **pass** — iOS Simulator |
+| T-VIZ-05 | Day replay stands on its own clock: points sit at their real hour, scrubbing resolves by clock not by reading count, an instantaneous span never divides by zero (`DayReplayAxisTests`) | Unit | No | **pass** — iOS Simulator |
+| T-HON-01 | Shipped claims: six retired absolutes cannot return (lint names the refuting code per entry); onboarding ledger copy sits on the FR-WAL-09 gated register; the day-score note does not claim purely personal comparison (`ShippedClaimsTests`) | Unit + source lint | No | **pass** — iOS Simulator |
 
 ## PR-46/47 — full HealthKit capture + Design System v2 (2026-06-09)
 

@@ -181,7 +181,7 @@ struct MetricBaselineView: View {
         MetricDCard(kicker: "Your usual", headline: nil) {
             VStack(alignment: .leading, spacing: 8) {
                 RangeBandView(band: band, value: value, color: LiviqaTheme.moss)
-                Text("your usual \(num(band.lowerBound))–\(num(band.upperBound)) \(unit) · today \(num(value))")
+                Text("your usual \(num(band.lowerBound))–\(num(band.upperBound)) \(unit) · latest \(num(value))")
                     .font(.liviqaMono(11))
                     .foregroundStyle(LiviqaTheme.ink3)
             }
@@ -190,9 +190,15 @@ struct MetricBaselineView: View {
     }
 
     private func sparkCard(_ series: [Double]) -> some View {
-        MetricDCard(kicker: "Last 14 days",
+        // The kicker counts what was RECORDED, not the calendar span: the
+        // series holds only days with a reading, drawn evenly, so a "last 14
+        // days" label over three scattered points would claim a fortnight of
+        // measurement that never happened.
+        MetricDCard(kicker: series.count == 1
+                        ? "1 recorded day"
+                        : "\(series.count) recorded days",
                     headline: nil,
-                    foot: "The soft band is your own learned range; the dot is the latest day.") {
+                    foot: "The soft band is your own learned range; the dot is your latest reading. Days without a reading are not drawn.") {
             BaselineSpark(data: series, band: band, color: LiviqaTheme.moss, height: 44)
         }
     }

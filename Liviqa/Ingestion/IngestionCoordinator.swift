@@ -180,12 +180,31 @@ public final class IngestionCoordinator {
     /// be inserted, so a re-sync deletes the prior rows in full — idempotent even
     /// when a provider returns boundary samples whose timestamp falls just outside
     /// the window (e.g. a daily reading near `from`/`to`). Drops no in-window data.
+    /// An empty read is NOT evidence that the citizen deleted anything.
+    ///
+    /// HealthKit reports a DENIED read as an empty success, not an error
+    /// (`requestReadAuthorization` throws only when health data is unavailable
+    /// on the device at all). So revoking one type in Settings — or a locked
+    /// launch where a query returns nothing — arrives here indistinguishable
+    /// from "you genuinely recorded nothing this month". Deleting the window on
+    /// that basis destroys up to 90 days of the citizen's own history and puts
+    /// nothing back.
+    ///
+    /// Real deletions do not travel this path: they arrive through the anchored
+    /// deletion stream, where HealthKit names the objects it removed.
+    ///
+    /// The cost of this guard is that a stream emptied at the source keeps its
+    /// stored rows until the next non-empty read. Stale-but-real beats
+    /// destroyed-and-gone in a record the citizen cannot reconstruct.
+    private func replacesNothing<T>(_ rows: [T]) -> Bool { rows.isEmpty }
+
     private func bounds(_ range: ClosedRange<Date>, _ dates: [Date]) -> (Date, Date) {
         (min(range.lowerBound, dates.min() ?? range.lowerBound),
          max(range.upperBound, dates.max() ?? range.upperBound))
     }
 
     private func replaceGlucose(in range: ClosedRange<Date>, with rows: [GlucoseSample]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.ts))
         try context.delete(model: GlucoseSample.self,
                            where: #Predicate { $0.ts >= lo && $0.ts <= hi })
@@ -193,6 +212,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceHeartDaily(in range: ClosedRange<Date>, with rows: [HeartDaily]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.date))
         try context.delete(model: HeartDaily.self,
                            where: #Predicate { $0.date >= lo && $0.date <= hi })
@@ -200,6 +220,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceSleep(in range: ClosedRange<Date>, with rows: [SleepSegment]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.date))
         try context.delete(model: SleepSegment.self,
                            where: #Predicate { $0.date >= lo && $0.date <= hi })
@@ -207,6 +228,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceWorkouts(in range: ClosedRange<Date>, with rows: [Workout]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.start))
         try context.delete(model: Workout.self,
                            where: #Predicate { $0.start >= lo && $0.start <= hi })
@@ -214,6 +236,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceInsulin(in range: ClosedRange<Date>, with rows: [InsulinDose]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.ts))
         try context.delete(model: InsulinDose.self,
                            where: #Predicate { $0.ts >= lo && $0.ts <= hi })
@@ -221,6 +244,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceBloodPressure(in range: ClosedRange<Date>, with rows: [BPReading]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.ts))
         try context.delete(model: BPReading.self,
                            where: #Predicate { $0.ts >= lo && $0.ts <= hi })
@@ -228,6 +252,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceAFib(in range: ClosedRange<Date>, with rows: [AFibBurden]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.ts))
         try context.delete(model: AFibBurden.self,
                            where: #Predicate { $0.ts >= lo && $0.ts <= hi })
@@ -235,6 +260,7 @@ public final class IngestionCoordinator {
     }
 
     private func replaceBodyComposition(in range: ClosedRange<Date>, with rows: [BodyComposition]) throws {
+        guard !replacesNothing(rows) else { return }
         let (lo, hi) = bounds(range, rows.map(\.ts))
         try context.delete(model: BodyComposition.self,
                            where: #Predicate { $0.ts >= lo && $0.ts <= hi })

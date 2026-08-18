@@ -2,6 +2,91 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Bug-shape sweep — three diseases, swept for deliberately rather than waited for (2026-08-19, PR-117, branch claude/a72-electric-ink)
+
+**Why a sweep, and why now.** Five separate data-loss defects in this app have
+had ONE shape: a read that fails, is treated as "there is nothing there", and is
+then written over. Each was found the hard way — after it had already destroyed
+something. Rather than wait for a sixth, three shapes were swept for across the
+whole codebase and every candidate was put to an independent adversarial
+verifier told to default to rejection. 31 candidates, 16 confirmed. The
+verifiers also recorded what they cleared and why, so this is an auditable pass
+and not a list of hits.
+
+**RK-STORE-01 — a failed read that a write follows.**
+- *The shape:* a load collapses failure into empty/nil (`try?`, `?? []`,
+  `catch { return [] }`), the empty value becomes the in-memory truth, and a
+  later save in the same session writes it to disk. On iOS the transient
+  failure is routine, not exotic: file protection during a background launch,
+  a partially written file, a decode failure after a model change.
+- *Confirmed instance 1 — ingestion (the worst):* `IngestionCoordinator.persist`
+  deleted each stream's window and inserted what it was handed, so an EMPTY read
+  deleted up to 90 days of glucose, heart, sleep, workouts, insulin, blood
+  pressure, AFib burden and body composition and put nothing back. The trigger
+  is not hypothetical: HealthKit reports a DENIED read as an empty success, so
+  revoking one type in Settings is indistinguishable here from a quiet month.
+- *Confirmed instance 2 — the journal:* `openForAccount` returned `[]` for a
+  file it could not decode, and both writers persisted that plus the new note
+  over the citizen's entire journal — their own words, no server copy by design.
+- *Confirmed instance 3 — context flags:* seeded at `AppState` construction from
+  a `?? []` over a `.completeFileProtection` file, so a locked background launch
+  emptied every travelling/unwell/off-routine stretch the citizen had recorded,
+  and the next mark made it permanent. Second-order: those flags ARE the
+  nudge-suppression gate, so an explicit "don't compare me to my baseline this
+  week" silently stopped applying.
+- *Mitigation:* all three fail closed. The coordinator refuses to delete on an
+  empty read; `JournalStore.save` refuses to overwrite a file it cannot decode;
+  `ContextFlagStore` gains `loaded`/`absent`/`unreadable` with a restore retry on
+  `protectedDataDidBecomeAvailable`, mirroring `HealthContextStore` rather than
+  inventing a fourth discipline.
+- *Residual, ACCEPTED and stated:* a store may now fail to SAVE. The citizen can
+  lose the one note or mark they just entered. That is the deliberate trade —
+  refusing costs one entry, allowing cost every entry.
+- *Verification:* T-STORE-01 = `LiviqaTests/StoreFailClosedTests` (6).
+- *Cleared and recorded:* the vault index, KeyVault, the anchor store, the
+  calendar store, the SwiftData container's protection class, and the legacy
+  journal migration were all checked and hold — several are the reference
+  implementations the fixes above were modelled on.
+
+**RK-CHART-03 — a chart that ignores a coordinate it already carries.**
+- *Hazard:* `DayReplay.Point` carries the true hour of each reading and
+  `DayReplayChart` spaced points by index anyway, beneath a handle labelled
+  "00:00 → now". A morning of six readings and one afternoon reading drew as an
+  evenly paced day, and scrubbing to the middle of the axis landed on the middle
+  READING, not the middle of the day.
+- *Why it is worth its own entry:* this is the compaction disease in its most
+  avoidable form — the correct coordinate was already in the data structure and
+  the drawing code simply did not read it.
+- *Mitigation:* position, both drag gestures and the handle derive from
+  `.hour` over the drawn span; the axis math is `static` and unit-tested rather
+  than trapped in a view body.
+- *Verification:* T-VIZ-05 = `LiviqaTests/DayReplayAxisTests` (3).
+- *Residual, ACCEPTED:* the long-trend charts (weight, body fat, VO₂max, blood
+  pressure dots) still space irregular readings by index under month labels.
+  Unlike the day replay this needs a date-proportional axis in the primitive
+  itself, not a call-site change, and it is recorded as OPEN rather than
+  half-fixed. Home's mini sparklines remain compacted and label-less — noted
+  under RK-CHART-02.
+
+**RK-COPY-01 (extended) — six absolutes the build contradicts.**
+- *Hazard:* every sentence listed in FR-HON-01 asserted something the same
+  binary refutes — a lock that fails open described as opening "only for you",
+  an evidence-gated ledger claim asserted flat in onboarding, "Nothing is sent
+  away" beside a Release-enabled cloud chat path, and — on the privacy screen
+  itself — "your device answers queries, your data never moves", describing
+  compute that exists nowhere in the tree while the real research path POSTs a
+  payload.
+- *Why this is a risk and not a copy nit:* these appear on the exact surfaces
+  where the citizen decides how much to trust the app with their health record,
+  and this project's whole posture is that its disclosures can be believed. One
+  false absolute discounts the true ones around it.
+- *Mitigation:* each retired against the code that refuted it, and pinned by
+  T-HON-01, whose lint names the refuting mechanism per entry — so restoring a
+  sentence requires restoring the mechanism.
+- *Residual:* the app-lock fail-open control itself is unchanged (copy now names
+  the dependency); whether the lock should fail CLOSED with neither biometrics
+  nor passcode set is a CN decision, recorded OPEN.
+
 ## The day axis and the copy that describes it — a chart that reads as continuous when it is not (2026-08-19, FR-VIZ-04, branch claude/a72-electric-ink)
 
 **Why this is a risk section.** A chart is a claim about the citizen's record. If

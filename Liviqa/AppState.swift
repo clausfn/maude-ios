@@ -264,6 +264,11 @@ final class AppState {
     // Device-local (ContextFlagStore), restored at launch, wiped by deleteAllData.
     // Their ONLY effect on the engine is suppression (see NudgeEngine).
     var contextFlags: [ContextFlag] = ContextFlagStore.load() ?? []
+    /// False when the flag file existed but could not be read at construction
+    /// (a locked background launch). Same discipline as
+    /// `healthContextRestored`: until the real flags are back, the empty
+    /// in-memory list is a SEED, not the truth, and must not be written out.
+    private(set) var contextFlagsRestored = true
 
     // Data sources & backup
     var backupPreference: BackupPreference    = .onDevice
@@ -371,8 +376,15 @@ final class AppState {
         NotificationCenter.default.addObserver(
             forName: UIApplication.protectedDataDidBecomeAvailableNotification,
             object: nil, queue: .main) { _ in
-            Task { @MainActor [weak self] in self?.retryHealthContextRestoreIfNeeded() }
+            Task { @MainActor [weak self] in
+                self?.retryHealthContextRestoreIfNeeded()
+                self?.retryContextFlagRestoreIfNeeded()
+            }
         }
+        // The flag file exists but did not open at construction ⇒ this launch
+        // was locked. Mark the in-memory list as a seed so no mark writes over
+        // the citizen's recorded stretches (RK-STORE-01).
+        if case .unreadable = ContextFlagStore.loadOutcome() { contextFlagsRestored = false }
         // Donor programme (DON-2026-01): restore the sealed donor record so the
         // consent copy is correct from the first frame. Compile-time no-op in
         // every shipped build — `isDonorBuild` is false there.
@@ -778,6 +790,22 @@ final class AppState {
         }
     }
 
+    /// Complete a context-flag restore that failed at a locked launch — the
+    /// sibling of `retryHealthContextRestoreIfNeeded()`, for the same reason.
+    @MainActor
+    func retryContextFlagRestoreIfNeeded() {
+        guard !contextFlagsRestored else { return }
+        switch ContextFlagStore.loadOutcome() {
+        case .loaded(let stored):
+            contextFlags = stored
+            contextFlagsRestored = true
+        case .absent:
+            contextFlagsRestored = true    // nothing stored after all
+        case .unreadable:
+            break                          // still locked — keep the flag
+        }
+    }
+
     /// The ONLY way an edit becomes the declared profile: memory + disk in one
     /// step, so the two can never diverge (the journal note-save clobber
     /// class). Callers draft AFTER `retryHealthContextRestoreIfNeeded()`, so
@@ -812,6 +840,7 @@ final class AppState {
     /// yesterday first, so two stretches can never claim the same day.
     @MainActor
     func markContext(_ kind: ContextFlagKind, note: String? = nil, now: Date = Date()) {
+        retryContextFlagRestoreIfNeeded()   // never build a mark on a seed
         let cal = ContextWindow.calendar
         let today = cal.startOfDay(for: now)
         let yesterday = cal.date(byAdding: .day, value: -1, to: today) ?? today
@@ -842,6 +871,10 @@ final class AppState {
     }
 
     private func persistContextFlags() {
+        // Never persist the seed. If the stored flags have not come back yet,
+        // the in-memory list is not the citizen's record and writing it would
+        // erase what is still on disk.
+        guard contextFlagsRestored else { return }
         ContextFlagStore.save(contextFlags)
     }
 

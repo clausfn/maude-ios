@@ -143,9 +143,9 @@ struct InAppPrivacyView: View {
                     .foregroundStyle(LiviqaTheme.ink3)
                     .padding(.top, 4)
 
-                Text("Anonymous compute only — your device answers queries, your data never moves. ")
+                Text("A preference, not a data feed — switching this on does not send anything by itself. ")
                     .font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink3)
-                + Text(researchContributionOn ? "On · earns DfG tokens" : "Off · not contributing")
+                + Text(researchContributionOn ? "On · discoverable for studies" : "Off · not discoverable")
                     .font(.lato(12.5, .bold))
                     .foregroundStyle(researchContributionOn ? LiviqaTheme.moss : LiviqaTheme.ink2)
 

@@ -123,6 +123,20 @@ enum JournalStore {
     @discardableResult
     static func save(_ entries: [JournalEntry], to url: URL?) -> Bool {
         guard let url else { return false }
+        // FAIL CLOSED. A file that EXISTS but does not decode right now is
+        // unread writing, not an empty journal — and `openForAccount` cannot
+        // tell the two apart, so it hands the surface `[]` and the next
+        // `.onChange` persists that empty list plus the one new note over the
+        // citizen's entire journal. Their own words are the most irreplaceable
+        // data in the app and there is no server copy by design.
+        //
+        // Refusing costs the citizen the note they just typed (the caller gets
+        // `false`); allowing it costs them everything they ever wrote. The
+        // vault applies the same discipline to its index, and
+        // `migrateLegacyIfNeeded` already applies it to the legacy file.
+        if FileManager.default.fileExists(atPath: url.path), decode(at: url) == nil {
+            return false
+        }
         let clean = purgingLegacyDemoSeeds(entries)
         guard let data = try? JSONEncoder().encode(clean) else { return false }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
