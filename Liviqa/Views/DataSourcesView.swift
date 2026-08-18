@@ -60,7 +60,7 @@ struct DataSourcesView: View {
     @Environment(AppState.self) private var appState
 
     @State private var showBankSheet = false
-    @State private var showScreenTimeSheet = false
+    @State private var showCalendarSheet = false
     @State private var showVault = false
     @State private var showSundhedWeb = false        // live in-app MitID connect (Path A)
     @State private var showSundhedImport = false     // Path B — PDF/file export import
@@ -73,6 +73,85 @@ struct DataSourcesView: View {
 
     private var citizenId: String? {
         appState.profile?.alias ?? appState.session?.userId.uuidString
+    }
+
+    // MARK: - Calendar load (FR-CTX-CAL-01)
+    //
+    // A REAL connection state, read from two places that can both say no: the
+    // citizen's opt-in record (`CalendarLoadStore`, account-scoped) and iOS's
+    // own grant (`CalendarLoadIngestor.accessState()`). There is no literal
+    // anywhere on this path — the 2026-08-13 incident was a Settings screen
+    // printing "Connected" from a hard-coded string.
+
+    /// The account scope the calendar numbers live under. Same accessor the
+    /// journal uses, so one person's days can never open under another's
+    /// account on a shared phone.
+    private var calendarAccount: String? { appState.journalAccountID }
+
+    @State private var calendarOptedIn = false
+    @State private var calendarAccess: CalendarAccessState = .notDetermined
+    @State private var calendarDays = 0
+
+    /// Connected means BOTH: the citizen said yes, and iOS still allows the
+    /// read. Either one going away shows as not connected, truthfully.
+    private var calendarConnected: Bool { calendarOptedIn && calendarAccess == .fullAccess }
+
+    /// What the row says underneath its name. States the real situation,
+    /// including the awkward one (opted in, but iOS access was withdrawn).
+    private var calendarNote: String {
+        if calendarConnected {
+            let days = calendarDays == 1
+                ? String(localized: "1 day read")
+                : String(localized: "\(calendarDays) days read")
+            return String(localized: "How full your days are — \(days). Never what is in them.")
+        }
+        if calendarOptedIn {
+            switch calendarAccess {
+            case .denied, .restricted:
+                return String(localized: "You turned this on, but calendar access is off in iOS Settings, so nothing is being read.")
+            case .writeOnly:
+                return String(localized: "iOS is allowing Liviqa to add an event but not to read one, so nothing is being read.")
+            default:
+                return String(localized: "You turned this on, but iOS has not granted access, so nothing is being read.")
+            }
+        }
+        return String(localized: "Reads only how full your days are — never titles, people, places or notes")
+    }
+
+    private func refreshCalendarState() {
+        calendarAccess = CalendarLoadIngestor.accessState()
+        let record = CalendarLoadStore.load(forAccount: calendarAccount)
+        calendarOptedIn = record != nil
+        calendarDays = record?.days.count ?? 0
+    }
+
+    /// The citizen has read what is collected and pressed the button. Only now
+    /// is the opt-in written, and only then is iOS asked.
+    private func connectCalendar() async {
+        guard let account = calendarAccount else {
+            importedNote = String(localized: "Sign in first — your calendar numbers are kept under your own account on this phone.")
+            return
+        }
+        let state = await CalendarLoadIngestor.requestFullAccess()
+        calendarAccess = state
+        guard state == .fullAccess else {
+            importedNote = String(localized: "iOS didn't grant calendar access, so nothing was read. You can change it in iOS Settings.")
+            refreshCalendarState()
+            return
+        }
+        CalendarLoadStore.optIn(forAccount: account)
+        await Task.detached(priority: .utility) { _ = CalendarLoadIngestor.refresh(accountID: account) }.value
+        refreshCalendarState()
+        importedNote = calendarDays > 0
+            ? String(localized: "Calendar connected — Liviqa kept \(calendarDays) days of numbers, and nothing else.")
+            : String(localized: "Calendar connected — nothing to read yet.")
+    }
+
+    /// Revoking. Stops collection AND removes what was collected.
+    private func disconnectCalendar() {
+        CalendarLoadStore.disconnect(forAccount: calendarAccount)
+        refreshCalendarState()
+        importedNote = String(localized: "Calendar disconnected — nothing new will be read, and the numbers Liviqa had were deleted.")
     }
 
     /// The persisted Sundhed.dk returning-user record — the honest "connected"
@@ -143,8 +222,11 @@ struct DataSourcesView: View {
         .sheet(isPresented: $showBankSheet) {
             OpenBankingSheet { bank in connect(named: "Bank account · Open Banking", detail: "\(bank) · daily totals & categories") }
         }
-        .sheet(isPresented: $showScreenTimeSheet) {
-            ScreenTimeSheet { connect(named: "Screen Time", detail: nil) }
+        .sheet(isPresented: $showCalendarSheet) {
+            CalendarLoadSheet(connected: calendarConnected,
+                              daysRead: calendarDays,
+                              onConnect: { showCalendarSheet = false; Task { await connectCalendar() } },
+                              onDisconnect: { showCalendarSheet = false; disconnectCalendar() })
         }
         .sheet(isPresented: $showDisconnectSheet) { disconnectSheet }
         .sheet(item: $manualKind) { kind in
@@ -152,6 +234,7 @@ struct DataSourcesView: View {
                 importedNote = saved
             }
         }
+        .task { refreshCalendarState() }
         .navigationDestination(isPresented: $showVault) { HealthVaultView() }
         .navigationDestination(isPresented: $showSundhedWeb) {
             // The single calm MitID prompt (Area ① satellite) fronts the real
@@ -233,9 +316,13 @@ struct DataSourcesView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                if let cal = source("Calendar"), cal.isConnected {
-                    sourceRow(icon: "calendar", color: Color(hex: 0xCC3333),
-                              name: cal.name, note: cal.dataDescription, state: .live)
+                if calendarConnected {
+                    Button { showCalendarSheet = true } label: {
+                        sourceRow(icon: "calendar", color: Color(hex: 0xCC3333),
+                                  name: String(localized: "Your calendar"),
+                                  note: calendarNote, state: .live)
+                    }
+                    .buttonStyle(.plain)
                 }
                 if let bank = source("Bank account · Open Banking"), bank.isConnected {
                     sourceRow(icon: "building.columns.fill", color: Color(hex: 0x1B2A4A),
@@ -297,11 +384,17 @@ struct DataSourcesView: View {
                       name: String(localized: "Blood-pressure cuff"),
                       note: String(localized: "Home cuffs that write to Apple Health"),
                       state: .off)
-            if let cal = source("Calendar"), !cal.isConnected {
-                sourceRow(icon: "calendar", color: Color(hex: 0xCC3333),
-                          name: String(localized: "Your calendar"),
-                          note: String(localized: "Reads only busy/free times from the iPhone calendar — never titles, people or places — to explain busy days"),
-                          state: .off)
+            // Opt-in, and the screen states what would be read BEFORE asking:
+            // the button opens the sheet, the sheet lists the numbers and the
+            // never-list, and only its own button reaches iOS's prompt.
+            if !calendarConnected {
+                Button { showCalendarSheet = true } label: {
+                    sourceRow(icon: "calendar", color: Color(hex: 0xCC3333),
+                              name: String(localized: "Your calendar"),
+                              note: calendarNote,
+                              state: calendarOptedIn ? .pending : .off)
+                }
+                .buttonStyle(.plain)
             }
             if source("Bank account · Open Banking")?.isConnected != true {
                 Button { showBankSheet = true } label: {
@@ -312,15 +405,19 @@ struct DataSourcesView: View {
                 }
                 .buttonStyle(.plain)
             }
-            if source("Screen Time")?.isConnected != true {
-                Button { showScreenTimeSheet = true } label: {
-                    sourceRow(icon: "hourglass", color: Color(hex: 0x566472),
-                              name: String(localized: "Screen Time"),
-                              note: String(localized: "Late-night phone use next to your sleep"),
-                              state: .off)
-                }
-                .buttonStyle(.plain)
-            }
+            // Screen Time is NOT connectable and this row no longer pretends
+            // it is. iOS exposes app/website usage only through DeviceActivity,
+            // which requires Apple's Family Controls entitlement (an approval
+            // Liviqa has not been granted); the report extension is sandboxed so
+            // it cannot hand values back to the app in any case. The previous
+            // row opened a sheet whose "Connect Screen Time" button reached a
+            // seed array that does not exist in a shipping build — it changed
+            // nothing and read nothing, while looking like a connection.
+            // Full working: docs/ScreenTime_Feasibility_20260813.md.
+            sourceRow(icon: "hourglass", color: Color(hex: 0x566472),
+                      name: String(localized: "Screen Time"),
+                      note: String(localized: "Not available. iOS only opens phone-use data to apps with Apple's Family Controls approval, which Liviqa doesn't have — so nothing is read."),
+                      state: .off)
         }
         .padding(.horizontal, 14).padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -587,7 +684,15 @@ struct DataSourcesView: View {
                         }
                     }
 
-                    ForEach(["Calendar", "Bank account · Open Banking", "Screen Time"], id: \.self) { name in
+                    if calendarOptedIn {
+                        disconnectRow(name: String(localized: "Your calendar"),
+                                      sub: String(localized: "Stops reading, and deletes the day numbers Liviqa kept. Nothing in your calendar is touched.")) {
+                            disconnectCalendar()
+                            showDisconnectSheet = false
+                        }
+                    }
+
+                    ForEach(["Bank account · Open Banking", "Screen Time"], id: \.self) { name in
                         if let row = source(name), row.isConnected {
                             disconnectRow(name: name, sub: row.dataDescription) {
                                 disconnect(named: name)
@@ -596,7 +701,7 @@ struct DataSourcesView: View {
                         }
                     }
 
-                    if connectedCount == 0 {
+                    if connectedCount == 0, !calendarOptedIn {
                         Text("Nothing is connected right now.")
                             .font(.lato(12.5)).foregroundStyle(LiviqaTheme.ink3)
                     }
@@ -1064,5 +1169,123 @@ extension DataSourcesView {
         .background(LiviqaTheme.moss2)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(LiviqaTheme.moss.opacity(0.4), lineWidth: 0.5))
+    }
+}
+
+// MARK: - Calendar load connect sheet (FR-CTX-CAL-01)
+
+/// States what will be read BEFORE anything is asked for. iOS's own permission
+/// prompt is reached only by the button at the bottom of this screen, so nobody
+/// meets the system dialog without having first seen the two lists below.
+///
+/// Both lists come from `CalendarLoadCopy`, which is the same source the
+/// `Info.plist` promise and `CalendarLoadPrivacyTests` check against — the
+/// screen, the system prompt and the code cannot drift apart silently.
+struct CalendarLoadSheet: View {
+    let connected: Bool
+    let daysRead: Int
+    var onConnect: () -> Void
+    var onDisconnect: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+
+                    Text(CalendarLoadCopy.promise)
+                        .font(.liviqaSerif(19)).lineSpacing(3)
+                        .foregroundStyle(LiviqaTheme.ink)
+
+                    Text("A full week and a quiet week look different in your body. Liviqa can put how full your days were next to your own sleep, heart and glucose — as two facts side by side. It never says one caused the other.")
+                        .font(.lato(13.5)).lineSpacing(3)
+                        .foregroundStyle(LiviqaTheme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    list(title: String(localized: "What Liviqa keeps"),
+                         items: CalendarLoadCopy.readsList,
+                         symbol: "checkmark",
+                         tint: LiviqaTheme.moss,
+                         background: LiviqaTheme.moss2)
+
+                    list(title: String(localized: "What Liviqa never reads"),
+                         items: CalendarLoadCopy.neverList,
+                         symbol: "xmark",
+                         tint: LiviqaTheme.rust,
+                         background: LiviqaTheme.rust2)
+
+                    Text("Liviqa can't even offer you a list of your calendars to choose from, because it would have to read their names to show it. Everything is worked out on this phone and stays on it — there is no upload path for any of it.")
+                        .font(.lato(12)).lineSpacing(2.5)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if connected {
+                        let days = daysRead == 1
+                            ? String(localized: "1 day")
+                            : String(localized: "\(daysRead) days")
+                        Text("Connected. Liviqa is holding \(days) of numbers. Turning this off stops the reading and deletes those numbers — your calendar itself is never touched.")
+                            .font(.lato(12.5)).lineSpacing(2.5)
+                            .foregroundStyle(LiviqaTheme.ink2)
+                        Button(action: onDisconnect) {
+                            Text("Turn off and delete the numbers")
+                                .font(.lato(15, .bold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(LiviqaTheme.rust2)
+                                .foregroundStyle(LiviqaTheme.rust)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button(action: onConnect) {
+                            Text("Read how full my days are")
+                                .font(.lato(15, .bold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(LiviqaTheme.moss)
+                                .foregroundStyle(LiviqaTheme.invertBG)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        Text("iOS asks next. You can change your mind here or in iOS Settings at any time.")
+                            .font(.lato(11.5))
+                            .foregroundStyle(LiviqaTheme.ink4)
+                    }
+                }
+                .padding(20)
+            }
+            .background(LiviqaTheme.paper)
+            .navigationTitle("Your calendar")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+    }
+
+    private func list(title: String, items: [String], symbol: String,
+                      tint: Color, background: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .font(.liviqaKicker(9)).tracking(1.1)
+                .foregroundStyle(LiviqaTheme.ink3)
+            ForEach(items, id: \.self) { item in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(tint)
+                        .padding(.top, 2)
+                    Text(item)
+                        .font(.lato(12.5)).lineSpacing(2)
+                        .foregroundStyle(LiviqaTheme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

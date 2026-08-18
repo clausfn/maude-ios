@@ -35,7 +35,6 @@ struct SettingsView: View {
     @AppStorage("gradedHeatmap")      private var gradedHeatmap = true
     @AppStorage("visualNudge")        private var visualNudge = true
     @AppStorage("crossSourceCards")   private var crossSourceCards = false
-    @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @AppStorage("liviqa.appLanguage") private var appLanguage = "system"
     // Face ID app lock (NFR-SEC) — runtime overlay wired in LiviqaApp.
     @AppStorage("appLockEnabled")     private var appLockEnabled = false
@@ -45,6 +44,11 @@ struct SettingsView: View {
     /// screen makes (`HealthVaultSession.open`) — so the count on this row is
     /// the count that screen lists. nil access ⇒ not opened yet ⇒ "Checking…",
     /// never a number.
+    /// FR-SMP-05 — the sample-mode card's in-flight state (the synthetic record
+    /// is built off the main actor, so the button says what it is doing).
+    @State private var enteringSample = false
+    @State private var confirmLeaveSample = false
+
     @State private var vaultAccess: VaultAccess?
     @State private var vaultDocumentCount = 0
 
@@ -257,22 +261,108 @@ struct SettingsView: View {
                 }
                 .tint(LiviqaTheme.moss)
 
-                Divider().overlay(LiviqaTheme.line2)
-
-                Toggle(isOn: $showDemoChip) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Demo data chip")
-                            .font(.footnote).foregroundStyle(LiviqaTheme.ink)
-                        Text("Show the “Demo data” marker on Today")
-                            .font(.caption).foregroundStyle(LiviqaTheme.ink4)
-                    }
-                }
-                .tint(LiviqaTheme.moss)
+                // The "Demo data chip" toggle that used to sit here is GONE, on
+                // purpose. It let a person switch the label off and then forget,
+                // leaving synthetic values on screen with nothing marking them —
+                // and it defaulted to OFF. Labelling is no longer a preference:
+                // sample mode labels itself (SampleModeBanner, FR-SMP-03), and
+                // the way in and out is the card in My data below.
             }
             .padding(14)
             .background(LiviqaTheme.paper2)
             .cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
+        }
+    }
+
+    // MARK: — Sample data (FR-SMP-05)
+
+    /// The way in and the way out, in one card, stating plainly what sample
+    /// mode is and what it does NOT do. Deliberately not a Toggle: entering
+    /// replaces every figure on screen, which is a decision, not a display
+    /// preference — and the preference-shaped control is exactly what the app
+    /// got wrong before (see the note where the demo chip toggle used to be).
+    private var sampleDataCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(appState.isSampleMode ? LiviqaTheme.clay : LiviqaTheme.fjordBright)
+                    Image(systemName: "flask.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 30, height: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(appState.isSampleMode
+                         ? String(localized: "Sample data is on")
+                         : String(localized: "Sample data"))
+                        .font(.lato(14, .bold)).foregroundStyle(LiviqaTheme.ink)
+                    Text(appState.isSampleMode
+                         ? String(localized: "Every figure on screen right now is made up.")
+                         : String(localized: "Try Liviqa on a made-up person's month."))
+                        .font(.caption).foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 6)
+            }
+
+            Text(appState.isSampleMode
+                 ? String(localized: "Your own data is untouched and waiting. Nothing from the sample has been saved — it only ever existed on screen.")
+                 : String(localized: "A synthetic record — a watch, a sensor and a scale belonging to nobody — so you can see what the app does before you have two weeks of your own. It is never saved, never mixed with your readings, and every screen stays marked while it is on."))
+                .font(.caption)
+                .lineSpacing(2.5)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if appState.isSampleMode {
+                Button { confirmLeaveSample = true } label: {
+                    Text("Leave sample mode")
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.primaryLabel)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(LiviqaTheme.primaryFill)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    guard !enteringSample else { return }
+                    enteringSample = true
+                    Task {
+                        await appState.enterSampleMode(.settingsChoice)
+                        enteringSample = false
+                    }
+                } label: {
+                    Text(enteringSample
+                         ? String(localized: "Preparing the sample…")
+                         : String(localized: "Explore with sample data"))
+                        .font(.lato(14, .bold))
+                        .foregroundStyle(LiviqaTheme.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .stroke(LiviqaTheme.line, lineWidth: 1.2))
+                }
+                .buttonStyle(.plain)
+                .disabled(enteringSample)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(LiviqaTheme.paper2)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12)
+            .stroke(appState.isSampleMode ? LiviqaTheme.clay3 : LiviqaTheme.line2, lineWidth: 1))
+        .confirmationDialog(String(localized: "Leave sample mode?"),
+                            isPresented: $confirmLeaveSample, titleVisibility: .visible) {
+            Button(String(localized: "Leave sample mode")) {
+                Task { await appState.leaveSampleMode() }
+            }
+            Button(String(localized: "Stay"), role: .cancel) { }
+        } message: {
+            Text("Liviqa goes back to your own data. Nothing from the sample is kept — it was never saved anywhere.")
         }
     }
 
@@ -361,6 +451,11 @@ struct SettingsView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(LiviqaTheme.line2, lineWidth: 1))
             }
             .buttonStyle(.plain)
+
+            // Sample data (FR-SMP-05) — the second of the app's two doors into
+            // sample mode (the first is the Apple Health step in onboarding).
+            // Both are explicit acts by the citizen; nothing else can open it.
+            sampleDataCard
 
             // Face ID app lock quick toggle (NFR-SEC-08, Area ① — kept here;
             // the Account screen exposes the same @AppStorage pref).

@@ -27,7 +27,8 @@ extension LiviqaTheme {
 //
 // Same rule the data-sources dedup card already holds (SourceCopyHonestyTests):
 // a demo seed is NEVER named in prose. The sentence drops the clause; the demo
-// disclosure stays where it belongs — the honesty chip driven by `isDemoData`.
+// disclosure stays where it belongs — the sample-mode chip and the app-shell
+// banner (SampleModeBanner), never a device name in a sentence.
 enum MetricSourceLabel {
 
     /// The source as it may appear inside a sentence. nil when there is none to

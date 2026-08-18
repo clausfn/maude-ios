@@ -723,43 +723,6 @@ struct OpenBankingSheet: View {
     }
 }
 
-// MARK: - Screen Time connect sheet
-
-struct ScreenTimeSheet: View {
-    var onConnect: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("One number per day — total screen time. Long evenings on the phone often pair with later nights and shorter sleep; the pattern helps explain your mornings.")
-                    .font(.lato(13.5)).lineSpacing(3)
-                    .foregroundStyle(LiviqaTheme.ink2)
-                Text("App names, websites and content are never accessed. The daily total stays on this device.")
-                    .font(.lato(12.5)).lineSpacing(2.5)
-                    .foregroundStyle(LiviqaTheme.ink2)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(LiviqaTheme.clay2)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                Button { onConnect(); dismiss() } label: {
-                    Text("Connect Screen Time")
-                        .font(.lato(15, .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                        .background(LiviqaTheme.moss)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                Spacer()
-            }
-            .padding(20)
-            .background(LiviqaTheme.paper)
-            .navigationTitle("Screen Time")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-        }
-    }
-}
-
 // MARK: - Preview
 
 #Preview {

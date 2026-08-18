@@ -17,14 +17,75 @@ struct WeekInContextView: View {
     /// Interactive grid selection: (dayIndex, metricIndex).
     @State private var selected: SelectedCell? = nil
 
+    // MARK: - CALENDAR row (FR-CTX-CAL-01) — a real signal, read on this device
+    //
+    // The sixth row was an honest coming-soon placeholder. It now carries the
+    // citizen's own calendar DENSITY: how full each day was, never what was in
+    // it. Titles, people, places and notes have no representation anywhere in
+    // this path — see `Liviqa/Context/CalendarLoad.swift`.
+    //
+    // Deliberately NOT wired into `clusterDay`, `hardDayCount`, the week
+    // verdict or the pattern note: those sentences name a day that stood out
+    // ACROSS SIGNALS, and letting a full diary help elect the week's hard day
+    // would be the app implying a busy day moved a reading. It does not.
+
+    /// Density days for the signed-in account, loaded from `CalendarLoadStore`.
+    /// Empty until the citizen opts in — never seeded.
+    @State private var calendarHistory: [CalendarDayLoad] = []
+    /// Genuinely connected: the citizen opted in AND iOS granted read access.
+    /// Read at appear from the store and EventKit — never a literal.
+    @State private var calendarConnected = false
+
+    private var calendarState: CalendarRowState {
+        CorrelationDeriver.calendarRowState(connected: calendarConnected, history: calendarHistory)
+    }
+
+    /// One level per display column. `.noData` whenever the day was not read,
+    /// the calendar is empty, or there isn't enough history for a usual yet —
+    /// a zero is never drawn as a fact about the person.
+    private var calendarLevels: [CorrelationLevel] {
+        CorrelationDeriver
+            .calendarCells(history: calendarHistory, over: weekDates, connected: calendarConnected)
+            .map { CorrelationLevel(rawValue: $0.rawValue) ?? .noData }
+    }
+
+    /// The level for any cell. The four HealthKit rows come from the derived
+    /// grid; CALENDAR is laid over column 5 from its own consented source.
+    private func level(day dayIndex: Int, metric rowIndex: Int) -> CorrelationLevel {
+        if rowIndex == CorrelationDeriver.calendarIndex {
+            return dayIndex < calendarLevels.count ? calendarLevels[dayIndex] : .noData
+        }
+        guard dayIndex < week.days.count,
+              rowIndex < week.days[dayIndex].values.count else { return .noData }
+        return week.days[dayIndex].values[rowIndex]
+    }
+
+    /// Re-read the consented calendar numbers. Refuses to collect anything when
+    /// the citizen has not opted in or iOS has not granted access — the refresh
+    /// itself can never start collection (`CalendarLoadIngestor.refresh`).
+    private func loadCalendarSignal() async {
+        let account = appState.journalAccountID
+        let connected = CalendarLoadStore.isOptedIn(forAccount: account)
+            && CalendarLoadIngestor.accessState() == .fullAccess
+        if connected {
+            await Task.detached(priority: .utility) {
+                _ = CalendarLoadIngestor.refresh(accountID: account)
+            }.value
+        }
+        calendarConnected = connected
+        calendarHistory = CalendarLoadStore.load(forAccount: account)?.days ?? []
+    }
+
     /// Correlation heatmap — real on-device grid once Health is connected
     /// (AppState derives it in refreshFromHealth), the demo grid otherwise.
     private var week: CorrelationWeek { appState.correlationWeek }
 
     // A7.2 delta (DWeek is a 6-row grid): WEATHER — permanently noData with no
     // source on the roadmap-visible horizon — is hidden rather than rendered as
-    // an eternal empty row. SPENDING/CALENDAR stay: honest coming-soon rows the
-    // design keeps. The deriver still emits all 7 columns; display trims the last.
+    // an eternal empty row. SPENDING is still an honest coming-soon row the
+    // design keeps. CALENDAR is no longer a placeholder: it carries the real
+    // consented density signal (FR-CTX-CAL-01), laid over column 5 above.
+    // The deriver still emits all 7 columns; display trims the last.
     private let metricLabels = [
         "GLUCOSE", "SLEEP", "HRV", "EXERCISE",
         "SPENDING", "CALENDAR"
@@ -235,6 +296,7 @@ struct WeekInContextView: View {
                 }
             }
         }
+        .task { await loadCalendarSignal() }
         .liviqaScrollEdgeSoft()   // iOS 26 + flag: chrome dissolves into the trend feed
         .liviqaScrollEdge()       // every device: paper fades under the status bar
         .background(LiviqaTheme.paper.ignoresSafeArea())
@@ -469,9 +531,7 @@ struct WeekInContextView: View {
 
                         // Row cells
                         ForEach(Array(week.days.enumerated()), id: \.offset) { dayIndex, day in
-                            let level = rowIndex < day.values.count
-                                ? day.values[rowIndex]
-                                : .noData
+                            let level = self.level(day: dayIndex, metric: rowIndex)
                             let isSel = selected == SelectedCell(day: dayIndex, metric: rowIndex)
                             let isMarked = markedDays.contains(dayIndex)
                             Button {
@@ -500,6 +560,21 @@ struct WeekInContextView: View {
             gridLegend
                 .padding(.top, 6)
 
+            // The CALENDAR row's honest state, said once where it can be read
+            // without tapping a grey square. Present only when the row is NOT
+            // carrying readings — a connected, calibrated row explains itself.
+            if calendarState != .ready {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 10)).foregroundStyle(LiviqaTheme.ink4)
+                    Text(CalendarLoadCopy.stateLine(calendarState))
+                        .font(.lato(11.5)).lineSpacing(2)
+                        .foregroundStyle(LiviqaTheme.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 4)
+            }
+
             // Tap readout (day-readout)
             Divider().overlay(LiviqaTheme.line).padding(.top, 4)
             gridReadout
@@ -522,8 +597,8 @@ struct WeekInContextView: View {
     private var gridReadout: some View {
         if let sel = selected,
            sel.day < week.days.count,
-           sel.metric < week.days[sel.day].values.count {
-            let level = week.days[sel.day].values[sel.metric]
+           sel.metric < metricLabels.count {
+            let level = self.level(day: sel.day, metric: sel.metric)
             let dayName = week.days[sel.day].localizedDayName
             let kind = markedKind(sel.day)
             VStack(alignment: .leading, spacing: 6) {
@@ -543,9 +618,7 @@ struct WeekInContextView: View {
                                    fg: level == .outlier ? LiviqaTheme.clay : LiviqaTheme.moss)
                     }
                 }
-                Text(kind == nil
-                     ? readout(metric: sel.metric, level: level, day: dayName)
-                     : markedReadout(metric: sel.metric, level: level, day: dayName))
+                Text(readoutText(sel: sel, level: level, dayName: dayName, kind: kind))
                     .font(.lato(13)).lineSpacing(2).foregroundStyle(LiviqaTheme.ink2)
             }
             .transition(.opacity)
@@ -554,6 +627,37 @@ struct WeekInContextView: View {
                 .font(.lato(13)).foregroundStyle(LiviqaTheme.ink3)
                 .padding(.top, 2)
         }
+    }
+
+    /// Which sentence a tapped cell gets. CALENDAR has its own copy because it
+    /// is not a body signal: it says how full the day was against this person's
+    /// own usual, and never that a full day caused anything.
+    private func readoutText(sel: SelectedCell, level: CorrelationLevel,
+                             dayName: String, kind: ContextFlagKind?) -> String {
+        if sel.metric == CorrelationDeriver.calendarIndex {
+            let base = calendarReadout(dayIndex: sel.day, dayName: dayName, level: level)
+            guard kind != nil else { return base }
+            return base + " " + String(localized: "You marked that day, so Liviqa isn't reading it as a drift from your usual.")
+        }
+        return kind == nil
+            ? readout(metric: sel.metric, level: level, day: dayName)
+            : markedReadout(metric: sel.metric, level: level, day: dayName)
+    }
+
+    /// Built entirely from `CalendarLoadCopy`, so every sentence has passed
+    /// `NudgeGuard` before it can reach the screen (FR-NDG-06).
+    private func calendarReadout(dayIndex: Int, dayName: String, level: CorrelationLevel) -> String {
+        let state = calendarState
+        guard dayIndex < weekDates.count else { return CalendarLoadCopy.stateLine(state) }
+        let load = CorrelationDeriver.calendarLoad(for: weekDates[dayIndex], in: calendarHistory)
+        let usual = CorrelationDeriver.calendarUsual(calendarHistory)
+        return CalendarLoadCopy.dayReadout(
+            day: dayName,
+            state: state,
+            load: load,
+            usualScheduledHours: usual?.mean,
+            direction: load.flatMap { CorrelationDeriver.calendarDirection($0, usual: usual) },
+            notable: level == .outlier)
     }
 
     private func readout(metric: Int, level: CorrelationLevel, day: String) -> String {

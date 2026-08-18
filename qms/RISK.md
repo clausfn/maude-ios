@@ -2,6 +2,221 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Calendar load — reading how full a day was, without reading a person's life (2026-08-18, branch claude/a72-electric-ink)
+
+**Why this is a risk section.** Nothing clinical changes. Two things do: the app starts
+reading a **new source of personal data** — one that also contains OTHER PEOPLE's personal
+data, since a meeting names the people in it — and a new signal joins the grid where
+citizens read their own patterns. Both are honesty/privacy axes the QMS files here.
+
+**RK-CAL-01 — event content is read, kept, logged or shown.**
+*Cause.* An engineer adds one line. `event.title` is right there next to `event.startDate`,
+the compiler is happy, and a debug `print` during an investigation is the classic way this
+leaks. Nothing about the shape of EventKit resists it.
+*Harm.* Liviqa would hold, on a citizen's phone, the titles, attendees and locations of
+other people's appointments — data those people never consented to give us — and the
+permission prompt would be a lie.
+*Controls.*
+- **One seam, and it is narrow by construction.** `CalendarLoadIngestor.intervals` is the
+  only function in the app that reads events. It maps each `EKEvent` to a
+  `ScheduledInterval` — two `Date`s and two `Bool`s — and after it returns, **no `EKEvent`
+  exists anywhere in the app**, so no later edit can reach a title even by mistake.
+- **A lint that fails the build, mutation-verified.** `T-CAL-02` extracts every
+  `event.<member>` on that path and fails on anything outside
+  `{status, startDate, endDate, isAllDay, availability}`; separately it fails on any of the
+  eleven named content accessors; separately it asserts `events(matching:)`,
+  `predicateForEvents(` and `requestFullAccessToEvents` appear in exactly one file and
+  `import EventKit` in exactly two. Verified by mutation on 2026-08-18: inserting
+  `_ = event.title` fails two independent checks. Each lint also fails if its target
+  disappears — a lint that has stopped guarding anything must not pass quietly.
+- **Nothing on the path logs.** `print`, `debugPrint`, `NSLog`, `os_log` and `Logger` are
+  linted out of the ingestor, the deriver, the store and the copy file.
+- **No field to keep it in.** `CalendarDayLoad` encodes to seven numeric keys; the test
+  asserts every encoded value is a number, so adding a `String` fails the suite.
+- **No calendar picker, deliberately.** Offering "choose which calendars" would require
+  reading their names. The screen says so, in those words.
+*Residual risk.* A future engineer could add a second EventKit importer with its own read.
+The importer lint catches exactly that (it pins the set of importing files), which is why
+it is written as an equality and not a "contains".
+
+**RK-CAL-02 — a busy day is presented as a cause, or as a judgement.**
+*Cause.* A grid that puts "your calendar was full" next to "your HRV dropped" invites a
+causal reading, and the natural next sentence ("you're doing too much") is a judgement about
+how a person should live — outside anything this app is entitled to say, and outside
+FR-NDG-06's allow-list posture.
+*Controls.*
+- **Personal-baseline only.** The cell is |deviation| from this person's own usual booked
+  hours, in the same z-bands as every other row. There is no population norm, and no
+  recommended number of meetings, because no such thing exists.
+- **The row cannot elect the week's hard day.** CALENDAR is deliberately excluded from
+  `clusterDay`, `hardDayCount`, the week verdict and the pattern note. Those sentences name
+  a day that stood out across SIGNALS; letting a full diary vote would be the app implying
+  the diary moved a reading.
+- **Every sentence passes the designated control.** `CalendarLoadCopy.guarded(_:fallback:)`
+  is the single seam; `NudgeGuard.check` runs before any view can render, with an assertion
+  in DEBUG and a neutral fallback in Release. `T-CAL-02` sweeps >1 000 generated sentences.
+- **The disclaimer is explicit about cause**, not just about diagnosis: a notable day adds
+  "A pattern in your own data, not a medical finding — and not read as a cause of anything
+  else on this screen."
+*Residual risk.* The citizen may still draw their own causal conclusion from two facts on
+one screen. That is their reading of their own life, which is the point of the grid; what
+the app must not do is assert it, and it does not.
+
+**RK-CAL-03 — absence rendered as a fact about the person.** This is the RK-CHART-01 /
+PR-111 failure mode, in a new source.
+*Cause.* A calendar the citizen does not keep on this phone produces a week of zeroes.
+Drawing those as "like your usual" would assert seven quiet days about someone whose diary
+simply lives elsewhere.
+*Controls.* Four distinct honest states, each with its own sentence: not connected /
+calendar holds nothing in the window / fewer than three days of history (the same ≥3 rule
+`Baseline.from` applies everywhere) / ready. An entirely empty history is `.noData`, never a
+row of low cells. A display day with no stored reading is `.noData`, never a zero. Tested
+four ways in `T-CAL-01`.
+
+**RK-CAL-06 — a baseline built on days the calendar was not yet kept.** A quieter cousin
+of RK-CAL-03, and the one most likely to have shipped unnoticed.
+*Cause.* A refresh reads the whole 28-day rolling window in one go. Someone who started
+keeping this calendar eight days ago gets twenty empty days in front of eight real ones. As
+a mean, that is not "your usual" — it is mostly absence — and every ordinary week for the
+next month would read "fuller than your usual".
+*Controls.* `CalendarLoadDeriver.baselineWindow` starts the baseline at the first day with
+a recorded entry. Days before it are excluded from the mean AND rendered `.noData`, through
+the same accessor the readout uses, so the cell and the sentence cannot disagree. Empty days
+*inside* the used stretch are kept: a genuinely clear Sunday is data about the person.
+Tested both ways (`daysBeforeTheFirstEntryAreAbsenceNotQuietDays`,
+`anEmptyDayInsideTheUsedStretchIsStillRealData`).
+
+**RK-CAL-04 — one person's calendar numbers open under another person's account.** The
+PR-111 cross-account journal exposure, pre-empted rather than repeated.
+*Controls.* The store is ACCOUNT-scoped from the first commit, following `JournalStore`
+exactly: `<Application Support>/calendar-load/<sha256(accountID)>/calendar-load.v1.json`.
+No account id ⇒ no path ⇒ nothing written and nothing readable. An account with no file
+starts empty. There is no unscoped path and never was one, so there is no legacy adoption
+question. `NSFileProtectionComplete` + atomic writes. Tested: cross-account isolation, and
+that the id never appears in the path.
+
+**RK-CAL-05 — collection continues after the citizen says stop.**
+*Controls.* Collection requires BOTH the account-scoped opt-in record and iOS's
+`fullAccess`; `refresh` returns false and writes nothing if either is missing, so a refresh
+can never start collection as a side effect. `replaceDays` refuses to create a record for
+an account that never opted in — a write cannot start collection either. `disconnect`
+deletes the file, so revoking removes what was collected and not merely the future of it.
+*Closed (this branch).* `AppState.deleteAllData` now calls `CalendarLoadStore.eraseAll()`
+alongside `ContextFlagStore.delete()` (step 2c-ii-b), so a full device erase removes every
+account's calendar-load scope on the device. `eraseAll()` itself was already tested
+(T-CAL-01, `eraseRemovesEveryAccountsCalendarScope`); the wiring was the outstanding line
+and it has landed.
+
+**Permission-copy correction filed here deliberately.** The write-only calendar prompt said
+"It never reads your existing events." That was an app-wide claim, and it stopped being
+true of the running app the moment this signal shipped. It now describes only the
+permission it belongs to. The five existing non-English translations of that string carried
+the old claim and were **removed** rather than left in place, so every locale falls back to
+the accurate English source until they are re-translated — an English prompt is a smaller
+harm than a false Danish one.
+
+**Screen Time — no hazard, because nothing was built.** `docs/ScreenTime_Feasibility_20260813.md`.
+The one code change it caused REMOVES a false affordance: the Data-sources "Screen Time"
+row offered a "Connect Screen Time" button that, in every shipping build, read nothing and
+changed nothing while looking like a connection (FR-SET-04).
+
+
+## Opt-in sample mode — the honesty control the 2026-08-13 incident was missing (2026-08-14, branch claude/a72-electric-ink)
+
+**Why this is a risk section and not just a feature.** Nothing clinical changes here. What
+changes is an HONESTY behaviour: WHEN the app is allowed to put a number on screen that
+nobody measured. That is the same axis the 2026-08-13 TestFlight incident failed on
+(CHANGELOG PR-111), so it is filed here.
+
+**RK-SMP-01 — a citizen reads an invented number as their own measurement.**
+*Cause (the state before this change, stated plainly).* `AppState.isDemoData` was defined
+as `!usingRealData`. That expression answers "have any real readings arrived?" — but every
+screen that draws a fabricated stand-in value used it to answer a different question,
+"may I draw a fabricated value?". So a brand-new REAL citizen, whose watch had simply not
+synced yet, was indistinguishable from someone who had asked to see a demo. Seven
+metric-detail screens returned `.designSeed`; Home printed a day score of 42/50 sleep, a
+momentum strip reading "Recovery up 4 vs your usual", a 14-point "last 30 days" recovery
+line, and an attention card whose canned sentence ("Late dinners are costing you sleep.")
+overrode the engine's own. The single label that might have marked any of it was a chip
+in one header, gated by `liviqaShowDemoChip`, **default FALSE**.
+*Harm.* A person makes a judgement about their health — or about this app's trustworthiness
+— on a figure that describes nobody. In a product whose whole claim is "your own normal,
+never a population average", this is the most damaging failure available to it.
+*Controls now in place.* (1) The two questions are separate properties (`hasNoRealReadings`
+vs `isSampleMode`) and only the citizen's own request authorises a stand-in — the rule is a
+pure function, `SampleModePolicy.mayRenderSampleValues`, and the test that pins it holds
+`hasRealReadings: false` and asserts it changes nothing. (2) The stand-in blocks that had
+no data behind them are DELETED rather than re-gated; sample mode derives real figures from
+the synthetic record through the same derivers instead. (3) Labelling is app chrome on every
+tab, every pushed detail and every value-bearing sheet, with no preference able to reach it.
+(4) The old preference key no longer exists anywhere in the app, and a lint fails the run if
+it returns.
+*Deliberate consequence.* The watch glance is NOT updated while sample mode is on — a
+watch face cannot carry this label, so it keeps the citizen's own last real values instead
+of showing a synthetic number with nothing marking it.
+*Residual risk.* A modal presented by a screen the app shell does not own would be drawn
+above the banner. Every such presentation in the shell is covered; a NEW full-screen
+presentation added later would need `.liviqaSampleModeBanner()` too. Not lint-enforced —
+recorded as a review item rather than claimed as closed.
+*Linked requirements.* FR-SMP-01, FR-SMP-03. *Status:* **mitigated** (T-SMP-01, T-SMP-03).
+
+**RK-SMP-02 — the demo dataset is a real person's health record.**
+*Cause.* The directive was to build the sample "inspired by my previous goldmine" — an
+actual 60-day record belonging to an identified individual. The convenient implementation
+is to ship that file.
+*Harm.* Every tester, and eventually every user of a demo build, would hold one named
+person's special-category health data. Irreversible on distribution, and precisely the
+thing this application exists to refuse.
+*Control.* `SampleDataset` is generated arithmetic from a fixed seed. It reproduces the
+goldmine's SHAPE (CGM band and excursion structure, the short-night → lower-HRV → higher
+next-day-curve coupling, weekday/weekend step rhythm, a scale used twice a week) and none
+of its values. The file says so at the top, with the reason. Tests assert determinism,
+plausible bands, and that the record has genuine variability rather than being a flat or
+noisy fixture.
+*Second-order control.* The sample deliberately carries **no AFib burden, no blood
+pressure, no insulin doses, no labs, diagnoses or medicines** — the surfaces where an
+invented value would look most like a clinical fact about the person holding the phone. A
+demo must never simulate a rhythm finding (D9) or a dose (FR-REG-04).
+*Residual risk.* None identified; the dataset cannot be re-identified because there is
+nobody in it. *Linked requirements.* FR-SMP-02, D9, FR-REG-04. *Status:* **mitigated**
+(T-SMP-02).
+
+**RK-SMP-03 — sample data contaminates the citizen's real record.**
+*Cause.* A demo mode implemented as "just ingest the fixture" would run synthetic readings
+through the normal pipeline and persist them beside real ones, where nothing afterwards can
+tell them apart — including the donation assembler, the clinician share and the passport.
+*Harm.* Permanent corruption of the one store the app promises is the citizen's own, and a
+route for fabricated readings into a clinical conversation or a research corpus.
+*Control (structural, not procedural).* While sample mode is on, `refreshFromHealth`
+performs no fetch, no persist and no derivation — the ingest path is not entered. The
+synthetic record is a value type with no `ModelContext`, no store, no file handle and no
+network type in the file at all (source-lint enforced). The overlay is in-memory; entering
+snapshots the citizen's own surfaces and leaving restores them field for field. Erase
+clears the flag with everything else.
+*Verification.* Row counts across eleven entity types are asserted unchanged before,
+during and after — including across a refresh performed while sample mode is on.
+*Residual risk.* The donation gate now refuses on BOTH meanings (`isSampleMode ||
+hasNoRealReadings`), so it is strictly stricter than before, not looser. *Linked
+requirements.* FR-SMP-04, FR-DON-05, NFR-PRIV-01. *Status:* **mitigated** (T-SMP-04).
+
+**RK-SMP-04 — the app turns sample mode on by itself.**
+*Cause.* The tempting fix for "the app looks empty" is to show a sample automatically. That
+would recreate the original defect exactly, with a nicer label on it.
+*Control.* There is one entry function and it requires a named `SampleModePolicy.Entry`;
+the enumeration has two cases, both a citizen's tap. A lint asserts the set of files that
+may call it, so a third caller fails the run rather than a review. The flag is absent (not
+`false`) on a fresh install, and a launch refresh is asserted unable to set it.
+*Residual risk.* Sample mode persists across launches once chosen — deliberately, since it
+is a choice the citizen made and the banner states it on every screen. *Linked
+requirements.* FR-SMP-05. *Status:* **mitigated** (T-SMP-05).
+
+**Honesty debt PAID, not deferred.** The onboarding screen that offered "Skip — explore
+with sample data" and the declined screen that said "for now you'll explore with sample
+data, clearly marked" both promised something the app did not do: neither turned any
+sample on. Under the "every claim in shipped copy must be true of the running app" rule
+these were false sentences on the second and third screens a new citizen reads. Both are
+now either true (the offer exists and works) or removed.
+
 ## Donated data programme DON-2026-01 — app side (2026-08-13, branch claude/a72-electric-ink)
 
 **Context and the decision this records.** CN, 2026-08-13, verbatim: *"forget about

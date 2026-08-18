@@ -1,6 +1,6 @@
-// HealthAccessDeclinedView.swift — UC-02 denied state · v02 2026-08-13
+// HealthAccessDeclinedView.swift — UC-02 denied state · v03 2026-08-14
 // Two ways in, and the copy tells them apart:
-//   • `.skipped` — the citizen chose "Skip, explore with sample data".
+//   • `.skipped` — the citizen chose "Not now" on the Apple Health step.
 //   • `.noReadings` — the inferred-denial cue: the read request completed and
 //     every requested type came back empty.
 //
@@ -10,13 +10,27 @@
 // identical from inside the app. Accusing the system of denying access would be
 // a claim we cannot make true — the calmer, accurate wording is used instead,
 // and both remedies (open Health, or carry on) are offered either way.
+//
+// v03 (FR-SMP-05): this screen used to PROMISE sample data — "for now you'll
+// explore with sample data" — while doing nothing to turn it on. Both halves
+// were wrong: the app has no business deciding to show a person invented
+// numbers, and the sentence was not true of the running app. Sample mode is now
+// an OFFER with its own button, and carrying on without it is the other button.
+// Whichever they choose, the app tells the truth about what they will see.
 import SwiftUI
 
 struct HealthAccessDeclinedView: View {
     enum Reason { case skipped, noReadings }
 
     var reason: Reason = .skipped
+    /// Carry on with no sample: honest empty/calibrating screens until readings
+    /// arrive. The default path — nothing is entered on the citizen's behalf.
     var onContinue: () -> Void
+    /// The citizen explicitly asks to look at a sample (FR-SMP-05, the ONE
+    /// onboarding door into sample mode).
+    var onExploreSample: () -> Void = { }
+    /// The synthetic record is being built (a moment, off the main actor).
+    var isPreparingSample: Bool = false
 
     private var kicker: String {
         switch reason {
@@ -35,9 +49,9 @@ struct HealthAccessDeclinedView: View {
     private var lead: String {
         switch reason {
         case .skipped:
-            return String(localized: "For now you'll explore with sample data, clearly marked so you never mistake it for your own. Your real edition begins the moment you connect.")
+            return String(localized: "Liviqa will stay quiet until readings arrive — empty screens rather than numbers nobody measured. Your real edition begins the moment you connect.")
         case .noReadings:
-            return String(localized: "That can mean two things, and we can't tell them apart from here: either Liviqa wasn't given permission to read, or there's simply nothing recorded on this phone yet. Until readings arrive you'll see sample data, clearly marked so you never mistake it for your own.")
+            return String(localized: "That can mean two things, and we can't tell them apart from here: either Liviqa wasn't given permission to read, or there's simply nothing recorded on this phone yet. Until readings arrive the screens stay empty — we won't fill them with numbers nobody measured.")
         }
     }
 
@@ -106,13 +120,22 @@ struct HealthAccessDeclinedView: View {
                         UIApplication.shared.open(url)
                     }
                 }
-                OnbQuietButton(label: String(localized: "Continue with sample data"),
+                // The offer, stated as an offer. Made-up numbers, said out loud
+                // in the label itself — never "continue", which reads as the
+                // neutral way forward.
+                OnbQuietButton(label: isPreparingSample
+                               ? String(localized: "Preparing the sample…")
+                               : String(localized: "Explore with sample data (made up)"),
+                               action: onExploreSample)
+                    .disabled(isPreparingSample)
+                OnbQuietButton(label: String(localized: "Continue without it"),
                                action: onContinue)
                 HStack(spacing: 7) {
                     Image(systemName: "lock")
                         .font(.system(size: 11, weight: .medium))
-                    Text("You can change this any time in Settings → My data.")
+                    Text("Sample data is marked on every screen and can be left any time in Settings → My data.")
                         .font(.lato(11.5))
+                        .multilineTextAlignment(.center)
                 }
                 .foregroundStyle(LiviqaTheme.ink3)
                 .frame(maxWidth: .infinity)

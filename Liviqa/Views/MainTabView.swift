@@ -80,7 +80,6 @@ struct MainTabView: View {
     @State private var showProfile  = false   // ProfileSheet — universal avatar target
     @State private var nudgeProfileAnchor: ProfileSheet.Section? = nil
     @State private var joiningConsult: ConsultSummary? = nil   // accepted an incoming call
-    @AppStorage("liviqaShowDemoChip") private var showDemoChip = false
     @State private var didInitialRefresh = false
     // Liquid Glass (A6): honour Reduce Transparency / Increase Contrast with an opaque fallback.
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -89,6 +88,7 @@ struct MainTabView: View {
     @AppStorage("liquidGlass") private var glassOn = true
     @State private var tabFrames: [LiviqaTab: CGRect] = [:]   // measured slots (bar space) → hit-test + rest pill
     @State private var barHeight: CGFloat = 96                // measured floating-bar height → content bottom inset
+    @State private var sampleBannerHeight: CGFloat = 0        // measured sample-data bar → extra bottom inset
     @State private var dragLoc: CGPoint? = nil               // finger location in bar space while pressing; nil = idle
     private let tabBarSpace = "liviqaTabBar"
     #if DEBUG
@@ -137,7 +137,11 @@ struct MainTabView: View {
                         hideNavBar(TodayView(
                             nudges: appState.nudges,
                             displayName: appState.profile?.displayName,
-                            isDemoData: appState.isDemoData && showDemoChip,
+                            // FR-SMP-03: the Home chip follows sample mode and
+                            // NOTHING else. It used to be `&& showDemoChip`, a
+                            // display preference that defaulted to FALSE — which
+                            // is how synthetic values rendered with no label.
+                            isSampleMode: appState.isSampleMode,
                             signals: appState.todaySignals,
                             coldStart: appState.isColdStartEmpty,
                             onOpen: { nudge in selectedNudge = nudge },
@@ -172,7 +176,7 @@ struct MainTabView: View {
             // Reserve the room the bar ACTUALLY takes, not a fixed 96 — at
             // accessibility text sizes the bar is much taller and used to slice
             // the last row of the scrolling content in half.
-            .padding(.bottom, appState.detailDepth == 0 ? contentBottomInset : 0)
+            .padding(.bottom, contentBottomPadding)
 
             if appState.detailDepth == 0 {
                 tabBar
@@ -192,6 +196,12 @@ struct MainTabView: View {
                 .zIndex(100)
             }
         }
+        // FR-SMP-03 — the label the citizen cannot switch off. Drawn by the
+        // SHELL, so it stands above every tab and every pushed detail; it also
+        // carries the way out, so the exit is on screen wherever they are.
+        .liviqaSampleModeBanner(appState,
+                                bottomInset: sampleBannerBottomInset,
+                                onHeight: { sampleBannerHeight = $0 })
         .onPreferenceChange(TabBarHeightKey.self) { h in
             if h > 0 { barHeight = h }
         }
@@ -261,6 +271,7 @@ struct MainTabView: View {
             set: { appState.showAssistant = $0 }
         )) {
             ChatView(nudges: appState.nudges)
+                .liviqaSampleModeBanner(appState)
         }
         .sheet(isPresented: Binding(
             get: { appState.showHealthRecord },
@@ -276,6 +287,7 @@ struct MainTabView: View {
                         }
                     }
             }
+            .liviqaSampleModeBanner(appState)
         }
         .sheet(isPresented: Binding(
             get: { showProfile || appState.showProfileSheet },
@@ -288,6 +300,7 @@ struct MainTabView: View {
             }
         )) {
             ProfileSheet(openSection: nudgeProfileAnchor)
+                .liviqaSampleModeBanner(appState)
         }
         .sheet(isPresented: Binding(
             get: { appState.showStudyConsent },
@@ -339,6 +352,21 @@ struct MainTabView: View {
     /// bar's own measured height plus a breathing gap, never less than the
     /// original 96 (so the default text size is unchanged byte-for-byte).
     private var contentBottomInset: CGFloat { max(96, barHeight + 20) }
+
+    /// Room reserved beneath the scrolling content: the floating bar (when it is
+    /// showing) plus the sample-data bar (whenever sample mode is on, including
+    /// under a pushed detail, where the tab bar is hidden but the label is not).
+    private var contentBottomPadding: CGFloat {
+        let bar = appState.detailDepth == 0 ? contentBottomInset : 0
+        let sample = appState.isSampleMode ? sampleBannerHeight + 10 : 0
+        return bar + sample
+    }
+
+    /// How far the sample-data bar sits above the bottom edge: clear of the
+    /// floating tab bar when it is up, flush to the edge under a pushed detail.
+    private var sampleBannerBottomInset: CGFloat {
+        appState.detailDepth == 0 ? barHeight + 8 : 0
+    }
 
     /// Every Liviqa font resolves through `UIFontMetrics`, which reads the
     /// SYSTEM content-size category — SwiftUI's `.dynamicTypeSize(...)` clamp

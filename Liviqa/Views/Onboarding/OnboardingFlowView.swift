@@ -101,6 +101,9 @@ struct OnboardingFlowView: View {
     /// Why the declined frame is showing — a chosen skip, or a read that
     /// completed with nothing in it (never stated as a denial; see that view).
     @State private var declinedReason: HealthAccessDeclinedView.Reason = .skipped
+    /// FR-SMP-05 — the synthetic record is being built after the citizen asked
+    /// for a sample on the declined screen. The ONE onboarding door in.
+    @State private var enteringSample = false
 
     init(onComplete: @escaping () -> Void) {
         self.onComplete = onComplete
@@ -343,7 +346,22 @@ struct OnboardingFlowView: View {
                     frame = .healthDeclined
                 })
         case .healthDeclined:
-            HealthAccessDeclinedView(reason: declinedReason, onContinue: { advance() })
+            HealthAccessDeclinedView(
+                reason: declinedReason,
+                // Carry on with nothing: honest empty screens, no sample.
+                onContinue: { advance() },
+                // The citizen asked for the sample. Entering is deliberate,
+                // explicit, and reversible from the banner or Settings.
+                onExploreSample: {
+                    guard !enteringSample else { return }
+                    enteringSample = true
+                    Task {
+                        await appState.enterSampleMode(.onboardingChoice)
+                        enteringSample = false
+                        advance()
+                    }
+                },
+                isPreparingSample: enteringSample)
         case .dfg:
             DfGGovernanceStep(accent: frame.accent, onContinue: { advance() })
         case .name:

@@ -162,62 +162,200 @@ struct OnbCard<Content: View>: View {
     }
 }
 
-// MARK: - Step 1 · Why Liviqa
+// MARK: - Step 1 · Why Liviqa (2 sub-pages)
+//
+// Page 2 is the EXPECTATION page (FR-SMP-06, CN directive 2026-08-13: "make it
+// clear in the opening instructions that Liviqa is targeted for people
+// measuring their health and lifestyle relevant data").
+//
+// It exists because of a specific failure: a tester installs the app on a fresh
+// phone, sees empty screens, and concludes it is broken — when it is simply new
+// and has nothing of theirs to read yet. The honest fix is to say, before the
+// first screen, who the app is for and what the first fortnight actually looks
+// like. Every claim on that page is checked against the running code:
+//
+//   • "three days" — the engine's personal baseline needs ≥3 days of a metric
+//     before it will compare anything (`Baseline.from`, NudgeModel.swift).
+//   • "about two weeks" — the learned "your usual" band needs ≥5 days
+//     (BaselineDeriver) and the app's steady-state window is 30 days, so two
+//     weeks is when the band stops moving much. It is stated as "settles", not
+//     as a finish line, because it never finishes.
+//   • "nothing happens on day one" — literally true: with no readings the app
+//     shows its calibrating state and no insight.
+//
+// No promise here that the app cannot keep, and no hype.
 
 struct WhyLiviqaStep: View {
     var accent: Color
     var onContinue: () -> Void
 
+    @State private var sub = 0
+
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    OnbStepHead(
-                        kicker: String(localized: "Step 1 of 9"),
-                        title: String(localized: "Apple Health keeps your numbers. Liviqa tells you what they mean."),
-                        lead: String(localized: "Your phone already collects the readings. Liviqa reads them here on the device and gives you one plain answer a day — measured against your own normal, not a population average."),
-                        accent: accent, compact: true)
-
-                    OnbCard {
-                        OnbBenefitRow(icon: "doc.plaintext",
-                                      title: String(localized: "One answer, not forty charts"),
-                                      sub: String(localized: "“You're having a steady week.” Then the numbers, if you want them."))
-                        OnbBenefitRow(icon: "waveform.path.ecg",
-                                      title: String(localized: "Compared to your own normal"),
-                                      sub: String(localized: "Apple Health shows the value. Liviqa learns what is usual for you, and tells you when it moves."),
-                                      divider: true)
-                        OnbBenefitRow(icon: "drop.fill",
-                                      title: String(localized: "Real depth, one tap down"),
-                                      sub: String(localized: "Glucose in mmol/L, time in range, GMI — the clinical detail your nurse asks about."),
-                                      divider: true)
-                        OnbBenefitRow(icon: "lock.shield",
-                                      title: String(localized: "It stays on this phone"),
-                                      sub: String(localized: "The analysis runs on the device. Nothing is sent anywhere unless you choose to share it."),
-                                      divider: true)
-                    }
-
-                    Text("Free to use, just for yourself. You don't need an account to start — the next steps are only setup.")
-                        .font(.lato(12))
-                        .lineSpacing(4)
-                        .foregroundStyle(LiviqaTheme.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(LiviqaTheme.moss2)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14)
-                            .stroke(LiviqaTheme.moss3, lineWidth: 1))
+            // 2-dot sub-pager
+            HStack(spacing: 5) {
+                ForEach(0..<2, id: \.self) { d in
+                    Circle()
+                        .fill(d == sub ? LiviqaTheme.moss : LiviqaTheme.ink.opacity(0.22))
+                        .frame(width: 6, height: 6)
                 }
-                .padding(.horizontal, 26)
+            }
+            .padding(.bottom, 8)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(localized: "Page \(sub + 1) of 2"))
+
+            ScrollView {
+                if sub == 0 { pageOne } else { pageTwo }
             }
             .scrollBounceBehavior(.basedOnSize)
 
-            OnbPrimaryButton(label: String(localized: "Show me"), action: onContinue)
-                .padding(.horizontal, 26)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
+            OnbPrimaryButton(label: sub == 0
+                             ? String(localized: "Show me")
+                             : String(localized: "That's fair — carry on")) {
+                if sub == 0 {
+                    withAnimation(.easeInOut(duration: 0.25)) { sub = 1 }
+                } else {
+                    onContinue()
+                }
+            }
+            .padding(.horizontal, 26)
+            .padding(.top, 12)
+            .padding(.bottom, 20)
         }
+    }
+
+    private var pageOne: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            OnbStepHead(
+                kicker: String(localized: "Step 1 of 9"),
+                title: String(localized: "Apple Health keeps your numbers. Liviqa tells you what they mean."),
+                lead: String(localized: "Your phone already collects the readings. Liviqa reads them here on the device and gives you one plain answer a day — measured against your own normal, not a population average."),
+                accent: accent, compact: true)
+
+            OnbCard {
+                OnbBenefitRow(icon: "doc.plaintext",
+                              title: String(localized: "One answer, not forty charts"),
+                              sub: String(localized: "“You're having a steady week.” Then the numbers, if you want them."))
+                OnbBenefitRow(icon: "waveform.path.ecg",
+                              title: String(localized: "Compared to your own normal"),
+                              sub: String(localized: "Apple Health shows the value. Liviqa learns what is usual for you, and tells you when it moves."),
+                              divider: true)
+                OnbBenefitRow(icon: "drop.fill",
+                              title: String(localized: "Real depth, one tap down"),
+                              sub: String(localized: "Glucose in mmol/L, time in range, GMI — the clinical detail your nurse asks about."),
+                              divider: true)
+                OnbBenefitRow(icon: "lock.shield",
+                              title: String(localized: "It stays on this phone"),
+                              sub: String(localized: "The analysis runs on the device. Nothing is sent anywhere unless you choose to share it."),
+                              divider: true)
+            }
+
+            Text("Free to use, just for yourself. You don't need an account to start — the next steps are only setup.")
+                .font(.lato(12))
+                .lineSpacing(4)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(LiviqaTheme.moss2)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14)
+                    .stroke(LiviqaTheme.moss3, lineWidth: 1))
+        }
+        .padding(.horizontal, 26)
+    }
+
+    /// Who it is for, and what the first two weeks really look like.
+    private var pageTwo: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            OnbStepHead(
+                kicker: String(localized: "Before you start"),
+                title: String(localized: "Liviqa is for people who already measure something."),
+                lead: String(localized: "A watch, a ring, a continuous glucose sensor, a scale — anything that records you day after day. Liviqa has no sensors of its own: it reads what your devices already write into Apple Health. Without at least one of them there is nothing for it to read, and it will say so rather than make something up."),
+                accent: accent, compact: true)
+
+            OnbCard {
+                OnbBenefitRow(icon: "applewatch",
+                              title: String(localized: "A watch or a ring"),
+                              sub: String(localized: "Sleep, resting heart rate, heart-rate variability, steps."))
+                OnbBenefitRow(icon: "drop.fill",
+                              title: String(localized: "A glucose sensor, if you use one"),
+                              sub: String(localized: "Time in range and GMI in mmol/L — the depth this app was built for."),
+                              chipColor: LiviqaTheme.accentGlucose,
+                              divider: true)
+                OnbBenefitRow(icon: "scalemass",
+                              title: String(localized: "A scale, a blood-pressure cuff, a lab result"),
+                              sub: String(localized: "Anything that lands in Apple Health, plus letters and results you import yourself."),
+                              chipColor: LiviqaTheme.accentBody,
+                              divider: true)
+            }
+
+            // What the first two weeks look like — the screen that stops a new
+            // tester concluding the app is broken when it is simply new.
+            VStack(alignment: .leading, spacing: 0) {
+                Text("THE FIRST TWO WEEKS")
+                    .font(.liviqaKicker(10))
+                    .tracking(LiviqaTheme.Tracking.kicker)
+                    .foregroundStyle(LiviqaTheme.moss)
+                    .padding(.bottom, 8)
+
+                expectationRow(day: String(localized: "Day 1"),
+                               text: String(localized: "Almost nothing happens. Liviqa reads what is already on your phone and starts learning your normal. Empty is the honest answer, so empty is what you get."))
+                expectationRow(day: String(localized: "~Day 3"),
+                               text: String(localized: "Enough of your own days to compare against — the first insight can appear. It may still be quiet: a calm week has nothing worth saying."))
+                expectationRow(day: String(localized: "~2 weeks"),
+                               text: String(localized: "Your usual settles down and stops shifting under every new reading. From here the app is comparing today with a you it actually knows."),
+                               last: true)
+            }
+            .padding(.horizontal, 15)
+            .padding(.vertical, 13)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LiviqaTheme.moss2)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16)
+                .stroke(LiviqaTheme.moss3, lineWidth: 1))
+
+            Text("Liviqa will never fill a quiet week with numbers nobody measured. If you want to see what it looks like with data in it before yours arrives, you can turn on clearly-marked sample data at the Apple Health step.")
+                .font(.lato(12))
+                .lineSpacing(4)
+                .foregroundStyle(LiviqaTheme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 26)
+    }
+
+    private func expectationRow(day: String, text: String, last: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 11) {
+            VStack(spacing: 0) {
+                Circle()
+                    .fill(LiviqaTheme.moss)
+                    .frame(width: 7, height: 7)
+                    .padding(.top, 5)
+                if !last {
+                    Rectangle()
+                        .fill(LiviqaTheme.moss.opacity(0.3))
+                        .frame(width: 1.5)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(day)
+                    .font(.liviqaMono(11.5))
+                    .fontWeight(.bold)
+                    .foregroundStyle(LiviqaTheme.moss)
+                Text(text)
+                    .font(.lato(12.5))
+                    .lineSpacing(3.5)
+                    .foregroundStyle(LiviqaTheme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, last ? 0 : 12)
+            }
+            Spacer(minLength: 0)
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
