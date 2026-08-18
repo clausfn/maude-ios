@@ -2,7 +2,7 @@
 
 _Source: App Store Connect `betaFeedbackScreenshotSubmissions` (fetched via the ASC API key, app
 `dev.liviqa.app` / 6776228205). One row per submission; FB ids are the ASC submission-id prefixes.
-Status: fixed / partial / superseded / proposed / open. Last reconciled: 2026-06-16 (22 submissions)._
+Status: fixed / partial / superseded / proposed / open. Last reconciled: 2026-08-18 (23 submissions)._
 
 | FB id | Date | Build | Feedback (verbatim gist) | Diagnosis | Status |
 |---|---|---|---|---|---|
@@ -29,6 +29,7 @@ Status: fixed / partial / superseded / proposed / open. Last reconciled: 2026-06
 | FB-ADZ4J5fm | 06-04 | 10.2 | "The graphic for Time in Range does not work" | Early Trends chart render issue | **SUPERSEDED** — v2 Trends (TIR line + 7-day context grid); verify on 10.42 |
 | FB-AJpKzCR8 | 06-04 | 10.2 | "Same" | Same TIR chart | **SUPERSEDED** (with ADZ4J5fm) |
 | FB-AA0v59K9 | 06-04 | 10.2 | "Check colour on buttons" | Pre-v2 button palette | **SUPERSEDED** — v2 palette (moss/clay) |
+| FB-AH9WzbRF | 08-15 | 10.101 | "Good wrap of my day" (Christel Friis Conrad) | **Praise, not a defect** — submitted against the post-21:00 evening Home (Closing Note "Today held steady."); the evening edition is landing as designed. The actionable finding is in the attached screenshot: a **Danish-locale device renders the content column in English** while the tab bar/date are Danish. `Localizable.xcstrings` = 754 keys, 656 with `da` → **98 missing**, clustered on the newest feature (the whole Sundhed.dk / health-record set: "Bring in your Sundhed.dk records", "Your health record", "Lab results (%lld)", "Diagnoses (%lld)", …). Separately the evening-edition strings (`Good evening.`, `Closing note`, `Today held steady.`, `TodayView.swift:1080–1114`) are wrapped in `String(localized:)` but **absent from the catalog** — never extracted, so they cannot resolve to Danish. | **OPEN** — awaiting CN approval ([ClickUp](https://app.clickup.com/t/z8nrz7cbtp)). Proposed: (1) extraction build to land the evening keys, (2) translate the 98 missing `da` entries (Sundhed.dk cluster + evening edition first), (3) CI guard failing on <100% `da` coverage. |
 
 ## Open / actionable now
 
