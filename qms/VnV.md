@@ -45,6 +45,10 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-ANCH-01..06 | EncryptedAnchorStore: round-trip, ciphertext-at-rest, per-key + per-user-scope isolation, wrong-DEK auth-fail, remove/clear | Unit | No | **pass** — iOS Simulator |
 | T-ANCH-07 | `HKQueryAnchor ⇆ Data` secure-coding round-trip | Unit | No | **pass** — iOS Simulator |
 | T-ANCH-08 | Fake-provider anchor-advances-on-sync (resume from prior cursor; no-new ⇒ unchanged) | Unit (async) | No | **pass** — iOS Simulator |
+| T-SLP-09 | One-truth night model: `asleepMin == deep + core + rem` by construction; stage figures are the interval union of the SAME segments the chart draws; in-bed structurally excluded from asleep totals (`SleepNightModelTests`) | Unit | No | **pass** — iOS Simulator |
+| T-SLP-10 | Sleep screen agreement walk: every numeric token in every renderable string traces to an independently recomputed canonical set; score gate; untimed variant; every sentence FR-NDG-06 clean (`SleepScreenModelTests`) | Unit | **Yes** (carries an FR-NDG-06 leg) | **pass** — iOS Simulator |
+| T-CTX-05 | Declared profile survives a locked launch: three load outcomes, `unreadable` never collapsed to `absent`, retry on protected-data-available, single write path, comma/point decimal parse (`HealthContextPersistenceTests`, `HealthReadOutcomeTests`) | Unit | No | **pass** — iOS Simulator |
+| T-VIZ-04 | Day-axis integrity: sleep W fallback keeps the 7-day axis; activity gaps stay gaps; energy absent ≠ gap; a fitness rest week keeps its slot while pre-record weeks stay nil; the bedtime footnote may not claim the page holds no recommended hour (`DayAxisIntegrityTests`) | Unit + source lint | No | **pass** — iOS Simulator |
 
 ## PR-46/47 — full HealthKit capture + Design System v2 (2026-06-09)
 

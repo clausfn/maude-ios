@@ -12,9 +12,11 @@ import Foundation
 public nonisolated struct ActivityWeekDetail: Sendable, Equatable {
 
     /// Last-7-days series (days WITH data), oldest → today.
-    public let stepsWeek: [Double]
+    /// The chart axis: one slot per day of the 7-day window, nil where nothing
+    /// was recorded. Statistics below are computed over the RECORDED days only.
+    public let stepsWeek: [Double?]
     public let stepsLabels: [String]
-    public let kcalWeek: [Double]
+    public let kcalWeek: [Double?]
     public let kcalLabels: [String]
 
     /// Own usual daily steps: mean of the prior 21 days with data (≥5 needed);
@@ -36,7 +38,7 @@ public nonisolated struct ActivityWeekDetail: Sendable, Equatable {
     public let longestDaySteps: Int?
     public let workoutsLogged: Int
 
-    public init(stepsWeek: [Double], stepsLabels: [String], kcalWeek: [Double],
+    public init(stepsWeek: [Double?], stepsLabels: [String], kcalWeek: [Double?],
                 kcalLabels: [String], usualSteps: Double, usualFromHistory: Bool,
                 usualKcal: Double?, weekStepsTotal: Int, weekKcalTotal: Int?,
                 pctVsUsual: Int?, daysAboveUsual: Int, longestDayName: String?,
@@ -71,9 +73,23 @@ public nonisolated enum ActivityDeriver {
             }
         }
 
+        /// Every day of the window, in order — a day without a reading is a nil
+        /// slot so the drawn axis keeps its true shape (DaySeries discipline).
+        func axis(_ metrics: [DailyMetric], daysBack from: Int, _ to: Int)
+            -> [(day: Date, value: Double?)] {
+            var byDay: [Date: Double] = [:]
+            for m in metrics { byDay[cal.startOfDay(for: m.date)] = m.value }
+            return (from...to).compactMap { off in
+                guard let d = cal.date(byAdding: .day, value: off, to: today) else { return nil }
+                return (d, byDay[d])
+            }
+        }
+
         let stepsWeek = series(s.steps, daysBack: -6, 0)
         guard stepsWeek.count >= 2 else { return nil }
         let kcalWeek = series(s.activeEnergy, daysBack: -6, 0)
+        let stepsAxis = axis(s.steps, daysBack: -6, 0)
+        let kcalAxis = axis(s.activeEnergy, daysBack: -6, 0)
 
         // Own usual from the PRIOR three weeks (days −27…−7).
         let prior = series(s.steps, daysBack: -27, -7)
@@ -97,10 +113,10 @@ public nonisolated enum ActivityDeriver {
         }
 
         return ActivityWeekDetail(
-            stepsWeek: stepsWeek.map(\.value),
-            stepsLabels: stepsWeek.map { label($0.day) },
-            kcalWeek: kcalWeek.map(\.value),
-            kcalLabels: kcalWeek.map { label($0.day) },
+            stepsWeek: stepsAxis.map(\.value),
+            stepsLabels: stepsAxis.map { label($0.day) },
+            kcalWeek: kcalWeek.isEmpty ? [] : kcalAxis.map(\.value),
+            kcalLabels: kcalWeek.isEmpty ? [] : kcalAxis.map { label($0.day) },
             usualSteps: usual.rounded(),
             usualFromHistory: usualFromHistory,
             usualKcal: usualKcal.map { $0.rounded() },

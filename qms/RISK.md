@@ -2,6 +2,71 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## The day axis and the copy that describes it — a chart that reads as continuous when it is not (2026-08-19, FR-VIZ-04, branch claude/a72-electric-ink)
+
+**Why this is a risk section.** A chart is a claim about the citizen's record. If
+a week with three recorded nights is drawn as three adjacent bars, the chart
+asserts three consecutive nights — a statement the data does not support, made
+on a screen whose whole purpose is to be trusted more than memory. Liviqa has
+now found this shape five times (three in earlier waves, two here), which makes
+it a recurring failure mode rather than an incident, and one worth a standing
+entry.
+
+**RK-CHART-02 — a compacted axis asserts continuity the record does not have.**
+- *What a person would actually see:* a Sleep W card with bars under Mon, Wed
+  and Fri drawn side by side, reading as a slept-every-night week; a steps week
+  missing the two days the phone stayed home, drawn as an unbroken run; a
+  four-week training-load chart with the rest week deleted, so a deliberate
+  recovery week looks like continuous training.
+- *Cause:* three independent sites dropped dayless slots before drawing —
+  `SleepDetailView.weekCard` fed only nights WITH data; `ActivityDeriver.series`
+  compactMap-ped absent days out of the window; `FitnessDeriver` skipped week
+  buckets with no workouts. In each case the labels travelled correctly with the
+  values, so nothing was MISLABELLED — the lie was in the spacing, which is why
+  three previous reviews passed over it.
+- *Mitigation (code, this branch):* the drawn series is now the whole window with
+  nil slots at every unrecorded day, and `UsualDayBars.values` is `[Double?]` so
+  a gap is unrepresentable as a zero at the type level. Statistics (means,
+  totals, denominators, "days above your usual") continue to count RECORDED days
+  only — the axis was widened, not the arithmetic.
+- *The distinction that matters:* absence and zero are not the same measurement.
+  A week inside the workout record with no workouts is a real 0 and must stay
+  visible; a week before the citizen's first recorded workout has no record at
+  all and must stay empty. Collapsing the two would invent a rest week that
+  never happened.
+- *Verification:* T-VIZ-04 = `LiviqaTests/DayAxisIntegrityTests` (6 tests,
+  covering all three sites plus the absent-vs-gap distinction).
+- *Residual:* Home's mini sparklines still draw compacted series. They carry no
+  day labels and no axis, so they assert shape rather than dates — ACCEPTED, and
+  recorded here rather than left implicit.
+
+**RK-COPY-01 — a true-sounding absolute that the same screen contradicts.**
+- *Hazard:* the Sleep detail's bedtime footnote read "There is no recommended
+  hour on this page." The bedtime card itself is scrupulous — it compares only
+  against the citizen's own bedtimes. But the same page's sleep score divides by
+  a fixed 8-hour reference and a fixed 35% deep-and-REM share, and that page's
+  own See-why panel states this out loud. The sentence was therefore false about
+  the page it appeared on.
+- *Why it is a risk and not a typo:* this app asks to be believed about what it
+  does and does not do. An absolute the code does not honour spends the same
+  credibility that the honest disclosures elsewhere are earning, and it does so
+  on the surface where the citizen is deciding how much to trust a number.
+- *Mitigation:* the claim was narrowed to the card it is actually true of, and a
+  source lint (T-VIZ-04) fails the build if the page-wide absolute returns.
+- *Residual:* the score's fixed references remain, disclosed on the same screen
+  by See-why and by the Home day score's own "the one part of this score that is
+  not purely about you" line. Whether an 8-hour reference belongs in a
+  baseline-relative product at all is a CN decision, recorded as open —
+  ACCEPTED as disclosed for now.
+
+**Process note.** These two were found by an evidence pass run to WRITE the
+missing PR-115 requirement rows, not by a review looking for defects: 40 claimed
+guarantees were put to adversarial verifiers, 35 came back narrower than
+claimed, and two of the narrowings were live defects rather than wording. The
+rows were written only after both were fixed. Recorded because the lesson
+generalises — asking "prove this guarantee" finds what "does this look right"
+does not.
+
 ## Health-summary export — the document a citizen hands their doctor was clinically misleading (2026-08-19, export redesign, branch claude/a72-electric-ink)
 
 CN exported his real summary and found it unprofessional and in places clinically
