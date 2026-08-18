@@ -53,6 +53,9 @@ public struct HealthKitService: HealthDataProvider {
             .insulinDelivery, .atrialFibrillationBurden,
             .bloodPressureSystolic, .bloodPressureDiastolic,
             .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex,
+            // Sleep-context (coverage audit 2026-08-18, FR-ING-16): the watch's
+            // nightly sleeping wrist temperature.
+            .appleSleepingWristTemperature,
         ]
         for id in quantityIds {
             if let type = HKObjectType.quantityType(forIdentifier: id) { t.insert(type) }
@@ -98,6 +101,7 @@ public struct HealthKitService: HealthDataProvider {
         async let bp         = readBloodPressure(start, end)
         async let afib       = readAFib(start, end)
         async let body       = readBodyComposition(start, end)
+        async let wristTemp  = readWristTemperature(start, end)
 
         let heartExtras = try await heartRate + walkingHR + hrRecovery + respRate + spo2 + vo2
 
@@ -111,7 +115,8 @@ public struct HealthKitService: HealthDataProvider {
             activeEnergy: energy, sleep: sleep, workouts: sessions,
             heartExtras: heartExtras, workoutHeartRate: workoutHR,
             insulin: insulin, bloodPressure: bp,
-            afib: afib, bodyComposition: body)
+            afib: afib, bodyComposition: body,
+            wristTemperature: wristTemp)
     }
 
     // MARK: Readers
@@ -132,24 +137,26 @@ public struct HealthKitService: HealthDataProvider {
         }
     }
 
+    /// Daily figure per kind. The sample→day rule lives in the pure
+    /// `DailyRollup` (coverage audit 2026-08-18): CUMULATIVE kinds take the
+    /// best-covering single source's total per day — a raw sample query
+    /// returns EVERY source's samples, and summing iPhone + Watch step samples
+    /// together double-counted the day. MEAN kinds average, as before.
     private func readDaily(_ id: HKQuantityTypeIdentifier, _ kind: DailyMetricKind,
                            unit: HKUnit, _ start: Date, _ end: Date,
                            tier: DataTier, cumulative: Bool) async throws -> [DailyMetric] {
         guard let type = HKObjectType.quantityType(forIdentifier: id) else { return [] }
         let samples = try await quantitySamples(type, start, end)
         let cal = Calendar(identifier: .gregorian)
-        var byDay: [Date: (sum: Double, count: Int, source: String)] = [:]
-        for s in samples {
-            let day = cal.startOfDay(for: s.startDate)
-            let v = s.quantity.doubleValue(for: unit)
-            let cur = byDay[day] ?? (0, 0, s.sourceRevision.source.name)
-            byDay[day] = (cur.sum + v, cur.count + 1, cur.source)
+        let rows = samples.map {
+            DailyRollup.Row(day: cal.startOfDay(for: $0.startDate),
+                            value: $0.quantity.doubleValue(for: unit),
+                            source: $0.sourceRevision.source.name)
         }
-        return byDay.map { day, agg in
-            let value = cumulative ? agg.sum : (agg.count > 0 ? agg.sum / Double(agg.count) : 0)
-            return DailyMetric(date: day, kind: kind, value: value,
-                               source: agg.source, tier: tier, provenance: .real)
-        }.sorted { $0.date < $1.date }
+        return DailyRollup.rollUp(rows, cumulative: cumulative).map {
+            DailyMetric(date: $0.day, kind: kind, value: $0.value,
+                        source: $0.source, tier: tier, provenance: .real)
+        }
     }
 
     /// Sleep segments WITH their intra-night wall-clock times.
@@ -188,8 +195,29 @@ public struct HealthKitService: HealthDataProvider {
     /// The night a sleep segment belongs to: the day it ENDS on. Anything from
     /// 18:00 onwards counts towards the next morning, which is how a person
     /// reads "last night" — and how Apple's own Sleep app labels a night.
+    /// Canonical rule lives in the portable `SleepNightRule` (sleep incident
+    /// 2026-08) so derivation and diagnostics share ONE definition.
     static func nightDay(_ instant: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date {
-        calendar.startOfDay(for: instant.addingTimeInterval(6 * 3600))
+        SleepNightRule.nightDay(instant, calendar: calendar)
+    }
+
+    /// FR-DIAG-01 — the RAW sleep rows for the on-device diagnostics report:
+    /// every `sleepAnalysis` sample in the window with its source bundle id and
+    /// device name, NOTHING filtered — in-bed and zero-length rows are returned
+    /// too and marked, so the report can show exactly what ingestion dropped.
+    /// Timing data only (no other health types touched); read-only; the result
+    /// is written to a text file the citizen shares themselves (no egress).
+    public func readSleepDiagnostics(from start: Date, to end: Date) async throws -> [SleepRawSegment] {
+        guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+        return try await categorySamples(type, start, end).map { s in
+            SleepRawSegment(
+                sourceName: s.sourceRevision.source.name,
+                bundleId: s.sourceRevision.source.bundleIdentifier,
+                device: s.device?.name,
+                stage: Self.mapSleepStage(s.value),
+                start: s.startDate,
+                end: s.endDate)
+        }
     }
 
     private func readWorkouts(_ start: Date, _ end: Date) async throws -> [WorkoutReading] {
@@ -328,6 +356,29 @@ public struct HealthKitService: HealthDataProvider {
                                    source: weight[d]?.1 ?? "HealthKit",
                                    tier: .good, provenance: .real)
         }.sorted { $0.ts < $1.ts }
+    }
+
+    /// Nightly sleeping wrist temperature (°C) — FR-ING-16, coverage audit
+    /// 2026-08-18. The watch writes one figure per night; samples are bucketed
+    /// by the NIGHT they belong to (`nightDay`, the same rule sleep uses), so a
+    /// night that starts at 23:30 lands on the morning it describes, and the
+    /// day axis holds. Multiple samples/sources within one night average; the
+    /// §2.3 tier arbitration then applies per night in `arbitrated()`.
+    private func readWristTemperature(_ start: Date, _ end: Date) async throws -> [WristTemperatureReading] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) else { return [] }
+        let samples = try await quantitySamples(type, start, end)
+        var byNight: [Date: (sum: Double, n: Int, src: String)] = [:]
+        for s in samples {
+            let night = Self.nightDay(s.startDate)
+            let v = s.quantity.doubleValue(for: .degreeCelsius())
+            let cur = byNight[night] ?? (0, 0, s.sourceRevision.source.name)
+            byNight[night] = (cur.sum + v, cur.n + 1, cur.src)
+        }
+        return byNight.map { night, a in
+            WristTemperatureReading(date: night,
+                                    celsius: ((a.sum / Double(a.n)) * 100).rounded() / 100,
+                                    source: a.src, tier: .good, provenance: .real)
+        }.sorted { $0.date < $1.date }
     }
 
     /// Daily mean of quantity samples → DailyMetric (used by SpO₂ / VO₂max).

@@ -26,7 +26,13 @@ public nonisolated enum SleepDeriver {
     private static let cal = Calendar(identifier: .gregorian)
 
     public static func derive(from s: HealthSamples) -> SleepSummary? {
-        let segs = s.sleep.filter { asleep.contains($0.stage) }
+        // FR-SLP-10 (sleep incident 2026-08): one source per night, main sleep
+        // episode only — `arbitrated()` already resolves the stream, but the
+        // deriver re-applies the rule (idempotent) so no caller that skips
+        // arbitration can double-count an overlapping second source or grow
+        // "last night" by an afternoon nap.
+        let resolved = SleepNightResolver.resolvePerNight(s.sleep, calendar: cal)
+        let segs = resolved.filter { asleep.contains($0.stage) }
         guard !segs.isEmpty else { return nil }
 
         var byDay: [Date: [SleepReading]] = [:]

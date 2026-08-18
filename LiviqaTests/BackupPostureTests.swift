@@ -12,6 +12,15 @@ import Foundation
 // The honesty rail here: an unreadable or legacy stored value must fall back to
 // `.onDevice` (nothing is backed up) — never to a posture that implies a backup
 // exists when it doesn't.
+//
+// `.serialized` (2026-08-18): all three tests mutate the SAME
+// `UserDefaults.standard` key, and Swift Testing runs a suite's tests in
+// parallel by default — one test's write interleaved another's
+// save→mutate→read round-trip, producing three different flaky failure
+// signatures across runs (restored nil · restored .onDevice · legacy .iCloud).
+// Serialising the suite removes the shared-key race without changing a single
+// assertion.
+@Suite(.serialized)
 struct BackupPostureTests {
 
     /// The one key both surfaces use. If this ever diverges, the setting

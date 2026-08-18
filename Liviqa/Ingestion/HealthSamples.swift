@@ -218,6 +218,89 @@ public struct AFibReading: Provenanced, Sendable {
     }
 }
 
+/// One night's sleeping wrist temperature in °C (HealthKit
+/// `appleSleepingWristTemperature`, iOS 16+ / Apple Watch Series 8+; written
+/// once per night by the watch).
+///
+/// `date` is the NIGHT bucket — the day the night ends on, the same rule sleep
+/// uses (`HealthKitService.nightDay`) — so the reading lands on the morning it
+/// describes and the day axis (DaySeries) holds without a midnight split.
+///
+/// PURPOSE (coverage audit 2026-08-18, FR-ING-16): sleep-context signal —
+/// deviation from the citizen's OWN rolling baseline (illness / cycle /
+/// recovery context next to that night's sleep). Absolute skin temperature is
+/// never framed against a population range and never rendered as a fever claim.
+public struct WristTemperatureReading: Provenanced, Sendable {
+    public let date: Date       // night bucket (start of the morning's day)
+    public let celsius: Double
+    public let source: String
+    public let tier: DataTier
+    public let provenance: Provenance
+    public init(date: Date, celsius: Double,
+                source: String, tier: DataTier, provenance: Provenance) {
+        self.date = date; self.celsius = celsius
+        self.source = source; self.tier = tier; self.provenance = provenance
+    }
+}
+
+/// Pure per-day roll-up of raw quantity samples — the ONE place the "how does a
+/// pile of samples become a daily figure" rule lives (framework-free, so the
+/// rule is unit-testable and Android-portable).
+///
+/// THE BUG THIS EXISTS TO KILL (coverage audit 2026-08-18, same class as the
+/// sleep union-not-sum rule): a raw `HKSampleQuery` returns EVERY source's
+/// samples — an iPhone in the pocket and a watch on the wrist both write step
+/// samples for the same walk. Summing them across sources double-counts the
+/// day (a real ~8k-step day reads as ~15k). Apple's own Health app never shows
+/// that sum; a naive sample-level sum did.
+///
+/// Rule for CUMULATIVE kinds (steps, active energy): sum per (day, source),
+/// then the day's figure is the single best-covering source's total — the
+/// device that witnessed the most. Sources are NEVER summed together, echoing
+/// §2.3's never-blend rule. A day only one device recorded keeps that device's
+/// full total (gap fill).
+///
+/// Rule for MEAN kinds: the day's mean over all samples (unchanged behaviour —
+/// several estimates of the same quantity average; they do not accumulate).
+public enum DailyRollup {
+
+    public struct Row: Sendable, Equatable {
+        public let day: Date        // start-of-day bucket (caller buckets)
+        public let value: Double
+        public let source: String
+        public init(day: Date, value: Double, source: String) {
+            self.day = day; self.value = value; self.source = source
+        }
+    }
+
+    public static func rollUp(_ rows: [Row], cumulative: Bool) -> [Row] {
+        guard !rows.isEmpty else { return [] }
+        if cumulative {
+            // Per (day, source) totals → per day, the best-covering source wins.
+            var perDaySource: [Date: [String: Double]] = [:]
+            for r in rows {
+                perDaySource[r.day, default: [:]][r.source, default: 0] += r.value
+            }
+            return perDaySource.map { day, bySource in
+                // max by total; ties broken by source name for determinism.
+                let winner = bySource.max {
+                    ($0.value, $1.key) < ($1.value, $0.key)
+                }!
+                return Row(day: day, value: winner.value, source: winner.key)
+            }.sorted { $0.day < $1.day }
+        } else {
+            var byDay: [Date: (sum: Double, n: Int, source: String)] = [:]
+            for r in rows {
+                let cur = byDay[r.day] ?? (0, 0, r.source)
+                byDay[r.day] = (cur.sum + r.value, cur.n + 1, cur.source)
+            }
+            return byDay.map { day, a in
+                Row(day: day, value: a.n > 0 ? a.sum / Double(a.n) : 0, source: a.source)
+            }.sorted { $0.day < $1.day }
+        }
+    }
+}
+
 /// Body-composition snapshot. HealthKit yields weight / fat% / lean / BMI;
 /// visceral and trunk-fat are InBody-only (file import), left nil here.
 public struct BodyCompositionReading: Provenanced, Sendable {
@@ -257,6 +340,8 @@ public struct HealthSamples: Sendable {
     public var bloodPressure: [BloodPressureReading]
     public var afib: [AFibReading]
     public var bodyComposition: [BodyCompositionReading]
+    /// Nightly sleeping wrist temperature (FR-ING-16, coverage audit 2026-08-18).
+    public var wristTemperature: [WristTemperatureReading]
 
     public init(glucose: [GlucoseReading] = [], hrv: [DailyMetric] = [],
                 restingHR: [DailyMetric] = [], steps: [DailyMetric] = [],
@@ -266,7 +351,8 @@ public struct HealthSamples: Sendable {
                 workoutHeartRate: [HeartRateSample] = [],
                 insulin: [InsulinReading] = [],
                 bloodPressure: [BloodPressureReading] = [], afib: [AFibReading] = [],
-                bodyComposition: [BodyCompositionReading] = []) {
+                bodyComposition: [BodyCompositionReading] = [],
+                wristTemperature: [WristTemperatureReading] = []) {
         self.glucose = glucose; self.hrv = hrv; self.restingHR = restingHR
         self.steps = steps; self.activeEnergy = activeEnergy
         self.sleep = sleep; self.workouts = workouts
@@ -274,6 +360,7 @@ public struct HealthSamples: Sendable {
         self.insulin = insulin
         self.bloodPressure = bloodPressure; self.afib = afib
         self.bodyComposition = bodyComposition
+        self.wristTemperature = wristTemperature
     }
 
     public static let empty = HealthSamples()
@@ -283,6 +370,7 @@ public struct HealthSamples: Sendable {
             && activeEnergy.isEmpty && sleep.isEmpty && workouts.isEmpty
             && heartExtras.isEmpty && workoutHeartRate.isEmpty && insulin.isEmpty
             && bloodPressure.isEmpty && afib.isEmpty && bodyComposition.isEmpty
+            && wristTemperature.isEmpty
     }
 
     /// All daily-metric streams flattened — handy for arbitration/derivation.
