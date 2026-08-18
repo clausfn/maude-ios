@@ -110,9 +110,11 @@ public struct HealthKitService: HealthDataProvider {
         let sessions = try await workouts
         let workoutHR = try await readWorkoutHeartRate(sessions, windowEnd: end)
 
+        let sleepRead = try await sleep
         return try await HealthSamples(
             glucose: glucose, hrv: hrv, restingHR: rhr, steps: steps,
-            activeEnergy: energy, sleep: sleep, workouts: sessions,
+            activeEnergy: energy, sleep: sleepRead.sleep,
+            sleepInBed: sleepRead.inBed, workouts: sessions,
             heartExtras: heartExtras, workoutHeartRate: workoutHR,
             insulin: insulin, bloodPressure: bp,
             afib: afib, bodyComposition: body,
@@ -175,21 +177,37 @@ public struct HealthKitService: HealthDataProvider {
     /// AWAKE is retained (it is part of the night's anatomy: the wake-up moment
     /// and the AWAKE total). Every asleep-total path filters on the asleep stage
     /// set, so awake segments can never inflate a sleep duration. IN-BED is
-    /// still dropped: it overlaps the asleep segments and carries no stage.
-    private func readSleep(_ start: Date, _ end: Date) async throws -> [SleepReading] {
-        guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+    /// retained too (sleep visualisation wave 2026-08) — but as `InBedSpan`, a
+    /// SEPARATE stream by type, so it can never be summed into an asleep total:
+    /// time-in-bed derives from it, nothing else does.
+    struct SleepRead: Sendable {
+        var sleep: [SleepReading] = []
+        var inBed: [InBedSpan] = []
+    }
+
+    private func readSleep(_ start: Date, _ end: Date) async throws -> SleepRead {
+        guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else { return SleepRead() }
         let samples = try await categorySamples(type, start, end)
-        return samples.compactMap { s -> SleepReading? in
+        var out = SleepRead()
+        for s in samples {
             let stage = Self.mapSleepStage(s.value)
-            guard stage != .inBed else { return nil }
             let hours = s.endDate.timeIntervalSince(s.startDate) / 3600
-            guard hours > 0 else { return nil }
-            return SleepReading(date: Self.nightDay(s.startDate), stage: stage,
-                                hours: (hours * 100).rounded() / 100,
-                                start: s.startDate,
-                                source: s.sourceRevision.source.name,
-                                tier: .estimate, provenance: .real)
+            guard hours > 0 else { continue }
+            if stage == .inBed {
+                out.inBed.append(InBedSpan(date: Self.nightDay(s.startDate),
+                                           start: s.startDate,
+                                           hours: (hours * 100).rounded() / 100,
+                                           source: s.sourceRevision.source.name,
+                                           tier: .estimate, provenance: .real))
+            } else {
+                out.sleep.append(SleepReading(date: Self.nightDay(s.startDate), stage: stage,
+                                              hours: (hours * 100).rounded() / 100,
+                                              start: s.startDate,
+                                              source: s.sourceRevision.source.name,
+                                              tier: .estimate, provenance: .real))
+            }
         }
+        return out
     }
 
     /// The night a sleep segment belongs to: the day it ENDS on. Anything from

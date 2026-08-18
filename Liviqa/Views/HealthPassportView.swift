@@ -247,6 +247,7 @@ struct HealthPassportView: View {
         .navigationTitle("Health Passport")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showSummaryDocument) { HealthSummaryPreviewView() }
         .sheet(item: $shareItem) { item in
             ActivityShareSheet(items: [item.text])
                 .presentationDetents([.medium, .large])
@@ -444,11 +445,16 @@ struct HealthPassportView: View {
             .background(LiviqaTheme.moss3).clipShape(Capsule())
     }
 
+    /// Presents the designed health-summary document (PDF preview + share).
+    @State private var showSummaryDocument = false
+
     /// The two explicit, consented exits (share + research). Both are user taps.
     private var recordActions: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button {
-                shareItem = HealthShareItem(text: appState.healthStore?.summaryReport() ?? "")
+                // The designed A4 document (FR-EXP-01) — previewed as the exact
+                // PDF the citizen hands over, not a different text rendering.
+                showSummaryDocument = true
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "square.and.arrow.up").font(.system(size: 14))

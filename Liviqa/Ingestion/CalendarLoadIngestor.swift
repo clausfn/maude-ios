@@ -95,6 +95,51 @@ enum CalendarLoadIngestor {
         #endif
     }
 
+    // MARK: - Connect (request → opt-in → first read), every failure NAMED
+    //
+    // Field report 10.103 ("I can't connect calendar"): when iOS has calendar
+    // access denied — e.g. "Don't Allow" on the consult write-only prompt in an
+    // earlier build — `requestFullAccessToEvents` returns false INSTANTLY with
+    // no prompt (verified on-simulator 2026-08-19: denied → returned=false,
+    // no dialog). The old connect path swallowed that into a note at the very
+    // bottom of the scroll view, below the fold: the tap read as a no-op.
+    // This flow returns a named outcome for every way the tap can end, so the
+    // view has no silent branch left to fall into.
+
+    /// Every way a connect attempt can end. No case is allowed to be silent:
+    /// each maps to a sentence the citizen sees at the point of the tap.
+    enum ConnectOutcome: Equatable {
+        /// No signed-in account to scope the numbers under. Nothing was asked.
+        case noAccount
+        /// iOS did not grant full access; the payload is what it said instead.
+        /// The opt-in was NOT recorded (the stuck "on but unreadable" state
+        /// cannot be created by this path).
+        case accessNotGranted(CalendarAccessState)
+        /// iOS granted access but the opt-in record could not be written, so
+        /// nothing was read and nothing is connected.
+        case optInFailed
+        /// Connected. `daysRead` is how many day-numbers the first read kept.
+        case connected(daysRead: Int)
+    }
+
+    /// The connect flow with its four platform effects injected, so the unit
+    /// suite can drive every outcome with no live `EKEventStore` (same seam
+    /// discipline as `Environment`). Ordering is load-bearing and pinned by
+    /// tests: the opt-in is recorded only AFTER iOS grants full access, and
+    /// the read runs only after the opt-in is recorded.
+    static func connect(accountID: String?,
+                        request: () async -> CalendarAccessState,
+                        optIn: (String) -> Bool,
+                        refresh: (String) async -> Void,
+                        daysRead: (String) -> Int) async -> ConnectOutcome {
+        guard let accountID else { return .noAccount }
+        let state = await request()
+        guard state == .fullAccess else { return .accessNotGranted(state) }
+        guard optIn(accountID) else { return .optInFailed }
+        await refresh(accountID)
+        return .connected(daysRead: daysRead(accountID))
+    }
+
     // MARK: - The one read
 
     #if canImport(EventKit)

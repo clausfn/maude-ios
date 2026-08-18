@@ -939,6 +939,10 @@ struct ScoreRing: View {
     var score: Int
     var segments: [ScoreSegment]
     var size: CGFloat = 96
+    /// FR-TOD-08: an adaptive composition can be out of 90/80, not always 100 —
+    /// the spoken label must say the real denominator. Default keeps every
+    /// existing /100 call site.
+    var outOf: Int = 100
     /// A7.2 Area ④: the sleep hero draws the ring on a tinted band — the centre
     /// number needs white there. Default keeps every existing call site.
     var textColor: Color = LiviqaTheme.ink
@@ -965,7 +969,7 @@ struct ScoreRing: View {
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Day score \(score) of 100"))
+        .accessibilityLabel(Text("Day score \(score) of \(outOf)"))
     }
 
     private func arc(_ a0: Double, _ a1: Double) -> Path {

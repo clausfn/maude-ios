@@ -181,7 +181,9 @@ struct TodayView: View {
                     }
 
                     // A7.2 Home anatomy (screen-home.jsx). Day edition: verdict hero +
-                    // day-arc · momentum · signals 2×2 · quiet/attention · week · share.
+                    // day-arc · momentum · signals grid (adaptive, FR-TOD-07 — the
+                    // canvas's fixed 2×2 is superseded by CN's 2026-08-19 directive;
+                    // deviation in qms/DHF.md) · quiet/attention · week · share.
                     // Evening edition (post-21:00 — "a designed ending, not an inversion"):
                     // closing note · momentum · day-score ring · month trend · signals ·
                     // quiet/attention · tomorrow hook. Cold start always keeps the honest
@@ -204,8 +206,8 @@ struct TodayView: View {
                         }
 
                         // How today scored — transparent, decomposed arithmetic.
-                        if let segs = dayScoreSegments {
-                            scoreCard(segs)
+                        if let score = dayScore {
+                            scoreCard(score)
                                 .padding(.top, 14)
                         }
 
@@ -908,26 +910,54 @@ struct TodayView: View {
 
     // MARK: — Signal row (your value vs your own normal)
 
-    // Wellness pillars (Sleep · Glucose · Recovery · Heart) — topic by icon+label,
-    // state by the single moss/clay dot (locked two-state). "Recovery" carries the
-    // stress axis (HRV) descriptively — no stress score/verdict.
-    // A7.2 SignalsGrid — 2×2 verdict-first cards: domain left-rule + icon, a plain
+    // A7.2 SignalsGrid — verdict-first cards: domain left-rule + icon, a plain
     // verdict WORD before the number, the value big + tabular, and the 7-day line
     // over the "your usual" band. Verdicts reuse the locked two-state semantics
     // (moss = like your usual · clay = worth a look) as words instead of dots.
+    //
+    // FR-TOD-07 (CN directive 2026-08-19, supersedes the canvas's fixed 2×2 —
+    // deviation recorded in qms/DHF.md): the grid renders the domains this
+    // person actually measures — `TodaySignalsDeriver.homeCards` decides from
+    // the real samples (min 2, max 6). A gym person with no CGM sees
+    // Sleep · Activity · Workouts · Heart and NO glucose card; glucose keeps
+    // its clinical treatment (TIR, clay flag, Zones chip) whenever present.
+    /// The card list: adaptive when derived; the classic four only for the
+    /// sample-seed fallback; the honest calibrating set otherwise (no glucose —
+    /// it appears with the first real reading).
+    private var gridCards: [HomeCard] {
+        if let s = signals { return s.cards }
+        if maySeed { return HomeCard.classicFour }
+        return TodaySignalsDeriver.calibratingCards
+    }
+
     private var signalsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
                   spacing: 10) {
+            ForEach(gridCards, id: \.domain) { card in
+                signalCard(card)
+            }
+        }
+        .navigationDestination(item: $pushedPillar) { MetricDetailView(pillar: $0) }
+    }
+
+    /// One grid slot. A card padded in by the min-2 rule (`present == false`)
+    /// renders as the calibrating skeleton — it claims nothing.
+    @ViewBuilder
+    private func signalCard(_ card: HomeCard) -> some View {
+        let calibrating = coldStart || !card.present
+        switch card.domain {
+        case .sleep:
             SignalCardView(rule: LiviqaTheme.accentSleep, icon: "moon.fill",
                            domain: String(localized: "Sleep"),
                            verdict: sleepVerdict, value: sleepHeadline, unit: nil,
                            spark: spark(\.sleepWeek, .sleep),
                            band: usualBand(\.sleepWeek),
-                           skeleton: coldStart,
+                           skeleton: calibrating,
                            onOpen: { pushedPillar = .sleep },
                            onWhy: { seeWhy = signalWhy(.sleep, verdict: sleepVerdict,
                                                        value: sleepHeadline,
                                                        series: \.sleepWeek) })
+        case .glucose:
             SignalCardView(rule: LiviqaTheme.accentGlucose, icon: "drop.fill",
                            domain: String(localized: "Glucose"),
                            verdict: glucoseVerdict,
@@ -936,22 +966,58 @@ struct TodayView: View {
                            spark: spark(\.inRangeWeek, .glucose),
                            band: usualBand(\.inRangeWeek),
                            chip: String(localized: "Zones & TIR"),
-                           skeleton: coldStart,
+                           skeleton: calibrating,
                            onOpen: { pushedPillar = .glucose },
                            onWhy: { seeWhy = signalWhy(.glucose, verdict: glucoseVerdict,
                                                        value: signals?.inRange ?? seedValue("61%"),
                                                        series: \.inRangeWeek) })
+        case .activity:
+            SignalCardView(rule: LiviqaTheme.fjordBright, icon: "figure.walk",
+                           domain: String(localized: "Activity"),
+                           verdict: activityVerdict,
+                           value: signals?.steps ?? "—",
+                           unit: String(localized: "steps"),
+                           spark: signals?.stepsWeek ?? [],
+                           band: usualBand(\.stepsWeek),
+                           skeleton: calibrating,
+                           onOpen: { pushedPillar = .activity },
+                           onWhy: { seeWhy = SeeWhyExplainer.activityCard(
+                               verdict: activityVerdict,
+                               value: signals?.steps ?? "—",
+                               series: signals?.stepsWeek ?? [],
+                               band: usualBand(\.stepsWeek),
+                               hasRealSignals: signals != nil,
+                               coldStart: coldStart) })
+        case .fitness:
+            SignalCardView(rule: LiviqaTheme.accentRecovery, icon: "figure.outdoor.cycle",
+                           domain: String(localized: "Workouts"),
+                           verdict: fitnessVerdict,
+                           value: signals.map { String($0.workoutsWeek) } ?? "—",
+                           unit: String(localized: "this week"),
+                           spark: signals?.workoutLoadWeeks ?? [],
+                           band: nil,
+                           skeleton: calibrating,
+                           onOpen: { pushedPillar = .fitness },
+                           onWhy: { seeWhy = SeeWhyExplainer.fitnessCard(
+                               verdict: fitnessVerdict,
+                               sessions: signals?.workoutsWeek ?? 0,
+                               loadWeeks: signals?.workoutLoadWeeks ?? [],
+                               loadUsual: signals?.workoutLoadUsual,
+                               hasRealSignals: signals != nil,
+                               coldStart: coldStart) })
+        case .recovery:
             SignalCardView(rule: LiviqaTheme.accentRecovery, icon: "waveform.path.ecg",
                            domain: String(localized: "Recovery"),
                            verdict: recoveryVerdict,
                            value: signals?.hrv ?? seedValue("48"), unit: nil,
                            spark: spark(\.hrvWeek, .recovery),
                            band: usualBand(\.hrvWeek),
-                           skeleton: coldStart,
+                           skeleton: calibrating,
                            onOpen: { pushedPillar = .recovery },
                            onWhy: { seeWhy = signalWhy(.recovery, verdict: recoveryVerdict,
                                                        value: (signals?.hrv ?? seedValue("48")) + " ms",
                                                        series: \.hrvWeek) })
+        case .heart:
             SignalCardView(rule: LiviqaTheme.accentHeart, icon: "heart.fill",
                            domain: String(localized: "Heart"),
                            verdict: heartVerdict,
@@ -959,13 +1025,29 @@ struct TodayView: View {
                            unit: String(localized: "resting"),
                            spark: spark(\.rhrWeek, .heart),
                            band: usualBand(\.rhrWeek),
-                           skeleton: coldStart,
+                           skeleton: calibrating,
                            onOpen: { pushedPillar = .heart },
                            onWhy: { seeWhy = signalWhy(.heart, verdict: heartVerdict,
                                                        value: (signals?.rhr ?? seedValue("58")) + " bpm",
                                                        series: \.rhrWeek) })
+        case .body:
+            SignalCardView(rule: LiviqaTheme.accentBody, icon: "figure.arms.open",
+                           domain: String(localized: "Body"),
+                           verdict: bodyVerdict,
+                           value: signals?.weightLatest ?? "—",
+                           unit: "kg",
+                           spark: signals?.weightSeries ?? [],
+                           band: usualBand(\.weightSeries),
+                           skeleton: calibrating,
+                           onOpen: { pushedPillar = .body },
+                           onWhy: { seeWhy = SeeWhyExplainer.bodyCard(
+                               verdict: bodyVerdict,
+                               value: signals?.weightLatest ?? "—",
+                               series: signals?.weightSeries ?? [],
+                               band: usualBand(\.weightSeries),
+                               hasRealSignals: signals != nil,
+                               coldStart: coldStart) })
         }
-        .navigationDestination(item: $pushedPillar) { MetricDetailView(pillar: $0) }
     }
 
     /// FR-XPL-01 — one signal card's decomposition: its number, the real days
@@ -1025,6 +1107,46 @@ struct TodayView: View {
             return String(localized: "Calm")
         }
         if band.contains(latest) { return String(localized: "Calm") }
+        return latest > band.upperBound
+            ? String(localized: "Above your usual") : String(localized: "Below your usual")
+    }
+
+    // FR-TOD-07 — the whole-person card verdicts. Same register as the four
+    // above: allow-listed words only, chosen against the person's OWN band
+    // (mean ±1σ of their real recent series), never a target or population
+    // figure. Guard-checked in TodayGridAvailabilityTests.
+    private var activityVerdict: String {
+        if coldStart { return "—" }
+        guard let s = signals, let band = usualBand(\.stepsWeek), let latest = s.stepsWeek.last else {
+            return String(localized: "As usual")
+        }
+        if band.contains(latest) { return String(localized: "As usual") }
+        return latest > band.upperBound
+            ? String(localized: "Above your usual") : String(localized: "Below your usual")
+    }
+
+    /// Workouts: this week's load vs the mean of the person's own prior weeks
+    /// (FitnessDeriver's published arithmetic). The ±fraction is named once in
+    /// `SeeWhyExplainer.loadUsualFraction`, so the word and its "See why" copy
+    /// cannot disagree. No usual week yet → the in-band word, claiming nothing.
+    private var fitnessVerdict: String {
+        if coldStart { return "—" }
+        guard let s = signals, let usual = s.workoutLoadUsual, usual > 0,
+              let current = s.workoutLoadWeeks.last else {
+            return String(localized: "As usual")
+        }
+        let f = SeeWhyExplainer.loadUsualFraction
+        if current > usual * (1 + f) { return String(localized: "Above your usual") }
+        if current < usual * (1 - f) { return String(localized: "Below your usual") }
+        return String(localized: "As usual")
+    }
+
+    private var bodyVerdict: String {
+        if coldStart { return "—" }
+        guard let s = signals, let band = usualBand(\.weightSeries), let latest = s.weightSeries.last else {
+            return String(localized: "Steady")
+        }
+        if band.contains(latest) { return String(localized: "Steady") }
         return latest > band.upperBound
             ? String(localized: "Above your usual") : String(localized: "Below your usual")
     }
@@ -1115,55 +1237,48 @@ struct TodayView: View {
         }
     }
 
-    /// The evening day score: three visible fractions, added up. Sleep is last
-    /// night vs an 8 h reference, glucose is today's time in range, recovery is
-    /// today's HRV vs the user's OWN week mean. No model, no opacity — the
-    /// legend shows the exact arithmetic (the anti-score-opacity stance).
-    /// The real legs, from the single source that also writes the arithmetic into
-    /// the "See why" sheet (`SeeWhyExplainer.dayScoreLegs`). nil ⇒ seeds/absent.
-    private var dayScoreLegs: [DayScoreLeg]? {
-        if coldStart { return nil }
-        guard let s = signals else { return nil }
-        let priorMean: Double? = s.hrvWeek.count >= 4
-            ? s.hrvWeek.dropLast().reduce(0, +) / Double(s.hrvWeek.count - 1)
-            : nil
-        let legs = SeeWhyExplainer.dayScoreLegs(
-            sleepHours: s.sleepWeek.last,
-            tirPct: s.inRangeWeek.last,
-            hrvLatest: s.hrvWeek.count >= 4 ? s.hrvWeek.last : nil,
-            hrvPriorMean: priorMean)
-        return legs.count >= 2 ? legs : nil   // one domain alone isn't a "day"
-    }
-
-    private func legColor(_ kind: DayScoreLeg.Kind) -> Color {
-        switch kind {
-        case .sleep:    return LiviqaTheme.accentSleep
-        case .glucose:  return LiviqaTheme.accentGlucose
-        case .recovery: return LiviqaTheme.accentRecovery
-        }
-    }
-
-    private var dayScoreSegments: [ScoreSegment]? {
+    /// The evening day score: visible fractions, added up — no model, no
+    /// opacity (the anti-score-opacity stance). FR-TOD-08 (CN whole-person
+    /// directive): composed by `DayScoreComposer` from the domains this person
+    /// ACTUALLY tracks — movement takes the slot the A7.2 design gave it, and
+    /// the score stops assuming a CGM. Fixed weights, shrinking denominator,
+    /// verdict thresholded on earned/possible; the composer also writes the
+    /// "See why" sheet, so the ring and its arithmetic cannot drift apart.
+    /// nil ⇒ seeds/absent/fewer than two domains.
+    private var dayScore: DayScoreComposer.Score? {
         if coldStart { return nil }
         // No derived signals ⇒ no score. The three canned segments that used to
         // stand in here were a fabricated day (42/50 sleep, 24/30 glucose…)
         // presented as the reader's own; sample mode derives real segments from
         // the synthetic record instead, so nothing needs inventing (FR-SMP-01).
-        guard signals != nil else { return nil }
-        return dayScoreLegs?.map {
-            ScoreSegment(name: $0.name, val: $0.points, max: $0.max, color: legColor($0.kind))
+        guard let s = signals else { return nil }
+        return DayScoreComposer.compose(
+            sleepHours: s.sleepWeek.last,
+            tirPct: s.inRangeWeek.last,
+            stepsWeek: s.stepsWeek,
+            hrvWeek: s.hrvWeek)
+    }
+
+    private func partColor(_ domain: DayScoreComposer.Domain) -> Color {
+        switch domain {
+        case .sleep:    return LiviqaTheme.accentSleep
+        case .glucose:  return LiviqaTheme.accentGlucose
+        case .movement: return LiviqaTheme.fjordBright
+        case .recovery: return LiviqaTheme.accentRecovery
         }
     }
 
-    private func scoreCard(_ segs: [ScoreSegment]) -> some View {
-        let score = Int(segs.reduce(0) { $0 + $1.val }.rounded())
+    private func scoreCard(_ score: DayScoreComposer.Score) -> some View {
+        let segs = score.parts.map {
+            ScoreSegment(name: $0.name, val: $0.points, max: $0.max, color: partColor($0.domain))
+        }
         return HStack(spacing: 16) {
-            ScoreRing(score: score, segments: segs, size: 96)
+            ScoreRing(score: score.total, segments: segs, size: 96, outOf: score.outOf)
             VStack(alignment: .leading, spacing: 0) {
                 Text(String(localized: "How today scored").uppercased())
                     .font(.liviqaKicker(9)).tracking(1.2)
                     .foregroundStyle(LiviqaTheme.ink3)
-                Text(scoreHeadline(segs, score))
+                Text(score.verdict)
                     .font(.liviqaSerif(16.5)).lineSpacing(2)
                     .foregroundStyle(LiviqaTheme.ink)
                     .padding(.top, 5).padding(.bottom, 8)
@@ -1181,12 +1296,9 @@ struct TodayView: View {
                 }
                 // The legend already showed the fractions; FR-XPL-01 unifies the
                 // treatment — the same chip as every other verdict, opening the
-                // full arithmetic and naming the 8-hour reference out loud.
+                // full arithmetic (with any shared reference NAMED out loud).
                 SeeWhyChip {
-                    seeWhy = SeeWhyExplainer.dayScore(
-                        legs: dayScoreLegs ?? [],
-                        verdict: scoreHeadline(segs, score),
-                        fromRealSignals: signals != nil && dayScoreLegs != nil)
+                    seeWhy = DayScoreComposer.seeWhy(score, fromRealSignals: signals != nil)
                 }
                 .padding(.top, 9)
             }
@@ -1195,14 +1307,6 @@ struct TodayView: View {
         .background(LiviqaTheme.paper2)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(LiviqaTheme.line, lineWidth: 1))
-    }
-
-    private func scoreHeadline(_ segs: [ScoreSegment], _ score: Int) -> String {
-        if score >= 75, let top = segs.max(by: { $0.val / $0.max < $1.val / $1.max }) {
-            return String(localized: "A good day — mostly thanks to \(top.name.lowercased()).")
-        }
-        if score >= 60 { return String(localized: "A steady day.") }
-        return String(localized: "A lighter day — they happen.")
     }
 
     struct RecoveryTrend {
@@ -1335,6 +1439,24 @@ struct TodayView: View {
                 text: d > 0 ? String(localized: "In range +\(Int(d.rounded()))")
                             : String(localized: "In range −\(Int((-d).rounded()))"),
                 up: d > 0))
+        }
+        // FR-TOD-07 — the A7.2 canvas's own "Steps +12%" item, dropped only
+        // because steps weren't in TodaySignals when the strip landed. The %
+        // is ActivityDeriver's pctVsUsual: this week's daily mean vs the
+        // person's OWN prior three weeks (nil until real history exists).
+        if let pct = s.stepsPctVsUsual, abs(pct) >= 5 {
+            items.append(MomentumItem(
+                text: pct > 0 ? String(localized: "Steps +\(pct)%")
+                              : String(localized: "Steps −\(-pct)%"),
+                up: pct > 0))
+        }
+        // Sessions this week vs the week before — only when either week had any.
+        let dw = s.workoutsWeek - s.workoutsPrevWeek
+        if dw != 0, s.workoutsWeek + s.workoutsPrevWeek > 0 {
+            items.append(MomentumItem(
+                text: dw > 0 ? String(localized: "Workouts +\(dw)")
+                             : String(localized: "Workouts −\(-dw)"),
+                up: dw > 0))
         }
         return items.isEmpty ? nil : items
     }

@@ -80,7 +80,7 @@ public enum SleepNightRule {
 ///      guess would be fabrication in reverse.
 /// Everything excluded is REPORTED, not hidden: the diagnostics instrument
 /// (FR-DIAG-01) prints each excluded segment with its reason.
-public enum SleepNightResolver {
+public nonisolated enum SleepNightResolver {
 
     /// Unrecorded time between two segments of one source that splits a night
     /// bucket into separate sleep episodes. 4h: far above any tracker gap
@@ -179,9 +179,51 @@ public enum SleepNightResolver {
     /// resolved stream changes nothing (one source, one episode is stable).
     public static func resolvePerNight(_ sleep: [SleepReading],
                                        calendar: Calendar) -> [SleepReading] {
+        resolutions(sleep, calendar: calendar).flatMap(\.resolution.night)
+    }
+
+    /// One resolved night bucket WITH its bucket date — `resolvePerNight`
+    /// keeping the resolution itself, so `arbitrated()` can carry the naps and
+    /// the exclusion disclosure alongside the resolved stream instead of
+    /// silently discarding them (sleep visualisation wave 2026-08).
+    public struct NightResolution: Sendable {
+        public let night: Date
+        public let resolution: Resolution
+    }
+
+    /// Bucket by night, resolve each, keep everything. Ascending by night.
+    public static func resolutions(_ sleep: [SleepReading],
+                                   calendar: Calendar) -> [NightResolution] {
         guard !sleep.isEmpty else { return [] }
         let byNight = Dictionary(grouping: sleep) { calendar.startOfDay(for: $0.date) }
-        return byNight.keys.sorted().flatMap { resolve(night: byNight[$0] ?? []).night }
+        return byNight.keys.sorted().map {
+            NightResolution(night: $0, resolution: resolve(night: byNight[$0] ?? []))
+        }
+    }
+
+    /// The distinct nap EPISODES inside a flat list of resolver-excluded
+    /// same-source segments: grouped by the same unbridged-gap rule that split
+    /// them from the night. Untimed segments cannot form episodes and are
+    /// returned as one group only if timed grouping is impossible.
+    public static func napEpisodes(_ segments: [SleepReading]) -> [[SleepReading]] {
+        let timed = segments.filter { $0.start != nil }
+        guard timed.count == segments.count, !segments.isEmpty else {
+            return segments.isEmpty ? [] : [segments]
+        }
+        let sorted = segments.sorted { $0.intervalStart < $1.intervalStart }
+        var episodes: [[SleepReading]] = []
+        var current: [SleepReading] = []
+        var runEnd: Date?
+        for seg in sorted {
+            if let end = runEnd,
+               seg.intervalStart.timeIntervalSince(end) > maxUnbridgedGapHours * 3600 {
+                episodes.append(current); current = []
+            }
+            current.append(seg)
+            runEnd = max(runEnd ?? seg.intervalEnd, seg.intervalEnd)
+        }
+        if !current.isEmpty { episodes.append(current) }
+        return episodes
     }
 }
 
@@ -194,20 +236,49 @@ public extension HealthSamples {
         func day(_ d: Date) -> TimeInterval { calendar.startOfDay(for: d).timeIntervalSince1970 }
         func dailyKey(_ m: DailyMetric) -> String { "\(m.kind.rawValue)@\(day(m.date))" }
 
+        // Tier rule first (clinical > good > estimate per stage+night), then
+        // ONE source per night + main-episode isolation (FR-SLP-10 — sleep
+        // incident 2026-08: per-stage bucket sums double-counted overlapping
+        // sources; naps joined the night). Every consumer that unions `sleep`
+        // itself gets the resolved stream. The resolutions are kept so the
+        // naps and the exclusion disclosure survive arbitration — carried in
+        // their OWN streams (`sleepNaps`, `sleepExclusions`) that no
+        // asleep-total consumer reads.
+        let sleepResolutions = SleepNightResolver.resolutions(
+            SourceArbiter.arbitrate(sleep) { "\($0.stage.rawValue)@\(day($0.date))" },
+            calendar: calendar)
+        let resolvedSleep = sleepResolutions.flatMap(\.resolution.night)
+        // Naps: what the resolver split off THIS pass, plus what an earlier
+        // pass already carried (idempotence) — deduplicated by identity.
+        var napSeen = Set<String>()
+        let mergedNaps = (sleepNaps + sleepResolutions.flatMap(\.resolution.excludedOtherEpisodes))
+            .filter { napSeen.insert("\($0.source)|\($0.stage.rawValue)|\($0.intervalStart.timeIntervalSinceReferenceDate)|\($0.hours)").inserted }
+        // Exclusions: union of carried + newly excluded source names per night.
+        var exclusionsByNight: [Date: Set<String>] = [:]
+        for e in sleepExclusions {
+            exclusionsByNight[calendar.startOfDay(for: e.night), default: []].formUnion(e.excludedSources)
+        }
+        for r in sleepResolutions where !r.resolution.excludedOtherSources.isEmpty {
+            exclusionsByNight[r.night, default: []].formUnion(r.resolution.excludedOtherSources.map(\.source))
+        }
+        let mergedExclusions = exclusionsByNight.keys.sorted().map {
+            SleepNightExclusion(night: $0, excludedSources: exclusionsByNight[$0]!.sorted())
+        }
+
         return HealthSamples(
             glucose:      SourceArbiter.arbitrate(glucose)      { $0.ts.timeIntervalSince1970 },
             hrv:          SourceArbiter.arbitrate(hrv,          key: dailyKey),
             restingHR:    SourceArbiter.arbitrate(restingHR,    key: dailyKey),
             steps:        SourceArbiter.arbitrate(steps,        key: dailyKey),
             activeEnergy: SourceArbiter.arbitrate(activeEnergy, key: dailyKey),
-            // Tier rule first (clinical > good > estimate per stage+night),
-            // then ONE source per night + main-episode isolation (FR-SLP-10 —
-            // sleep incident 2026-08: per-stage bucket sums double-counted
-            // overlapping sources; naps joined the night). Every consumer that
-            // unions `sleep` itself gets the resolved stream.
-            sleep:        SleepNightResolver.resolvePerNight(
-                              SourceArbiter.arbitrate(sleep) { "\($0.stage.rawValue)@\(day($0.date))" },
-                              calendar: calendar),
+            sleep:        resolvedSleep,
+            // In-bed: §2.3 tier rule per NIGHT (a clinical sleep-lab in-bed
+            // beats a phone estimate for the same night; same-tier spans all
+            // kept). Which SOURCE's spans make the night's time-in-bed is the
+            // night model's per-night decision (the resolved source's union).
+            sleepInBed:   SourceArbiter.arbitrate(sleepInBed) { day($0.date) },
+            sleepNaps:    mergedNaps,
+            sleepExclusions: mergedExclusions,
             // Dual-recording sessions (bike computer + watch) start seconds
             // apart, so exact-start keying misses them — FR-PROV-02 clusters by
             // time overlap instead: counted once, enriched from both.

@@ -268,7 +268,7 @@ struct HealthRecordStoreTests {
         for code in ["E11", "S82", "Z03"] {
             #expect(report.contains(code), "the shareable summary must list \(code)")
         }
-        #expect(report.contains("Past, minor & administrative entries"),
+        #expect(report.contains(HealthSummaryDocument.appendixTitle.uppercased()),
                 "the lower-tier entries are grouped under their own heading, not dropped")
         #expect(report.contains(HealthDisplay.diagnosesExplainer),
                 "the diagnoses list always carries its explainer")

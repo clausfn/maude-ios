@@ -116,3 +116,18 @@ the NON-sleep path this audit owns.
 - `scripts/guard_provenance.sh` + `scripts/guard_donation_egress.sh` green.
 - QMS: RTM rows FR-ING-16/17/18 + RISK section "HealthKit coverage audit"
   (2026-08-18).
+
+## 6 · Addendum (2026-08-19) — governing rule OVERRULED by CN directive (FR-ING-19)
+
+CN, verbatim, 2026-08-19: *"I want all data from Apple HealthKit — every data
+point."* This supersedes §0's governing rule ("NO type is read without a named
+consumer") for the READ SET: authorization now asks for the full public set,
+with **completeness of the citizen's own record** as the stated purpose and
+**DataBrowserView "Everything you measure"** as the one named consumer for the
+breadth layer. The override is recorded as a controller decision in
+`qms/DHF.md` (2026-08-19 entry); requirement + risk rows: RTM FR-ING-19, RISK
+RK-ING-13/14 + RK-NDG-05. The four tuned pipelines this audit verified are
+unchanged — the universal layer stores everything EXCEPT their types, and
+`LiviqaTests/UniversalReadTests.swift` (T-UNI-01..14) pins the isolation.
+Report-only finding ① (§4.1, the primer's "these — and only these" lead) is
+CLOSED by `HealthKitPrimerView` v03.

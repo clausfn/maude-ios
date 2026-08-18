@@ -388,3 +388,165 @@ struct CalendarLoadDeriverTests {
         #expect(today.scheduledHours == 0.5)
     }
 }
+
+// MARK: - The connect flow (field report 10.103 — "I can't connect calendar")
+//
+// Root cause, established with an on-simulator truth table (2026-08-19): with
+// calendar access already DENIED in iOS — for example "Don't Allow" on the
+// consult write-only prompt of an earlier build — `requestFullAccessToEvents`
+// returns false INSTANTLY and shows NO prompt, and the old connect path's only
+// feedback was a note rendered below the fold of the Data-sources scroll. The
+// tap read as a dead button. These tests pin the fixed flow: every outcome is
+// named, no failure is silent, the opt-in is never recorded unless iOS granted
+// full access (the stuck "on but unreadable" conjunction cannot be created by
+// a failed connect), and every sentence passes the FR-NDG-06 guard.
+//
+// Same rule as the rest of this file: no live `EKEventStore` anywhere — the
+// flow's four platform effects are injected.
+struct CalendarConnectFlowTests {
+
+    /// Which platform effects the flow actually touched.
+    private final class Witness {
+        var requested = false
+        var optedIn: [String] = []
+        var refreshed: [String] = []
+    }
+
+    private func run(_ account: String?,
+                     grants state: CalendarAccessState,
+                     optInSucceeds: Bool = true,
+                     daysRead: Int = 0,
+                     witness: Witness = Witness()) async -> CalendarLoadIngestor.ConnectOutcome {
+        await CalendarLoadIngestor.connect(
+            accountID: account,
+            request: { witness.requested = true; return state },
+            optIn: { witness.optedIn.append($0); return optInSucceeds },
+            refresh: { witness.refreshed.append($0) },
+            daysRead: { _ in daysRead })
+    }
+
+    // MARK: Outcomes are named, ordering is load-bearing
+
+    @Test func noAccountAsksIOSForNothing() async {
+        let witness = Witness()
+        let outcome = await run(nil, grants: .fullAccess, witness: witness)
+        #expect(outcome == .noAccount)
+        #expect(witness.requested == false)
+        #expect(witness.optedIn.isEmpty)
+        #expect(witness.refreshed.isEmpty)
+    }
+
+    @Test func refusedAccessIsNamedAndRecordsNoOptIn() async {
+        // The 10.103 state: iOS answers without prompting. Whatever it says
+        // short of full access, the outcome carries the state — and the opt-in
+        // record is NOT written, so a failed connect can never manufacture the
+        // stuck "you turned this on but nothing is being read" row.
+        for state in [CalendarAccessState.denied, .restricted, .writeOnly, .notDetermined] {
+            let witness = Witness()
+            let outcome = await run("acct-a", grants: state, witness: witness)
+            #expect(outcome == .accessNotGranted(state))
+            #expect(witness.requested)
+            #expect(witness.optedIn.isEmpty, "opt-in must never be recorded on \(state)")
+            #expect(witness.refreshed.isEmpty, "nothing may be read on \(state)")
+        }
+    }
+
+    @Test func fullAccessConnectsAndReportsTheDaysRead() async {
+        let witness = Witness()
+        let outcome = await run("acct-a", grants: .fullAccess, daysRead: 5, witness: witness)
+        #expect(outcome == .connected(daysRead: 5))
+        #expect(witness.optedIn == ["acct-a"])
+        #expect(witness.refreshed == ["acct-a"])
+    }
+
+    @Test func optInWriteFailureIsNamedAndNothingIsRead() async {
+        // iOS said yes but the record could not be written: the flow must say
+        // so — never claim a connection — and must not read a single event.
+        let witness = Witness()
+        let outcome = await run("acct-a", grants: .fullAccess, optInSucceeds: false, witness: witness)
+        #expect(outcome == .optInFailed)
+        #expect(witness.refreshed.isEmpty)
+    }
+
+    // MARK: Every failure SPEAKS, honestly, through the guard
+
+    @Test func everyFailureLineIsNonEmptyGuardCleanAndNeverClaimsSuccess() {
+        var lines: [String] = [CalendarLoadCopy.connectNoAccountLine,
+                               CalendarLoadCopy.connectOptInFailedLine]
+        for state in [CalendarAccessState.denied, .restricted, .writeOnly, .notDetermined] {
+            lines.append(CalendarLoadCopy.connectFailureLine(afterRequest: state))
+        }
+        for line in lines {
+            #expect(!line.isEmpty)
+            #expect(NudgeGuard.check(line) == nil, "guard tripped: \(line)")
+            // The success phrase must be unmanufacturable by a failure path.
+            #expect(!line.contains("Calendar connected"), "a failure line claims success: \(line)")
+        }
+    }
+
+    @Test func statesIOSWillNotRepromptOnPointAtSettings() {
+        // Verified on-simulator: denied shows no dialog at all, and write-only
+        // may be declined once and then never re-prompts. For the states whose
+        // switch really is on Liviqa's Settings page, the sentence must say
+        // where the switch lives.
+        for state in [CalendarAccessState.denied, .writeOnly] {
+            #expect(CalendarLoadCopy.settingsCanFix(state))
+            #expect(CalendarLoadCopy.connectFailureLine(afterRequest: state).contains("iOS Settings"))
+        }
+        // Restricted is a Screen Time / profile restriction: it does NOT
+        // appear on Liviqa's Settings page, so no button may promise it does.
+        // The sentence states the restriction instead.
+        #expect(!CalendarLoadCopy.settingsCanFix(.restricted))
+        #expect(CalendarLoadCopy.connectFailureLine(afterRequest: .restricted).contains("restricted"))
+        #expect(!CalendarLoadCopy.settingsCanFix(.notDetermined))
+        #expect(!CalendarLoadCopy.settingsCanFix(.fullAccess))
+        #expect(!CalendarLoadCopy.settingsCanFix(.unavailable))
+    }
+
+    // MARK: The row itself is honest BEFORE the tap
+
+    @Test func rowNoteSpeaksWhenIOSAlreadySaidNo() {
+        // Not opted in + access already off: the row must say so up front —
+        // the connect button cannot make iOS prompt in these states.
+        let denied = DataSourcesView.calendarRowNote(optedIn: false, access: .denied, daysRead: 0)
+        #expect(denied.contains("iOS Settings"), "row is mute about a dead switch")
+        let writeOnly = DataSourcesView.calendarRowNote(optedIn: false, access: .writeOnly, daysRead: 0)
+        #expect(writeOnly.contains("iOS Settings"))
+        #expect(writeOnly.contains("add an event"))
+        // Restricted is not fixable from Liviqa's Settings page, so the row
+        // states the restriction and points nowhere it cannot deliver.
+        let restricted = DataSourcesView.calendarRowNote(optedIn: false, access: .restricted, daysRead: 0)
+        #expect(restricted.contains("restricted"))
+        #expect(!restricted.contains("iOS Settings"))
+    }
+
+    @Test func rowNoteKeepsThePromiseLineWhenIOSWasNeverAsked() {
+        let note = DataSourcesView.calendarRowNote(optedIn: false, access: .notDetermined, daysRead: 0)
+        #expect(note.contains("how full your days are"))
+        #expect(!note.contains("iOS Settings"), "no scare copy before iOS was ever asked")
+    }
+
+    @Test func rowNoteStatesTheStuckConjunctionAndTheConnectedCount() {
+        let stuck = DataSourcesView.calendarRowNote(optedIn: true, access: .denied, daysRead: 0)
+        #expect(stuck.contains("off in iOS Settings"))
+        #expect(stuck.contains("nothing is being read"))
+
+        let connected = DataSourcesView.calendarRowNote(optedIn: true, access: .fullAccess, daysRead: 3)
+        #expect(connected.contains("3 days read"))
+        let one = DataSourcesView.calendarRowNote(optedIn: true, access: .fullAccess, daysRead: 1)
+        #expect(one.contains("1 day read"))
+    }
+
+    @Test func everyRowNotePassesTheGuard() {
+        for optedIn in [true, false] {
+            for access in [CalendarAccessState.notDetermined, .denied, .restricted,
+                           .writeOnly, .fullAccess, .unavailable] {
+                for days in [0, 1, 7] {
+                    let note = DataSourcesView.calendarRowNote(optedIn: optedIn,
+                                                               access: access, daysRead: days)
+                    #expect(NudgeGuard.check(note) == nil, "guard tripped: \(note)")
+                }
+            }
+        }
+    }
+}

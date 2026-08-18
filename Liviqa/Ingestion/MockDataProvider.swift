@@ -103,9 +103,23 @@ public struct MockDataProvider: HealthDataProvider {
             // every derived total is unchanged while the depth chart, the
             // wake-up moment and bedtime consistency have something real to
             // read. Deterministic: no RNG draws are consumed here.
-            samples.sleep += Self.night(endingOn: day, offset: offset,
-                                        deep: deep, core: core, rem: rem,
-                                        source: source, provenance: .simulated)
+            let nightSegs = Self.night(endingOn: day, offset: offset,
+                                       deep: deep, core: core, rem: rem,
+                                       source: source, provenance: .simulated)
+            samples.sleep += nightSegs
+            // The night's IN-BED span (separate stream, separate TYPE — it can
+            // never join an asleep total): a few minutes settling before the
+            // first segment and lingering after the last, the shape a phone
+            // writes. Deterministic — no RNG draws.
+            if let lo = nightSegs.compactMap(\.start).min(),
+               let hi = nightSegs.map(\.intervalEnd).max() {
+                let bedStart = lo.addingTimeInterval(-9 * 60)
+                let bedHours = (hi.timeIntervalSince(bedStart) / 3600) + 6.0 / 60
+                samples.sleepInBed.append(InBedSpan(
+                    date: day, start: bedStart,
+                    hours: (bedHours * 100).rounded() / 100,
+                    source: source, tier: .estimate, provenance: .simulated))
+            }
 
             // Nightly sleeping wrist temperature (FR-ING-16): a personal
             // baseline around 34.6–34.8 °C with the citizen's own small weekly

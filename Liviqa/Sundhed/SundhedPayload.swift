@@ -145,6 +145,40 @@ public struct SundhedDerivedSummary: Equatable {
         public let mean: Double
         public let unit: String
         public let n: Int
+        /// Full NPU system token ("P", "B", "U", "Pt(U)") — structured specimen,
+        /// mapped to a label at display (defect C), never appended to the name.
+        public let specimen: String?
+        /// Every faithful reading, NEWEST FIRST, each with its REAL specimen/
+        /// result date (nil = the source genuinely didn't record one — never the
+        /// import date; defect A). Qualitative rows carry the source's wording.
+        public let readings: [Reading]
+
+        public init(catalogVar: String, component: String, latest: Double, mean: Double,
+                    unit: String, n: Int, specimen: String? = nil, readings: [Reading] = []) {
+            self.catalogVar = catalogVar; self.component = component
+            self.latest = latest; self.mean = mean; self.unit = unit; self.n = n
+            self.specimen = specimen; self.readings = readings
+        }
+
+        /// The newest reading's real date, when the source recorded one.
+        public var latestDate: Date? { readings.first?.date }
+    }
+
+    /// One faithful reading of one analyte on one date.
+    public struct Reading: Equatable, Sendable {
+        public let value: Double
+        public let unit: String
+        public let date: Date?                  // real specimen date; nil = not recorded
+        public let kind: SundhedResultKind
+        public let text: String?                // source wording for qualitative results
+        public let referenceInterval: String?   // the SOURCE's own interval, when captured
+
+        public init(value: Double, unit: String, date: Date?,
+                    kind: SundhedResultKind = .quantitative,
+                    text: String? = nil, referenceInterval: String? = nil) {
+            self.value = value; self.unit = unit; self.date = date
+            self.kind = kind; self.text = text; self.referenceInterval = referenceInterval
+        }
     }
     public struct MedRow: Equatable, Identifiable {
         public var id: String { atc + brand }
@@ -182,19 +216,32 @@ public enum SundhedPayloadBuilder {
     public static func summarise(labs: [SundhedLabMeasurement],
                                  meds: [SundhedMedItem],
                                  diagnoses: [String]) -> SundhedDerivedSummary {
-        // Labs: group by catalog var, order by date (latest last).
+        // Labs: group by catalog var, order by date (latest last). Numeric
+        // aggregates (latest/mean) run over QUANTITATIVE readings only — a
+        // qualitative screen or a collection artifact must never inject a 0
+        // into the numbers (defect B). Per-reading dates are PRESERVED into
+        // LabRow.readings (defect A) — summarise no longer flattens them away.
         let grouped = Dictionary(grouping: labs, by: \.catalogVar)
         let labRows: [SundhedDerivedSummary.LabRow] = grouped.map { (varKey, ms) in
             let ordered = ms.sorted { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
-            let values = ordered.map(\.value)
-            let mean = values.reduce(0, +) / Double(values.count)
+            let numeric = ordered.filter { $0.kind == .quantitative }
+            let values = numeric.map(\.value)
+            let mean = values.isEmpty ? 0 : values.reduce(0, +) / Double(values.count)
+            let readings: [SundhedDerivedSummary.Reading] = ordered.reversed().map { m in
+                SundhedDerivedSummary.Reading(value: m.value, unit: m.unit, date: m.date,
+                                              kind: m.kind, text: m.text,
+                                              referenceInterval: m.referenceInterval)
+            }
+            let representative = numeric.last ?? ordered.last
             return SundhedDerivedSummary.LabRow(
                 catalogVar: varKey,
-                component: ordered.last?.component ?? varKey,
-                latest: ordered.last?.value ?? mean,
+                component: representative?.component ?? varKey,
+                latest: numeric.last?.value ?? mean,
                 mean: mean.roundedTo(2),
-                unit: ordered.last?.unit ?? "",
-                n: values.count
+                unit: representative?.unit ?? "",
+                n: ordered.count,
+                specimen: representative?.specimen,
+                readings: readings
             )
         }
         .sorted { $0.catalogVar < $1.catalogVar }
@@ -218,8 +265,11 @@ public enum SundhedPayloadBuilder {
                              asOf: Date = Date()) -> SundhedIngestBody {
         var metrics = SundhedIngestBody.Metrics()
 
-        // Labs by_variable
-        let grouped = Dictionary(grouping: labs, by: \.catalogVar)
+        // Labs by_variable — QUANTITATIVE readings only: qualitative words and
+        // collection artifacts carry no number and must never enter the coded
+        // research body as zeros (defect B).
+        let quantitative = labs.filter { $0.kind == .quantitative }
+        let grouped = Dictionary(grouping: quantitative, by: \.catalogVar)
         if !grouped.isEmpty {
             var byVar: [String: SundhedIngestBody.LabVar] = [:]
             for (varKey, ms) in grouped {
@@ -273,7 +323,7 @@ public enum SundhedPayloadBuilder {
         }
 
         let counts: [String: Int] = [
-            "labs": labs.count,
+            "labs": quantitative.count,
             "lab_variables": grouped.count,
             "meds": meds.count,
             "conditions": diagnoses.count,

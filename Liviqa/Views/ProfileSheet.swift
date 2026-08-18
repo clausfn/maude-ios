@@ -40,7 +40,17 @@ struct ProfileSheet: View {
     var openSection: Section? = nil   // set by calibration deep-link
 
     @State private var expanded: Section? = nil
-    @State private var draft: HealthContext = .demo
+    /// Starts EMPTY, never `.demo`: this value is what Save writes, and demo
+    /// content must not be one failed `onAppear` away from becoming the
+    /// citizen's stored profile on a shipped build.
+    @State private var draft: HealthContext = HealthContext()
+    /// Clinical targets are edited as TEXT and parsed on Save — see
+    /// `ClinicalTargetsDraft` (10.103 "my ranges get deleted" field fix).
+    @State private var targetsDraft = ClinicalTargetsDraft()
+    /// The draft seeds ONCE per presentation. `onAppear` fires again when a
+    /// pushed screen (Settings, care team) pops back — reseeding then silently
+    /// wiped everything typed but not yet saved.
+    @State private var draftSeeded = false
     @State private var showChat = false
     /// Which condition is open for editing — collapsed conditions render as
     /// display chips (A7.2 f-missing ScrProfileSheet delta), tap to edit.
@@ -151,7 +161,16 @@ struct ProfileSheet: View {
                     }
                 }
                 .onAppear {
-                    draft = appState.healthContext
+                    // This sheet is on screen ⇒ the device is unlocked ⇒ a
+                    // restore that failed at a locked background launch can
+                    // complete NOW — before the draft seeds, so Save can never
+                    // write a seed over the stored profile (10.103 field fix).
+                    appState.retryHealthContextRestoreIfNeeded()
+                    if !draftSeeded {
+                        draft = appState.healthContext
+                        targetsDraft = ClinicalTargetsDraft(from: draft.targets)
+                        draftSeeded = true
+                    }
                     if let s = openSection {
                         expanded = s
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -169,10 +188,10 @@ struct ProfileSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        appState.healthContext = draft
-                        // Device-local persistence (A7.2 Area ⑧): edits must
-                        // survive relaunch — "stays on device" now includes disk.
-                        HealthContextStore.save(draft)
+                        draft.targets = targetsDraft.applied(to: draft.targets)
+                        // Memory + disk in ONE call (A7.2 Area ⑧): edits must
+                        // survive relaunch, and the two must never diverge.
+                        appState.saveHealthContext(draft)
                         dismiss()
                     }
                     .font(.lato(15, .semibold))
@@ -245,10 +264,10 @@ struct ProfileSheet: View {
             countBadge(draft.conditions.count)
         case .targets:
             let filled = [
-                draft.targets.glucoseRangeLow,
-                draft.targets.glucoseRangeHigh,
-                draft.targets.hbA1cTarget
-            ].compactMap { $0 }.count
+                targetsDraft.glucoseLow,
+                targetsDraft.glucoseHigh,
+                targetsDraft.hbA1c
+            ].compactMap(ClinicalTargetsDraft.parseDouble).count
             if filled > 0 {
                 Text("\(filled) set")
                     .font(.lato(11, .medium))
@@ -392,16 +411,19 @@ struct ProfileSheet: View {
 
     private var targetsContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            targetField("Glucose low (mmol/L)", value: $draft.targets.glucoseRangeLow,
-                        placeholder: "e.g. 4.0")
-            targetField("Glucose high (mmol/L)", value: $draft.targets.glucoseRangeHigh,
-                        placeholder: "e.g. 10.0")
-            targetField("HbA1c target (mmol/mol)", value: $draft.targets.hbA1cTarget,
-                        placeholder: "e.g. 48")
-            targetIntField("TIR target (%)", value: $draft.targets.tirTarget,
-                           placeholder: "e.g. 80")
-            targetIntField("Resting HR ceiling (bpm)", value: $draft.targets.restingHRCeiling,
-                           placeholder: "e.g. 100")
+            // The Strings are the source of truth WHILE EDITING — no reformat
+            // feedback per keystroke — and Save parses them tolerantly ("4,5"
+            // and "4.5" both work; the Danish decimal pad only offers ",").
+            targetField("Glucose low (mmol/L)", text: $targetsDraft.glucoseLow,
+                        placeholder: "e.g. 4.0", keyboard: .decimalPad)
+            targetField("Glucose high (mmol/L)", text: $targetsDraft.glucoseHigh,
+                        placeholder: "e.g. 10.0", keyboard: .decimalPad)
+            targetField("HbA1c target (mmol/mol)", text: $targetsDraft.hbA1c,
+                        placeholder: "e.g. 48", keyboard: .decimalPad)
+            targetField("TIR target (%)", text: $targetsDraft.tir,
+                        placeholder: "e.g. 80", keyboard: .numberPad)
+            targetField("Resting HR ceiling (bpm)", text: $targetsDraft.restingHR,
+                        placeholder: "e.g. 100", keyboard: .numberPad)
 
             Text("These values come from your care plan. Liviqa uses them to calibrate what's inside vs outside your personal range.")
                 .font(.caption)
@@ -410,7 +432,8 @@ struct ProfileSheet: View {
         }
     }
 
-    private func targetField(_ label: String, value: Binding<Double?>, placeholder: String) -> some View {
+    private func targetField(_ label: String, text: Binding<String>,
+                             placeholder: String, keyboard: UIKeyboardType) -> some View {
         HStack(spacing: 12) {
             Text(label)
                 .font(.caption)
@@ -418,30 +441,12 @@ struct ProfileSheet: View {
                 // Fixed-width label must shrink, not wrap into the field, at large type.
                 .lineLimit(2).minimumScaleFactor(0.8)
                 .frame(width: 180, alignment: .leading)
-            TextField(placeholder, text: doubleBinding(value))
+            TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(.lato(14, .medium))
                 .foregroundStyle(LiviqaTheme.ink)
                 .multilineTextAlignment(.trailing)
-                .keyboardType(.decimalPad)
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func targetIntField(_ label: String, value: Binding<Int?>, placeholder: String) -> some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(LiviqaTheme.ink3)
-                // Fixed-width label must shrink, not wrap into the field, at large type.
-                .lineLimit(2).minimumScaleFactor(0.8)
-                .frame(width: 180, alignment: .leading)
-            TextField(placeholder, text: intBinding(value))
-                .textFieldStyle(.plain)
-                .font(.lato(14, .medium))
-                .foregroundStyle(LiviqaTheme.ink)
-                .multilineTextAlignment(.trailing)
-                .keyboardType(.numberPad)
+                .keyboardType(keyboard)
         }
         .padding(.vertical, 4)
     }
@@ -597,21 +602,21 @@ struct ProfileSheet: View {
 
     // MARK: - Helpers
 
-    /// TextField(_:value:format:) does not accept Binding<Optional<T>>.
-    /// These adapters convert optional numeric bindings to String bindings
-    /// so we can use the plain TextField(_:text:) initialiser instead.
-
-    private func doubleBinding(_ b: Binding<Double?>) -> Binding<String> {
-        Binding(
-            get: { b.wrappedValue.map { String(format: "%.1f", $0) } ?? "" },
-            set: { b.wrappedValue = Double($0) }
-        )
-    }
-
+    /// Optional-Int → String adapter for the condition "Year" field. The set
+    /// side is deliberately NON-DESTRUCTIVE: an unparseable string keeps the
+    /// previous value instead of wiping it (the old `b.wrappedValue = Int($0)`
+    /// nulled the year — the same wipe class as the retired doubleBinding).
     private func intBinding(_ b: Binding<Int?>) -> Binding<String> {
         Binding(
             get: { b.wrappedValue.map { "\($0)" } ?? "" },
-            set: { b.wrappedValue = Int($0) }
+            set: {
+                let trimmed = $0.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty {
+                    b.wrappedValue = nil
+                } else if let v = Int(trimmed) {
+                    b.wrappedValue = v
+                }
+            }
         )
     }
 
@@ -630,6 +635,74 @@ struct ProfileSheet: View {
                 .textFieldStyle(.plain)
                 .frame(minHeight: 22)
         }
+    }
+}
+
+// MARK: - Clinical targets as text (10.103 field fix)
+
+/// String-backed editing model for `ClinicalTargets` — the numbers the citizen
+/// types in ProfileSheet. Two defects lived in the old optional-Double binding
+/// adapters (10.103 field report, "when I enter my ranges they get deleted"):
+///
+///  1. the set side parsed with `Double(String)`, which accepts only "." —
+///     while the Danish decimal pad offers ONLY the comma, so entering a
+///     range stored nil the moment the separator was typed;
+///  2. the get side reformatted on every keystroke ("4" → "4.0"), so the next
+///     separator produced an unparseable intermediate, the set side stored
+///     nil, and the get side rendered "" — the field visibly emptied itself
+///     under the cursor.
+///
+/// While editing, these Strings are the single source of truth (no reformat
+/// feedback); Save parses them tolerantly (both "." and ",") into the model.
+/// Pure value type — unit-tested in HealthContextPersistenceTests.
+struct ClinicalTargetsDraft: Equatable {
+    var glucoseLow: String     // mmol/L (OD-07)
+    var glucoseHigh: String    // mmol/L
+    var hbA1c: String          // mmol/mol
+    var tir: String            // %
+    var restingHR: String      // bpm
+
+    init(from targets: ClinicalTargets = ClinicalTargets()) {
+        glucoseLow  = Self.display(targets.glucoseRangeLow)
+        glucoseHigh = Self.display(targets.glucoseRangeHigh)
+        hbA1c       = Self.display(targets.hbA1cTarget)
+        tir         = targets.tirTarget.map(String.init) ?? ""
+        restingHR   = targets.restingHRCeiling.map(String.init) ?? ""
+    }
+
+    /// The typed values, parsed into the model. Empty or unparseable text
+    /// clears a target — what the field shows is what gets saved.
+    func applied(to targets: ClinicalTargets) -> ClinicalTargets {
+        var t = targets
+        t.glucoseRangeLow  = Self.parseDouble(glucoseLow)
+        t.glucoseRangeHigh = Self.parseDouble(glucoseHigh)
+        t.hbA1cTarget      = Self.parseDouble(hbA1c)
+        t.tirTarget        = Self.parseInt(tir)
+        t.restingHRCeiling = Self.parseInt(restingHR)
+        return t
+    }
+
+    /// "4.5" and "4,5" both parse — the decimal pad's separator follows the
+    /// device region and Danish (among others) offers only the comma.
+    static func parseDouble(_ text: String) -> Double? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: ",", with: ".")
+        guard !t.isEmpty else { return nil }
+        return Double(t)
+    }
+
+    static func parseInt(_ text: String) -> Int? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return nil }
+        return Int(t)
+    }
+
+    /// Seed display, minimal form: "4" not "4.0"; one decimal otherwise.
+    /// Always "." on the way out — parse accepts both on the way back in.
+    static func display(_ value: Double?) -> String {
+        guard let value else { return "" }
+        let s = String(format: "%.1f", value)
+        return s.hasSuffix(".0") ? String(s.dropLast(2)) : s
     }
 }
 

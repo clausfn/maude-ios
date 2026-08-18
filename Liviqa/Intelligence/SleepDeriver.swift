@@ -22,52 +22,32 @@ public nonisolated struct SleepSummary: Sendable, Equatable {
 }
 
 public nonisolated enum SleepDeriver {
-    private static let asleep: Set<SleepStage> = [.rem, .core, .deep, .asleepUnspecified]
     private static let cal = Calendar(identifier: .gregorian)
 
     public static func derive(from s: HealthSamples) -> SleepSummary? {
-        // FR-SLP-10 (sleep incident 2026-08): one source per night, main sleep
-        // episode only — `arbitrated()` already resolves the stream, but the
-        // deriver re-applies the rule (idempotent) so no caller that skips
-        // arbitration can double-count an overlapping second source or grow
-        // "last night" by an afternoon nap.
-        let resolved = SleepNightResolver.resolvePerNight(s.sleep, calendar: cal)
-        let segs = resolved.filter { asleep.contains($0.stage) }
-        guard !segs.isEmpty else { return nil }
+        // ONE arithmetic for every surface: the Home chip reads the SAME
+        // `SleepNight` models the Sleep detail screen renders
+        // (`SleepNightBuilder` re-applies FR-SLP-10 — idempotent over
+        // `arbitrated()` — so no caller that skips arbitration can
+        // double-count an overlapping second source or grow "last night" by
+        // an afternoon nap). The chip and the detail screen cannot disagree:
+        // they read the same objects.
+        let nights = SleepNightBuilder.nights(from: s, calendar: cal)
+        guard let lastNight = nights.last else { return nil }
 
-        var byDay: [Date: [SleepReading]] = [:]
-        for seg in segs { byDay[cal.startOfDay(for: seg.date), default: []].append(seg) }
-        guard let lastDay = byDay.keys.max(), let night = byDay[lastDay] else { return nil }
-
-        // Union overlapping same-stage segments (two-source de-dup) within each
-        // exclusive bucket, then sum. Deep/REM/Core partition a single source's
-        // night, so the summed merged buckets count each wall-clock minute once.
-        func hours(_ stages: Set<SleepStage>) -> Double {
-            SleepReading.mergedAsleepHours(night, asleep: stages)
-        }
-        let deepH = hours([.deep])
-        let remH  = hours([.rem])
-        let coreH = hours([.core, .asleepUnspecified])
-        let asleepH = deepH + remH + coreH
-
-        func nightHours(_ segs: [SleepReading]) -> Double {
-            SleepReading.mergedAsleepHours(segs, asleep: [.deep])
-                + SleepReading.mergedAsleepHours(segs, asleep: [.rem])
-                + SleepReading.mergedAsleepHours(segs, asleep: [.core, .asleepUnspecified])
-        }
-
+        let byDay = Dictionary(uniqueKeysWithValues: nights.map { ($0.date, $0) })
         let today = cal.startOfDay(for: Date())
         let week: [Double] = (0..<7).reversed().compactMap { off in
             guard let d = cal.date(byAdding: .day, value: -off, to: today),
-                  let segs = byDay[d] else { return nil }
-            return (nightHours(segs) * 10).rounded() / 10
+                  let night = byDay[d] else { return nil }
+            return (Double(night.asleepMin) / 60 * 10).rounded() / 10
         }
 
         return SleepSummary(
-            deepMin: Int((deepH * 60).rounded()),
-            coreMin: Int((coreH * 60).rounded()),
-            remMin:  Int((remH * 60).rounded()),
-            asleepMinutes: Int((asleepH * 60).rounded()),
+            deepMin: lastNight.deepMin,
+            coreMin: lastNight.coreMin,
+            remMin:  lastNight.remMin,
+            asleepMinutes: lastNight.asleepMin,
             nightlyHoursWeek: week.count >= 2 ? week : [])
     }
 }

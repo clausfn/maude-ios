@@ -2,6 +2,41 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Health-summary export — the document a citizen hands their doctor was clinically misleading (2026-08-19, export redesign, branch claude/a72-electric-ink)
+
+CN exported his real summary and found it unprofessional and in places clinically
+misleading. The export is a SAFETY-RELEVANT surface: a clinician reads it as the
+citizen's record. Hazards found in the shipped export and their mitigations:
+
+| ID | Hazard | Cause | Mitigation | Residual | Linked req |
+|---|---|---|---|---|---|
+| RK-EXP-01 | Clinician misreads result recency/trend — every lab appears drawn on the same recent day | Sundhed-imported observations carried the PULL/import date as `effectiveDate`; the parsers read per-row specimen dates but `summarise()` flattened them and `canonicalize()` substituted `Date()` | Per-reading dates now survive the whole pipeline (`LabRow.readings`, one `HealthObservation` per reading, `specimenDate` field); a genuinely undated row stays nil and renders "date not recorded" — the import date NEVER renders as a result date; pull dates live in the document HEADER ("Sundhed.dk record as of <date>") | None while T-EXP-01 holds (parse→summarise→canonicalize date round-trip + nil-stays-nil pinned) | FR-EXP-01, day-axis integrity rule |
+| RK-EXP-02 | A negative serology/antigen screen reads as a measured numeric value ("0 U/L") — or worse, as an alarming zero | Qualitative results had no type: Sundhed encodes some negative screens as `Vaerdi=0` + wording; the pipeline stored the 0 as a quantitative value | `SundhedResultKind{quantitative,qualitative,artifact}` typed at parse time on BOTH paths (closed in-page token allow-list keeps narrative off the bridge); qualitative rows store the source's wording, render as words ("Not detected"), are excluded from every numeric surface (`latestObservations`), the coded research body and MPC scaling | None while T-EXP-02 holds (0-encoded negativity, valueless worded results, aggregate exclusion all pinned) | FR-EXP-01, FR-NDG-06 posture |
+| RK-EXP-03 | Zero-duration/volume collection bookkeeping rows ("0 min urine collection") read as results | No artifact concept | `isCollectionArtifact` flags value==0 in duration/volume units (or collection-time analytes); artifacts are excluded from the summary by default and listed honestly in its appendix; a genuine 0.0 count (basophils) is proven NOT to trip the rule | None while T-EXP-02 holds | FR-EXP-01 |
+| RK-EXP-04 | Population reference ranges sneak into the document as judgements | Redesign adds a reference-interval display | ONLY the SOURCE's own captured interval renders, labelled "source reference interval"; nothing is invented; the personal-prior framing (own previous value + date) is the only comparison; every fixed framing string passes the FR-NDG-06 designated control (T-EXP-04) and the document generates NO sentences | None while T-EXP-04 holds | FR-EXP-01, FR-NDG-06 |
+
+No new egress: the document leaves only via the citizen's explicit share action
+(unchanged posture, `SundhedSinkTests` still green); the hidden
+`Provenance{REAL,SIMULATED,EXTERNAL}` field still never renders (T-EXP-04
+asserts its absence from the rendered text).
+
+## Universal HealthKit read — the whole record lands on the phone (2026-08-19, FR-ING-19, CN directive)
+
+The universal layer materially WIDENS the at-rest surface: from ~21 curated types
+to every type the citizen grants — potentially reproductive health, symptoms,
+mental-health assessments, audiology. New/updated rows:
+
+| ID | Hazard | Cause | Mitigation | Residual | Linked req |
+|---|---|---|---|---|---|
+| RK-ING-13 | Sensitive special-category data at rest on the device is exposed (device loss, backup extraction) | Universal store holds every granted type, not a curated subset | SAME discipline as the sample store, verified by construction and test: on-device only (`cloudKitDatabase: .none`), `.completeUntilFirstUserAuthentication` file protection incl. WAL/SHM, NO egress path anywhere in the layer, GDPR erase via `UniversalHealthStore.eraseAll()` (T-UNI-09); the citizen chose every type on Apple's own sheet and can revoke in the Health app | Erase hook + browser entry land in the SAME integration PR (both lines reported in RTM/DHF); until then the layer is dormant — no call site constructs the reader, so no data can exist that the missing hook would strand. DPIA data-inventory re-run flagged to CN before tester exposure | FR-ING-19, NFR-PRIV-01, OD-09 |
+| RK-NDG-05 | An unfamiliar type (a symptom severity, a mental-health score) gets an implied judgment the app has no validated basis for | A browser row framing a value as good/bad/normal | STRUCTURAL: the browser generates no sentences — values, units, counts, source names and a day chart only; recorded category codes decode to HealthKit's OWN words ("Mild", "Severe" — reading back what was written, never assessing it); no NudgeGuard wiring exists in the file; T-UNI-14 lints every string literal against a judgment lexicon | None while T-UNI-14 holds; any future per-type verdict must arrive as its own FR with its own deriver + FR-NDG-06 coverage | FR-ING-19, FR-NDG-06 |
+| RK-ING-14 | The universal breadth silently distorts the four tuned core signals | Universal rows leaking into derivers/nudge inputs, or double-storage of tuned types | Type-set disjointness (storage set ∩ tuned readTypes = ∅, T-UNI-05) + source-lint isolation in BOTH directions (T-UNI-07) + a separate ModelContainer, so no LiviqaStore query can ever fetch a universal row | None while the T-UNI suite holds | FR-ING-19, FR-ING-01, FR-NDG-06 |
+
+Honesty control alongside: the HealthKit primer's "these — and only these" claim
+(report-only finding ① of the 2026-08-18 audit, RK-ING-12) is CLOSED — the v03
+lead claims only what is true in every configuration (the citizen chooses on
+Apple's sheet; read-only; on-device; nothing uploaded).
+
 ## Sleep incident — the founder's own nights derived "brutally wrong" (2026-08-18, sleep-incident wave, branch claude/a72-electric-ink)
 
 **Why this is a risk section.** Sleep is a signal the nudge engine consumes

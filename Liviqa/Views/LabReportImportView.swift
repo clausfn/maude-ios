@@ -574,7 +574,12 @@ struct LabReportImportView: View {
                 effectiveDate: date,
                 source: HealthDataSource.paperScan.rawValue,
                 sourceDetail: fileName,
-                mpcScaled: Int(scaled)
+                mpcScaled: Int(scaled),
+                // The REAL printed result date only — nil when the report showed
+                // none, so the export says "date not recorded" instead of
+                // presenting the citizen-picked fallback as a specimen date.
+                specimenDate: row.parsed.date,
+                resultKind: SundhedResultKind.quantitative.rawValue
             )
         }
         guard !observations.isEmpty else { return }

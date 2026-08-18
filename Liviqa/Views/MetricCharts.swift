@@ -788,126 +788,404 @@ struct RangeBandView: View {
     }
 }
 
-// MARK: - Sleep depth "søkort" (charts.jsx SleepDepthChart) — DEMO-ONLY chart
+// MARK: - Sleep block hypnogram (supersedes the søkort SleepDepthChart)
+//
+// DHF 2026-08-19: CN compared the søkort line-chart against the Apple Health
+// hypnogram rendering his own night and directed "build this much better". The
+// block hypnogram replaces it: four stage lanes, rounded segment blocks, thin
+// connecting risers, hour gridlines, the in-bed span as a faint underlay. The
+// søkort code path is deleted (nothing else consumed it).
+//
+// AWAKE COLOUR (rail): awake blocks use `LiviqaTheme.rust` — the theme's warm
+// brick (0xC13B34 light / 0xEE9089 dark), from the clay/rust family the rail
+// names. Deliberately NOT `clinRed` (0xDA2F46): red-as-alarm stays a clinical
+// glucose-TIR-only mark (RK-ALARM-01). Colour is never the only signal — the
+// awake lane carries its own text label and the top position.
 
-/// One night-stage segment on the 0…1 night axis. Stage: 0 awake · 1 REM ·
-/// 2 core · 3 deep.
-struct SleepDepthSegment {
+/// One night-stage draw segment on the 0…1 night axis.
+/// Stage: 0 awake · 1 REM · 2 core · 3 deep (lane order, top to bottom).
+nonisolated struct SleepHypnoSegment: Equatable, Sendable {
     let stage: Int
     let t0: Double
     let t1: Double
 }
 
-/// The night as water: one continuous engraved ink line sinking below a surface,
-/// gradient water fill, nautical "soundings" printing the stage totals in open
-/// water, the one wake-up breaking the surface.
-///
-/// INGESTION: sleep segments carry their wall-clock start and the awake stage
-/// (HealthKitService v03), so a REAL night is drawn here whenever the source
-/// recorded one — `SleepDetailDeriver.nightShape` builds the segments and
-/// soundings. The clearly-demo design seed is still used when there is no
-/// derivation at all, and only in a demo-tagged session.
-struct SleepDepthChart: View {
+struct SleepBlockHypnogram: View {
 
-    /// Water depth per stage on this chart: 0 awake · 1 REM · 2 core · 3 deep.
-    /// Shared so a caller can place a sounding at the same depth as its stage.
-    static let stageDepth: [Double] = [-0.07, 0.24, 0.58, 0.94]
+    /// One rendered block in plot-pixel space (draw-time only — NEVER data).
+    nonisolated struct Block: Equatable {
+        var stage: Int
+        var x0: CGFloat
+        var x1: CGFloat
+        var width: CGFloat { x1 - x0 }
+    }
 
-    var segments: [SleepDepthSegment]
-    var soundings: [(t: Double, depth: Double, num: String, name: String)]
+    var segments: [SleepHypnoSegment]                  // time-ordered
+    var hourMarks: [(t: Double, label: String)] = []
+    /// In-bed span on the same axis — a faint underlay BEHIND the blocks.
+    /// Underlay only; in-bed minutes are printed elsewhere and NEVER join a
+    /// sleep total.
+    var inBedSpan: (t0: Double, t1: Double)? = nil
     var wakeT: Double? = nil
     var wakeLabel: String? = nil
     var edgeStart: String
     var edgeEnd: String
-    var height: CGFloat = 176
+    var a11ySummary: String
+    var height: CGFloat = 168
 
-    private var depths: [Double] { Self.stageDepth }   // awake pokes above
+    /// Printed under the plot when draw-time merging happened at this width.
+    /// Fixed template (FR-NDG-06-guard-tested in SleepScreenModelTests).
+    static let simplifiedNote =
+        "Short stretches are drawn merged at this size — every printed figure is exact."
+    /// The steady caption for the un-merged case (constant layout either way).
+    static let steadyNote =
+        "Each block is a recorded stage; gaps between blocks are unrecorded time."
 
-    /// Width reserved for one sounding label ("CORE" over "5h 31m").
-    private static let soundingWidth: CGFloat = 62
+    static let laneNames = ["Awake", "REM", "Core", "Deep"]
 
-    /// Keep a centred label of `width` fully inside `lo…hi`.
-    private func clamped(_ centre: CGFloat, lo: CGFloat, hi: CGFloat,
-                         width: CGFloat) -> CGFloat {
-        let half = width / 2
-        guard hi - lo > width else { return (lo + hi) / 2 }
-        return min(max(centre, lo + half), hi - half)
+    /// Stage → block colour. Deep/Core/REM are the sleep-accent ramp the stage
+    /// tiles already use; awake is the warm rust brick (see header — not clinRed).
+    static func stageColor(_ stage: Int) -> Color {
+        switch stage {
+        case 0:  return LiviqaTheme.rust
+        case 1:  return LiviqaTheme.accentSleep.opacity(0.62)
+        case 3:  return LiviqaTheme.accentSleep
+        default: return LiviqaTheme.accentSleep.opacity(0.34)
+        }
+    }
+
+    /// DRAW-TIME merge, disclosed — never in data. Segments are mapped to plot
+    /// pixels; contiguous same-stage runs coalesce (no visual change); then any
+    /// block thinner than `minWidth` that TOUCHES a neighbour (boundary gap
+    /// below `minWidth`) is absorbed into the wider touching neighbour,
+    /// narrowest first, and the merge is reported so the caption can disclose
+    /// it. A sub-`minWidth` block isolated across a REAL unrecorded gap is
+    /// kept — gaps are data (DaySeries discipline) — and rendered at the
+    /// `minWidth` floor instead. Pure geometry; unit-tested directly.
+    nonisolated static func drawBlocks(
+        _ segments: [SleepHypnoSegment], plotWidth: CGFloat, minWidth: CGFloat = 2
+    ) -> (blocks: [Block], simplified: Bool) {
+        let touch: CGFloat = 0.75
+        var blocks: [Block] = []
+        for s in segments where s.t1 > s.t0 {
+            let x0 = CGFloat(s.t0) * plotWidth
+            let x1 = CGFloat(s.t1) * plotWidth
+            if var last = blocks.last, last.stage == s.stage, x0 - last.x1 <= touch {
+                last.x1 = max(last.x1, x1)
+                blocks[blocks.count - 1] = last
+            } else {
+                blocks.append(Block(stage: s.stage, x0: x0, x1: x1))
+            }
+        }
+        var simplified = false
+        while blocks.count > 1 {
+            var candidate: (i: Int, intoLeft: Bool)? = nil
+            var candidateW = minWidth
+            for i in blocks.indices where blocks[i].width < candidateW {
+                let leftTouches = i > 0 && blocks[i].x0 - blocks[i - 1].x1 <= touch
+                let rightTouches = i + 1 < blocks.count
+                    && blocks[i + 1].x0 - blocks[i].x1 <= touch
+                guard leftTouches || rightTouches else { continue }
+                let intoLeft = leftTouches
+                    && (!rightTouches || blocks[i - 1].width >= blocks[i + 1].width)
+                candidate = (i, intoLeft)
+                candidateW = blocks[i].width
+            }
+            guard let c = candidate else { break }
+            if c.intoLeft {
+                blocks[c.i - 1].x1 = max(blocks[c.i - 1].x1, blocks[c.i].x1)
+            } else {
+                blocks[c.i + 1].x0 = min(blocks[c.i + 1].x0, blocks[c.i].x0)
+            }
+            blocks.remove(at: c.i)
+            simplified = true
+        }
+        return (blocks, simplified)
+    }
+
+    /// One rendered stage block, clamped inside the plot at the 2pt floor.
+    private func blockView(_ b: Block, padL: CGFloat, padR: CGFloat, w: CGFloat,
+                           blockH: CGFloat, y: CGFloat) -> some View {
+        let mid: CGFloat = padL + (b.x0 + b.x1) / 2
+        let lo: CGFloat = padL + 1
+        let hi: CGFloat = w - padR - 1
+        let cx: CGFloat = min(max(mid, lo), hi)
+        return RoundedRectangle(cornerRadius: 2.5)
+            .fill(Self.stageColor(b.stage))
+            .frame(width: max(2, b.width), height: blockH)
+            .position(x: cx, y: y)
+    }
+
+    /// The thin connecting riser between two contiguous blocks in different lanes.
+    @ViewBuilder
+    private func riser(_ a: Block, _ b: Block, padL: CGFloat,
+                       laneY: (Int) -> CGFloat) -> some View {
+        if b.x0 - a.x1 <= 0.75, a.stage != b.stage {
+            let yA: CGFloat = laneY(a.stage)
+            let yB: CGFloat = laneY(b.stage)
+            Rectangle()
+                .fill(LiviqaTheme.ink3.opacity(0.35))
+                .frame(width: 2, height: abs(yB - yA))
+                .position(x: padL + (a.x1 + b.x0) / 2, y: (yA + yB) / 2)
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height
-                let padL: CGFloat = 40, padR: CGFloat = 6, padT: CGFloat = 22, padB: CGFloat = 4
-                let x: (Double) -> CGFloat = { t in padL + CGFloat(t) * (w - padL - padR) }
-                let surfY = padT + 12
-                let y: (Double) -> CGFloat = { d in surfY + CGFloat(d) * (h - surfY - padB - 4) }
+        GeometryReader { geo in
+            let w = geo.size.width
+            let padL: CGFloat = 44, padR: CGFloat = 6, padT: CGFloat = 20
+            let axisH: CGFloat = 13
+            let plotW = max(10, w - padL - padR)
+            let result = Self.drawBlocks(segments, plotWidth: plotW)
+            let lanesH = height - padT - axisH
+            let laneH = lanesH / 4
+            let blockH = laneH * 0.58
+            let laneY: (Int) -> CGFloat = { padT + laneH * (CGFloat($0) + 0.5) }
+            let x: (Double) -> CGFloat = { padL + CGFloat($0) * plotW }
 
-                let ys = segments.map { y(depths[$0.stage]) }
-                let inkLine = LiviqaTheme.ink
-
+            VStack(alignment: .leading, spacing: 3) {
                 ZStack(alignment: .topLeading) {
-                    // engraved depth grid + labels
-                    ForEach(Array([("REM", 1), ("Core", 2), ("Deep", 3)].enumerated()),
-                            id: \.offset) { _, row in
-                        let gy = y(depths[row.1])
-                        Path { p in p.move(to: CGPoint(x: padL, y: gy)); p.addLine(to: CGPoint(x: w - padR, y: gy)) }
-                            .stroke(LiviqaTheme.gridEmpty,
-                                    style: StrokeStyle(lineWidth: 1, dash: [1, 4]))
-                        Text(row.0)
-                            .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
-                            .position(x: padL - 20, y: gy)
+                    // in-bed span — faint underlay behind everything
+                    if let bed = inBedSpan, bed.t1 > bed.t0 {
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(LiviqaTheme.accentSleep.opacity(0.07))
+                            .frame(width: x(bed.t1) - x(bed.t0), height: lanesH + 4)
+                            .position(x: (x(bed.t0) + x(bed.t1)) / 2,
+                                      y: padT + lanesH / 2)
                     }
-                    // the surface
-                    Path { p in p.move(to: CGPoint(x: padL, y: y(0))); p.addLine(to: CGPoint(x: w - padR, y: y(0))) }
-                        .stroke(inkLine.opacity(0.55), lineWidth: 1)
-                    Text("Awake")
-                        .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
-                        .position(x: padL - 20, y: y(0))
-                    // water + engraved line — eased steps, no spline overshoot
-                    let line = depthPath(x: x, ys: ys)
-                    waterArea(line: line, x: x, y: y)
-                        .fill(LinearGradient(
-                            colors: [LiviqaTheme.accentSleep.opacity(0.08),
-                                     LiviqaTheme.accentSleep.opacity(0.38)],
-                            startPoint: .top, endPoint: .bottom))
-                    line.stroke(inkLine, style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
-                    // Soundings — stage totals printed in open water. The label is
-                    // CENTRED on its stage, so a stage that sits late in the night
-                    // used to hang off the right edge of the card ("REM 1h 25m",
-                    // sweep 2026-08-13). It is now given a known width and kept
-                    // inside the plot, the same clamp the wake-up marker uses.
-                    ForEach(Array(soundings.enumerated()), id: \.offset) { _, sd in
-                        VStack(spacing: 1) {
-                            Text(sd.name)
-                                .font(.liviqaKicker(8)).tracking(0.8)
-                                .foregroundStyle(LiviqaTheme.ink3)
-                            Text(sd.num)
-                                .font(.liviqaSerif(12.5, .regular)).italic()
-                                .foregroundStyle(LiviqaTheme.ink2)
-                        }
-                        .lineLimit(1).minimumScaleFactor(0.75)
-                        .padding(.horizontal, 3)
-                        .frame(width: Self.soundingWidth)
-                        .background(LiviqaTheme.paper2.opacity(0.72))
-                        .position(x: clamped(x(sd.t), lo: padL, hi: w - padR,
-                                             width: Self.soundingWidth),
-                                  y: y(sd.depth) - 12)
-                    }
-                    // the one wake-up, breaking the surface
-                    if let wakeT {
-                        Circle().fill(inkLine).frame(width: 5.5, height: 5.5)
-                            .position(x: x(wakeT), y: y(-0.07))
+                    // hour gridlines + labels (positions from the night's own clocks)
+                    ForEach(Array(hourMarks.enumerated()), id: \.offset) { _, m in
                         Path { p in
-                            p.move(to: CGPoint(x: x(wakeT), y: y(-0.07) - 6))
-                            p.addLine(to: CGPoint(x: x(wakeT), y: padT - 4))
+                            p.move(to: CGPoint(x: x(m.t), y: padT))
+                            p.addLine(to: CGPoint(x: x(m.t), y: padT + lanesH))
+                        }
+                        .stroke(LiviqaTheme.gridEmpty, lineWidth: 1)
+                        Text(m.label)
+                            .font(.liviqaMono(8.5)).foregroundStyle(LiviqaTheme.ink4)
+                            .position(x: x(m.t), y: padT + lanesH + 7)
+                    }
+                    // lane guides + labels
+                    ForEach(0..<4, id: \.self) { lane in
+                        Path { p in
+                            p.move(to: CGPoint(x: padL, y: laneY(lane)))
+                            p.addLine(to: CGPoint(x: w - padR, y: laneY(lane)))
+                        }
+                        .stroke(LiviqaTheme.gridEmpty,
+                                style: StrokeStyle(lineWidth: 1, dash: [1, 4]))
+                        Text(Self.laneNames[lane])
+                            .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
+                            .position(x: padL - 22, y: laneY(lane))
+                    }
+                    // thin risers between contiguous blocks (drawn under the blocks)
+                    ForEach(Array(zip(result.blocks, result.blocks.dropFirst())
+                        .enumerated()), id: \.offset) { _, pair in
+                        riser(pair.0, pair.1, padL: padL, laneY: laneY)
+                    }
+                    // the stage blocks (floor-width 2pt; centred on their span)
+                    ForEach(Array(result.blocks.enumerated()), id: \.offset) { _, b in
+                        blockView(b, padL: padL, padR: padR, w: w,
+                                  blockH: blockH, y: laneY(b.stage))
+                    }
+                    // wake-up annotation — only when one exists
+                    if let wakeT {
+                        Path { p in
+                            p.move(to: CGPoint(x: x(wakeT), y: laneY(0) - blockH / 2 - 2))
+                            p.addLine(to: CGPoint(x: x(wakeT), y: 14))
                         }
                         .stroke(LiviqaTheme.ink3, lineWidth: 1)
                         if let wakeLabel {
                             Text(wakeLabel)
                                 .font(.lato(10.5, .semibold))
                                 .foregroundStyle(LiviqaTheme.ink2)
-                                .position(x: min(max(x(wakeT), 80), w - 80), y: padT - 12)
+                                .position(x: min(max(x(wakeT), padL + 60), w - 66), y: 7)
+                        }
+                    }
+                }
+                .frame(height: height)
+                HStack {
+                    Text(edgeStart)
+                    Spacer()
+                    Text(edgeEnd)
+                }
+                .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
+                .padding(.leading, padL)
+                Text(result.simplified ? Self.simplifiedNote : Self.steadyNote)
+                    .font(.lato(10.5)).foregroundStyle(LiviqaTheme.ink4)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                    .padding(.leading, padL)
+            }
+        }
+        .frame(height: height + 36)
+        .accessibilityElement()
+        .accessibilityLabel("The night as stage blocks")
+        .accessibilityValue(a11ySummary)
+    }
+}
+
+// MARK: - Week of nights, placed at their own clock time (benchmark view, our way)
+
+/// One night column for `SleepClockWeekChart`. Positions are fractions of the
+/// chart's time-of-day axis; a night with no clock data keeps `f0 == nil` and
+/// renders as a GAP (DaySeries discipline — absence stays visible).
+nonisolated struct SleepClockNight {
+    var label: String
+    var isLastNight: Bool
+    var f0: Double?
+    var f1: Double?
+    var stripes: [(stage: Int, f0: Double, f1: Double)]
+}
+
+/// The week's nights as stage-striped columns positioned by CLOCK TIME —
+/// y-axis is the time of day, each column runs from that night's own bedtime
+/// to its own wake, with the citizen's OWN usual-bedtime band behind them
+/// (never a recommended hour).
+struct SleepClockWeekChart: View {
+    var nights: [SleepClockNight]
+    var axisMarks: [(f: Double, label: String)]
+    var usualBand: (f0: Double, f1: Double)? = nil
+    var usualLabel: String = ""
+    var a11ySummary: String
+    var height: CGFloat = 216
+
+    var body: some View {
+        VStack(spacing: 4) {
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                let padL: CGFloat = 32, padT: CGFloat = 4, padB: CGFloat = 4
+                let plotH = h - padT - padB
+                let y: (Double) -> CGFloat = { padT + CGFloat($0) * plotH }
+                let slot = (w - padL) / CGFloat(max(1, nights.count))
+                let colW = slot * 0.46
+
+                ZStack(alignment: .topLeading) {
+                    // time-of-day gridlines + labels
+                    ForEach(Array(axisMarks.enumerated()), id: \.offset) { _, m in
+                        Path { p in
+                            p.move(to: CGPoint(x: padL, y: y(m.f)))
+                            p.addLine(to: CGPoint(x: w, y: y(m.f)))
+                        }
+                        .stroke(LiviqaTheme.gridEmpty, lineWidth: 1)
+                        Text(m.label)
+                            .font(.liviqaMono(8.5)).foregroundStyle(LiviqaTheme.ink4)
+                            .position(x: padL - 14, y: y(m.f))
+                    }
+                    // the citizen's OWN usual-bedtime band
+                    if let band = usualBand {
+                        Rectangle()
+                            .fill(LiviqaTheme.accentSleep.opacity(0.10))
+                            .frame(width: w - padL,
+                                   height: max(2, y(band.f1) - y(band.f0)))
+                            .offset(x: padL, y: y(band.f0))
+                        if !usualLabel.isEmpty {
+                            Text(usualLabel)
+                                .font(.liviqaKicker(8)).tracking(0.4)
+                                .foregroundStyle(LiviqaTheme.ink3)
+                                .frame(width: w - padL - 4, alignment: .trailing)
+                                .offset(x: padL, y: max(0, y(band.f0) - 11))
+                        }
+                    }
+                    // night columns, stage-striped, positioned by clock time
+                    ForEach(Array(nights.enumerated()), id: \.offset) { i, n in
+                        if let f0 = n.f0, let f1 = n.f1, f1 > f0 {
+                            let colH = max(3, y(f1) - y(f0))
+                            ZStack(alignment: .top) {
+                                // base in the core tone so unstriped spans stay visible
+                                Rectangle().fill(SleepBlockHypnogram.stageColor(2))
+                                ForEach(Array(n.stripes.enumerated()), id: \.offset) { _, s in
+                                    Rectangle()
+                                        .fill(SleepBlockHypnogram.stageColor(s.stage))
+                                        .frame(height: max(1, y(s.f1) - y(s.f0)))
+                                        .offset(y: y(s.f0) - y(f0))
+                                }
+                            }
+                            .frame(width: colW, height: colH, alignment: .top)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .position(x: padL + slot * (CGFloat(i) + 0.5),
+                                      y: y(f0) + colH / 2)
+                            .opacity(n.isLastNight ? 1 : 0.82)
+                        }
+                        // a night without clock data renders NOTHING here —
+                        // the gap under its weekday label is the honest mark
+                    }
+                }
+            }
+            .frame(height: height)
+            HStack(spacing: 0) {
+                ForEach(Array(nights.enumerated()), id: \.offset) { _, n in
+                    Text(n.label)
+                        .font(.liviqaKicker(9)).tracking(0.4)
+                        .foregroundStyle(n.isLastNight ? LiviqaTheme.ink : LiviqaTheme.ink4)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.leading, 32)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Nights this week, placed at their own clock time")
+        .accessibilityValue(a11ySummary)
+    }
+}
+
+// MARK: - Sleep duration trend on the DAY axis (month / six months)
+
+/// Nightly duration columns over a continuous day axis. `nil` days render as
+/// gaps — never bridged, never filled (DaySeries discipline) — with the
+/// citizen's OWN usual band behind them.
+struct SleepDurationTrendChart: View {
+    var values: [Double?]                    // hours per night; nil = gap
+    var usual: ClosedRange<Double>? = nil
+    var usualLabel: String = ""
+    var edgeStart: String
+    var edgeEnd: String
+    var unit: String = "hours asleep"
+    var a11ySummary: String
+    var height: CGFloat = 140
+
+    private var maxV: Double {
+        max(values.compactMap { $0 }.max() ?? 1, usual?.upperBound ?? 0) * 1.15
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                let slot = w / CGFloat(max(1, values.count))
+                let barW = max(1.5, slot * 0.66)
+                ZStack(alignment: .topLeading) {
+                    // gridlines
+                    ForEach(0..<3, id: \.self) { i in
+                        let gy = h * (0.18 + 0.32 * CGFloat(i))
+                        Path { p in
+                            p.move(to: CGPoint(x: 0, y: gy))
+                            p.addLine(to: CGPoint(x: w, y: gy))
+                        }
+                        .stroke(LiviqaTheme.gridEmpty, lineWidth: 1)
+                    }
+                    // the citizen's OWN usual band
+                    if let usual {
+                        let top = h * (1 - CGFloat(usual.upperBound / maxV))
+                        let bot = h * (1 - CGFloat(usual.lowerBound / maxV))
+                        Rectangle()
+                            .fill(LiviqaTheme.accentSleep.opacity(0.10))
+                            .frame(height: max(2, bot - top))
+                            .offset(y: top)
+                        if !usualLabel.isEmpty {
+                            Text(usualLabel)
+                                .font(.liviqaKicker(8)).tracking(0.4)
+                                .foregroundStyle(LiviqaTheme.ink3)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                .offset(y: max(0, top - 11))
+                        }
+                    }
+                    // one column per night WITH data; a nil day stays empty
+                    ForEach(Array(values.enumerated()), id: \.offset) { i, v in
+                        if let v, v > 0 {
+                            let bh = max(2, h * CGFloat(v / maxV))
+                            RoundedRectangle(cornerRadius: min(2.5, barW / 2))
+                                .fill(LiviqaTheme.accentSleep
+                                    .opacity(i == values.count - 1 ? 1 : 0.55))
+                                .frame(width: barW, height: bh)
+                                .position(x: slot * (CGFloat(i) + 0.5), y: h - bh / 2)
                         }
                     }
                 }
@@ -916,44 +1194,12 @@ struct SleepDepthChart: View {
             HStack {
                 Text(edgeStart)
                 Spacer()
-                Text(edgeEnd)
+                Text("\(edgeEnd) · \(unit)")
             }
             .font(.liviqaMono(9)).foregroundStyle(LiviqaTheme.ink4)
-            .padding(.leading, 40)
         }
         .accessibilityElement()
-        .accessibilityLabel("The night as depth: deeper sleep drawn as deeper water")
-        .accessibilityValue(soundings.map { "\($0.name) \($0.num)" }.joined(separator: ", ")
-            + ". From \(edgeStart) to \(edgeEnd).")
-    }
-
-    /// Flat plateaus with short S-curve transitions (matches charts.jsx exactly).
-    private func depthPath(x: (Double) -> CGFloat, ys: [CGFloat]) -> Path {
-        var p = Path()
-        guard let first = segments.first else { return p }
-        p.move(to: CGPoint(x: x(first.t0), y: ys[0]))
-        for i in segments.indices {
-            let xEnd = x(segments[i].t1)
-            if i < segments.count - 1 {
-                let tw = min(7,
-                             (x(segments[i].t1) - x(segments[i].t0)) / 2,
-                             (x(segments[i + 1].t1) - x(segments[i + 1].t0)) / 2)
-                p.addLine(to: CGPoint(x: xEnd - tw, y: ys[i]))
-                p.addCurve(to: CGPoint(x: xEnd + tw, y: ys[i + 1]),
-                           control1: CGPoint(x: xEnd, y: ys[i]),
-                           control2: CGPoint(x: xEnd, y: ys[i + 1]))
-            } else {
-                p.addLine(to: CGPoint(x: xEnd, y: ys[i]))
-            }
-        }
-        return p
-    }
-
-    private func waterArea(line: Path, x: (Double) -> CGFloat, y: (Double) -> CGFloat) -> Path {
-        var p = line
-        p.addLine(to: CGPoint(x: x(1), y: y(0)))
-        p.addLine(to: CGPoint(x: x(0), y: y(0)))
-        p.closeSubpath()
-        return p
+        .accessibilityLabel("Nightly sleep over time, in \(unit)")
+        .accessibilityValue(a11ySummary)
     }
 }

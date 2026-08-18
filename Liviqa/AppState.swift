@@ -280,6 +280,19 @@ final class AppState {
     // Declared profile — things only the user knows
     var healthContext: HealthContext = ColdStart.healthContext
 
+    /// Where the declared profile persists. The on-disk store in the app; a
+    /// TEST seam so persistence tests never touch the shared real file.
+    let healthContextURL: URL?
+
+    /// False while the stored profile could NOT be read at launch even though
+    /// a file exists (NSFileProtectionComplete + a locked-device background
+    /// launch: BGAppRefresh, HealthKit background delivery, prewarming — the
+    /// 10.103 "my goals and ranges get deleted" field bug). While false, the
+    /// seed on screen is a stand-in, not the truth, and the restore retries
+    /// on `protectedDataDidBecomeAvailable` and before every profile draft —
+    /// so no Save can ever write a seed over the citizen's stored edits.
+    private(set) var healthContextRestored = true
+
     // Error surface
     var lastError: String? = nil
 
@@ -311,9 +324,11 @@ final class AppState {
     /// or the shared standard defaults.
     init(supabase: any SupabaseServiceProtocol = Config.makeService(),
          sampleModeDefaults: UserDefaults = .standard,
-         store: ModelContainer? = nil) {
+         store: ModelContainer? = nil,
+         healthContextURL: URL? = HealthContextStore.defaultURL()) {
         self.supabase = supabase
         self.sampleModeDefaults = sampleModeDefaults
+        self.healthContextURL = healthContextURL
         self.sampleModeStorage = SampleModeStore.isOn(sampleModeDefaults)
         self.storeOpen = store.map { ($0, false) } ?? AppState.openStore()
         NotificationCenter.default.addObserver(forName: .liviqaPushToken, object: nil, queue: .main) { note in
@@ -341,8 +356,22 @@ final class AppState {
         }
         // Declared health profile (About you) — restore the device-local store so
         // ProfileSheet edits survive relaunch (A7.2 Area ⑧; saved on Save there).
-        if let stored = HealthContextStore.load() {
-            healthContext = stored
+        // 10.103 field fix: `.unreadable` (file present, device locked — this init
+        // also runs on background launches) is NOT "never saved". The seed shows,
+        // `healthContextRestored` stays false, and the restore retries below on
+        // unlock — and again before any draft — so the stored profile can neither
+        // look "deleted" once the app is usable nor be clobbered by a later Save.
+        switch HealthContextStore.loadOutcome(from: healthContextURL) {
+        case .loaded(let stored): healthContext = stored
+        case .absent:             break                          // seed is the truth
+        case .unreadable:         healthContextRestored = false  // retry, never clobber
+        }
+        // Protected data unlocked (first foreground after a locked background
+        // launch) → complete the pending profile restore.
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+            object: nil, queue: .main) { _ in
+            Task { @MainActor [weak self] in self?.retryHealthContextRestoreIfNeeded() }
         }
         // Donor programme (DON-2026-01): restore the sealed donor record so the
         // consent copy is correct from the first frame. Compile-time no-op in
@@ -646,8 +675,11 @@ final class AppState {
             try? FileManager.default.removeItem(at: pmsURL)
         }
         // 2c. Declared health profile store + voice-note audio (A7.2 Area ⑧,
-        //     FR-JRN-04) — both device-local, both personal data.
-        HealthContextStore.delete()
+        //     FR-JRN-04) — both device-local, both personal data. The erase
+        //     settles any pending restore: nothing is stored any more, so the
+        //     reseeded in-memory profile IS the truth.
+        HealthContextStore.delete(at: healthContextURL)
+        healthContextRestored = true
         VoiceNoteAudioStore.deleteAll()
         // 2c-ii. Context flags (FR-CTX-04) — the user's own notes about their own
         //        life (travelling / unwell / off-routine) are personal data too.
@@ -657,6 +689,9 @@ final class AppState {
         //          must not leave the calendar numbers on disk; `disconnect`
         //          only covers the single-account revoke path.
         CalendarLoadStore.eraseAll()
+        // Universal HealthKit breadth layer (FR-ING-19) — erased with the rest;
+        // its own store, so it needs its own line (integration 2026-08-19).
+        UniversalHealthStore.eraseAll()
         // 2c-iii. Donor-programme record (FR-DON-04) — the sealed grant, its
         //         consent events, the export log, and any sealed file still
         //         staged for the share sheet. Device-side only: erasing the
@@ -719,6 +754,39 @@ final class AppState {
         healthMedications  = []
         contextFlags       = []
         researchContributed = false
+    }
+
+    // MARK: - Declared health profile (HealthContext) — the single save/restore path
+
+    /// Complete a restore that failed at a locked background launch. Idempotent
+    /// and cheap; called on `protectedDataDidBecomeAvailable`, at the top of
+    /// `refreshFromHealth`, and by ProfileSheet/import flows BEFORE they draft
+    /// from `healthContext` — every editing surface requires an unlocked,
+    /// foreground device, so by the time an edit is possible the stored
+    /// profile is back and no Save can write a seed over it.
+    @MainActor
+    func retryHealthContextRestoreIfNeeded() {
+        guard !healthContextRestored else { return }
+        switch HealthContextStore.loadOutcome(from: healthContextURL) {
+        case .loaded(let stored):
+            healthContext = stored
+            healthContextRestored = true
+        case .absent:
+            healthContextRestored = true   // nothing stored after all — seed is the truth
+        case .unreadable:
+            break                          // still locked/corrupt — keep the flag, never clobber
+        }
+    }
+
+    /// The ONLY way an edit becomes the declared profile: memory + disk in one
+    /// step, so the two can never diverge (the journal note-save clobber
+    /// class). Callers draft AFTER `retryHealthContextRestoreIfNeeded()`, so
+    /// what they save is built on the stored profile, never on a seed.
+    @MainActor
+    func saveHealthContext(_ context: HealthContext) {
+        healthContext = context
+        healthContextRestored = true       // the citizen's own edit is now the truth
+        HealthContextStore.save(context, to: healthContextURL)
     }
 
     // MARK: - Context flags (FR-CTX-04) — declared by the user, suppression-only
@@ -1000,6 +1068,9 @@ final class AppState {
 
     @MainActor
     func refreshFromHealth() async {
+        // A profile restore that failed at a locked background launch completes
+        // on the first foreground refresh — before anything drafts from it.
+        retryHealthContextRestoreIfNeeded()
         // FR-SMP-04 — sample mode is a DISPLAY mode, and while it is on the app
         // does not read, derive from, or write the citizen's real data at all:
         // no fetch, no persist, no deriver chain. The ingest path is simply not
