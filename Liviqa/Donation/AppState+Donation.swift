@@ -159,7 +159,12 @@ extension AppState {
 
         let result = try DonationExport.run(context: container.mainContext,
                                             grant: grant,
-                                            isDemoData: isDemoData,
+                                            // Refuse on BOTH meanings of the old
+                                            // flag: a sample on screen, and a
+                                            // session with no real readings at
+                                            // all. Nothing invented, and nothing
+                                            // empty, may enter the collection.
+                                            isDemoData: isSampleMode || hasNoRealReadings,
                                             now: now)
 
         // The ledger row: what left, when, how many rows of each stream, and the

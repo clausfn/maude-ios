@@ -109,7 +109,7 @@ struct HeartDetailView: View {
 
     private var model: Model? {
         if let d = detail { return Model(derived: d) }
-        return appState.isDemoData ? .designSeed : nil
+        return appState.isSampleMode ? .designSeed : nil
     }
 
     // MARK: - Cards

@@ -9,9 +9,12 @@
 //
 // Columns mirror the presentation model order:
 //   glucose · sleep · hrv · exercise · spending · calendar · weather
-// The first four derive from the MVP HealthKit read set; the last three depend
-// on connectors outside that set, so they are honestly `noData` here (never
-// fabricated) until those sources land.
+// The first four derive from the MVP HealthKit read set. `derive(from:)` sees
+// only `HealthSamples`, so it still emits `noData` for the last three — never a
+// fabricated value. CALENDAR is now a real signal, but it comes from a separate
+// consented source (`CalendarLoadStore`), so it is derived by
+// `calendarCells(history:over:connected:)` at the bottom of this file and laid
+// over column 5 by the caller. SPENDING and WEATHER remain honestly absent.
 import Foundation
 
 public nonisolated enum CorrelationCell: Int, Sendable, Equatable {
@@ -170,5 +173,94 @@ public nonisolated enum CorrelationDeriver {
             note = String(localized: "Your \(top) on \(weekday) stood out most from your usual this week. Worth a look — it's your pattern to read.")
         }
         return (note, titled, strength)
+    }
+}
+
+// MARK: - CALENDAR column (FR-CTX-CAL-01)
+//
+// The sixth column stopped being an honest coming-soon placeholder when the
+// calendar-load signal landed. It is derived here so it obeys exactly the same
+// rule as the four HealthKit columns: a cell is |deviation| from THIS person's
+// own usual, in the same z-bands, and nothing else.
+//
+// What is deliberately NOT here:
+//   • no population norm and no "recommended" number of meetings — there is no
+//     such thing to compare a person to;
+//   • no causal claim — a full day is never said to have moved a reading. The
+//     grid places two facts side by side; the citizen reads their own life;
+//   • no judgement — "fuller than your usual" is an observation, and no copy
+//     built on it may suggest how someone ought to spend their time.
+//
+// The input is `[CalendarDayLoad]` — numbers. No event content can reach this
+// file because none exists after `CalendarLoadIngestor.intervals`.
+extension CorrelationDeriver {
+
+    /// Column index of CALENDAR in `signalLabels` (and in `CorrelationDay.values`).
+    public static let calendarIndex = 5
+
+    /// The person's own usual booked hours, or nil when there isn't enough of
+    /// their history to have a usual yet.
+    public static func calendarUsual(_ history: [CalendarDayLoad]) -> Baseline? {
+        guard CalendarLoadDeriver.hasUsableBaseline(history) else { return nil }
+        return Baseline.from(CalendarLoadDeriver.baselineWindow(history).map(\.scheduledHours))
+    }
+
+    /// What the calendar row can honestly say. `connected` must be the REAL
+    /// state (opted in AND iOS granted read access) — never a literal.
+    public static func calendarRowState(connected: Bool,
+                                        history: [CalendarDayLoad]) -> CalendarRowState {
+        guard connected else { return .notConnected }
+        if history.isEmpty { return .calibrating(daysSoFar: 0) }
+        if CalendarLoadDeriver.isEntirelyEmpty(history) { return .noEntriesAtAll }
+        guard CalendarLoadDeriver.hasUsableBaseline(history) else {
+            return .calibrating(daysSoFar: CalendarLoadDeriver.baselineWindow(history).count)
+        }
+        return .ready
+    }
+
+    /// One cell per display date. A date with no stored reading is `.noData` —
+    /// never a zero, which would assert the citizen had an empty day.
+    public static func calendarCells(history: [CalendarDayLoad],
+                                     over dates: [Date],
+                                     connected: Bool,
+                                     calendar: Calendar = Calendar(identifier: .gregorian)) -> [CorrelationCell] {
+        let empty = Array(repeating: CorrelationCell.noData, count: dates.count)
+        guard case .ready = calendarRowState(connected: connected, history: history),
+              let base = calendarUsual(history) else { return empty }
+
+        return dates.map { d in
+            guard let load = self.calendarLoad(for: d, in: history, calendar: calendar) else {
+                return .noData
+            }
+            guard base.sd > 0 else { return .low }
+            let z = abs(load.scheduledHours - base.mean) / base.sd
+            switch z {
+            case ..<0.5: return .low
+            case ..<1.0: return .medium
+            case ..<2.0: return .high
+            default:     return .outlier
+            }
+        }
+    }
+
+    /// The stored day matching a display date, or nil when that day is not
+    /// something Liviqa can honestly speak about: either it was never read, or
+    /// it falls before the citizen's first recorded entry, where an empty day
+    /// means "this calendar wasn't kept here yet" rather than "a clear day".
+    /// Both the cells and the readout go through this, so they cannot disagree.
+    public static func calendarLoad(for date: Date, in history: [CalendarDayLoad],
+                                    calendar: Calendar = Calendar(identifier: .gregorian)) -> CalendarDayLoad? {
+        CalendarLoadDeriver.baselineWindow(history)
+            .first { calendar.isDate($0.dayStart, inSameDayAs: date) }
+    }
+
+    /// Which side of the person's own usual a day sat on. Never a verdict —
+    /// the copy layer turns this into "fuller / emptier than your usual".
+    public static func calendarDirection(_ load: CalendarDayLoad,
+                                         usual: Baseline?) -> CalendarLoadCopy.Direction? {
+        guard let usual, usual.sd > 0 else { return nil }
+        let delta = load.scheduledHours - usual.mean
+        if abs(delta) < 0.5 * usual.sd { return .likeUsual }
+        return delta > 0 ? .busier : .quieter
     }
 }

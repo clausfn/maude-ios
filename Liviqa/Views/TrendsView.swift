@@ -115,7 +115,7 @@ struct TrendsView: View {
     private var header: some View {
         ZStack {
             NavBackHeader(onBack: { dismiss() }) {
-                if appState.isDemoData {
+                if appState.isSampleMode {
                     Text(String(localized: "Sample data").uppercased())
                         .font(.liviqaKicker(9)).tracking(0.8)
                         .foregroundStyle(LiviqaTheme.clayText)

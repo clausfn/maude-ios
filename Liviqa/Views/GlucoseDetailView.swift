@@ -106,7 +106,7 @@ struct GlucoseDetailView: View {
     private var model: Model? {
         if let d = detail { return Model(derived: d) }
         // Design-package seeds — demo builds only, never over a real-data session.
-        return appState.isDemoData ? .designSeed : nil
+        return appState.isSampleMode ? .designSeed : nil
     }
 
     // MARK: - Hero (d-insights.jsx Hero, accentGlucose band)

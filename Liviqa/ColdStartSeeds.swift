@@ -52,7 +52,13 @@ extension AppState {
     /// no derived signals, no insights. Drives the honest cold-start empty state
     /// ("baseline building — first insights after ~3 days") instead of demo
     /// placeholder values. Always false in DEBUG demo mode (seeds present).
+    ///
+    /// This is the state a citizen with nothing recorded yet MUST land in — it
+    /// is the honest half of the split described in SampleMode.swift. Sample
+    /// mode is the other half and is never entered from here: an empty app is
+    /// an empty app, and says so, until the citizen asks for a sample.
     var isColdStartEmpty: Bool {
-        !usingRealData && todaySignals == nil && nudges.isEmpty
+        if isSampleMode { return false }   // the sample IS the content, labelled
+        return !usingRealData && todaySignals == nil && nudges.isEmpty
     }
 }

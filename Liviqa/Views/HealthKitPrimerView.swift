@@ -102,8 +102,11 @@ struct HealthKitPrimerView: View {
                     .opacity(isConnecting ? 0.6 : 1)
                     .allowsHitTesting(!isConnecting)
                     .accessibilityAddTraits(isConnecting ? [.updatesFrequently] : [])
-                OnbQuietButton(label: String(localized: "Skip — explore with sample data"),
-                               sub: String(localized: "You can connect real data any time in Settings"),
+                // The label used to promise sample data, which this button does
+                // not (and must not) deliver on its own — the next screen makes
+                // the offer explicitly, and entering is the citizen's act there.
+                OnbQuietButton(label: String(localized: "Not now"),
+                               sub: String(localized: "Connect any time in Settings — or look at a sample first"),
                                action: onSkip)
                     .disabled(isConnecting)
                 // Teal lock card

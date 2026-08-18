@@ -426,7 +426,7 @@ struct ChatView: View {
             #if DEBUG
             // DEBUG demo provider only: keep the synthetic persona exercisable on
             // the simulator (mirrors the seeded Home values). Never ships (PR-102).
-            s = appState.isDemoData ? .demo : .empty
+            s = appState.isSampleMode ? .demo : .empty
             #else
             s = .empty
             #endif

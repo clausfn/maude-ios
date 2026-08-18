@@ -21,7 +21,47 @@ final class AppState {
     /// Drives the FR-ARCH-05 "Demo data" indicator accurately — so on a device
     /// with no Health data yet we still show (and label) the demo seeds.
     private(set) var usingRealData = false
-    var isDemoData: Bool { !usingRealData }
+
+    // MARK: - Sample mode (FR-SMP-01) — see SampleMode.swift for the whole story
+    //
+    // `isDemoData` used to be `!usingRealData` — "we have no real readings yet"
+    // — and every screen that draws a fabricated stand-in value asked it for
+    // permission. That conflated two different questions and is why invented
+    // numbers could render, unlabelled, for a brand-new REAL citizen. The two
+    // questions are now separate and only ONE of them authorises a fabricated
+    // value (SampleModePolicy, and the tests that pin it):
+    //
+    //   hasNoRealReadings  → nothing of yours yet → honest empty / calibrating
+    //   isSampleMode       → YOU asked for a sample → sample values, labelled
+    //
+    /// Where the sample-mode flag is remembered. `.standard` in the app; a
+    /// TEST seam only — unit tests inject an isolated suite so parallel test
+    /// instances can never race one another through the shared standard
+    /// defaults (the BackupPostureTests/SampleModeTests flake class).
+    let sampleModeDefaults: UserDefaults
+    /// The citizen deliberately turned sample mode on. Written ONLY by
+    /// `enterSampleMode(_:)` / `exitSampleMode()`; false on every fresh install.
+    var sampleModeStorage: Bool
+    /// The citizen's own surfaces, held aside while the sample is on screen.
+    var sampleSnapshotStorage: SampleModeSnapshot? = nil
+    /// The synthetic bundle for this session (built once, off the main actor).
+    var sampleDerivationStorage: SampleDerivation? = nil
+    /// True while the synthetic surfaces are the ones on screen — so the
+    /// snapshot is taken on the transition IN and never over itself.
+    var sampleOverlayApplied = false
+
+    /// Sample mode is on: every value on screen is synthetic and labelled.
+    var isSampleMode: Bool { sampleModeStorage }
+
+    /// No real reading has arrived yet. This is an EMPTY-STATE condition and
+    /// never, on its own, a licence to render an invented value.
+    var hasNoRealReadings: Bool { !usingRealData }
+
+    /// Legacy name, kept because a screen owned elsewhere still reads it. It now
+    /// means what every one of its call sites actually wanted: "the values on
+    /// screen are the sample, and must be labelled as such". It does NOT mean
+    /// "no real data" any more — use `hasNoRealReadings` for that.
+    var isDemoData: Bool { isSampleMode }
     /// Set once `refreshFromHealth` has run, so UI hints don't flash before the
     /// first fetch resolves.
     private(set) var didAttemptHealthFetch = false
@@ -99,7 +139,7 @@ final class AppState {
     // on-disk store can't open (e.g. a schema migration between builds), we log it
     // loudly and fall back to an in-memory container so the app keeps functioning this
     // session — a visible, understood failure instead of silent data loss.
-    private let storeOpen: (container: ModelContainer?, diskFailed: Bool) = AppState.openStore()
+    private let storeOpen: (container: ModelContainer?, diskFailed: Bool)
     private var modelContainer: ModelContainer? { storeOpen.container }
 
     /// True when the on-disk store failed to open and this session runs on the
@@ -263,8 +303,19 @@ final class AppState {
     var researchNotificationUnread = false          // bell badge: a research invite arrived
     var joinedStudy: ResearchStudy? = nil           // set on Approve & join
 
-    init(supabase: any SupabaseServiceProtocol = Config.makeService()) {
+    /// `sampleModeDefaults` and `store` are TEST seams, not behaviour: the app
+    /// always constructs with `.standard` and the on-disk store. Unit tests
+    /// inject an isolated defaults suite and an in-memory `ModelContainer` so a
+    /// test's assertions are judged only against what ITS OWN AppState did —
+    /// never against another parallel test's writes to the shared on-disk file
+    /// or the shared standard defaults.
+    init(supabase: any SupabaseServiceProtocol = Config.makeService(),
+         sampleModeDefaults: UserDefaults = .standard,
+         store: ModelContainer? = nil) {
         self.supabase = supabase
+        self.sampleModeDefaults = sampleModeDefaults
+        self.sampleModeStorage = SampleModeStore.isOn(sampleModeDefaults)
+        self.storeOpen = store.map { ($0, false) } ?? AppState.openStore()
         NotificationCenter.default.addObserver(forName: .liviqaPushToken, object: nil, queue: .main) { note in
             guard let hex = note.object as? String else { return }
             // Capture `self` weakly INSIDE the @MainActor Task (not in the non-isolated
@@ -601,6 +652,11 @@ final class AppState {
         // 2c-ii. Context flags (FR-CTX-04) — the user's own notes about their own
         //        life (travelling / unwell / off-routine) are personal data too.
         ContextFlagStore.delete()
+        // 2c-ii-b. Calendar-density numbers (FR-CTX-CAL-01, RK-CAL-05) — every
+        //          account's calendar-load scope on this device. A full erase
+        //          must not leave the calendar numbers on disk; `disconnect`
+        //          only covers the single-account revoke path.
+        CalendarLoadStore.eraseAll()
         // 2c-iii. Donor-programme record (FR-DON-04) — the sealed grant, its
         //         consent events, the export log, and any sealed file still
         //         staged for the share sheet. Device-side only: erasing the
@@ -631,6 +687,10 @@ final class AppState {
         //    of the erased data survives in the running session.
         usingRealData   = false
         healthReadOutcome = .notAttempted
+        // Sample mode is a preference, and the erase takes it with everything
+        // else — the citizen must never come back from "delete all my data" to
+        // a screen still full of somebody's synthetic week.
+        clearSampleModeForErase()
         rings           = ColdStart.rings
         nudges          = ColdStart.nudges
         todaySignals    = nil
@@ -940,6 +1000,21 @@ final class AppState {
 
     @MainActor
     func refreshFromHealth() async {
+        // FR-SMP-04 — sample mode is a DISPLAY mode, and while it is on the app
+        // does not read, derive from, or write the citizen's real data at all:
+        // no fetch, no persist, no deriver chain. The ingest path is simply not
+        // entered, which is what makes "a sample value can never reach a real
+        // store" a structural fact rather than a promise. Leaving sample mode
+        // runs this function properly (`leaveSampleMode`).
+        //
+        // Returning here also means `syncWatchGlance()` is NOT called, which is
+        // deliberate: the watch face is a surface this app cannot put a
+        // "sample data" label on. It keeps showing the citizen's own last real
+        // glance rather than a synthetic number with nothing marking it.
+        if isSampleMode {
+            await resumeSampleModeIfOn()
+            return
+        }
         guard !isRefreshing else { return }   // don't overlap (root + Home both trigger on launch)
         isRefreshing = true
         // Declared first ⇒ runs LAST (after the applyLV001 defer settles todaySignals),
@@ -1055,7 +1130,13 @@ final class AppState {
                 journalEntries: journalEntries.count,
                 consentDecisions: walletEvents.count)
             // FR-PAS-05 / DM-06: derive the 7-day correlation grid on device.
-            correlationWeek = CorrelationWeek.from(d.grid)
+            // FR-CTX-CAL-01: CALENDAR comes from its own consented source, laid
+            // over column 5 here — so a citizen with a connected calendar but no
+            // HealthKit history still gets their calendar row. The overlay never
+            // fabricates: unless this ACCOUNT opted in AND iOS granted access
+            // AND a usable baseline exists, every overlaid cell is `.noData` —
+            // exactly what the deriver already emitted for that column.
+            correlationWeek = CorrelationWeek.from(overlayingCalendarColumn(on: d.grid))
             // Home signal chips — show the user's OWN latest values (nil keeps seeds).
             todaySignals = d.signals
             // Glucose detail screen — same samples, same honesty rule.
@@ -1080,6 +1161,39 @@ final class AppState {
             }
             lastError = error.localizedDescription   // keep existing nudges
         }
+    }
+
+    /// FR-CTX-CAL-01 — lay the consented calendar-density column over the
+    /// derived grid. Account-scoped exactly like the journal (PR-111): no
+    /// signed-in account ⇒ no history and not connected ⇒ every cell `.noData`.
+    /// `connected` is the REAL conjunction (opt-in record AND iOS full access),
+    /// never a literal; `accessState()` reads TCC without prompting, so this is
+    /// safe on any path, including a headless test host.
+    @MainActor
+    private func overlayingCalendarColumn(on grid: CorrelationGrid) -> CorrelationGrid {
+        let account = journalAccountID
+        let history = CalendarLoadStore.load(forAccount: account)?.days ?? []
+        let connected = CalendarLoadStore.isOptedIn(forAccount: account)
+            && CalendarLoadIngestor.accessState() == .fullAccess
+        let calendar = Calendar(identifier: .gregorian)
+        let today = calendar.startOfDay(for: Date())
+        let dates = grid.rows.map {
+            calendar.date(byAdding: .day, value: -$0.dateOffset, to: today) ?? today
+        }
+        let overlay = CorrelationDeriver.calendarCells(history: history, over: dates,
+                                                       connected: connected)
+        let rows = zip(grid.rows, overlay).map { row, cell -> CorrelationGrid.Row in
+            var cells = row.cells
+            if cells.indices.contains(CorrelationDeriver.calendarIndex) {
+                cells[CorrelationDeriver.calendarIndex] = cell
+            }
+            return CorrelationGrid.Row(dayLabel: row.dayLabel,
+                                       dateOffset: row.dateOffset, cells: cells)
+        }
+        return CorrelationGrid(signals: grid.signals, rows: rows,
+                               patternNote: grid.patternNote,
+                               patternSources: grid.patternSources,
+                               patternStrength: grid.patternStrength)
     }
 
     /// LV001 persona on the prototype (no live HealthKit): show Claus's consented

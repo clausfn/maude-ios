@@ -47,7 +47,7 @@ struct MetricBaselineView: View {
         live?.band ?? (metric.normalLow...metric.normalHigh)
     }
     private var unit: String { live?.unit ?? metric.unit }
-    private var hasFigures: Bool { live != nil || appState.isDemoData }
+    private var hasFigures: Bool { live != nil || appState.isSampleMode }
 
     private var inRange: Bool { band.contains(value) }
 

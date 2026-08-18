@@ -12,8 +12,11 @@ import SwiftUI
 struct TodayView: View {
     let nudges: [Nudge]
     var displayName: String?
-    /// FR-ARCH-05: true when the feed is built from synthetic demo data.
-    var isDemoData: Bool = false
+    /// FR-SMP-01/03: true when the citizen has turned SAMPLE MODE on. It means
+    /// "you asked to see a sample", never "we have no real data yet" — the
+    /// second is `coldStart`, and it renders an honest empty state, never a
+    /// stand-in figure. See SampleMode.swift for why those were ever one flag.
+    var isSampleMode: Bool = false
     /// Live Home signal values (real HealthKit). nil ⇒ show the demo seeds.
     var signals: TodaySignals? = nil
     /// T1 cold-start honesty (Release): nothing real to show yet — render the
@@ -124,7 +127,8 @@ struct TodayView: View {
                 LiviqaAppBar(
                     title: "Liviqa",
                     showMark: true,
-                    chipLabel: isDemoData ? String(localized: "Sample data") : nil
+                    chipLabel: SampleModePolicy.labelIsVisible(sampleModeOn: isSampleMode)
+                        ? String(localized: "Sample data") : nil
                 )
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -805,13 +809,14 @@ struct TodayView: View {
         return series.count > 1 ? series : nil
     }
 
+    /// The attention card only renders when there IS a nudge, and every nudge in
+    /// the app — real session or sample mode — is authored by the engine and has
+    /// passed `NudgeGuard` (FR-NDG-06). The canned strings that used to override
+    /// it in "demo" mode are gone: they were hand-written causal claims
+    /// ("Late dinners are costing you sleep.") that no guard had ever seen.
     private var heroHeadline: String {
-        if !isDemoData, let n = nudges.first { return n.evidence?.headline ?? n.body }
-        return "Late dinners are costing you sleep."
-    }
-    private var heroSub: String {
-        if !isDemoData, let n = nudges.first { return n.evidence?.lever ?? String(localized: "Tap to see the evidence.") }
-        return "Calmest when dinner's before 20:30."
+        guard let n = nudges.first else { return "" }
+        return n.evidence?.headline ?? n.body
     }
 
     // MARK: — InsightCompare (this month's sleep vs last — derived, quiet)
@@ -891,11 +896,11 @@ struct TodayView: View {
     /// Cold start: no seed sparkline — nothing real to draw yet (T1).
     private var weekSparkline: [Double]? {
         if let s = signals, s.inRangeWeek.count > 1 { return s.inRangeWeek }
-        return coldStart ? nil : [71, 74, 69, 78, 80, 76, 84]
+        return maySeed ? [71, 74, 69, 78, 80, 76, 84] : nil
     }
 
     private var weekHeadline: String {
-        if !isDemoData, let s = signals, !s.inRange.isEmpty, s.inRange != "—" {
+        if !isSampleMode, let s = signals, !s.inRange.isEmpty, s.inRange != "—" {
             return String(localized: "Glucose held in range \(s.inRange) of the week.")
         }
         return String(localized: "See how this week's days connect.")
@@ -994,7 +999,7 @@ struct TodayView: View {
     // Verdict words — plain, allow-listed, baseline-relative states (no clinical
     // claims; "—" while calibrating). The clay flag keeps its locked meaning.
     private var sleepVerdict: String {
-        if coldStart || (signals == nil && !isDemoData) { return "—" }
+        if coldStart || (signals == nil && !isSampleMode) { return "—" }
         return sleepImproving ? String(localized: "A little longer") : String(localized: "As usual")
     }
     private var glucoseVerdict: String {
@@ -1035,17 +1040,27 @@ struct TodayView: View {
         return signals?.sleep ?? seedValue("6h 52")
     }
 
-    /// Demo seed values render only outside the honest cold start; a genuinely
-    /// empty Release start shows "—" until real readings arrive (T1).
-    private func seedValue(_ demo: String) -> String {
-        coldStart ? "—" : demo
+    /// FR-SMP-01, the whole rule in one place: a fabricated stand-in figure may
+    /// render ONLY when the citizen asked for a sample. Having nothing of their
+    /// own yet is not permission to invent something — that shows "—".
+    ///
+    /// This used to read `coldStart ? "—" : demo`, which let a session that was
+    /// merely mid-derivation (nudges present, signals not yet in) print 61% in
+    /// range as if someone had measured it.
+    private var maySeed: Bool {
+        SampleModePolicy.mayRenderSampleValues(sampleModeOn: isSampleMode,
+                                               hasRealReadings: signals != nil)
+    }
+
+    private func seedValue(_ sample: String) -> String {
+        maySeed ? sample : "—"
     }
 
     /// Sparkline source: real per-day week when connected (empty ⇒ no spark, honest),
     /// the pillar's demo week when showing seeds — never a seed on cold start.
     private func spark(_ keyPath: KeyPath<TodaySignals, [Double]>, _ pillar: WellnessPillar) -> [Double] {
         if let s = signals { return s[keyPath: keyPath] }
-        return coldStart ? [] : pillar.week
+        return maySeed ? pillar.week : []
     }
 
     // MARK: — Evening edition (post-21:00 — closing note, day score, month trend)
@@ -1130,13 +1145,11 @@ struct TodayView: View {
 
     private var dayScoreSegments: [ScoreSegment]? {
         if coldStart { return nil }
-        guard signals != nil else {
-            return isDemoData
-                ? [ScoreSegment(name: String(localized: "Sleep"),    val: 42, max: 50, color: LiviqaTheme.accentSleep),
-                   ScoreSegment(name: String(localized: "Glucose"),  val: 24, max: 30, color: LiviqaTheme.accentGlucose),
-                   ScoreSegment(name: String(localized: "Recovery"), val: 15, max: 20, color: LiviqaTheme.accentRecovery)]
-                : nil
-        }
+        // No derived signals ⇒ no score. The three canned segments that used to
+        // stand in here were a fabricated day (42/50 sleep, 24/30 glucose…)
+        // presented as the reader's own; sample mode derives real segments from
+        // the synthetic record instead, so nothing needs inventing (FR-SMP-01).
+        guard signals != nil else { return nil }
         return dayScoreLegs?.map {
             ScoreSegment(name: $0.name, val: $0.points, max: $0.max, color: legColor($0.kind))
         }
@@ -1233,15 +1246,9 @@ struct TodayView: View {
             return RecoveryTrend(data: s.hrvWeek, avg: avg,
                                  kicker: String(localized: "Recovery · Last 7 days"), labels: [])
         }
-        guard isDemoData else { return nil }
-        let df = DateFormatter(); df.dateFormat = "d MMM"
-        let cal = Calendar.current
-        let labels = [-29, -15, 0].compactMap { off in
-            cal.date(byAdding: .day, value: off, to: Date()).map(df.string(from:))
-        }
-        return RecoveryTrend(data: [66, 64, 67, 63, 65, 68, 66, 70, 67, 69, 72, 70, 73, 74],
-                             avg: 67, kicker: String(localized: "Recovery · Last 30 days"),
-                             labels: labels)
+        // Nothing derived, nothing drawn — the hardcoded 14-point "month" that
+        // used to fill this slot was a month nobody lived (FR-SMP-01).
+        return nil
     }
 
     private func monthTrendCard(_ trend: RecoveryTrend) -> some View {
@@ -1303,12 +1310,9 @@ struct TodayView: View {
     /// cold start or when nothing meaningful moved; seeds only in demo mode.
     private var momentumItems: [MomentumItem]? {
         if coldStart { return nil }
-        guard let s = signals else {
-            return isDemoData
-                ? [MomentumItem(text: String(localized: "Recovery up 4 vs your usual"), up: true),
-                   MomentumItem(text: String(localized: "Sleep unchanged"), up: nil)]
-                : nil
-        }
+        // "Recovery up 4 vs your usual" with no readings behind it is a
+        // sentence about a week that did not happen — removed (FR-SMP-01).
+        guard let s = signals else { return nil }
         var items: [MomentumItem] = []
         if let d = weekDelta(s.hrvWeek), abs(d) >= 2 {
             items.append(MomentumItem(

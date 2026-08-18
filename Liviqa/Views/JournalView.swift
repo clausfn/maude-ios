@@ -73,7 +73,7 @@ struct JournalView: View {
         loadedAccountID   = account
         persistedSnapshot = stored
         #if DEBUG
-        journalEntries = stored.isEmpty && (appState?.isDemoData ?? false) ? Self.demoSeed : stored
+        journalEntries = stored.isEmpty && (appState?.isSampleMode ?? false) ? Self.demoSeed : stored
         #else
         journalEntries = stored
         #endif

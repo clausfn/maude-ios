@@ -24,8 +24,23 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- FR-CTX-CAL-01 · calendar LOAD as a health signal. The promise below is
+	     checkable against the code, not asserted: `CalendarLoadIngestor` is the
+	     only file that reads events, it may touch startDate / endDate / isAllDay
+	     / availability / status and nothing else, and
+	     `CalendarLoadPrivacyTests` fails the build if a title, attendee,
+	     location, note, organiser, URL or calendar name ever appears on that
+	     path. The stored numbers are exactly the five named here. -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Liviqa reads how full your days are, never what is in them. It keeps only numbers: how many entries a day held, how many hours were booked, the longest unbroken run of them, how many hours nothing was booked over, and when the first entry started and the last one ended. Titles, people, places, notes and the names of your calendars are never read, never stored and never sent anywhere.</string>
+	<!-- Write-only is a SEPARATE, narrower grant, asked for when the citizen
+	     plans a consultation. It genuinely cannot read: EventKit gives the app
+	     no read access under this permission. The previous wording made the
+	     app-wide claim "It never reads your existing events", which stopped
+	     being true of the running app when the consented calendar-load signal
+	     landed above — so it now describes THIS permission only. -->
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-	<string>Liviqa adds a consultation you plan to your own calendar, with a reminder. It never reads your existing events.</string>
+	<string>Liviqa adds a consultation you plan to your own calendar, with a reminder. This permission lets Liviqa write that one event and nothing else — it gives Liviqa no way to read anything in your calendar.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Liviqa uses your camera only during a video consultation you start with your own clinician or coach, over an EU‑sovereign connection. It is never used otherwise.</string>
 	<key>NSMicrophoneUsageDescription</key>
