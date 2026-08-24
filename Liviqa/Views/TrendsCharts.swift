@@ -1,9 +1,14 @@
 // TrendsCharts.swift — chart primitives for the Trends surface (FR-TOD-06), the
 // Today-feed InsightCompare card, and the editorial day-replay chart (Area ②).
 //
-// RAILS: everything here is personal-baseline framed — moss/fjord tones only,
-// NEVER clinical red (red belongs exclusively to the glucose detail's clinical
-// charts). Values are the user's own derived figures; nothing is fabricated.
+// RAILS: the non-glucose charts here are personal-baseline framed — moss/fjord
+// tones only, never clinical red. The GLUCOSE charts are the documented
+// exception (RK-ALARM-01): `DayReplayChart` draws the shared five-zone clinical
+// TIR ramp (`ClinicalTIRZones`) whenever the `clinicalTIRZones` setting is on,
+// which is the default, and falls back to the single personal band when it is
+// off. That ramp is never colour-alone — very-low carries a hatch, very-high
+// carries dots, and every band with room carries a text label (PR-105).
+// Values are the user's own derived figures; nothing is fabricated.
 import SwiftUI
 
 // MARK: - 30-day TIR bar trend vs "your usual" band (ScrTrends hero)
@@ -209,11 +214,36 @@ struct DayReplayChart: View {
     @Binding var scrubIndex: Int
     var height: CGFloat = 168
 
-    private var domain: (lo: Double, hi: Double) {
+    /// FB-APC4qJBj: the same clinical TIR ramp the Glucose and Metric detail
+    /// charts already show, on the same flag. Before this, a day with a 19.9
+    /// peak and a 3.4 low drew over ONE flat personal band here while the very
+    /// same reading was banded red/amber two screens away — the defect the
+    /// tester reported was that inconsistency, not a missing feature.
+    @AppStorage("clinicalTIRZones") private var clinicalTIRZones = true
+
+    /// The drawn value axis.
+    ///
+    /// With zones OFF this is the day's own range padded by 0.8 — the personal
+    /// framing, unchanged. With zones ON it also spans at least 2.0…14.0
+    /// (`GlucoseCurveView`'s own defaults), because on an in-range day a domain
+    /// clamped to the data would squeeze the amber and sienna bands down to a
+    /// sliver or off the chart entirely — the ramp would be technically present
+    /// and practically invisible, which is the complaint we are answering.
+    ///
+    /// Static so it can be verified without rendering; the y-axis only. The
+    /// x-axis is untouched (`hourSpan`/`fraction`/`nearestIndex`, PR-116).
+    static func domain(points: [DayReplay.Point], bandLo: Double, bandHi: Double,
+                       clinicalZones: Bool) -> (lo: Double, hi: Double) {
         let vals = points.map(\.mmol)
         let lo = min(vals.min() ?? bandLo, bandLo) - 0.8
         let hi = max(vals.max() ?? bandHi, bandHi) + 0.8
-        return (lo, max(hi, lo + 1))
+        guard clinicalZones else { return (lo, max(hi, lo + 1)) }
+        let zlo = min(lo, 2.0), zhi = max(hi, 14.0)
+        return (zlo, max(zhi, zlo + 1))
+    }
+    private var domain: (lo: Double, hi: Double) {
+        Self.domain(points: points, bandLo: bandLo, bandHi: bandHi,
+                    clinicalZones: clinicalTIRZones)
     }
 
     /// The TIME span actually drawn. `DayReplay.Point` carries the real hour of
@@ -271,11 +301,22 @@ struct DayReplayChart: View {
                 }
                 let idx = min(max(scrubIndex, 0), points.count - 1)
                 ZStack(alignment: .topLeading) {
-                    // The in-range band, softly (personal framing — never red).
-                    Rectangle()
-                        .fill(LiviqaTheme.fjordBright.opacity(0.07))
-                        .frame(height: max(2, y(bandLo) - y(bandHi)))
-                        .offset(y: y(bandHi))
+                    if clinicalTIRZones {
+                        // The shared five-zone ramp, mapped onto THIS chart's
+                        // inset plot rect: y(hi) == 6 and y(lo) == h - 6, so a
+                        // zone view of height h - 12 offset by 6 lands exactly
+                        // on the curve's own scale.
+                        ClinicalTIRZones(yMin: lo, yMax: hi,
+                                         low: bandLo, high: bandHi,
+                                         height: max(0, h - 12))
+                            .offset(y: 6)
+                    } else {
+                        // Flag off: the single personal in-range band, unchanged.
+                        Rectangle()
+                            .fill(LiviqaTheme.fjordBright.opacity(0.07))
+                            .frame(height: max(2, y(bandLo) - y(bandHi)))
+                            .offset(y: y(bandHi))
+                    }
                     // The day's curve.
                     Path { p in
                         p.move(to: CGPoint(x: x(0), y: y(points[0].mmol)))

@@ -9,7 +9,14 @@
 // deriver over the labelled demo provider's samples). The narration is fixed
 // templates over derived figures; the canvas's at-timestamp steps/HR sentences
 // are NOT reproduced (those streams are daily-granularity — omitted, never
-// faked). mmol/L (OD-07); no red — personal-band framing only.
+// faked). mmol/L (OD-07).
+//
+// COLOUR: this is a GLUCOSE chart, so it carries the clinical Time-in-Range ramp
+// (`ClinicalTIRZones`) when the `clinicalTIRZones` setting is on — the default —
+// and the single personal band when it is off. Red therefore appears here, which
+// is the documented exception (RK-ALARM-01: red is scoped to the clinical glucose
+// charts and nowhere else). Severity never rests on colour alone: very-low is
+// hatched, very-high is dotted, and every band with room is labelled (PR-105).
 // The former liquid-glass exploration yields to this editorial anatomy; the
 // glass components stay available in GlassComponents behind their flag.
 import SwiftUI

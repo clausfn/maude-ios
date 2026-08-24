@@ -52,6 +52,7 @@ _Test plan + results. Each safety-relevant requirement has at least one automate
 | T-STORE-01 | Fail-closed stores: an empty read never deletes stored history (and a real read still replaces the window); the journal refuses to overwrite a file it cannot decode; context flags tell absent from unreadable and refuse the clobbering write (`StoreFailClosedTests`) | Unit | No | **pass** — iOS Simulator |
 | T-VIZ-05 | Day replay stands on its own clock: points sit at their real hour, scrubbing resolves by clock not by reading count, an instantaneous span never divides by zero (`DayReplayAxisTests`) | Unit | No | **pass** — iOS Simulator |
 | T-HON-01 | Shipped claims: six retired absolutes cannot return (lint names the refuting code per entry); onboarding ledger copy sits on the FR-WAL-09 gated register; the day-score note does not claim purely personal comparison (`ShippedClaimsTests`) | Unit + source lint | No | **pass** — iOS Simulator |
+| T-VIZ-06 | One clinical TIR ramp: contiguous five-band ordering, personal target edges vs fixed L2 boundaries, non-colour signals (hatch/dots/labels, PR-105), the frozen five-token palette, a single implementation (source lint), a reading in each band, domain widening on / legacy domain off, x-axis untouched (`ClinicalTIRZoneTests`); plus pre-refactor band-rect equivalence to 0.001 pt (`ClinicalTIRZoneGeometryTests`) | Unit + source lint | No | **pass** — iOS Simulator |
 
 ## PR-46/47 — full HealthKit capture + Design System v2 (2026-06-09)
 

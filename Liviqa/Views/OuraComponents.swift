@@ -162,37 +162,9 @@ struct GlucoseCurveView: View {
         let frac = (v - yMin) / (yMax - yMin)
         return h - CGFloat(min(1, max(0, frac))) * h
     }
-    // PR-99: AGP clinical zones — soft horizontal bands; curve stays readable on top.
-    // PR-105 (A7.2 frozen colour-safety ramp): bands are NEVER colour-alone — very-low
-    // carries a HATCH overlay, very-high carries DOTS, and every band that has room
-    // renders a small in-band text label. Deuteranopia-safe by construction.
-    @ViewBuilder private func clinicalZones(_ h: CGFloat) -> some View {
-        zoneBand(yMin, 3.0, LiviqaTheme.tirVeryLow, h, pattern: .hatch, label: "VERY LOW")
-        zoneBand(3.0, low, LiviqaTheme.tirLow, h, label: "LOW")
-        zoneBand(low, high, LiviqaTheme.tirTarget, h, label: "IN RANGE")
-        zoneBand(high, 13.9, LiviqaTheme.tirHigh, h, label: "HIGH")
-        zoneBand(13.9, yMax, LiviqaTheme.tirVeryHigh, h, pattern: .dots, label: "VERY HIGH")
-    }
-    private enum ZonePattern { case none, hatch, dots }
-    @ViewBuilder private func zoneBand(_ a: Double, _ b: Double, _ c: Color, _ h: CGFloat,
-                                       pattern: ZonePattern = .none, label: String? = nil) -> some View {
-        let top = y(b, h), bot = y(a, h)
-        let bandH = max(0, bot - top)
-        ZStack(alignment: .topTrailing) {
-            Rectangle().fill(c.opacity(0.12))
-            if pattern == .hatch { ZoneHatch(color: c.opacity(0.30)) }
-            if pattern == .dots  { ZoneDots(color: c.opacity(0.30)) }
-            if let label, bandH >= 13 {
-                Text(label)
-                    .font(.system(size: 7, weight: .bold))
-                    .tracking(0.4)
-                    .foregroundStyle(c)
-                    .padding(.trailing, 3).padding(.top, 1.5)
-            }
-        }
-        .frame(height: bandH).offset(y: top).clipped()
-        .accessibilityHidden(true)   // the y-axis labels + headline carry the values
-    }
+    // The clinical zones live in `ClinicalTIRZones` (below) — ONE implementation
+    // shared by every glucose chart that shows them, so the ramp can never drift
+    // into a second palette. See its doc comment for the PR-105 rules.
     /// Mask covering the regions above the target-high and below the target-low
     /// lines — the clinical re-stroke shows only there.
     private func outOfRangeMask(w: CGFloat, h: CGFloat) -> some View {
@@ -257,7 +229,7 @@ struct GlucoseCurveView: View {
             let w = geo.size.width, h = geo.size.height
             ZStack(alignment: .topLeading) {
                 if showsClinicalZones {
-                    clinicalZones(h)
+                    ClinicalTIRZones(yMin: yMin, yMax: yMax, low: low, high: high, height: h)
                 } else {
                     // personal target band (default — existing look)
                     Rectangle()
@@ -801,6 +773,139 @@ extension View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: item.wrappedValue)
+    }
+}
+
+// MARK: - Clinical Time-in-Range zones (PR-99 ramp, PR-105 colour-safety)
+
+/// A non-colour signal carried by a band, so severity never rests on hue alone.
+enum ZonePattern { case none, hatch, dots }
+
+/// The five-zone clinical AGP Time-in-Range ramp — THE one implementation.
+///
+/// Every glucose chart that shows clinical zones draws this view, so the ramp
+/// cannot drift into a second palette or a second set of boundaries. The five
+/// colour tokens are signed off and frozen (CN 2026-08-12, `qms/RISK.md` PR-105)
+/// and are the only ones permitted here; red is scoped to the clinical glucose
+/// charts alone (RK-ALARM-01) and appears nowhere else in the app.
+///
+/// PR-105 rules, load-bearing: bands are NEVER colour-alone. Very-low carries a
+/// HATCH overlay, very-high carries DOTS, and every band with room renders a
+/// small in-band text label — deuteranopia-safe by construction.
+///
+/// GEOMETRY. The view fills `height` exactly and maps a value the way its
+/// callers do: `frac = (v - yMin) / (yMax - yMin)`, top = `height - frac *
+/// height`. A caller whose plot rect is INSET (DayReplayChart insets 6pt top and
+/// bottom) sizes this view to the inset height and offsets it by the inset — the
+/// bands then land exactly on that chart's own scale.
+struct ClinicalTIRZones: View {
+    /// Bottom of the drawn value axis.
+    var yMin: Double
+    /// Top of the drawn value axis.
+    var yMax: Double
+    /// The citizen's OWN target-low — the target band's lower edge.
+    var low: Double
+    /// The citizen's OWN target-high — the target band's upper edge.
+    var high: Double
+    var height: CGFloat
+
+    /// L2 hypo ceiling — clinical, not personal.
+    static let veryLowCeiling = 3.0
+    /// L2 hyper floor — clinical, not personal.
+    static let veryHighFloor = 13.9
+
+    /// One band of the ramp: the pure description the view draws from, exposed
+    /// so the ramp's boundaries, patterns and labels can be verified without
+    /// rendering a view.
+    struct Band: Equatable {
+        let lower: Double
+        let upper: Double
+        let color: Color
+        let pattern: ZonePattern
+        let label: String
+    }
+
+    /// The ramp, bottom → top. Contiguous by construction: each band's upper
+    /// bound is the next band's lower bound, and together they span yMin…yMax.
+    static func bands(yMin: Double, yMax: Double,
+                      low: Double, high: Double) -> [Band] {
+        [
+            Band(lower: yMin, upper: veryLowCeiling,
+                 color: LiviqaTheme.tirVeryLow, pattern: .hatch, label: "VERY LOW"),
+            Band(lower: veryLowCeiling, upper: low,
+                 color: LiviqaTheme.tirLow, pattern: .none, label: "LOW"),
+            Band(lower: low, upper: high,
+                 color: LiviqaTheme.tirTarget, pattern: .none, label: "IN RANGE"),
+            Band(lower: high, upper: veryHighFloor,
+                 color: LiviqaTheme.tirHigh, pattern: .none, label: "HIGH"),
+            Band(lower: veryHighFloor, upper: yMax,
+                 color: LiviqaTheme.tirVeryHigh, pattern: .dots, label: "VERY HIGH"),
+        ]
+    }
+
+    /// The band a reading falls in — the top band also owns anything above it,
+    /// the bottom band anything below, so no reading is unclassified.
+    static func band(containing value: Double, yMin: Double, yMax: Double,
+                     low: Double, high: Double) -> Band {
+        let all = bands(yMin: yMin, yMax: yMax, low: low, high: high)
+        if value < veryLowCeiling { return all[0] }
+        if value >= veryHighFloor { return all[4] }
+        return all.first { value >= $0.lower && value < $0.upper } ?? all[2]
+    }
+
+    private func y(_ v: Double) -> CGFloat {
+        let frac = (v - yMin) / (yMax - yMin)
+        return height - CGFloat(min(1, max(0, frac))) * height
+    }
+
+    /// Drawn height of one band on this axis. Because the ramp is CONTIGUOUS
+    /// (each band's upper bound is the next one's lower bound) these sum to
+    /// exactly `height`, so the bands stack — no offsets, nothing to clip, and
+    /// no dependence on being placed inside a GeometryReader.
+    ///
+    /// Static so the drawn geometry can be checked against the pre-refactor
+    /// offset formula without rendering: GlucoseCurveView's look must not have
+    /// moved by a pixel when this was lifted out of it.
+    static func drawnHeight(of b: Band, yMin: Double, yMax: Double,
+                            height: CGFloat) -> CGFloat {
+        func y(_ v: Double) -> CGFloat {
+            let frac = (v - yMin) / (yMax - yMin)
+            return height - CGFloat(min(1, max(0, frac))) * height
+        }
+        return max(0, y(b.lower) - y(b.upper))
+    }
+    private func bandHeight(_ b: Band) -> CGFloat {
+        Self.drawnHeight(of: b, yMin: yMin, yMax: yMax, height: height)
+    }
+
+    var body: some View {
+        // Top of the axis first: VERY HIGH → VERY LOW.
+        VStack(spacing: 0) {
+            ForEach(Array(Self.bands(yMin: yMin, yMax: yMax, low: low, high: high)
+                .reversed().enumerated()), id: \.offset) { _, b in
+                band(b).frame(height: bandHeight(b))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: height, alignment: .topLeading)
+    }
+
+    @ViewBuilder private func band(_ b: Band) -> some View {
+        let bandH = bandHeight(b)
+        ZStack(alignment: .topTrailing) {
+            Rectangle().fill(b.color.opacity(0.12))
+            if b.pattern == .hatch { ZoneHatch(color: b.color.opacity(0.30)) }
+            if b.pattern == .dots  { ZoneDots(color: b.color.opacity(0.30)) }
+            if bandH >= 13 {
+                Text(b.label)
+                    .font(.system(size: 7, weight: .bold))
+                    .tracking(0.4)
+                    .foregroundStyle(b.color)
+                    .padding(.trailing, 3).padding(.top, 1.5)
+            }
+        }
+        .clipped()
+        .accessibilityHidden(true)   // the y-axis labels + headline carry the values
     }
 }
 

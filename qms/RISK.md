@@ -2,6 +2,46 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## Red reaches a third screen — the clinical ramp on Day Replay (2026-08-24, FB-APC4qJBj, PR-118, branch develop)
+
+**Why this is a risk touch and not just a chart change.** RK-ALARM-01 scopes the
+clinical red mark to the glucose charts and nowhere else in the app. This change
+puts the ramp — and therefore red — on a screen that until now was deliberately
+the soft, personal-framed surface. That is a widening of where alarm colour
+appears, so it is recorded here rather than absorbed as a visual tweak.
+
+**RK-ALARM-01 (extended) — the clinical ramp now also renders on Day Replay.**
+- *What changed:* `DayReplayChart` draws `ClinicalTIRZones` whenever the
+  `clinicalTIRZones` setting is on (the default). Before, it drew one personal
+  in-range band and ignored the setting entirely.
+- *Why the widening is the SAFER position:* the inconsistency it removes was
+  itself the hazard. A citizen saw the same 19.9 mmol/L reading banded amber and
+  sienna on Glucose detail and unbanded on Day Replay, on the same phone, on the
+  same day. A surface that renders a severe reading with no severity signal,
+  next to one that does, teaches that the absence of colour means nothing —
+  which degrades the signal on the screens that do carry it.
+- *Scope held:* red remains confined to glucose. The ramp is a single view with
+  a single palette (FR-VIZ-06), so no other chart can acquire it by accident,
+  and a source lint fails the build if `TrendsCharts` reaches for the tokens
+  directly.
+- *Colour-safety unchanged (PR-105):* very-low hatched, very-high dotted, every
+  band with room text-labelled. Verified on the simulator in both flag states.
+- *Residual, ACCEPTED:* on a day that never exceeds 13.9 mmol/L the VERY HIGH
+  band is a hairline at the top of the axis. This is correct rather than a
+  defect — the axis stops just past the L2 floor because there is nothing above
+  it — and it is identical to the two charts that already shipped, which pass the
+  same 2.0–14.0 defaults. Recorded because it will look like a bug to a reader
+  who has not been told.
+- *Verification:* T-VIZ-06 = `LiviqaTests/ClinicalTIRZoneTests` (12) +
+  `ClinicalTIRZoneGeometryTests` (pre-refactor rect equivalence to 0.001 pt).
+
+**Observation, filed not fixed.** `GlucoseCurveView`'s two call sites pass the
+default `yMax: 14.0` and its `y(_:)` CLAMPS, so a reading above 14 mmol/L is
+drawn flat along the top edge of Glucose detail and Metric detail — the tester's
+own 19.9 peak would render as a plateau there. Day Replay does not have this
+problem (its domain follows the day's extremes). Out of scope for FB-APC4qJBj
+and not touched; raised for CN as a separate item.
+
 ## Bug-shape sweep — three diseases, swept for deliberately rather than waited for (2026-08-19, PR-117, branch claude/a72-electric-ink)
 
 **Why a sweep, and why now.** Five separate data-loss defects in this app have

@@ -2,6 +2,24 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
+## PR-118 — FB-APC4qJBj: the clinical TIR ramp reaches Day Replay (2026-08-24, branch `develop`, FR-VIZ-06)
+
+**Tester (10.105, verbatim):** *"Try to make yellow and red zones for better visualisation. You did before."* Right on both counts. The five-zone clinical ramp has shipped since PR-99 on Glucose detail and Metric detail behind `clinicalTIRZones` (default ON); Day Replay was never migrated onto it and hard-coded a single pale band, never reading the flag. The same 19.9 mmol/L reading therefore drew banded on one screen and unbanded on another. **The defect was that inconsistency, not a missing feature.**
+
+**refactor(charts): extract, do not duplicate.** `clinicalZones` / `zoneBand` / `ZonePattern` lifted out of `GlucoseCurveView` into `ClinicalTIRZones` — one implementation, one palette, one set of boundaries. The extracted view was rewritten as a contiguous stack rather than offset siblings, because the offset form silently clipped when placed outside a GeometryReader (caught on the simulator: IN RANGE rendered at a third of its height and the curve drew *below* its own target band). Drawn rects are proven identical to the pre-refactor formula to 0.001 pt across four axis and personal-range configurations, so Glucose and Metric detail did not move a pixel.
+
+**feat(day replay): follow the flag.** ON ⇒ the shared ramp; OFF ⇒ the previous single `fjordBright.opacity(0.07)` band with the legacy y-domain reproduced to the value. With zones on the domain widens to span at least 2.0–14.0 while still containing the day's own extremes — without that, an in-range day squeezes the amber band to a sliver, i.e. the ramp would be present and unreadable. The x-axis is untouched (PR-116 `hourSpan`/`fraction`/`nearestIndex` still pinned).
+
+**fix(comments): two stale rules corrected.** `DayTimelineView.swift` and the `TrendsCharts.swift` header both still asserted "no red — personal-band framing only", which predates PR-105 and is now false for this screen. Both now state the actual rule: glucose charts carry the ramp, red is the documented RK-ALARM-01 exception, and severity never rests on colour alone.
+
+**No new colour.** The five tokens signed off 2026-08-12 are the only ones, and a source lint fails the build if `TrendsCharts` reaches for them directly instead of drawing the shared view.
+
+**Verified in the simulator in both flag states**, not on a clean compile: zones on shows amber HIGH, green IN RANGE with the curve inside it, rose LOW and hatched VERY LOW; zones off shows the single flat band and the tighter domain, unchanged.
+
+**Recorded, not fixed:** ① on a day that never exceeds 13.9 the VERY HIGH band is a hairline — correct (nothing is up there) and identical to the two charts that already shipped; ② `GlucoseCurveView`'s call sites pass `yMax: 14.0` and its `y(_:)` clamps, so a reading above 14 draws flat along the top edge of Glucose and Metric detail — the tester's own 19.9 peak would plateau there. Day Replay does not have this problem. Out of scope here; raised for CN.
+
+QMS: RTM FR-VIZ-06 · RISK RK-ALARM-01 extended · VnV T-VIZ-06 · `qms/BETA_FEEDBACK.md` FB-APC4qJBj OPEN → FIXED.
+
 ## PR-117 — a deliberate sweep for three bug shapes, and the 16 it found (2026-08-19, branch `claude/a72-electric-ink`, FR-ING-20, FR-JRN-05, FR-CTX-06, FR-VIZ-05, FR-HON-01)
 
 **Why sweep.** Five separate data-loss defects in this app have had ONE shape: a read fails, is treated as "there is nothing there", and is then written over. Every one was found after it had already destroyed something. This PR stops waiting: three shapes were swept for across the whole codebase — (A) unreadable-treated-as-absent-then-overwritten, (B) a compacted or zero-filled day axis, (C) an absolute in shipped copy the code does not honour. **31 candidates, each put to an independent adversarial verifier told to default to rejection; 16 survived.** The verifiers also recorded what they cleared and why, so the pass is auditable rather than a list of hits.
