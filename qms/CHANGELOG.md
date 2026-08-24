@@ -2,7 +2,7 @@
 
 _One entry per release/PR that touches a requirement or risk control. Maps to git tags. Conventional Commits. Version: 2026-06-03._
 
-## PR-118 — FB-APC4qJBj: the clinical TIR ramp reaches Day Replay (2026-08-24, branch `develop`, FR-VIZ-06)
+## PR-118 — FB-APC4qJBj: the clinical TIR ramp reaches Day Replay (2026-08-24, branch `develop`, FR-VIZ-06) — **ships in 10.106**
 
 **Tester (10.105, verbatim):** *"Try to make yellow and red zones for better visualisation. You did before."* Right on both counts. The five-zone clinical ramp has shipped since PR-99 on Glucose detail and Metric detail behind `clinicalTIRZones` (default ON); Day Replay was never migrated onto it and hard-coded a single pale band, never reading the flag. The same 19.9 mmol/L reading therefore drew banded on one screen and unbanded on another. **The defect was that inconsistency, not a missing feature.**
 
