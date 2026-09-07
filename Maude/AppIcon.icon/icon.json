@@ -1,95 +1,58 @@
 {
-  "fill-specializations": [
+  "fill-specializations" : [
     {
-      "value": {
-        "solid": "srgb:0.14510,0.28235,0.67451,1.00000"
+      "value" : {
+        "solid" : "srgb:0.06275,0.09804,0.34118,1.00000"
       }
     },
     {
-      "appearance": "dark",
-      "value": "automatic"
+      "appearance" : "dark",
+      "value" : "automatic"
     }
   ],
-  "groups": [
+  "groups" : [
     {
-      "blend-mode": "normal",
-      "hidden": false,
-      "layers": [
+      "blend-mode" : "normal",
+      "hidden" : false,
+      "layers" : [
         {
-          "fill-specializations": [
+          "fill-specializations" : [
             {
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              "value" : {
+                "solid" : "srgb:0.78431,0.70980,0.60392,1.00000"
               }
             }
           ],
-          "glass": false,
-          "hidden": false,
-          "image-name": "Halo.svg",
-          "name": "Halo",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "Mark.svg",
+          "name" : "Mark",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
               0,
               0
             ]
           }
         }
       ],
-      "lighting": "individual",
-      "name": "Halo",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.35
+      "lighting" : "individual",
+      "name" : "Mark",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.35
       },
-      "specular": true,
-      "translucency": {
-        "enabled": false,
-        "value": 0
-      }
-    },
-    {
-      "blend-mode": "normal",
-      "hidden": false,
-      "layers": [
-        {
-          "fill-specializations": [
-            {
-              "value": {
-                "solid": "srgb:0.00000,0.87843,0.81569,1.00000"
-              }
-            }
-          ],
-          "glass": false,
-          "hidden": false,
-          "image-name": "Ring.svg",
-          "name": "Ring",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
-              0,
-              0
-            ]
-          }
-        }
-      ],
-      "lighting": "individual",
-      "name": "Ring",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.35
-      },
-      "specular": true,
-      "translucency": {
-        "enabled": false,
-        "value": 0
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
       }
     }
   ],
-  "supported-platforms": {
-    "circles": [
+  "supported-platforms" : {
+    "circles" : [
       "watchOS"
     ],
-    "squares": "shared"
+    "squares" : "shared"
   }
 }

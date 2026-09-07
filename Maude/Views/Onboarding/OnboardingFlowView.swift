@@ -398,7 +398,7 @@ struct OnboardingFlowView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Spacer()
 
-                OnboardingIrisMark(size: 66)
+                OnboardingMark(size: 66)
 
                 Text("Maude")
                     .font(.maudeSerif(40, .bold, relativeTo: .largeTitle))
@@ -520,11 +520,11 @@ private struct ReadyStepView: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 30)
 
-                    // 110pt iris, drawn stroke by stroke (staggered trim).
-                    OnboardingIrisMark(size: 110,
-                                       draw: reduceMotion || drawn
-                                           ? (1, 1, 1)
-                                           : (0, 0, 0))
+                    // 110pt PPCN mark, revealed once (was the iris, drawn stroke by stroke).
+                    OnboardingMark(size: 110,
+                                   draw: reduceMotion || drawn
+                                       ? (1, 1, 1)
+                                       : (0, 0, 0))
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.9).delay(0.1),
                                    value: drawn)
 

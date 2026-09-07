@@ -36,7 +36,10 @@ struct IrisArc: Shape {
     }
 }
 
-/// The three arcs of the iris. Derived from the locked SVG:
+/// The three arcs of Liviqa's retired iris. The MARK no longer uses them — it is the
+/// PPCN asset now (see `OnboardingMark` below). The geometry is kept because the cover's
+/// oversized ambient rings still draw from it; as background arcs they carry no identity.
+/// Derived from the retired SVG:
 ///  outer  r40  M 18.48 25.37 A 40 40 → 10.39 55.57   (218° + 314°)
 ///  middle r29  M 43.48 78.26 A 29 29 → 69.78 71.21   (103° + 304°)
 ///  inner  r18  M 67.73 46.87 A 18 18 → 53.13 32.27   (−10° + 290°)
@@ -46,39 +49,34 @@ enum IrisGeometry {
     static let inner  = (radius: CGFloat(18), start: -10.0, sweep: 290.0)
 }
 
-/// Solid-stroke iris mark used on the cover (66pt) and the Ready finale
-/// (110pt, stroke-drawn with a staggered trim animation).
-struct OnboardingIrisMark: View {
+/// The PPCN mark, on the cover (66pt), the Ready finale (110pt, revealed) and the
+/// app-lock screens. It draws the SAME asset as `MaudeApertureMark` rather than a second
+/// copy of the geometry — one mark, one source.
+///
+/// What changed on 2026-09-07: this drew Liviqa's three-arc iris stroke by stroke, in
+/// Liviqa's gold and mint, with each ring trimmed on its own timeline. PPCN's mark is a
+/// single closed path, so a per-ring reveal has nothing to reveal in sequence, and the
+/// finale now brings the whole mark up at once. The `draw` parameter is KEPT and honoured
+/// (the reveal follows whichever ring is furthest along) so that the four call sites and
+/// their animation timing did not have to be touched to change the logo.
+struct OnboardingMark: View {
     var size: CGFloat
-    /// 0…1 draw progress per ring (inner, middle, outer). 1 = fully drawn.
+    /// 0…1 draw progress. Three values for call-site compatibility; the mark reveals on
+    /// the furthest along of them.
     var draw: (inner: CGFloat, middle: CGFloat, outer: CGFloat) = (1, 1, 1)
 
+    private var progress: CGFloat {
+        max(draw.inner, max(draw.middle, draw.outer))
+    }
+
     var body: some View {
-        ZStack {
-            IrisArc(radius: IrisGeometry.inner.radius,
-                    startDeg: IrisGeometry.inner.start,
-                    sweepDeg: IrisGeometry.inner.sweep)
-                .trim(from: 0, to: draw.inner)
-                .stroke(Color(hex: 0xC9A96A),
-                        style: StrokeStyle(lineWidth: size * 0.05, lineCap: .round))
-            IrisArc(radius: IrisGeometry.middle.radius,
-                    startDeg: IrisGeometry.middle.start,
-                    sweepDeg: IrisGeometry.middle.sweep)
-                .trim(from: 0, to: draw.middle)
-                .stroke(Color(hex: 0x8FE0D6),
-                        style: StrokeStyle(lineWidth: size * 0.045, lineCap: .round))
-            IrisArc(radius: IrisGeometry.outer.radius,
-                    startDeg: IrisGeometry.outer.start,
-                    sweepDeg: IrisGeometry.outer.sweep)
-                .trim(from: 0, to: draw.outer)
-                .stroke(Color.white.opacity(0.9),
-                        style: StrokeStyle(lineWidth: size * 0.04, lineCap: .round))
-            Circle()
-                .fill(Color.white)
-                .frame(width: size * 0.12, height: size * 0.12)
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        Image("MaudeMark")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .opacity(Double(progress))
+            .scaleEffect(0.94 + 0.06 * progress)
+            .accessibilityHidden(true)
     }
 }
 

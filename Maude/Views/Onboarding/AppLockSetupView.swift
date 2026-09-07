@@ -110,7 +110,7 @@ struct AppPrivacyCover: View {
             ], startPoint: UnitPoint(x: 0.31, y: 0.04),
                endPoint: UnitPoint(x: 0.69, y: 0.96))
             .ignoresSafeArea()
-            OnboardingIrisMark(size: 66)
+            OnboardingMark(size: 66)
         }
         .transition(.opacity)
         .accessibilityHidden(true)
@@ -138,7 +138,7 @@ struct AppLockScreen: View {
 
             VStack(spacing: 0) {
                 Spacer()
-                OnboardingIrisMark(size: 66)
+                OnboardingMark(size: 66)
                 Text("Maude is locked")
                     .font(.maudeSerif(24, .bold, relativeTo: .title2))
                     .foregroundStyle(.white)

@@ -7,7 +7,7 @@
 //  • SF Pro for body/labels;
 //  • IBM Plex Mono (bundled, Info.plist-registered) for VALUES so figures
 //    align; monospaced-digit SF fallback;
-//  • the iris mark ("MaudeMark") small in the header;
+//  • the PPCN mark ("MaudeMark") small in the header;
 //  • fjord ink on paper white, hairline rules, generous margins;
 //  • NO colour-as-verdict, no judgements — values, dates, names only.
 //
