@@ -1,4 +1,4 @@
-# Liviqa — App Privacy answers (App Store Connect "Data Privacy" questionnaire)
+# Maude — App Privacy answers (App Store Connect "Data Privacy" questionnaire)
 
 Draft answers for the App Privacy "nutrition label". The app is **on-device by default**:
 HealthKit is read-only, samples are stored encrypted locally and are **never uploaded** by the
@@ -26,7 +26,7 @@ DERIVED / aggregated, scoped data after explicit per-recipient consent (never ra
 | Usage Data / Diagnostics | **No** | — | — | — | No analytics SDK; no crash/usage telemetry collected. |
 | Location, Financial, Browsing, Contacts, Photos | **No** | — | — | — | Not collected. |
 
-- **Tracking (ATT):** **No.** Liviqa does not track users across apps/sites; no IDFA; no ad networks.
+- **Tracking (ATT):** **No.** Maude does not track users across apps/sites; no IDFA; no ad networks.
 - **Data used to track you:** none.
 - **Data linked to you:** Email + User ID (auth only).
 - **Data not linked to you:** the consented Health contribution is de-identified/aggregated.*
@@ -38,7 +38,7 @@ If the consent-share feature is **not enabled for the first TestFlight build** (
 account functionality. This is the cleanest position for an initial pilot.
 
 ## Permission strings shown to users (already in Info.plist — no action)
-- Health (read): "Liviqa reads your Health data on-device to show your trends and personal,
+- Health (read): "Maude reads your Health data on-device to show your trends and personal,
   plain-language nudges. Your health data stays on this device and is never uploaded."
 - Health (update): read-only — never writes to Apple Health.
 - Camera / Microphone: only during a user-started video consultation (EU-sovereign).

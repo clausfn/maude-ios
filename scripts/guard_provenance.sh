@@ -15,7 +15,7 @@
 # provenance; it never renders the field.
 set -euo pipefail
 
-ROOT="${1:-Liviqa}"
+ROOT="${1:-Maude}"
 status=0
 
 # Data-field usage of `provenance` / the `Provenance` type (not the bare word):

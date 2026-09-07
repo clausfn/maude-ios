@@ -1,4 +1,4 @@
-// Clinical Ops dashboard — Liviqa B2B console (light clinical console).
+// Clinical Ops dashboard — Maude B2B console (light clinical console).
 // Hanken Grotesk headings, Public Sans UI/body, IBM Plex Mono numbers.
 // Lucide icons (stroke 1.75). White grounds, navy floating chrome, elevation hierarchy.
 // Status triplets ● ▲ ✕ in day-form colours. No glass, no gradients — shadows do the lift.
@@ -37,8 +37,8 @@ function CoIcon({ name, size = 18, color = "currentColor", stroke = 1.75, style 
 }
 
 function CoMark({ size = 22 }) {
-  return <img src={CO_BRAND + "liviqa_mark_iris.svg"}
-    alt="Liviqa" width={size} height={size} style={{ display: "block" }} />;
+  return <img src={CO_BRAND + "maude_mark_iris.svg"}
+    alt="Maude" width={size} height={size} style={{ display: "block" }} />;
 }
 
 // ── Status triplets — shape + word + colour, never colour alone ──
@@ -183,7 +183,7 @@ function ClinicalOpsDashboard() {
         <div style={{ maxWidth: 1340, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <CoMark size={22} />
-            <span style={{ ...CO_HEAD, fontSize: 18 }}>Liviqa</span>
+            <span style={{ ...CO_HEAD, fontSize: 18 }}>Maude</span>
             <span style={{ fontFamily: CO_MONO, fontSize: 11.5, color: "var(--c-text3)", marginLeft: 6, whiteSpace: "nowrap" }}>· clinical ops</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>

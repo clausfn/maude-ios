@@ -1,4 +1,4 @@
-/* Liviqa Design System — global entry point.
+/* Maude Design System — global entry point.
    Consumers link THIS file only. Import order: fonts → tokens. @import lines only. */
 
 @import url("tokens/fonts.css");

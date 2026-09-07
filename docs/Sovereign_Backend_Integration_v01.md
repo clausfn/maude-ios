@@ -1,16 +1,16 @@
 # Sovereign Backend Integration (v01) — iOS side
 
-_2026-06-03. How `liviqa-ios` connects to the EU-sovereign backend (`liviqa-backend`, NestJS/Scaleway+Ory) instead of Supabase. Full cross-repo contract: `Liviqa_iOS_Backend_Contract_v01` (in the Liviqa project, `20_Build/Specs/`)._
+_2026-06-03. How `maude-ios` connects to the EU-sovereign backend (`maude-backend`, NestJS/Scaleway+Ory) instead of Supabase. Full cross-repo contract: `Maude_iOS_Backend_Contract_v01` (in the Maude project, `20_Build/Specs/`)._
 
 ## Why
 Supabase is **US-parented** → fails `NFR-SEC-07` for real PII. The app keeps its `SupabaseServiceProtocol` seam but swaps the implementation to the sovereign backend for real users. Default stays `MockSupabaseService`; no data migration (no real Supabase data exists).
 
 ## Done in this PR
-- **`Liviqa/Sharing/DerivedShareBuilder.swift`** (FR-SHARE-01) + `DerivedShareBuilderTests` — pure mapping from `HealthSamples` → the `PUT /shares/{grantId}` body, scoped to the citizen's consented groups, derived-only, no provenance. Run the tests in Xcode.
+- **`Maude/Sharing/DerivedShareBuilder.swift`** (FR-SHARE-01) + `DerivedShareBuilderTests` — pure mapping from `HealthSamples` → the `PUT /shares/{grantId}` body, scoped to the citizen's consented groups, derived-only, no provenance. Run the tests in Xcode.
 
 ## Next (FR-SHARE-02 — Xcode session)
 1. **`Config.backend`** enum: `.mock` (default) | `.supabaseSandbox` | `.sovereign(baseURL:)`. `AppState.init` selects the service.
-2. **`LiviqaBackendService: SupabaseServiceProtocol`** (a `final class`, URLSession + the existing Codable models):
+2. **`MaudeBackendService: SupabaseServiceProtocol`** (a `final class`, URLSession + the existing Codable models):
    | Protocol method | Endpoint |
    |---|---|
    | `signInWith*` / `currentSession` | **Ory** session (browser/native flow → session cookie or token) |

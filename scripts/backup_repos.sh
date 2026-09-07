@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backup ALL Claude projects (and the external liviqa-ios repo) to OneDrive as
+# Backup ALL Claude projects (and the external maude-ios repo) to OneDrive as
 # clean per-project snapshots. Each archive contains everything in the project —
 # git history, working tree, docs, assets — EXCEPT regenerable build/dependency
 # dirs, so OneDrive isn't asked to store gigabytes of junk.
@@ -16,7 +16,7 @@ mkdir -p "$DEST"
 
 # Extra repos/folders that live OUTSIDE ~/Documents/Claude/Projects:
 EXTERNAL=(
-  "$HOME/Developer/DataForGood/liviqa-ios"
+  "$HOME/Developer/DataForGood/maude-ios"
   "$HOME/Documents/Claude/Artifacts"     # Cowork deliverables (dashboards/trackers)
   "$HOME/Documents/Claude/Scheduled"     # scheduled-task definitions
 )

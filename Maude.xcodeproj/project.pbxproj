@@ -1,0 +1,832 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		024491EDAD7E828F34704374 /* WatchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F234336F42FA2F405AEEA1 /* WatchTheme.swift */; };
+		1296C8EEFC7095653691CB78 /* MaudeWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A693815C27D9BE1FB7AC32F5 /* MaudeWatchApp.swift */; };
+		35E869F500BB37065DC92A6D /* WatchSessionReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */; };
+		3EFC4C159E4ECC954400ABFD /* WatchModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56341D13B87E420618FE76E2 /* WatchModels.swift */; };
+		4045D39CC8E9A15A91BDE787 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75E226DA0F11DAF42AC16AF6 /* Foundation.framework */; };
+		4D3D61B3612C565ED52DA875 /* WatchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58EAD3DE8FB1B0EDA15FE83F /* WatchHomeView.swift */; };
+		59F33CA78DB15AB84D053709 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 458B680AA0C64136836526F9 /* Assets.xcassets */; };
+		9057B82DE64FAA7BEB06A4BE /* Maude Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 61F7A151266EA1E424304814 /* Maude Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CF111B87B9B2F568607A925B /* WatchPillarDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7A2F2D97BBFBA6EBF75FCA /* WatchPillarDetailView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		48AFF2172FBE5BDD00CFECA5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 48AFF1FD2FBE5BDB00CFECA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 48AFF2042FBE5BDB00CFECA5;
+			remoteInfo = Maude;
+		};
+		48AFF2212FBE5BDD00CFECA5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 48AFF1FD2FBE5BDB00CFECA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 48AFF2042FBE5BDB00CFECA5;
+			remoteInfo = Maude;
+		};
+		540DCA5AFBCE5A2AEA4AEB93 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 48AFF1FD2FBE5BDB00CFECA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21D81FFFC618C48699B6948C;
+			remoteInfo = "Maude Watch";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AE1322606654B917374EA1FA /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				9057B82DE64FAA7BEB06A4BE /* Maude Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		458B680AA0C64136836526F9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		48AFF2052FBE5BDB00CFECA5 /* Maude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Maude.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		48AFF2162FBE5BDD00CFECA5 /* MaudeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaudeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		48AFF2202FBE5BDD00CFECA5 /* MaudeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaudeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
+		48AFF2412FBE5BDD00CFECA5 /* Signing.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.example.xcconfig; sourceTree = "<group>"; };
+		4F7A2F2D97BBFBA6EBF75FCA /* WatchPillarDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchPillarDetailView.swift; sourceTree = "<group>"; };
+		56341D13B87E420618FE76E2 /* WatchModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchModels.swift; sourceTree = "<group>"; };
+		58EAD3DE8FB1B0EDA15FE83F /* WatchHomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHomeView.swift; sourceTree = "<group>"; };
+		5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WatchSessionReceiver.swift; path = Connectivity/WatchSessionReceiver.swift; sourceTree = "<group>"; };
+		61F7A151266EA1E424304814 /* Maude Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maude Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		69F234336F42FA2F405AEEA1 /* WatchTheme.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchTheme.swift; sourceTree = "<group>"; };
+		75E226DA0F11DAF42AC16AF6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		A693815C27D9BE1FB7AC32F5 /* MaudeWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MaudeWatchApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		48AFF2282FBE5BDD00CFECA5 /* Exceptions for "Maude" folder in "Maude" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ContentView.swift,
+				Info.plist,
+				Item.swift,
+				"Services/SupabaseService+Live.swift.reference",
+			);
+			target = 48AFF2042FBE5BDB00CFECA5 /* Maude */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		48AFF2072FBE5BDB00CFECA5 /* Maude */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				48AFF2282FBE5BDD00CFECA5 /* Exceptions for "Maude" folder in "Maude" target */,
+			);
+			path = Maude;
+			sourceTree = "<group>";
+		};
+		48AFF2192FBE5BDD00CFECA5 /* MaudeTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MaudeTests;
+			sourceTree = "<group>";
+		};
+		48AFF2232FBE5BDD00CFECA5 /* MaudeUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MaudeUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		48AFF2022FBE5BDB00CFECA5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48AFF2132FBE5BDD00CFECA5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48AFF21D2FBE5BDD00CFECA5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BAD53C4ECC0F4A37D1FEC012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4045D39CC8E9A15A91BDE787 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		48AFF1FC2FBE5BDB00CFECA5 = {
+			isa = PBXGroup;
+			children = (
+				48AFF2422FBE5BDD00CFECA5 /* Config */,
+				48AFF2072FBE5BDB00CFECA5 /* Maude */,
+				48AFF2192FBE5BDD00CFECA5 /* MaudeTests */,
+				48AFF2232FBE5BDD00CFECA5 /* MaudeUITests */,
+				48AFF2062FBE5BDB00CFECA5 /* Products */,
+				DC88FEF2E70DA19E87A582F9 /* Frameworks */,
+				5718CBD709E21518F9DF7789 /* MaudeWatch */,
+			);
+			sourceTree = "<group>";
+		};
+		48AFF2062FBE5BDB00CFECA5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				48AFF2052FBE5BDB00CFECA5 /* Maude.app */,
+				48AFF2162FBE5BDD00CFECA5 /* MaudeTests.xctest */,
+				48AFF2202FBE5BDD00CFECA5 /* MaudeUITests.xctest */,
+				61F7A151266EA1E424304814 /* Maude Watch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		48AFF2422FBE5BDD00CFECA5 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */,
+				48AFF2412FBE5BDD00CFECA5 /* Signing.example.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		5718CBD709E21518F9DF7789 /* MaudeWatch */ = {
+			isa = PBXGroup;
+			children = (
+				A693815C27D9BE1FB7AC32F5 /* MaudeWatchApp.swift */,
+				58EAD3DE8FB1B0EDA15FE83F /* WatchHomeView.swift */,
+				4F7A2F2D97BBFBA6EBF75FCA /* WatchPillarDetailView.swift */,
+				56341D13B87E420618FE76E2 /* WatchModels.swift */,
+				69F234336F42FA2F405AEEA1 /* WatchTheme.swift */,
+				5F654350EF9546FF6F099B5B /* WatchSessionReceiver.swift */,
+				458B680AA0C64136836526F9 /* Assets.xcassets */,
+			);
+			path = MaudeWatch;
+			sourceTree = "<group>";
+		};
+		D34266D8024B83841D4779BB /* watchOS */ = {
+			isa = PBXGroup;
+			children = (
+				75E226DA0F11DAF42AC16AF6 /* Foundation.framework */,
+			);
+			name = watchOS;
+			sourceTree = "<group>";
+		};
+		DC88FEF2E70DA19E87A582F9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D34266D8024B83841D4779BB /* watchOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		21D81FFFC618C48699B6948C /* Maude Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 477C4493C2485C74EE2854C1 /* Build configuration list for PBXNativeTarget "Maude Watch" */;
+			buildPhases = (
+				6A8E2A133597DB11284E2E1D /* Sources */,
+				BAD53C4ECC0F4A37D1FEC012 /* Frameworks */,
+				F0D81B9FD68611E0D8C8F094 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Maude Watch";
+			productName = "Maude Watch";
+			productReference = 61F7A151266EA1E424304814 /* Maude Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		48AFF2042FBE5BDB00CFECA5 /* Maude */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48AFF2292FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "Maude" */;
+			buildPhases = (
+				48AFF2012FBE5BDB00CFECA5 /* Sources */,
+				48AFF2022FBE5BDB00CFECA5 /* Frameworks */,
+				48AFF2032FBE5BDB00CFECA5 /* Resources */,
+				AE1322606654B917374EA1FA /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6336EDF3401E8FF2CB8D3A42 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				48AFF2072FBE5BDB00CFECA5 /* Maude */,
+			);
+			name = Maude;
+			productName = Maude;
+			productReference = 48AFF2052FBE5BDB00CFECA5 /* Maude.app */;
+			productType = "com.apple.product-type.application";
+		};
+		48AFF2152FBE5BDD00CFECA5 /* MaudeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48AFF22E2FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "MaudeTests" */;
+			buildPhases = (
+				48AFF2122FBE5BDD00CFECA5 /* Sources */,
+				48AFF2132FBE5BDD00CFECA5 /* Frameworks */,
+				48AFF2142FBE5BDD00CFECA5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				48AFF2182FBE5BDD00CFECA5 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				48AFF2192FBE5BDD00CFECA5 /* MaudeTests */,
+			);
+			name = MaudeTests;
+			productName = MaudeTests;
+			productReference = 48AFF2162FBE5BDD00CFECA5 /* MaudeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		48AFF21F2FBE5BDD00CFECA5 /* MaudeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48AFF2312FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "MaudeUITests" */;
+			buildPhases = (
+				48AFF21C2FBE5BDD00CFECA5 /* Sources */,
+				48AFF21D2FBE5BDD00CFECA5 /* Frameworks */,
+				48AFF21E2FBE5BDD00CFECA5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				48AFF2222FBE5BDD00CFECA5 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				48AFF2232FBE5BDD00CFECA5 /* MaudeUITests */,
+			);
+			name = MaudeUITests;
+			productName = MaudeUITests;
+			productReference = 48AFF2202FBE5BDD00CFECA5 /* MaudeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		48AFF1FD2FBE5BDB00CFECA5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					48AFF2042FBE5BDB00CFECA5 = {
+						CreatedOnToolsVersion = 26.4.1;
+						ProvisioningStyle = Automatic;
+					};
+					48AFF2152FBE5BDD00CFECA5 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 48AFF2042FBE5BDB00CFECA5;
+					};
+					48AFF21F2FBE5BDD00CFECA5 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 48AFF2042FBE5BDB00CFECA5;
+					};
+				};
+			};
+			buildConfigurationList = 48AFF2002FBE5BDB00CFECA5 /* Build configuration list for PBXProject "Maude" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				da,
+				nb,
+				sv,
+				es,
+				pt,
+				Base,
+			);
+			mainGroup = 48AFF1FC2FBE5BDB00CFECA5;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 48AFF2062FBE5BDB00CFECA5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				48AFF2042FBE5BDB00CFECA5 /* Maude */,
+				48AFF2152FBE5BDD00CFECA5 /* MaudeTests */,
+				48AFF21F2FBE5BDD00CFECA5 /* MaudeUITests */,
+				21D81FFFC618C48699B6948C /* Maude Watch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		48AFF2032FBE5BDB00CFECA5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48AFF2142FBE5BDD00CFECA5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48AFF21E2FBE5BDD00CFECA5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0D81B9FD68611E0D8C8F094 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59F33CA78DB15AB84D053709 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		48AFF2012FBE5BDB00CFECA5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48AFF2122FBE5BDD00CFECA5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48AFF21C2FBE5BDD00CFECA5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6A8E2A133597DB11284E2E1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1296C8EEFC7095653691CB78 /* MaudeWatchApp.swift in Sources */,
+				4D3D61B3612C565ED52DA875 /* WatchHomeView.swift in Sources */,
+				CF111B87B9B2F568607A925B /* WatchPillarDetailView.swift in Sources */,
+				3EFC4C159E4ECC954400ABFD /* WatchModels.swift in Sources */,
+				024491EDAD7E828F34704374 /* WatchTheme.swift in Sources */,
+				35E869F500BB37065DC92A6D /* WatchSessionReceiver.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		48AFF2182FBE5BDD00CFECA5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 48AFF2042FBE5BDB00CFECA5 /* Maude */;
+			targetProxy = 48AFF2172FBE5BDD00CFECA5 /* PBXContainerItemProxy */;
+		};
+		48AFF2222FBE5BDD00CFECA5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 48AFF2042FBE5BDB00CFECA5 /* Maude */;
+			targetProxy = 48AFF2212FBE5BDD00CFECA5 /* PBXContainerItemProxy */;
+		};
+		6336EDF3401E8FF2CB8D3A42 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "Maude Watch";
+			target = 21D81FFFC618C48699B6948C /* Maude Watch */;
+			targetProxy = 540DCA5AFBCE5A2AEA4AEB93 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		08FD3E3C6ECABBA8DBB72CDB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Maude;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(APP_BUNDLE_ID)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		48AC01EC126DCF0B1B8B3189 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Maude;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(APP_BUNDLE_ID)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		48AFF22A2FBE5BDD00CFECA5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "$(MAUDE_ENTITLEMENTS)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Maude/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		48AFF22B2FBE5BDD00CFECA5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "$(MAUDE_ENTITLEMENTS)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Maude/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		48AFF22C2FBE5BDD00CFECA5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		48AFF22D2FBE5BDD00CFECA5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		48AFF22F2FBE5BDD00CFECA5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maude.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maude";
+			};
+			name = Debug;
+		};
+		48AFF2302FBE5BDD00CFECA5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maude.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maude";
+			};
+			name = Release;
+		};
+		48AFF2322FBE5BDD00CFECA5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).UITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Maude;
+			};
+			name = Debug;
+		};
+		48AFF2332FBE5BDD00CFECA5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 48AFF2402FBE5BDD00CFECA5 /* Signing.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_ID).UITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Maude;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		477C4493C2485C74EE2854C1 /* Build configuration list for PBXNativeTarget "Maude Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AC01EC126DCF0B1B8B3189 /* Release */,
+				08FD3E3C6ECABBA8DBB72CDB /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		48AFF2002FBE5BDB00CFECA5 /* Build configuration list for PBXProject "Maude" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AFF22C2FBE5BDD00CFECA5 /* Debug */,
+				48AFF22D2FBE5BDD00CFECA5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		48AFF2292FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "Maude" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AFF22A2FBE5BDD00CFECA5 /* Debug */,
+				48AFF22B2FBE5BDD00CFECA5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		48AFF22E2FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "MaudeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AFF22F2FBE5BDD00CFECA5 /* Debug */,
+				48AFF2302FBE5BDD00CFECA5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		48AFF2312FBE5BDD00CFECA5 /* Build configuration list for PBXNativeTarget "MaudeUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				48AFF2322FBE5BDD00CFECA5 /* Debug */,
+				48AFF2332FBE5BDD00CFECA5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 48AFF1FD2FBE5BDB00CFECA5 /* Project object */;
+}

@@ -18,8 +18,8 @@
 set -euo pipefail
 
 ROOT="${1:-.}"
-DONATION_DIR="$ROOT/Liviqa/Donation"
-DONOR_VIEW="$ROOT/Liviqa/Views/DonorExportView.swift"
+DONATION_DIR="$ROOT/Maude/Donation"
+DONOR_VIEW="$ROOT/Maude/Views/DonorExportView.swift"
 status=0
 
 if [ ! -d "$DONATION_DIR" ]; then

@@ -1,4 +1,4 @@
-// Liviqa mobile home — Apple Liquid Glass (iOS 26), the CITIZEN consumer surface.
+// Maude mobile home — Apple Liquid Glass (iOS 26), the CITIZEN consumer surface.
 // Opposite of the matte console: translucent glass layers (blur+saturate), specular
 // top-edge highlight + hairline inner stroke, large-title nav condensing on scroll,
 // scroll-edge fade under the bar, floating glass tab capsule. White/off-white base — no mint.

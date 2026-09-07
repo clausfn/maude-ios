@@ -2,7 +2,7 @@
 # Headless TestFlight build via an ISOLATED keychain — sidesteps a locked/out-of-
 # sync login keychain (which makes codesign hang waiting on a GUI prompt).
 #
-# It uses a dedicated throwaway keychain (~/liviqa-build.keychain-db) with a known
+# It uses a dedicated throwaway keychain (~/maude-build.keychain-db) with a known
 # password, makes it the sole signing keychain for the duration of the build, then
 # RESTORES the user's keychain search list + default exactly as they were — the
 # login keychain is never touched, and no saved passwords are lost.
@@ -12,8 +12,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-BUILD_KC="$HOME/liviqa-build.keychain-db"
-BUILD_PW="LiviqaBuild-2026"
+BUILD_KC="$HOME/maude-build.keychain-db"
+BUILD_PW="MaudeBuild-2026"
 export ASC_KEY_ID="${ASC_KEY_ID:-656L9P8JY3}"
 export ASC_ISSUER_ID="${ASC_ISSUER_ID:-830c96d2-1922-4e68-9736-56940ebf9bc2}"
 export ASC_KEY_PATH="${ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_656L9P8JY3.p8}"

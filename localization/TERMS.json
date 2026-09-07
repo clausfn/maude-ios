@@ -1,7 +1,7 @@
 {
   "version": "v03 · 2026-06-12",
   "owner": "Claus Nielsen — all language terms APPROVED 2026-06-12 (CN: \"accept all language versions for now\")",
-  "note": "Canonical glossary for all Liviqa surfaces (iOS app, B2B console). The console repo carries a copy at docs/TERMS.json — this file is canonical. Enforced mechanically by TerminologyTests (iOS) and ci-guards [no-advice-voice] (console); enforced interactively by Weblate (live at weblate.liviqa.app; glossary seeded for da, nb_NO, sv, es, pt — all proposals until approved there).",
+  "note": "Canonical glossary for all Maude surfaces (iOS app, B2B console). The console repo carries a copy at docs/TERMS.json — this file is canonical. Enforced mechanically by TerminologyTests (iOS) and ci-guards [no-advice-voice] (console); enforced interactively by Weblate (live at weblate.maude.app; glossary seeded for da, nb_NO, sv, es, pt — all proposals until approved there).",
   "locked": [
     {
       "en": "nudge",
@@ -212,7 +212,7 @@
     },
     {
       "en": "supplements · citizen-recorded",
-      "note": "Prescription medication lives in Fælles Medicinkort, never in Liviqa.",
+      "note": "Prescription medication lives in Fælles Medicinkort, never in Maude.",
       "translations": {
         "da": {
           "term": "kosttilskud · egne registreringer",
@@ -264,7 +264,7 @@
     }
   ],
   "neverTranslate": [
-    "Liviqa",
+    "Maude",
     "Data for Good",
     "My DfG wallet",
     "DfG Passport",

@@ -1,6 +1,6 @@
 # Localization — how language is managed
 
-**Source of truth: files in git.** iOS strings live in `Liviqa/Localizable.xcstrings`
+**Source of truth: files in git.** iOS strings live in `Maude/Localizable.xcstrings`
 (Apple String Catalog — Xcode populates it from code literals at build time);
 the console uses plain strings today and adopts i18next JSON when Danish lands.
 Any tool we add later (Weblate is the plan) sits ON TOP of these files and

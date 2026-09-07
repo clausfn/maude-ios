@@ -1,8 +1,8 @@
 # TestFlight upload — exact steps (v01, 2026-06-03)
 
-Your values: project `~/Developer/DataForGood/liviqa-ios` → open `Liviqa.xcodeproj`.
-Team **Fonden Data For Good = PS258XSNL8** · bundle **app.liviqa.ios** · App Group
-**group.app.liviqa.ios** · app name **Liviqa**. Signing = **Automatic** (Xcode
+Your values: project `~/Developer/DataForGood/maude-ios` → open `Maude.xcodeproj`.
+Team **Fonden Data For Good = PS258XSNL8** · bundle **app.maude.ios** · App Group
+**group.app.maude.ios** · app name **Maude**. Signing = **Automatic** (Xcode
 creates the App ID, Distribution cert, and profile for you). Capabilities:
 HealthKit, App Groups, Sign in with Apple.
 
@@ -18,21 +18,21 @@ After it loads you should see **Fonden Data For Good (PS258XSNL8)** in that
 account's team list. If it's not there → you're not on the team yet (step 0).
 
 ## 2. Point the app at the DfG team
-Open `Liviqa.xcodeproj`. Blue **Liviqa** project (top of left panel) → **TARGETS →
-Liviqa** → **Signing & Capabilities** tab.
+Open `Maude.xcodeproj`. Blue **Maude** project (top of left panel) → **TARGETS →
+Maude** → **Signing & Capabilities** tab.
 - "Automatically manage signing" = checked.
 - **Team** → choose **Fonden Data For Good (PS258XSNL8)**.
-- Bundle Identifier shows **app.liviqa.ios**.
-- Capability tiles: **HealthKit**, **App Groups** (`group.app.liviqa.ios`),
+- Bundle Identifier shows **app.maude.ios**.
+- Capability tiles: **HealthKit**, **App Groups** (`group.app.maude.ios`),
   **Sign in with Apple**. If App Groups shows a ⟳/warning, click it to register.
   Xcode then registers the App ID + capabilities on the team ("Registering…").
 - Red "Failed to register bundle identifier" = it's taken → tell me, pick another.
 
 ## 3. Create the app record (browser)
 appstoreconnect.apple.com → **Apps** → **+** → **New App**:
-- Platform **iOS** · Name **Liviqa** (must be App-Store-unique; if taken use
-  "Liviqa Health") · Primary language · **Bundle ID = app.liviqa.ios** (appears in
-  the dropdown after step 2) · SKU `liviqa-ios` · Full Access → **Create**.
+- Platform **iOS** · Name **Maude** (must be App-Store-unique; if taken use
+  "Maude Health") · Primary language · **Bundle ID = app.maude.ios** (appears in
+  the dropdown after step 2) · SKU `maude-ios` · Full Access → **Create**.
 
 ## 4. Archive (Xcode)
 - Top toolbar device selector → **Any iOS Device (arm64)** (NOT a simulator, or
@@ -63,7 +63,7 @@ appstoreconnect.apple.com → your app:
 - "No accounts with PS258XSNL8" → your Apple ID isn't on the DfG team (step 0).
 - "capability not enabled / can't create profile" → toggle automatic signing
   off/on, or remove+re-add the capability; Xcode re-registers it.
-- Testers see **no data** → the backend `api.liviqa.app` + `auth.liviqa.app`
+- Testers see **no data** → the backend `api.maude.app` + `auth.maude.app`
   aren't live yet (deploy step). The app still installs and runs.
 - HealthKit on a Simulator has no data — real device or a simulator with Health
   sample data to see live nudges.

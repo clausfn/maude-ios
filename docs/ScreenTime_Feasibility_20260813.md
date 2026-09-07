@@ -68,7 +68,7 @@ foreground time and nothing else.
 | Show the person a usage report | `DeviceActivityReport` + a report extension | A **SwiftUI view** rendered inside a sandboxed extension. The app can display it. The app **cannot read the numbers**, cannot persist them, cannot send them anywhere. |
 | Learn a threshold was crossed | `DeviceActivityCenter.startMonitoring` + `DeviceActivityMonitor` extension | A **callback** naming the event and activity we defined. No values. Writable to an App Group, so it can reach the app. |
 | Let the person pick what to monitor | `FamilyActivityPicker` → `FamilyActivitySelection` | **Opaque tokens**. Apple: `FamilyActivitySelection` "holds opaque values that represent categories, applications, and web domains". The app never learns which apps were chosen — only `Label(token)` can render them, and tokens are voided if authorization is revoked. |
-| Shield or restrict apps | `ManagedSettings` | Out of scope for Liviqa and out of character for it. We do not restrict people. |
+| Shield or restrict apps | `ManagedSettings` | Out of scope for Maude and out of character for it. We do not restrict people. |
 
 What "device activity" means, in Apple's definition: *"the amount of time an application,
 category, or web domain is frontmost on the screen"*, accumulated in the time zone of the
@@ -80,7 +80,7 @@ via `STWebpageController`.
 Apple: *"A parent or guardian must authenticate a child's account, while individuals can
 authenticate their own account."* The individual is authenticated with Face ID / Touch ID.
 So the parental-controls framing does **not** block an adult-self-monitoring use, which is
-the only use Liviqa would ever have. It is revocable (`revokeAuthorization`), and revocation
+the only use Maude would ever have. It is revocable (`revokeAuthorization`), and revocation
 voids every token previously issued.
 
 ---
@@ -94,7 +94,7 @@ voids every token previously issued.
    request form: <https://developer.apple.com/contact/request/family-controls-distribution>.
    This is a human review by Apple, not a toggle.
 3. **Expect to justify the use case.** The entitlement exists for parental-controls and
-   screen-wellbeing apps. Liviqa is neither of those things by category, and the request
+   screen-wellbeing apps. Maude is neither of those things by category, and the request
    would have to make the adult-self-monitoring case explicitly. **We should assume it can
    be refused, and design so that a refusal costs us nothing.**
 4. **Two new app extensions** (report and/or monitor), each with its own bundle id, profile
@@ -128,7 +128,7 @@ Deliberately the *smallest* thing that is a real signal, and nothing that reads 
   never a claim that a late evening caused a poor night.
 - **The report view, if we ship it at all, is shown and not read.** `DeviceActivityReport`
   renders inside its own sandbox; we would present it as *the citizen's own view of their
-  own data*, and say plainly on the screen that Liviqa cannot see what is in it. That is a
+  own data*, and say plainly on the screen that Maude cannot see what is in it. That is a
   rare and rather good honesty story: a screen where the app truthfully says "I am showing
   you something I cannot read."
 - **Refusal costs nothing.** If Apple declines the entitlement, the feature simply does not
@@ -143,13 +143,13 @@ This is the part worth acting on now.
 1. **Calendar load — built, in this same batch.** How full each day was, from the citizen's
    own calendar, density only. This is the strongest honest proxy for "load" available on
    the device without any special approval, and it is now a real column in the week grid.
-   See `Liviqa/Context/CalendarLoad.swift` and FR-CTX-CAL-01.
+   See `Maude/Context/CalendarLoad.swift` and FR-CTX-CAL-01.
 2. **The sleep record already tells us most of what "late-night phone use" was a proxy
    *for*.** We ingest bedtime, sleep onset, fragmentation and wake time. "You went to bed
    later than your usual" is the fact we actually care about; screen time was only ever a
    guess at its cause. We have the fact. We do not need to guess at the cause, and under
    FR-NDG-06 we would not be allowed to assert one anyway.
-3. **Liviqa's own session times.** We can honestly measure how long the citizen spends in
+3. **Maude's own session times.** We can honestly measure how long the citizen spends in
    *this* app. Low value as a health signal, and I would not ship it: it measures our
    product, not their life, and dressing it up as "digital load" would be exactly the kind
    of overclaim this codebase keeps getting bitten by.

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # asc_feedback_poll.py — poll App Store Connect TestFlight feedback, emit NEW items.
 # Prints a JSON array of submissions not seen before, and updates the seen-state file.
-# Used by the scheduled "liviqa-feedback-monitor" task; safe to run by hand.
+# Used by the scheduled "maude-feedback-monitor" task; safe to run by hand.
 import jwt, time, json, os, urllib.request, urllib.error, sys
 
 KEY_ID="656L9P8JY3"
 ISSUER_ID="830c96d2-1922-4e68-9736-56940ebf9bc2"
 KEY_PATH=os.path.expanduser("~/.appstoreconnect/private_keys/AuthKey_656L9P8JY3.p8")
 APP="6776228205"
-STATE=os.path.expanduser("~/.liviqa-feedback-seen.json")
+STATE=os.path.expanduser("~/.maude-feedback-seen.json")
 
 def token():
     pk=open(KEY_PATH).read()

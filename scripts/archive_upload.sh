@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Archive + upload Liviqa to TestFlight — runnable headlessly (no Xcode GUI).
+# Archive + upload Maude to TestFlight — runnable headlessly (no Xcode GUI).
 #
 # PREREQS (one-time, yours — only TWO things):
 #   1) An App Store Connect API key, role **Admin** (App Store Connect ▸ Users and
@@ -12,14 +12,14 @@
 #        export ASC_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_XXXXXXXXXX.p8
 #      (also keep the .p8 at that ~/.appstoreconnect/private_keys path so the
 #       upload step's altool finds it.)
-#   2) The app record (bundle app.liviqa.ios) created in App Store Connect ▸ Apps.
+#   2) The app record (bundle app.maude.ios) created in App Store Connect ▸ Apps.
 #      (I can do this for you in the browser via the Chrome extension.)
 #
 # Then: ./scripts/archive_upload.sh   (I can run this for you once 1 & 2 are done.)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-ARCHIVE="build/Liviqa.xcarchive"
+ARCHIVE="build/Maude.xcarchive"
 EXPORT="build/export"
 rm -rf "$ARCHIVE" "$EXPORT"
 
@@ -38,10 +38,10 @@ fi
 # since 2026-07-03; the RELEASE chain must never be the weaker of the two —
 # a Release archive is exactly where an un-guarded regression would ship.
 echo "▸ Verifying provenance-never-renders guard before archiving…"
-bash scripts/guard_provenance.sh Liviqa
+bash scripts/guard_provenance.sh Maude
 
 echo "▸ Archiving (Release, automatic signing, provisioning updates allowed)…"
-xcodebuild -scheme Liviqa -configuration Release \
+xcodebuild -scheme Maude -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
   -allowProvisioningUpdates "${AUTH[@]}" \

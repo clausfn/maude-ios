@@ -1,6 +1,6 @@
 # Liquid Glass — design exploration (Glass Lab)
 
-_2026-06-16 · `Liviqa/Views/_GlassLab.swift` (DEBUG-only) · open with launch arg `-glassLab`._
+_2026-06-16 · `Maude/Views/_GlassLab.swift` (DEBUG-only) · open with launch arg `-glassLab`._
 
 A calm, privacy-first take on iOS 26 Liquid Glass. **Nothing here is on a shipped screen** — it is an isolated lab built for sign-off. **The deployment floor stays iOS 17** (CN: "no exclusive phones"): every effect is a three-tier ladder so the newest devices get real glass and everyone else keeps the full app.
 
@@ -8,13 +8,13 @@ A calm, privacy-first take on iOS 26 Liquid Glass. **Nothing here is on a shippe
 
 1. **iOS 26+** → real Liquid Glass (`.glassEffect`, `GlassEffectContainer`, `.glassEffectID`, `.scrollEdgeEffectStyle`, `.backgroundExtensionEffect`, `ConcentricRectangle(corners: .concentric)`), all inside `if #available(iOS 26, *)`.
 2. **iOS 17–25** → the current `.ultraThinMaterial` look (graceful fallback).
-3. **Reduce Transparency / Increase Contrast** → opaque `LiviqaTheme.paper2`, hairline border, **no shadow** — the exact shipped `useSolidBar` pattern.
+3. **Reduce Transparency / Increase Contrast** → opaque `MaudeTheme.paper2`, hairline border, **no shadow** — the exact shipped `useSolidBar` pattern.
 
-Motion resolves to its **resting state** under `LiviqaMotion.reduced(_:)` (system Reduce Motion **or** the in-app `liviqaReduceMotion` switch). Type uses the just-fixed UIFontMetrics helpers, so everything scales with Dynamic Type. State is never carried by glass, motion, or colour alone (haptic + label + dot back every signal).
+Motion resolves to its **resting state** under `MaudeMotion.reduced(_:)` (system Reduce Motion **or** the in-app `maudeReduceMotion` switch). Type uses the just-fixed UIFontMetrics helpers, so everything scales with Dynamic Type. State is never carried by glass, motion, or colour alone (haptic + label + dot back every signal).
 
 ## The winning set (curator-selected across 3 concepts)
 
-| Effect | iOS 26 API | Why it fits Liviqa |
+| Effect | iOS 26 API | Why it fits Maude |
 |---|---|---|
 | **Glass scrubber** (the "slider over the menu bar") | `.glassEffect(.regular.interactive())` + `GlassEffectContainer` | Move through your own day; the handle floats & shimmers, tints **moss only when in range** (meaning-only tint). |
 | **Still readout** (its opaque partner) | none — `paper2` by design | The moving thing is glass; the number you read is still. Holds the one-blur budget. |
@@ -42,16 +42,16 @@ Every glass surface is a real-time blur pass. The lab keeps **one live blur per 
 3. **Ambient field signal** — confirm it's driven by RHR / circadian / sleep (honest data), or kept abstract.
 4. **`clay` = Amber Flame over glass** (RK-ALARM-01) — confirm the attention tone stays legible/non-alarming on translucency.
 
-_Removal path: delete `_GlassLab.swift` and the `-glassLab` hook in `LiviqaApp.swift`. It is `#if DEBUG`, so it is already excluded from every TestFlight/Release build._
+_Removal path: delete `_GlassLab.swift` and the `-glassLab` hook in `MaudeApp.swift`. It is `#if DEBUG`, so it is already excluded from every TestFlight/Release build._
 
 ---
 
 ## Promoted to real screens (2026-06-16) — behind the `liquidGlass` flag
 
-The **chrome layer** is now live on the real screens (`Liviqa/Views/LiquidGlass.swift`), all behind `@AppStorage("liquidGlass")` (default ON; **Settings → Liquid Glass** toggles it) and iOS-26-gated. Flag off, or iOS < 26, or Reduce Transparency = today's app exactly.
+The **chrome layer** is now live on the real screens (`Maude/Views/LiquidGlass.swift`), all behind `@AppStorage("liquidGlass")` (default ON; **Settings → Liquid Glass** toggles it) and iOS-26-gated. Flag off, or iOS < 26, or Reduce Transparency = today's app exactly.
 
-- **Floating tab bar → real Liquid Glass** (`MainTabView` via `.liviqaBarGlass`): iOS 26 `.glassEffect` → iOS 17–25 `.ultraThinMaterial` → opaque `paper2` fallback. Verified on the iOS 26 Simulator.
-- **Soft scroll-edge dissolve** on Today + Insights (`.liviqaScrollEdgeSoft`): the title melts into the feed on scroll. No-op on iOS 17–25 / flag off.
+- **Floating tab bar → real Liquid Glass** (`MainTabView` via `.maudeBarGlass`): iOS 26 `.glassEffect` → iOS 17–25 `.ultraThinMaterial` → opaque `paper2` fallback. Verified on the iOS 26 Simulator.
+- **Soft scroll-edge dissolve** on Today + Insights (`.maudeScrollEdgeSoft`): the title melts into the feed on scroll. No-op on iOS 17–25 / flag off.
 - **Settings toggle** + `liquidGlass` flag for instant reversibility.
 
 ### Interactive surfaces — now promoted (CN: "all", 2026-06-16)

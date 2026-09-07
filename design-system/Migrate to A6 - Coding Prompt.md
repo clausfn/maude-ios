@@ -1,6 +1,6 @@
-# PROMPT — Attach the new Liviqa design system (A6 “Daylight”) and retire the old one
+# PROMPT — Attach the new Maude design system (A6 “Daylight”) and retire the old one
 
-Paste everything below the line into your coding agent, working in the `liviqa-b2b-console` repo.
+Paste everything below the line into your coding agent, working in the `maude-b2b-console` repo.
 This is a **migration**: install the A6 design system as the single source of truth and remove the
 A4/A5 + v08/v09 “Midnight” system entirely. Do not run a half-migration — when you finish, no old
 token, font, colour, or logo asset may remain.
@@ -9,7 +9,7 @@ token, font, colour, or logo asset may remain.
 
 ## 0 · Source of truth
 
-The canonical design system is the **Liviqa Design System** project (A6 “Daylight”). Pull tokens,
+The canonical design system is the **Maude Design System** project (A6 “Daylight”). Pull tokens,
 fonts, logo assets and the component contracts from it — do not reinvent values. Its global entry is
 `styles.css` (which `@import`s `tokens/*.css`), the brand assets live in `assets/brand/`, and the
 readme documents the rules. Mirror those files into this repo under `src/styles/ds/` and
@@ -25,7 +25,7 @@ These are the retired systems. Find and delete every reference:
   (`#31780E`, `#4EB818`, `#36830F`), and the brown/clay “orange” (`#9E5305`, `#F0A24C`, `#BD7A33`).
 - **Old fonts:** Instrument Serif, Schibsted Grotesk, Spline Sans Mono, Lato — and any `system-ui`
   used as a primary face.
-- **Old logo:** every `liviqa_*_aperture*` asset (mark, mono, reversed, appicon). The mark changed
+- **Old logo:** every `maude_*_aperture*` asset (mark, mono, reversed, appicon). The mark changed
   from *aperture* to *iris* — the aperture files are archive-only, never referenced in app code.
 
 ## 2 · Install A6 tokens (the only colours/spacing/type allowed)
@@ -54,13 +54,13 @@ Remove the old `@font-face` / `<link>` lines for the retired faces.
 
 ## 4 · Swap the logo + favicon to the iris (green ring)
 
-- Replace all `liviqa_*_aperture*` references with the **iris** assets: `liviqa_mark_iris.svg`,
-  `_mono`, `_reversed`, `liviqa_appicon_iris.svg` (+ PNG fallbacks). The mark is Oxford Navy or white;
+- Replace all `maude_*_aperture*` references with the **iris** assets: `maude_mark_iris.svg`,
+  `_mono`, `_reversed`, `maude_appicon_iris.svg` (+ PNG fallbacks). The mark is Oxford Navy or white;
   the **iris ring is the green signature** — deep `#287347` on light, bright `#63C57E` on dark.
-- **Favicon:** drop in `liviqa_favicon.svg` (flat three-arc iris, transparent) + `favicon-16/32/48/
+- **Favicon:** drop in `maude_favicon.svg` (flat three-arc iris, transparent) + `favicon-16/32/48/
   180/192/512.png` at the web root, and set the `<head>`:
   ```html
-  <link rel="icon" type="image/svg+xml" href="/liviqa_favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="/maude_favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
@@ -118,7 +118,7 @@ they are the source of truth for layout, copy voice and density.
 
 ### 7a · Clinical Ops console — `templates/clinical-ops-console/`
 Desktop B2B dashboard. Structure, top → bottom:
-- **Floating top bar** (inset 10px, radius 14, `--sh-bar`): iris mark + `Liviqa` (Hanken) + `· clinical
+- **Floating top bar** (inset 10px, radius 14, `--sh-bar`): iris mark + `Maude` (Hanken) + `· clinical
   ops` mono kicker; right: ghost buttons *Find client* / *Alerts* / *Sign out* (Lucide search / bell / log-out).
 - **Shell** `max-width:1340 · grid 212px / 1fr · gap 18`. **Sidebar** = its own elevated white panel
   (`--sh-panel`, sticky): avatar block ("Diabetes nurse / Consented clients") + a Cerulean ● CONSENTED
@@ -158,7 +158,7 @@ Dynamic Type, white base. Respect Reduce Transparency / Increase Contrast (solid
 2. Project-wide hex grep returns only A6-allowlisted values — no lime, near-black, brown, or mint ground.
 3. Fonts are Hanken Grotesk / Public Sans / IBM Plex Mono only; Instrument Serif / Schibsted / Spline /
    Lato fully removed.
-4. Zero `liviqa_*_aperture*` references; the iris mark (green ring) renders in chrome, and the flat
+4. Zero `maude_*_aperture*` references; the iris mark (green ring) renders in chrome, and the flat
    iris favicon shows in the browser tab.
 5. Console is light + matte with a floating bar (no `backdrop-filter`); mobile app uses Liquid Glass.
 6. Status colours carry their ●/▲/✕ twins; no colour-only signalling; no green in the UI (Cerulean

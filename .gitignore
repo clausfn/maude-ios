@@ -15,15 +15,15 @@ Pods/
 .build/
 .swiftpm/
 
-# Liviqa — local signing & identity (real Team ID / bundle id live here only).
+# Maude — local signing & identity (real Team ID / bundle id live here only).
 # Checked-in template is Config/Signing.example.xcconfig. See docs/SIGNING.md.
 Config/Signing.xcconfig
 
-# Liviqa — optional local overrides (committed file uses placeholders only)
-# Liviqa/Config.local.swift
+# Maude — optional local overrides (committed file uses placeholders only)
+# Maude/Config.local.swift
 
 # macOS
 .DS_Store
 build/
 *.xcresult/
-Liviqa/Secrets.swift
+Maude/Secrets.swift

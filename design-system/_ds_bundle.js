@@ -1,8 +1,8 @@
-/* @ds-bundle: {"format":3,"namespace":"LiviqaDesignSystem_af5aa6","components":[{"name":"Mark","sourcePath":"components/brand/Mark.jsx"},{"name":"Button","sourcePath":"components/core/Button.jsx"},{"name":"Card","sourcePath":"components/core/Card.jsx"},{"name":"ConsentChip","sourcePath":"components/core/ConsentChip.jsx"},{"name":"Icon","sourcePath":"components/core/Icon.jsx"},{"name":"Input","sourcePath":"components/core/Input.jsx"},{"name":"Pill","sourcePath":"components/core/Pill.jsx"},{"name":"SegmentedControl","sourcePath":"components/core/SegmentedControl.jsx"},{"name":"Switch","sourcePath":"components/core/Switch.jsx"},{"name":"Insight","sourcePath":"components/health/Insight.jsx"},{"name":"KpiTile","sourcePath":"components/health/KpiTile.jsx"},{"name":"MetricRing","sourcePath":"components/health/MetricRing.jsx"},{"name":"NudgeCard","sourcePath":"components/health/NudgeCard.jsx"}],"sourceHashes":{"components/brand/Mark.jsx":"52d02e8c2580","components/core/Button.jsx":"98e69d3a6a62","components/core/Card.jsx":"dc8940416521","components/core/ConsentChip.jsx":"fe8c474e3c41","components/core/Icon.jsx":"c70971cb83cf","components/core/Input.jsx":"0ef6b9e65ace","components/core/Pill.jsx":"86018d0160e0","components/core/SegmentedControl.jsx":"b8dc7a8203f1","components/core/Switch.jsx":"d6a53a920d63","components/health/Insight.jsx":"96b3700952e6","components/health/KpiTile.jsx":"0621797f1676","components/health/MetricRing.jsx":"dc9f87b81720","components/health/NudgeCard.jsx":"dceab0522248","explorations/clinical-ops.jsx":"3b767e5cfdec","explorations/ios-frame.jsx":"be3343be4b51","explorations/mobile-home.jsx":"752c5caf98e9","liviqa-prototype/ios-frame.jsx":"be3343be4b51","liviqa-prototype/prototype.jsx":"70b0415b13f4","ui_kits/liviqa-app/app.jsx":"eef480135464","ui_kits/liviqa-app/ios-frame.jsx":"be3343be4b51","ui_kits/liviqa-console/browser-window.jsx":"7afe17ad52c6","ui_kits/liviqa-console/console.jsx":"e486b5efb2b0"},"inlinedExternals":[],"unexposedExports":[]} */
+/* @ds-bundle: {"format":3,"namespace":"MaudeDesignSystem_af5aa6","components":[{"name":"Mark","sourcePath":"components/brand/Mark.jsx"},{"name":"Button","sourcePath":"components/core/Button.jsx"},{"name":"Card","sourcePath":"components/core/Card.jsx"},{"name":"ConsentChip","sourcePath":"components/core/ConsentChip.jsx"},{"name":"Icon","sourcePath":"components/core/Icon.jsx"},{"name":"Input","sourcePath":"components/core/Input.jsx"},{"name":"Pill","sourcePath":"components/core/Pill.jsx"},{"name":"SegmentedControl","sourcePath":"components/core/SegmentedControl.jsx"},{"name":"Switch","sourcePath":"components/core/Switch.jsx"},{"name":"Insight","sourcePath":"components/health/Insight.jsx"},{"name":"KpiTile","sourcePath":"components/health/KpiTile.jsx"},{"name":"MetricRing","sourcePath":"components/health/MetricRing.jsx"},{"name":"NudgeCard","sourcePath":"components/health/NudgeCard.jsx"}],"sourceHashes":{"components/brand/Mark.jsx":"52d02e8c2580","components/core/Button.jsx":"98e69d3a6a62","components/core/Card.jsx":"dc8940416521","components/core/ConsentChip.jsx":"fe8c474e3c41","components/core/Icon.jsx":"c70971cb83cf","components/core/Input.jsx":"0ef6b9e65ace","components/core/Pill.jsx":"86018d0160e0","components/core/SegmentedControl.jsx":"b8dc7a8203f1","components/core/Switch.jsx":"d6a53a920d63","components/health/Insight.jsx":"96b3700952e6","components/health/KpiTile.jsx":"0621797f1676","components/health/MetricRing.jsx":"dc9f87b81720","components/health/NudgeCard.jsx":"dceab0522248","explorations/clinical-ops.jsx":"3b767e5cfdec","explorations/ios-frame.jsx":"be3343be4b51","explorations/mobile-home.jsx":"752c5caf98e9","maude-prototype/ios-frame.jsx":"be3343be4b51","maude-prototype/prototype.jsx":"70b0415b13f4","ui_kits/maude-app/app.jsx":"eef480135464","ui_kits/maude-app/ios-frame.jsx":"be3343be4b51","ui_kits/maude-console/browser-window.jsx":"7afe17ad52c6","ui_kits/maude-console/console.jsx":"e486b5efb2b0"},"inlinedExternals":[],"unexposedExports":[]} */
 
 (() => {
 
-const __ds_ns = (window.LiviqaDesignSystem_af5aa6 = window.LiviqaDesignSystem_af5aa6 || {});
+const __ds_ns = (window.MaudeDesignSystem_af5aa6 = window.MaudeDesignSystem_af5aa6 || {});
 
 const __ds_scope = {};
 
@@ -12,15 +12,15 @@ const __ds_scope = {};
 try { (() => {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 /**
- * Liviqa Iris mark (A4 · Navy + Bright Fern) — ALWAYS embeds the brand SVG asset; never redraws the mark in code.
+ * Maude Iris mark (A4 · Navy + Bright Fern) — ALWAYS embeds the brand SVG asset; never redraws the mark in code.
  * Pass `src` to point at where you copied /assets/brand into your project.
  * primary = navy + deep fern arc (light grounds) · reversed = paper + bright fern arc (navy grounds) · mono = all navy.
  */
 
 const ASSET = {
-  primary: "assets/brand/liviqa_mark_iris.svg",
-  mono: "assets/brand/liviqa_mark_iris_mono.svg",
-  reversed: "assets/brand/liviqa_mark_iris_reversed.svg"
+  primary: "assets/brand/maude_mark_iris.svg",
+  mono: "assets/brand/maude_mark_iris_mono.svg",
+  reversed: "assets/brand/maude_mark_iris_reversed.svg"
 };
 function Mark({
   variant = "primary",
@@ -34,7 +34,7 @@ function Mark({
   const onDark = variant === "reversed";
   const img = /*#__PURE__*/React.createElement("img", {
     src: file,
-    alt: "Liviqa",
+    alt: "Maude",
     width: size,
     height: size,
     style: {
@@ -66,7 +66,7 @@ function Mark({
       letterSpacing: "-0.01em",
       color: onDark ? "var(--paper)" : "var(--ink)"
     }
-  }, "Liviqa"));
+  }, "Maude"));
 }
 Object.assign(__ds_scope, { Mark });
 })(); } catch (e) { __ds_ns.__errors.push({ path: "components/brand/Mark.jsx", error: String((e && e.message) || e) }); }
@@ -75,7 +75,7 @@ Object.assign(__ds_scope, { Mark });
 try { (() => {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 /**
- * Liviqa button. Primary = ink fill / paper text. Ghost = bordered. Secondary = paper fill.
+ * Maude button. Primary = ink fill / paper text. Ghost = bordered. Secondary = paper fill.
  * Press state drops opacity to 0.85. Radius md. Weight 500.
  */
 function Button({
@@ -167,7 +167,7 @@ Object.assign(__ds_scope, { Button });
 try { (() => {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 /**
- * Liviqa card — paper-2 fill, 0.5px line border, radius lg, the one approved shadow.
+ * Maude card — paper-2 fill, 0.5px line border, radius lg, the one approved shadow.
  * `accent` adds the meaningful coloured left-rule (moss/amber/rust). `inverse` = ink card.
  */
 function Card({
@@ -961,7 +961,7 @@ Object.assign(__ds_scope, { NudgeCard });
 
 // explorations/clinical-ops.jsx
 try { (() => {
-// Clinical Ops dashboard — Liviqa B2B console (light clinical console).
+// Clinical Ops dashboard — Maude B2B console (light clinical console).
 // Hanken Grotesk headings, Public Sans UI/body, IBM Plex Mono numbers.
 // Lucide icons (stroke 1.75). White grounds, navy floating chrome, elevation hierarchy.
 // Status triplets ● ▲ ✕ in day-form colours. No glass, no gradients — shadows do the lift.
@@ -1038,8 +1038,8 @@ function CoMark({
   size = 22
 }) {
   return /*#__PURE__*/React.createElement("img", {
-    src: CO_BRAND + "liviqa_mark_iris.svg",
-    alt: "Liviqa",
+    src: CO_BRAND + "maude_mark_iris.svg",
+    alt: "Maude",
     width: size,
     height: size,
     style: {
@@ -1528,7 +1528,7 @@ function ClinicalOpsDashboard() {
       ...CO_HEAD,
       fontSize: 18
     }
-  }, "Liviqa"), /*#__PURE__*/React.createElement("span", {
+  }, "Maude"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontFamily: CO_MONO,
       fontSize: 11.5,
@@ -2528,7 +2528,7 @@ Object.assign(window, {
 
 // explorations/mobile-home.jsx
 try { (() => {
-// Liviqa mobile home — Apple Liquid Glass (iOS 26), the CITIZEN consumer surface.
+// Maude mobile home — Apple Liquid Glass (iOS 26), the CITIZEN consumer surface.
 // Opposite of the matte console: translucent glass layers (blur+saturate), specular
 // top-edge highlight + hairline inner stroke, large-title nav condensing on scroll,
 // scroll-edge fade under the bar, floating glass tab capsule. White/off-white base — no mint.
@@ -3085,7 +3085,7 @@ function MobileHome() {
 window.MobileHome = MobileHome;
 })(); } catch (e) { __ds_ns.__errors.push({ path: "explorations/mobile-home.jsx", error: String((e && e.message) || e) }); }
 
-// liviqa-prototype/ios-frame.jsx
+// maude-prototype/ios-frame.jsx
 try { (() => {
 // @ds-adherence-ignore -- omelette starter scaffold (raw elements/hex/px by design)
 
@@ -3748,14 +3748,14 @@ Object.assign(window, {
   IOSListRow,
   IOSKeyboard
 });
-})(); } catch (e) { __ds_ns.__errors.push({ path: "liviqa-prototype/ios-frame.jsx", error: String((e && e.message) || e) }); }
+})(); } catch (e) { __ds_ns.__errors.push({ path: "maude-prototype/ios-frame.jsx", error: String((e && e.message) || e) }); }
 
-// liviqa-prototype/prototype.jsx
+// maude-prototype/prototype.jsx
 try { (() => {
-// Liviqa v2 — clickable prototype. Assembles the user's chosen directions:
+// Maude v2 — clickable prototype. Assembles the user's chosen directions:
 // Home (C hybrid) · Correlation (C plain-sentence, depth on tap) · Baseline (B Aperture arc)
 // · Week (heatmap) · Privacy (consent control) → Consent history (A). Real navigation.
-// Styled with the Liviqa tokens (../styles.css). Attaches LiviqaPrototype to window.
+// Styled with the Maude tokens (../styles.css). Attaches MaudePrototype to window.
 
 const {
   useState
@@ -3814,8 +3814,8 @@ function Mark({
   reversed
 }) {
   return /*#__PURE__*/React.createElement("img", {
-    src: ASSET + (reversed ? "liviqa_mark_iris_reversed.svg" : "liviqa_mark_iris.svg"),
-    alt: "Liviqa",
+    src: ASSET + (reversed ? "maude_mark_iris_reversed.svg" : "maude_mark_iris.svg"),
+    alt: "Maude",
     width: size,
     height: size,
     style: {
@@ -3900,7 +3900,7 @@ function AppBar({
       letterSpacing: "-0.3px",
       color: "var(--ink)"
     }
-  }, "Liviqa"), /*#__PURE__*/React.createElement("span", {
+  }, "Maude"), /*#__PURE__*/React.createElement("span", {
     style: {
       flex: 1
     }
@@ -4862,7 +4862,7 @@ function Privacy({
     ini: "HC",
     color: "var(--clay)",
     name: "Mara \xB7 health coach",
-    org: "Liviqa partner",
+    org: "Maude partner",
     chips: ["Sleep", "HRV", "Activity"],
     meta: "Pattern-only \xB7 expires in 20 days",
     onPause: () => push("pauseReceipt")
@@ -5048,7 +5048,7 @@ function ConsentHistory({
       width: 2,
       background: "var(--line)"
     }
-  }), ev("var(--clay)", "You paused Dr. Lund's access.", "Today · 09:41"), ev("var(--ink-4)", "Dr. Lund viewed your glucose summary.", "Yesterday · 14:32"), ev("var(--moss)", "You shared sleep & HRV with Mara.", "19 May · 08:10"), ev("var(--moss)", "Liviqa answered a research query — anonymously.", "18 May · 02:00")), /*#__PURE__*/React.createElement("div", {
+  }), ev("var(--clay)", "You paused Dr. Lund's access.", "Today · 09:41"), ev("var(--ink-4)", "Dr. Lund viewed your glucose summary.", "Yesterday · 14:32"), ev("var(--moss)", "You shared sleep & HRV with Mara.", "19 May · 08:10"), ev("var(--moss)", "Maude answered a research query — anonymously.", "18 May · 02:00")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       fontWeight: 700,
@@ -5205,7 +5205,7 @@ function Settings() {
     style: {
       padding: "12px 20px 0"
     }
-  }, ["Account", "Data sources", "Notifications", "Technical details", "About Liviqa"].map(s => /*#__PURE__*/React.createElement("div", {
+  }, ["Account", "Data sources", "Notifications", "Technical details", "About Maude"].map(s => /*#__PURE__*/React.createElement("div", {
     key: s,
     style: {
       display: "flex",
@@ -5346,7 +5346,7 @@ const ROOTS = {
   privacy: "privacy",
   settings: "settings"
 };
-function LiviqaPrototype() {
+function MaudePrototype() {
   const [tab, setTab] = useState("home");
   const [stack, setStack] = useState([]);
   const cur = stack.length ? stack[stack.length - 1] : ROOTS[tab];
@@ -5402,15 +5402,15 @@ function LiviqaPrototype() {
     setTab: switchTab
   }));
 }
-window.LiviqaPrototype = LiviqaPrototype;
-})(); } catch (e) { __ds_ns.__errors.push({ path: "liviqa-prototype/prototype.jsx", error: String((e && e.message) || e) }); }
+window.MaudePrototype = MaudePrototype;
+})(); } catch (e) { __ds_ns.__errors.push({ path: "maude-prototype/prototype.jsx", error: String((e && e.message) || e) }); }
 
-// ui_kits/liviqa-app/app.jsx
+// ui_kits/maude-app/app.jsx
 try { (() => {
-// Liviqa citizen app — UI kit recreation (Today + Wallet + tab chrome).
-// Self-contained: styled with the Liviqa design tokens (styles.css). Mirrors the DS
+// Maude citizen app — UI kit recreation (Today + Wallet + tab chrome).
+// Self-contained: styled with the Maude design tokens (styles.css). Mirrors the DS
 // primitives (NudgeCard, MetricRing, Card, ConsentChip) from the SwiftUI source.
-// Attaches LiviqaApp to window for index.html to mount inside <IOSDevice>.
+// Attaches MaudeApp to window for index.html to mount inside <IOSDevice>.
 
 const ASSET = "../../assets/brand/";
 
@@ -5468,8 +5468,8 @@ function Mark({
   reversed = false
 }) {
   return /*#__PURE__*/React.createElement("img", {
-    src: ASSET + (reversed ? "liviqa_mark_iris_reversed.svg" : "liviqa_mark_iris.svg"),
-    alt: "Liviqa",
+    src: ASSET + (reversed ? "maude_mark_iris_reversed.svg" : "maude_mark_iris.svg"),
+    alt: "Maude",
     width: size,
     height: size,
     style: {
@@ -5500,7 +5500,7 @@ function AppBar({
       letterSpacing: "-0.3px",
       color: "var(--ink)"
     }
-  }, "Liviqa")) : /*#__PURE__*/React.createElement("span", {
+  }, "Maude")) : /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 17,
       fontWeight: 900,
@@ -5907,7 +5907,7 @@ function TodayScreen() {
 // ── WALLET screen ──
 function IrisMini() {
   return /*#__PURE__*/React.createElement("img", {
-    src: ASSET + "liviqa_mark_iris_reversed.svg",
+    src: ASSET + "maude_mark_iris_reversed.svg",
     alt: "",
     width: 34,
     height: 34,
@@ -6323,7 +6323,7 @@ function Placeholder({
     }
   }, title, " \u2014 recreation not included in this kit."))));
 }
-function LiviqaApp() {
+function MaudeApp() {
   const [tab, setTab] = React.useState("today");
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -6348,10 +6348,10 @@ function LiviqaApp() {
     setTab: setTab
   }));
 }
-window.LiviqaApp = LiviqaApp;
-})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/liviqa-app/app.jsx", error: String((e && e.message) || e) }); }
+window.MaudeApp = MaudeApp;
+})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/maude-app/app.jsx", error: String((e && e.message) || e) }); }
 
-// ui_kits/liviqa-app/ios-frame.jsx
+// ui_kits/maude-app/ios-frame.jsx
 try { (() => {
 // @ds-adherence-ignore -- omelette starter scaffold (raw elements/hex/px by design)
 
@@ -7014,9 +7014,9 @@ Object.assign(window, {
   IOSListRow,
   IOSKeyboard
 });
-})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/liviqa-app/ios-frame.jsx", error: String((e && e.message) || e) }); }
+})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/maude-app/ios-frame.jsx", error: String((e && e.message) || e) }); }
 
-// ui_kits/liviqa-console/browser-window.jsx
+// ui_kits/maude-console/browser-window.jsx
 try { (() => {
 // @ds-adherence-ignore -- omelette starter scaffold (raw elements/hex/px by design)
 
@@ -7250,11 +7250,11 @@ Object.assign(window, {
   ChromeTab,
   ChromeTrafficLights
 });
-})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/liviqa-console/browser-window.jsx", error: String((e && e.message) || e) }); }
+})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/maude-console/browser-window.jsx", error: String((e && e.message) || e) }); }
 
-// ui_kits/liviqa-console/console.jsx
+// ui_kits/maude-console/console.jsx
 try { (() => {
-// Liviqa B2B console — Harbor A5 restyle (Login → Roster → Citizen view).
+// Maude B2B console — Harbor A5 restyle (Login → Roster → Citizen view).
 // Night (navy) ground by default with a Day/Night toggle. All colours are
 // ground-resolved Harbor tokens via the .lqc[data-mode] CSS vars in index.html.
 // Status always ships as a triplet: shape + word + colour (● ▲ ✕).
@@ -7274,8 +7274,8 @@ function MarkImg({
   mode = "night"
 }) {
   return /*#__PURE__*/React.createElement("img", {
-    src: BRAND + (mode === "night" ? "liviqa_mark_iris_reversed.svg" : "liviqa_mark_iris.svg"),
-    alt: "Liviqa",
+    src: BRAND + (mode === "night" ? "maude_mark_iris_reversed.svg" : "maude_mark_iris.svg"),
+    alt: "Maude",
     width: size,
     height: size,
     style: {
@@ -7423,14 +7423,14 @@ function Login({
       fontWeight: 400,
       letterSpacing: "-0.01em"
     }
-  }, "Liviqa")), /*#__PURE__*/React.createElement("div", {
+  }, "Maude")), /*#__PURE__*/React.createElement("div", {
     style: {
       ...KICK,
       fontSize: 10.5,
       color: "var(--c-text3)",
       margin: "8px 0 22px"
     }
-  }, "console.liviqa.app \xB7 for organisations"), /*#__PURE__*/React.createElement("div", {
+  }, "console.maude.app \xB7 for organisations"), /*#__PURE__*/React.createElement("div", {
     style: {
       ...tile,
       padding: 24,
@@ -7450,7 +7450,7 @@ function Login({
     style: inStyle
   }), /*#__PURE__*/React.createElement("input", {
     type: "password",
-    defaultValue: "liviqa",
+    defaultValue: "maude",
     "aria-label": "Password",
     style: inStyle
   }), /*#__PURE__*/React.createElement("button", {
@@ -7558,7 +7558,7 @@ function ConsoleChrome({
       fontSize: 19,
       fontWeight: 400
     }
-  }, "Liviqa"), crumb && /*#__PURE__*/React.createElement("span", {
+  }, "Maude"), crumb && /*#__PURE__*/React.createElement("span", {
     style: {
       fontFamily: MONO,
       fontSize: 11.5,
@@ -8251,7 +8251,7 @@ function CitizenViewScreen({
 }
 
 // ───────────────────────── Root ─────────────────────────
-function LiviqaConsole() {
+function MaudeConsole() {
   const [stage, setStage] = React.useState("login");
   const [who, setWho] = React.useState(null);
   const [citizen, setCitizen] = React.useState(null);
@@ -8306,8 +8306,8 @@ function LiviqaConsole() {
     }
   }, screen));
 }
-window.LiviqaConsole = LiviqaConsole;
-})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/liviqa-console/console.jsx", error: String((e && e.message) || e) }); }
+window.MaudeConsole = MaudeConsole;
+})(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/maude-console/console.jsx", error: String((e && e.message) || e) }); }
 
 __ds_ns.Mark = __ds_scope.Mark;
 

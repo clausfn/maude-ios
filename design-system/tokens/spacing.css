@@ -1,4 +1,4 @@
-/* Liviqa — Spacing, radius & elevation tokens.
+/* Maude — Spacing, radius & elevation tokens.
    Spacing scale 4·8·12·16·24·32. Radius sm/md/lg/pill. On the A6 light console, ELEVATION
    (soft shadows) does the work — the menu bar and cards visibly float above a white ground.
    No heavy/stacked decorative shadows, no gradients. (Glass/blur is the mobile app's language,

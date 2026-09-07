@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" aria-label="Liviqa app icon">
-  <rect width="1024" height="1024" fill="#1D3557"></rect>
-  <g transform="translate(87 87) scale(8.5)" fill="none" stroke-linecap="round">
-    <path d="M 67.73 46.87 A 18 18 0 1 1 53.13 32.27" stroke="#63C57E" stroke-width="5.5"></path>
-    <path d="M 43.48 78.26 A 29 29 0 1 1 69.78 71.21" stroke="#F1FAEE" stroke-width="5"></path>
-    <path d="M 18.48 25.37 A 40 40 0 1 1 10.39 55.57" stroke="#F1FAEE" stroke-width="4.5"></path>
-    <circle cx="50" cy="50" r="6" fill="#F1FAEE" stroke="none"></circle>
-  </g>
-</svg>

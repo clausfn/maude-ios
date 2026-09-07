@@ -1,4 +1,4 @@
-# Liviqa iOS — Go-Live Build Session Log
+# Maude iOS — Go-Live Build Session Log
 
 Autonomous build toward a TestFlight-archivable build. One line per task: what / screenshot / build result.
 Backend contract is FROZEN here — new endpoint needs go to `HANDOFF_TO_BACKEND.md`. Brand/locked-spec/clinical-copy changes are flagged for Claus (RQ-01), never executed.
@@ -15,7 +15,7 @@ already exists and is wired. Findings:
   panel, read-only empty write set, mmol/L canonical, async query wrappers, sleep-stage map).
 - ✅ Normalisation + persistence to SwiftData (`IngestionCoordinator`, idempotent re-sync;
   `SourceArbiter` §2.3 tiering).
-- ✅ Encrypted local store (`LiviqaStore` SwiftData container; `CryptoCore`/`KeyVault`/
+- ✅ Encrypted local store (`MaudeStore` SwiftData container; `CryptoCore`/`KeyVault`/
   `EncryptedAnchorStore` — Secure-Enclave-backed DEK).
 - ✅ Info.plist `NSHealthShare/UpdateUsageDescription` present; HealthKit entitlement present.
 - ✅ `AppState.refreshFromHealth()` wires auth → fetch → arbitrate → persist → nudge engine
@@ -50,7 +50,7 @@ changes; signing/ASC/upload = Claus's manual Apple steps.
 
 - 2026-06-10 — **Wave 1: real-HealthKit-by-default + accurate demo flag.** `AppState.resolveProviderKind()`
   now returns `.healthKit` when the platform has Health (real device), `.mock` otherwise / when forced by
-  `-uiTestAutoDemo` or `LIVIQA_DATA=mock`. Added `HealthProviderFactory.isRealHealthDataAvailable`.
+  `-uiTestAutoDemo` or `MAUDE_DATA=mock`. Added `HealthProviderFactory.isRealHealthDataAvailable`.
   `isDemoData` now driven by `usingRealData` (set true only after a non-empty HealthKit fetch), so a device
   with no Health history still shows + labels demo seeds. Build: ✅ `BUILD SUCCEEDED`. Tests: ✅ 91/91 pass.
 - 2026-06-10 — **Wave 2: nudge engine + FR-NDG-06 guard (verify-as-control).** Confirmed
@@ -66,7 +66,7 @@ changes; signing/ASC/upload = Claus's manual Apple steps.
 
 ## Wave 5 — ship readiness
 - 2026-06-10 — **Cold-launch smoke test, all 5 tabs.** Home / Insights / Journal / Privacy / Settings
-  each launched fresh (`LIVIQA_TAB`, Paper) — crash-free, content + empty/quick-capture states render.
+  each launched fresh (`MAUDE_TAB`, Paper) — crash-free, content + empty/quick-capture states render.
   Screenshots: /tmp/tab_{home,insights,journal,privacy,settings}_s.png. Result: ✅ pass.
 - 2026-06-10 — **Release config compiles** (`-configuration Release CODE_SIGNING_ALLOWED=NO`): ✅ BUILD SUCCEEDED.
 - 2026-06-10 — **Accessibility (VoiceOver labels).** App-bar Ask/Profile already labelled; added "Back"
@@ -81,7 +81,7 @@ changes; signing/ASC/upload = Claus's manual Apple steps.
 **Shipped & verified:** real-HealthKit-by-default w/ graceful demo fallback + accurate demo flag (Wave 1);
 nudge engine + FR-NDG-06 guard confirmed as a control (Wave 2); consent/insight surfaces + redesign present
 (Waves 3–4); 5-tab smoke-clean, Release compiles, a11y labels, build bumped to 10.19, go-live checklist (Wave 5).
-**Green:** Debug + Release build ✅; LiviqaTests 91/91 ✅.
+**Green:** Debug + Release build ✅; MaudeTests 91/91 ✅.
 **Flagged / handoffs:** `HANDOFF_TO_BACKEND.md` (none needed — frozen contract covers the loop); no new
 clinical nudge copy (RQ-01); no brand/IA change; Dynamic Type deferred; video-consult flow = parallel Care
 session; watch targets = manual Xcode step.
@@ -119,12 +119,12 @@ session; watch targets = manual Xcode step.
 - **Smoke:** all 5 tabs cold-launch clean at default and accessibility-extra-large text sizes.
 - **QMS:** CHANGELOG PR-58 + RTM rows FR-ING-DEFAULT-01, NFR-A11Y-01.
 - **Docs for Claus:** `GOLIVE_CHECKLIST.md`, `docs/APP_PRIVACY_NOTES.md`, `HANDOFF_TO_BACKEND.md` (empty — frozen contract sufficient).
-- **Preserved:** Share-Receipt wallet feature + all `LiviqaBackendService` signatures; did not touch backend/console/DfG Works or the parallel session's in-flight files (WalletView/Config/LiviqaBackendService/ShareReceiptSheet/AppState-receipt).
+- **Preserved:** Share-Receipt wallet feature + all `MaudeBackendService` signatures; did not touch backend/console/DfG Works or the parallel session's in-flight files (WalletView/Config/MaudeBackendService/ShareReceiptSheet/AppState-receipt).
 - **Remaining (need owner, not code):** video-consult flow (parallel Care session); clinical/insulin/AFib nudge copy (RQ-01, counsel); signing + Archive + TestFlight upload (Claus, Apple); optional "showing sample data → connect Apple Health" affordance (product/copy decision); watchOS/Widget target creation in Xcode.
 - 2026-06-10 — **Real-loop UX: "Connect Apple Health" hint.** On a real device that tried HealthKit
   but has no readings (`showConnectHealthHint` = didAttempt && .healthKit && !usingRealData), Home shows
   a calm, dismissible moss banner "Showing sample data → Connect Apple Health in Settings" that switches
-  to the Settings tab. Never shows in demo/screenshot mode (provider is .mock). DEBUG `LIVIQA_FORCE_HINT`
+  to the Settings tab. Never shows in demo/screenshot mode (provider is .mock). DEBUG `MAUDE_FORCE_HINT`
   for verification. Screenshot /tmp/hint_s.png. Build ✅, tests ✅ 97/97.
 - 2026-06-10 — **Crash-safety audit + regression tests for the real-data path.** Audited the
   derivation+render path (PassportStatsDeriver, TodaySignalsDeriver, CorrelationDeriver, NudgeModel
@@ -219,7 +219,7 @@ Optional next steps (need your nod — left undone to avoid unreviewed risk whil
 ## Care restored to the tab bar (2026-06-10)
 - Per Claus: Care/video was NOT dismantled — the v2 redesign had only moved it off the bar to the
   avatar menu. Restored **Care as a 6th tab**: bar is now Home · Insights · Care · Journal · Privacy ·
-  Settings (`LiviqaTab.care` → `MessagesView`, icon bubble.left.and.bubble.right). Still also reachable
+  Settings (`MaudeTab.care` → `MessagesView`, icon bubble.left.and.bubble.right). Still also reachable
   from the profile sheet. All care/video files untouched (ConsultView, MessagesView, PlanConsultView,
   IncomingCallView, ShareWithClinicianView, CareConnect). Build ✅, 114 tests ✅, 6/6 tabs smoke clean.
 - **1.0 (10.21) uploaded** — Care restored as a 6th tab (Home·Insights·Care·Journal·Privacy·Settings).
@@ -230,13 +230,13 @@ Optional next steps (need your nod — left undone to avoid unreviewed risk whil
   live Partisia backend needed): (1) unlock the sovereign DfG Wallet, (2) selective disclosure — prove
   facts (verified person · EU resident · consent) while name/DOB/address stay in the wallet, (3) Partisia
   verifies (MPC signature check + anchors consent on the CE ledger), (4) "Verified with Partisia" + CE
-  ref → into Liviqa. DfG-branded fixed-navy ground (distinct authority, both themes); descriptive copy,
+  ref → into Maude. DfG-branded fixed-navy ground (distinct authority, both themes); descriptive copy,
   no on-screen "simulated" labels.
 - Wired into `AuthView` as "Continue with DfG Wallet" (gated by `Config.dfgWalletLoginEnabled = true`);
   `AppState.signInWithDfGWallet(ref)` sets a wallet-verified session; Settings profile row shows a
-  "Verified with Partisia · <CE ref>" badge. DEBUG deep-links `LIVIQA_OPEN_WALLET` + `LIVIQA_WALLET_STEP`.
+  "Verified with Partisia · <CE ref>" badge. DEBUG deep-links `MAUDE_OPEN_WALLET` + `MAUDE_WALLET_STEP`.
 - Verified: all 4 steps screenshot-clean; live tap-through auto-ran verification → generated CE ref →
-  Enter Liviqa. Build ✅, 114 tests ✅.
+  Enter Maude. Build ✅, 114 tests ✅.
 - **1.0 (10.22) uploaded** — adds the DfG Wallet login flow (eIDAS 2.0 + Partisia, simulated).
   ARCHIVE ✅ → EXPORT ✅ → UPLOAD SUCCEEDED. Delivery UUID `8ce5452b-bacf-4ed8-947c-6039d3d77f7d`.
 
@@ -244,19 +244,19 @@ Optional next steps (need your nod — left undone to avoid unreviewed risk whil
 - "altid" read as **MitID** (Danish national eID). New reusable `IDProviderLoginView` with provider
   configs `IDProvider.mitID` (deep blue) and `.eBoks` (e-Boks ID, burgundy; e-Boks launched "e-Boks ID"
   as a MitID rival, Feb 2026). Flow mirrors the real UX: enter User ID → MitID-style **swipe-to-approve**
-  → "You're verified" → into Liviqa. Brand-coloured authority ground per provider; descriptive, no
+  → "You're verified" → into Maude. Brand-coloured authority ground per provider; descriptive, no
   "simulated" labels; wordmarks are text approximations (not official logo assets).
 - `AuthView` gains a 2-up "MitID | e-Boks ID" row under DfG Wallet (`Config.nationalIDLoginEnabled`);
-  `AppState.signInWithProvider(name)` records the login provenance. DEBUG `LIVIQA_OPEN_IDP` + `LIVIQA_IDP_STEP`.
+  `AppState.signInWithProvider(name)` records the login provenance. DEBUG `MAUDE_OPEN_IDP` + `MAUDE_IDP_STEP`.
 - Verified: MitID enter/approve + e-Boks enter screenshot-clean; live swipe-to-approve drag → verified →
-  Enter Liviqa. Build ✅, 114 tests ✅.
+  Enter Maude. Build ✅, 114 tests ✅.
 
 ## Corrected: AltID (not MitID) + e-Boks ID + DfG = 3 wallet logins (2026-06-10)
 - "Altid" is Denmark's NEW official EUDI / eIDAS 2.0 identity **wallet** (AltID, launched spring 2026 by
   Nine for the Danish Agency for Digital Government) — not MitID. Reworked `IDProviderLoginView` from the
   MitID swipe model into a proper wallet flow: unlock → selective disclosure (AltID: zero-knowledge proof,
   "Over 18" without DOB, resident of DK · e-Boks ID: proof of age, "you decide when/where") → verify →
-  verified + ref → into Liviqa. Configs `IDProvider.altID` (EUDI blue) + `.eBoks` (burgundy).
+  verified + ref → into Maude. Configs `IDProvider.altID` (EUDI blue) + `.eBoks` (burgundy).
 - Sign-in screen now offers three identity wallets: **AltID · e-Boks ID · DfG Wallet** (+ Apple, email,
   demo). Verified on-device: all steps render; AuthView shows all 3 options (screenshot). Build ✅, 114 tests ✅.
 - Refs: AltID = biometricupdate/identityweek launch coverage + digst eIDAS2 wallet; e-Boks ID = global.e-boks.com/digital-wallet/e-boks-id.
@@ -300,7 +300,7 @@ Optional next steps (need your nod — left undone to avoid unreviewed risk whil
 
 ## Sign-in polish (2026-06-10)
 - DfG picker tile was invisible (bare dark logo on dark tile) → now renders the WHITE DfG aperture
-  (`dfg-logo-negative`) on a fixed navy chip (`LiviqaTheme.dfgNavy`) so it's visible in both themes,
+  (`dfg-logo-negative`) on a fixed navy chip (`MaudeTheme.dfgNavy`) so it's visible in both themes,
   consistent with the other icon-tiles. `walletCell` gained an optional `tileColor`.
 - Sovereignty footer: swapped lock.fill (inline) → centered `lock.shield.fill` above two balanced,
   centered lines (`Your data stays on your device. / Nothing leaves without your consent.`). Cleaner.
@@ -314,6 +314,6 @@ Optional next steps (need your nod — left undone to avoid unreviewed risk whil
   ARCHIVE ✅ → EXPORT ✅ → UPLOAD SUCCEEDED. Delivery UUID `2dd80ee5-4692-41b7-956d-85cd7f41b2f8`.
 - **1.0 (10.25) uploaded** — wallet UCs in the app (citizen credential + expiry/renew UX, journal ePRO
   receipts, UC-24a proof receipts), GATED OFF on the production backend (`Config.walletIssuanceEnabled`
-  false on api.liviqa.app — sandbox-only rails per Kim; no broken buttons for TestFlight testers).
+  false on api.maude.app — sandbox-only rails per Kim; no broken buttons for TestFlight testers).
   ARCHIVE ✅ → EXPORT ✅ → UPLOAD SUCCEEDED. Delivery UUID `41ec8501-3902-4ea9-92c0-c3fd0c35d13d`.
-  Tester guide: ~/Desktop/Liviqa_Wallet_UseCases_Verification_Guide_v01_20260610.md
+  Tester guide: ~/Desktop/Maude_Wallet_UseCases_Verification_Guide_v01_20260610.md

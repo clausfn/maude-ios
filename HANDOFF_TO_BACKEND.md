@@ -8,9 +8,9 @@ _As of 2026-06-10: none. The existing routes cover the go-live daily-use loop._
 ## iGrant.io real integration (researched 2026-06-10)
 Refs: https://docs.igrant.io/docs/category/openid4vc-api/issuer · https://github.com/L3-iGrant
 - **iOS SDK** `L3-iGrant/data-wallet-sdk-ios` = Aries Mobile Agent (`ama-ios-sdk`), **CocoaPods**, deps:
-  Hyperledger **Indy SDK**, secp256k1, "COVID-19 Global SDK". Heavy + supply-chain-significant; Liviqa
+  Hyperledger **Indy SDK**, secp256k1, "COVID-19 Global SDK". Heavy + supply-chain-significant; Maude
   has no CocoaPods. **Not recommended** to embed for this app.
-- **Recommended real path = OpenID4VP via the iGrant Data Wallet app** (no heavy SDK): Liviqa is a
+- **Recommended real path = OpenID4VP via the iGrant Data Wallet app** (no heavy SDK): Maude is a
   *verifier* — open the wallet with an OpenID4VP request (deep link/QR), receive an SD-JWT VP, verify it.
   Mirrors the existing `DfGWalletService` OpenID4VP seam. **Needs (backend/credentials):**
   1. iGrant **verifier/relying-party registration** → `client_id`.
@@ -28,6 +28,6 @@ Ref: https://docs.igrant.io/docs/getting-started/ — there is NO self-serve san
 2. **Verifier (OpenID4VP)**: backend endpoint that builds the presentation request
    (presentation_definition / DCQL) and verifies the returned SD-JWT VP (nonce, issuer trust).
 3. **iOS seam**: open the iGrant Data Wallet via same-device OpenID4VP deep link → handle redirect_uri
-   callback (mirror `DfGWalletService`). Liviqa-side, ready to build once #1 provides keys/org id.
+   callback (mirror `DfGWalletService`). Maude-side, ready to build once #1 provides keys/org id.
 - Until keys exist, the in-app iGrant flow stays the simulation (amber "SIMULATION · NOT YET INTEGRATED").
   After: flip to green "TEST ENVIRONMENT" like the DfG/Partisia track.

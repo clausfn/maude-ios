@@ -2,19 +2,19 @@
 
 Goal: a **TestFlight build under the Data for Good team** (`PS258XSNL8` — "Fonden
 Data For Good"), wired to **live data** (sovereign backend + Supabase GoTrue auth),
-console live at `sandbox.liviqa.app`. Legend: ✅ done · ⚠️ gap (we fix) · 🔴 blocker
+console live at `sandbox.maude.app`. Legend: ✅ done · ⚠️ gap (we fix) · 🔴 blocker
 (needs your Apple login — I can't do headless) · ❓ decision needed.
 
 ## Decisions (locked 2026-06-03)
-- **Bundle id:** `app.liviqa.ios` (App Group `group.app.liviqa.ios`).
+- **Bundle id:** `app.maude.ios` (App Group `group.app.maude.ios`).
 - **Video consult in v1:** GATED OFF (`Config.videoConsultEnabled = false`) — no cam/mic, no Jitsi. Secure messaging stays.
-- **Canonical hosts:** `liviqa.app` → API `api.liviqa.app`, auth `auth.liviqa.app`, console `sandbox.liviqa.app`.
+- **Canonical hosts:** `maude.app` → API `api.maude.app`, auth `auth.maude.app`, console `sandbox.maude.app`.
 - **Testers:** external testers, **synthetic data only** (backend serves the synthetic cohort).
 
 ## Done in this pass (headless)
-- ✅ `Config.backend`: Release/TestFlight → `sovereignProd` (`api.liviqa.app` + GoTrue); Debug → `.mock`; env still overrides.
+- ✅ `Config.backend`: Release/TestFlight → `sovereignProd` (`api.maude.app` + GoTrue); Debug → `.mock`; env still overrides.
 - ✅ Video consult gated off (`Config.videoConsultEnabled`; `MessagesView` hides the consult section) → no camera/mic strings needed for v1.
-- ✅ `Config/Signing.xcconfig` (local): `DEVELOPMENT_TEAM = PS258XSNL8`, `APP_BUNDLE_ID = app.liviqa.ios`.
+- ✅ `Config/Signing.xcconfig` (local): `DEVELOPMENT_TEAM = PS258XSNL8`, `APP_BUNDLE_ID = app.maude.ios`.
 - ✅ `Info.plist`: `ITSAppUsesNonExemptEncryption = false` (export-compliance prompt skipped).
 - ✅ `PrivacyInfo.xcprivacy` privacy manifest added (health/email/userID/message-content; UserDefaults reason CA92.1) — bundled, build verified.
 - ✅ `docs/INTENDED_USE.md` (FR-QMS-01).
@@ -24,7 +24,7 @@ console live at `sandbox.liviqa.app`. Legend: ✅ done · ⚠️ gap (we fix) ·
 - ✅ Team ID wired: `Config/Signing.xcconfig` → `DEVELOPMENT_TEAM = PS258XSNL8`.
 - 🔴 **No DfG signing identity in this Mac's Keychain** — only `Apple Development … (G8MHRNS97R)` (personal). TestFlight needs an **Apple Distribution** cert under `PS258XSNL8`.
   → Xcode ▸ Settings ▸ Accounts ▸ add the DfG Apple ID (with access to `PS258XSNL8`) ▸ enable automatic signing → Xcode mints the Distribution cert + App Store profile. (Or import the cert+private-key `.p12` for `AJ98C58F5H`.)
-- ❓ **Bundle id.** Template default `dev.liviqa.app` is likely already registered under the personal team; bundle ids are globally unique, so DfG probably needs a fresh one (e.g. `app.liviqa.ios`). Decision blocks the App ID + App Store Connect record.
+- ❓ **Bundle id.** Template default `xyz.ppcn.maude` is likely already registered under the personal team; bundle ids are globally unique, so DfG probably needs a fresh one (e.g. `app.maude.ios`). Decision blocks the App ID + App Store Connect record.
 - 🔴 Register the App ID under `PS258XSNL8` + matching **App Group**; create the app record in **App Store Connect**.
 
 ## B. Capabilities / entitlements
@@ -44,14 +44,14 @@ console live at `sandbox.liviqa.app`. Legend: ✅ done · ⚠️ gap (we fix) ·
 
 ## D. Live-data wiring ("hardcoded live feed")
 - ⚠️ `Config.backend` defaults to `.mock`. Make **Release/TestFlight default to the live sovereign backend + Supabase GoTrue** (Debug stays local) via build configuration — clean, not literal hardcoding. Add a `.sovereignProd` preset.
-- ❓ **Production hosts**: API + auth + console. Today the code/runbook mix `api.dfgworks.dk`, `auth.liviqa.app`, `sandbox.liviqa.app`. Pick the canonical set; I'll standardize all repos + docs.
-- ⚠️ `Config.supabaseAuthURL` currently `https://auth.liviqa.app` (placeholder) — point at the real GoTrue host once it's stood up.
+- ❓ **Production hosts**: API + auth + console. Today the code/runbook mix `api.dfgworks.dk`, `auth.maude.app`, `sandbox.maude.app`. Pick the canonical set; I'll standardize all repos + docs.
+- ⚠️ `Config.supabaseAuthURL` currently `https://auth.maude.app` (placeholder) — point at the real GoTrue host once it's stood up.
 - ✅ App icon present (PR-29).
 
 ## E. Backend / console prod-ready (mostly your deploy, code already aligned)
 - 🔴 Scaleway backend container **healthy** (the deploy was erroring on a bad `DATABASE_URL`; confirm it's green) with `SUPABASE_JWT_SECRET`/`JWKS` set + `DEV_AUTH=false`.
 - 🔴 Provision real identities (link-by-email) matching the accounts.
-- ✅ Console live (`sandbox.liviqa.app`).
+- ✅ Console live (`sandbox.maude.app`).
 - ❓ Real vs synthetic data for testers — external testers + **real health data** has consent/Art.9 implications; first round likely **internal testers / own data**.
 
 ## F. Video consult scope (decision drives several gaps above)

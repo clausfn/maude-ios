@@ -13,7 +13,7 @@ import base64, json, subprocess, sys, time, urllib.request, urllib.error, os
 KEY_ID    = "656L9P8JY3"
 ISSUER_ID = "830c96d2-1922-4e68-9736-56940ebf9bc2"
 KEY_PATH  = os.path.expanduser("~/.appstoreconnect/private_keys/AuthKey_656L9P8JY3.p8")
-BUNDLE_ID = "dev.liviqa.app"
+BUNDLE_ID = "xyz.ppcn.maude"
 API       = "https://api.appstoreconnect.apple.com"
 
 

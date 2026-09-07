@@ -1,4 +1,4 @@
-# Liviqa iOS — Human Go-Live Checklist (Claus's manual Apple steps + release gates)
+# Maude iOS — Human Go-Live Checklist (Claus's manual Apple steps + release gates)
 
 _Rewritten 2026-07-05 (PR-102 wave 5) against the 2026-07-03 launch audit. The previous
 version of this file failed the audit's cross-check: it claimed build 10.20 / 114 tests
@@ -8,14 +8,14 @@ what is verified and lists what is not._
 
 **Verified code-side (2026-07-03 audit, @ 0558bdd):** Debug simulator build green via
 `./build-ios.sh` (iPhone 17 / iOS 26.5) — including the Watch app, which is **compiled and
-embedded** (`ValidateEmbeddedBinary …/Watch/Liviqa Watch.app`); **126 unit tests in 28
+embedded** (`ValidateEmbeddedBinary …/Watch/Maude Watch.app`); **126 unit tests in 28
 suites green**, 0 failures, 0 skipped — the FR-NDG-06 designated control ran and passed.
 
-**NOT yet verified (do not claim them):** the Release-configuration build, LiviqaUITests,
+**NOT yet verified (do not claim them):** the Release-configuration build, MaudeUITests,
 the device archive, and Watch runtime on a paired simulator. Commands are in audit §7;
 run them before any external distribution.
 
-App: **Liviqa** · bundle **dev.liviqa.app** (Watch: **dev.liviqa.app.watchkitapp**) ·
+App: **Maude** · bundle **xyz.ppcn.maude** (Watch: **xyz.ppcn.maude.watchkitapp**) ·
 version **1.0** · build **10.70**.
 
 ---
@@ -26,42 +26,42 @@ Policy, not busywork — each gate traces to a 2026-07-03 audit finding.
 
 1. **Demo-login flags OFF outside DEBUG.** `Config.dfgWalletLoginEnabled` and
    `Config.nationalIDLoginEnabled` now compile to `false` in Release (`#if DEBUG`,
-   `Liviqa/Config.swift`), and `applyLV001DatasetIfNeeded()` is a Release no-op — enforced
+   `Maude/Config.swift`), and `applyLV001DatasetIfNeeded()` is a Release no-op — enforced
    in code since PR-102 wave 1. **Check:** build Release and confirm the sign-in screen
    shows no DfG Wallet / national-eID tiles. _State: enforced; Release spot-check pending._
 2. **Mistral key rotated + backend proxy live before any public build.** The old key
    compiled into every build up to 10.70 — treat it as burned and rotate it. Release
    builds now call `POST {apiBase}/ai/chat` (no key on device); the proxy route is
-   prepared in liviqa-backend and must be deployed first. **Check:** rotate the key,
+   prepared in maude-backend and must be deployed first. **Check:** rotate the key,
    deploy, then verify assistant chat works in a Release build. _State: OPEN — owner.
    Hard gate for App Store; wider TestFlight acceptable only post-rotation._
-3. **Post-deploy route-parity check green.** api.liviqa.app currently 404s on 8
+3. **Post-deploy route-parity check green.** api.maude.app currently 404s on 8
    client-called routes (wallet-auth, role-credential, issuance, appointments,
-   push-token). **Check:** after deploying liviqa-backend HEAD, run
-   `liviqa-backend/scripts/route-parity.sh https://api.liviqa.app` → exit 0
-   (runbook: `liviqa-backend/DEPLOY_PARITY.md`). _State: OPEN — owner._
+   push-token). **Check:** after deploying maude-backend HEAD, run
+   `maude-backend/scripts/route-parity.sh https://api.maude.app` → exit 0
+   (runbook: `maude-backend/DEPLOY_PARITY.md`). _State: OPEN — owner._
 4. **guard_provenance green in CI.** T-PROV-01 (`scripts/guard_provenance.sh`) is a
    blocking step in `./build-ios.sh` since 2026-07-03 — it was inert before that date.
    Any CI that builds this repo must go through `./build-ios.sh` (or run the guard as its
-   own required step). **Check:** `bash scripts/guard_provenance.sh Liviqa` → exit 0.
+   own required step). **Check:** `bash scripts/guard_provenance.sh Maude` → exit 0.
    _State: green locally; standing up real CI (no `.github/workflows/` exists) is an open
    owner action._
 5. **Localization review of the `needs_review` keys.** 83 keys × 5 languages
    (da/nb/sv/es/pt) were machine-drafted 2026-07-05 and sit at state `needs_review` in
-   `Liviqa/Localizable.xcstrings`. **Check:** review in Xcode's String Catalog editor
+   `Maude/Localizable.xcstrings`. **Check:** review in Xcode's String Catalog editor
    (filter: Needs Review) and mark reviewed — they do not count as translated until then.
    _State: OPEN — owner review._
 
 ## A. One-time, before archiving (verify, ~3 min)
 
-1. **Open the project:** in Finder open `~/Developer/DataForGood/liviqa-ios/Liviqa.xcodeproj`
+1. **Open the project:** in Finder open `~/Developer/DataForGood/maude-ios/Maude.xcodeproj`
    (double-click). Wait for "Indexing" to finish.
-2. **Select the target:** in the left Project navigator click the blue **Liviqa** project icon
-   (top), then under TARGETS select **Liviqa**.
+2. **Select the target:** in the left Project navigator click the blue **Maude** project icon
+   (top), then under TARGETS select **Maude**.
 3. **Signing & Capabilities tab** → set **Team = Data for Good** (the account with access to
-   App ID `dev.liviqa.app`). Leave **Automatically manage signing** ON. Xcode will mint the
-   Apple Distribution cert + App Store profile. Repeat for the **Liviqa Watch** target
-   (`dev.liviqa.app.watchkitapp`) — it archives with the app.
+   App ID `xyz.ppcn.maude`). Leave **Automatically manage signing** ON. Xcode will mint the
+   Apple Distribution cert + App Store profile. Repeat for the **Maude Watch** target
+   (`xyz.ppcn.maude.watchkitapp`) — it archives with the app.
    - If you see a red "Failed to register bundle identifier" or App Group error: that's the
      `com.apple.security.application-groups` entitlement. It is optional for the app to run —
      if provisioning fights you, you can remove the App Groups row here and re-try (no code
@@ -71,7 +71,7 @@ Policy, not busywork — each gate traces to a 2026-07-03 audit finding.
 
 ## B. Confirm the privacy/usage strings (already in code — just eyeball)
 
-These are already in `Liviqa/Info.plist`; you do **not** need to edit them. They are what Apple
+These are already in `Maude/Info.plist`; you do **not** need to edit them. They are what Apple
 review and the Health permission dialog show:
 - `NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription` (read-only wording),
   `NSCameraUsageDescription`, `NSMicrophoneUsageDescription` (both used by the video-consult
@@ -85,14 +85,14 @@ review and the Health permission dialog show:
    greyed out until you do this.
 2. Menu bar → **Product → Archive**. (If "Archive" is greyed out, step C1 isn't done.)
 3. Wait for the build (~2–4 min). The **Organizer** window opens with the new archive at top.
-   Confirm it reads **Liviqa · 1.0 (10.70)** — and that the archive contains the Watch app.
+   Confirm it reads **Maude · 1.0 (10.70)** — and that the archive contains the Watch app.
 
 ## D. Upload to App Store Connect → TestFlight
 
 1. In the Organizer, with the new archive selected, click **Distribute App**.
 2. Choose **TestFlight & App Store** → **Next**.
 3. **Automatically manage signing** → **Next**. Let it upload (~3–5 min).
-4. Go to **appstoreconnect.apple.com → Apps → Liviqa → TestFlight**. The build shows as
+4. Go to **appstoreconnect.apple.com → Apps → Maude → TestFlight**. The build shows as
    "Processing" for ~5–15 min, then becomes available.
    - **Internal testers** (your own group) get it within minutes once processing completes —
      no review needed. Add testers under TestFlight → Internal Testing if not already there.
@@ -122,12 +122,12 @@ review and the Health permission dialog show:
   guard live and blocking.
 
 ## F. Known limitations (logged, not hidden)
-- **Release build, LiviqaUITests, device archive, Watch runtime: NOT yet run** on the
+- **Release build, MaudeUITests, device archive, Watch runtime: NOT yet run** on the
   audited tree — audit §7 has the exact commands. Run before external distribution.
 - **Jitsi domain** is the TLS-valid sslip.io stand-in (`163-172-173-186.sslip.io`); moving
-  behind `meet.liviqa.app` + hardening is a tracked follow-up.
+  behind `meet.maude.app` + hardening is a tracked follow-up.
 - **Wallet rails on prod route to the sandbox container** (`Config.walletRailBaseURL`
-  detour) until api.liviqa.app carries the routes — retire the detour or promote the
+  detour) until api.maude.app carries the routes — retire the detour or promote the
   container with change control (audit action 7).
 - **Tests still to author** (recorded honestly in qms/): `T-DEL-01` (delete-all),
   `T-RSCH-01`, `T-CONSENT-REACT-01`, and the `noDeadPrimaryCTAs` XCUITest sweep.
@@ -137,7 +137,7 @@ review and the Health permission dialog show:
 
 ## G. Paste-ready TestFlight "What to Test" (App Store Connect → TestFlight → Test Details)
 
-> **Liviqa 1.0 (10.70) — what's new to try**
+> **Maude 1.0 (10.70) — what's new to try**
 >
 > 1. **Connect Apple Health.** On first launch, allow Health access when asked. If you skip it,
 >    you'll see "Showing sample data" on Home with a link to connect later in Settings.

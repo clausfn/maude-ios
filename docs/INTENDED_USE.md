@@ -1,16 +1,16 @@
-# Liviqa — Intended Use Statement (v01, 2026-06-03)
+# Maude — Intended Use Statement (v01, 2026-06-03)
 
 _FR-QMS-01. Version-controlled intended-use / boundary-of-use statement for the
-Liviqa citizen iOS app. Read with `qms/RISK.md` and the SRS._
+Maude citizen iOS app. Read with `qms/RISK.md` and the SRS._
 
-## What Liviqa is
+## What Maude is
 A privacy-first **wellness and self-knowledge** app. It reads the user's own
 health/activity data on device (Apple HealthKit), runs an on-device engine, and
 surfaces short, plain-language, **personal-baseline-relative** observations
 ("nudges") plus trends and a private journal. The user may optionally share a
 **derived, consented** summary with a care recipient.
 
-## What Liviqa is NOT
+## What Maude is NOT
 - **Not a medical device.** It does not diagnose, treat, cure, or prevent disease,
   and does not provide clinical decision-making.
 - **No diagnostic or normality verdicts.** Output is baseline-relative only; the
@@ -19,7 +19,7 @@ surfaces short, plain-language, **personal-baseline-relative** observations
 - **No dosing / treatment guidance.** There is no insulin or medication dosing
   surface (FR-REG-04).
 - **Cardiac is display-only.** Any AFib/heart-rhythm signal is shown without
-  interpretation and routes the user to their clinician (D9 / FR-REG-03); Liviqa
+  interpretation and routes the user to their clinician (D9 / FR-REG-03); Maude
   states it does not interpret heart rhythm.
 
 ## Intended users
@@ -31,7 +31,7 @@ tool, nor for emergencies.
 Observations are wellness-grade (±1σ around the user's own history), not clinical
 thresholds. Users are told a pattern is "in your own data — not a medical finding"
 and to discuss anything concerning with a qualified professional. In an emergency,
-contact local emergency services — Liviqa is not for urgent or emergency care.
+contact local emergency services — Maude is not for urgent or emergency care.
 
 ## Data & privacy posture
 Processing is on-device by default; raw HealthKit samples never leave the device.

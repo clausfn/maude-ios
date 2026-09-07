@@ -1,16 +1,16 @@
-# Liviqa — Video Consult + Secure Messaging + OAuth contract (v01, 2026-06-03)
+# Maude — Video Consult + Secure Messaging + OAuth contract (v01, 2026-06-03)
 
 Cross-repo contract for the citizen (iOS) side of the recipient workflow that
-already exists in `liviqa-backend` + `liviqa-b2b-console`. Authoritative for the
+already exists in `maude-backend` + `maude-b2b-console`. Authoritative for the
 iOS build. Scope cardinal still holds: **no raw HealthKit samples leave the
 device**; the consult shows only the already-derived, consented package.
 
 ## Repos & roles
-- **liviqa-backend** (NestJS/Prisma, Scaleway) — source of truth. Consent gate +
+- **maude-backend** (NestJS/Prisma, Scaleway) — source of truth. Consent gate +
   audit on every recipient read; per-citizen partitioning.
-- **liviqa-b2b-console** (React/Vite) — recipient surface. Renders Mode-A views,
+- **maude-b2b-console** (React/Vite) — recipient surface. Renders Mode-A views,
   starts consults, secure messaging. Video via **Jitsi** (`JitsiMeetExternalAPI`).
-- **liviqa-ios** — citizen surface. Joins consults, reads/sends messages, owns
+- **maude-ios** — citizen surface. Joins consults, reads/sends messages, owns
   recording consent.
 
 ## OAuth (Ory) — one model across all three
@@ -25,13 +25,13 @@ device**; the consult shows only the already-derived, consented package.
   stored in Keychain (NFR-SEC-01) and validated via `whoami` on launch.
 
 ## Video consult — Jitsi room convention
-- Room name is deterministic: **`liviqa-consult-<sessionId>`**. Both the console
+- Room name is deterministic: **`maude-consult-<sessionId>`**. Both the console
   and the iOS client join the same room; no per-user token minting in the MVP.
 - Provider-agnostic, **EU-sovereign only** (self-hosted Jitsi / Whereby; no
   US-parented provider on this PII path, NFR-SEC-07). Domain via config
   (`VITE_JITSI_DOMAIN` on web; `Config.jitsiDomain` on iOS). Unset → secure shell
   fallback (no live media).
-- iOS joins the room in a `WKWebView` at `https://<domain>/liviqa-consult-<id>`.
+- iOS joins the room in a `WKWebView` at `https://<domain>/maude-consult-<id>`.
 
 ## Recording consent — direction (privacy-critical)
 - `ConsultSession.recordingRequested` — the **recipient** may ask.
@@ -62,7 +62,7 @@ device**; the consult shows only the already-derived, consented package.
 `consult/:id/end`, notifications.
 
 ## iOS integration surface (this batch)
-- `LiviqaBackendService` (citizen role) gains: `fetchNotifications`,
+- `MaudeBackendService` (citizen role) gains: `fetchNotifications`,
   `fetchActiveConsults`, `joinConsult`, `setRecordingConsent`, `fetchThreads`,
   `fetchMessages`, `sendMessage` (+ DTOs matching the JSON above).
 - New `CareConnect` capability protocol (kept off the shared `SupabaseServiceProtocol`).

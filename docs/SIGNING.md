@@ -1,4 +1,4 @@
-# Signing & Identity — Liviqa iOS
+# Signing & Identity — Maude iOS
 
 _Deployment-agnostic signing. Develop **now** under Claus's personal Apple Developer account (local builds + on-device runs to ingest his own Health data). The Data for Good account (`apps@dfgfoundation.org`) is for deployment **later** (2FA being resolved). Swapping accounts is a **config change, never a code change.**_
 
@@ -26,14 +26,14 @@ cp Config/Signing.example.xcconfig Config/Signing.xcconfig
 # then edit Config/Signing.xcconfig and set DEVELOPMENT_TEAM = <your Team ID>
 ```
 
-Open `Liviqa.xcodeproj` in Xcode → **Signing & Capabilities** → confirm "Automatically manage signing" is on and the team resolves. Build + run on a real device (HealthKit is unavailable in the Simulator).
+Open `Maude.xcodeproj` in Xcode → **Signing & Capabilities** → confirm "Automatically manage signing" is on and the team resolves. Build + run on a real device (HealthKit is unavailable in the Simulator).
 
 ## Current dev configuration (personal account)
 
 ```
 DEVELOPMENT_TEAM = G8MHRNS97R      # Claus personal team
-APP_BUNDLE_ID    = dev.liviqa.app
-APP_GROUP        = group.dev.liviqa.app
+APP_BUNDLE_ID    = xyz.ppcn.maude
+APP_GROUP        = group.xyz.ppcn.maude
 ```
 
 - **Automatic** signing. HealthKit capability is on; the entitlement only *enables* HealthKit — **read-only is enforced in code** (`HealthKitService` requests an empty write/`toShare` set per `FR-ARCH-04`).
@@ -46,21 +46,21 @@ When the DfG account 2FA is resolved:
 1. Edit **`Config/Signing.xcconfig` only**:
    ```
    DEVELOPMENT_TEAM = <DfG Team ID>
-   APP_BUNDLE_ID    = <DfG bundle id, e.g. org.dfgfoundation.liviqa>
+   APP_BUNDLE_ID    = <DfG bundle id, e.g. org.dfgfoundation.maude>
    APP_GROUP        = group.<that bundle id>
    ```
 2. In Xcode → Signing & Capabilities, let automatic signing re-provision for the DfG team (register the App ID / App Group / HealthKit capability on first run).
-3. Push to the DfG `liviqa-ios` repo. Nothing in source, Info.plist, or entitlements changes.
+3. Push to the DfG `maude-ios` repo. Nothing in source, Info.plist, or entitlements changes.
 
 ## App Group note
 
-If the **personal** team has trouble provisioning `group.dev.liviqa.app` (App Groups sometimes need manual registration), the App Group entitlement can be removed from `Liviqa/Liviqa.entitlements` without any code change — it is only needed once an app extension/widget is added. HealthKit is the only capability required for on-device runs now.
+If the **personal** team has trouble provisioning `group.xyz.ppcn.maude` (App Groups sometimes need manual registration), the App Group entitlement can be removed from `Maude/Maude.entitlements` without any code change — it is only needed once an app extension/widget is added. HealthKit is the only capability required for on-device runs now.
 
 ## Repo layout note (authoring environment)
 
 This clone was bootstrapped in a sandboxed agent session that guards `.git/`
 directories, so git currently uses a **separate git directory** (`.git` is a
-small pointer file → `../.liviqa-ios.gitdir`). This is valid git and works with
+small pointer file → `../.maude-ios.gitdir`). This is valid git and works with
 Xcode, the `git` CLI, and GitHub Desktop. To convert to a standard layout once
 the repo is opened natively (optional, run from the repo root):
 
@@ -69,5 +69,5 @@ rm .git && git init --separate-git-dir=.git . >/dev/null 2>&1 || true
 # simplest robust path: re-clone from the GitHub remote once it exists.
 ```
 
-The canonical home is `~/Developer/DataForGood/liviqa-ios` (non-synced), per
-`20_Build/Liviqa_DfG_CodeHome_and_Environment_v01`.
+The canonical home is `~/Developer/DataForGood/maude-ios` (non-synced), per
+`20_Build/Maude_DfG_CodeHome_and_Environment_v01`.

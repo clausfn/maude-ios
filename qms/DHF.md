@@ -12,7 +12,7 @@ _Append-only dated log of design decisions, linked to the Architecture Decision 
 
 ## 2026-08-19 — Sleep visualisation v2: block hypnogram supersedes the søkort; ranges + agreement proof (CN directive)
 
-- **Directive (CN, 2026-08-19).** CN compared Liviqa's sleep screen against the
+- **Directive (CN, 2026-08-19).** CN compared Maude's sleep screen against the
   Apple Health sleep UI rendering his own (now correctly resolved, PR-114)
   nights and directed "build this much better". The A7 canvas's søkort
   line-chart (charts.jsx `SleepDepthChart`, the "night as water" engraving) is
@@ -50,7 +50,7 @@ _Append-only dated log of design decisions, linked to the Architecture Decision 
   preserved, real unrecorded gaps never bridged, totals untouched) and the
   caption switches to "Short stretches are drawn merged at this size — every
   printed figure is exact."
-- **Colour rail.** Awake blocks/stripes use `LiviqaTheme.rust` (warm brick,
+- **Colour rail.** Awake blocks/stripes use `MaudeTheme.rust` (warm brick,
   0xC13B34 / 0xEE9089) — from the clay/rust family, deliberately NOT `clinRed`
   (0xDA2F46): red-as-alarm stays clinical-glucose-TIR-only (RK-ALARM-01).
   Colour is never the only signal (lane labels + position). REM/Core/Deep
@@ -171,7 +171,7 @@ _Append-only dated log of design decisions, linked to the Architecture Decision 
   queue-only PMS, preference-only notification channels labelled as such,
   unverifiable retention figure removed, no fabricated names/counters).
 - **Open registers:** feature-level follow-ups + CN rulings + backend
-  dependencies consolidated in the census v02 delta (DfG Works Liviqa root)
+  dependencies consolidated in the census v02 delta (DfG Works Maude root)
   and `qms/RTM.md`; SRS v06 diff proposal awaits CN ratification; full-frame
   screenshot sweep filed at `20_Build/a72_sweep_20260813/`.
 
@@ -180,17 +180,17 @@ _Append-only dated log of design decisions, linked to the Architecture Decision 
 - **Directive (CN, 2026-08-12):** build **every** designed screen in the A7.2
   package — the full-screen program, not a per-screen negotiation. The evening
   entry's "anatomy is in scope" ruling is hereby extended package-wide.
-- **Census v01 filed** (`Liviqa_A72_ScreenCensus_v01_20260812.md`, DfG Works
-  Liviqa root; registered in `00_Canonical/REGISTER.md`): **74 screen rows
+- **Census v01 filed** (`Maude_A72_ScreenCensus_v01_20260812.md`, DfG Works
+  Maude root; registered in `00_Canonical/REGISTER.md`): **74 screen rows
   across 9 areas — 23 MISSING · 31 ANATOMY-DIFFERS · 1 RESKIN-ONLY ·
   19 MATCHES.** Widest gap: Onboarding & auth (11-step designed flow vs four
   gate screens). Healthiest: Watch (all three screens match) and Care & PRO
   (real plumbing, presentational gaps). Largest single builds: Trends
-  (orphaned view + demo copy), ConsultView full-bleed stage, Liviqa PRO
+  (orphaned view + demo copy), ConsultView full-bleed stage, Maude PRO
   (console-side, missing, with a real iOS contract gap), the encrypted
   document store, and glucose/heart/fitness metric details.
 - **SRS v06 diff proposal filed**
-  (`Liviqa_SRS_v06_DiffProposal_A72_20260812.md`, DfG Works Liviqa root):
+  (`Maude_SRS_v06_DiffProposal_A72_20260812.md`, DfG Works Maude root):
   new UC-25 (study-enrollment uniqueness check — census working id "UC-20"
   re-keyed; UC-20 is taken in UseCases v04), UC-26 (health-literacy
   preference), UC-27 (calm notification micro-loops); amendments to UC-02
@@ -218,7 +218,7 @@ _Append-only dated log of design decisions, linked to the Architecture Decision 
   FR-WAL-09 (CE-stub claim gating), plus the chat safety-line reword
   (designated control — counsel memo required before any copy change).
 - **Bevel absorb mapping — source = live ClickUp** (all 7 tasks fetched from
-  Liviqa/Backlog, study dated 2026-08-12): top-5 absorbs ①–⑤ map to
+  Maude/Backlog, study dated 2026-08-12): top-5 absorbs ①–⑤ map to
   FR-WID-01, FR-XPL-01, FR-CTX-04, FR-REC-03, FR-NOT-02. Biological Age
   stays PARKED with its boundary flag (collides with baseline-relative
   philosophy, the FR-NDG-06 normality ban, and the wellness boundary);
@@ -305,13 +305,13 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
   layered Liquid-Glass app icon + in-app marks, and iOS 26 Liquid Glass on the
   consumer chrome. Successor to **Design System v2 (PR-47)**; extends the prototype,
   no redesign.
-- **Theme.** `Theme.swift` recoloured by token value, so every `LiviqaTheme.*` call
+- **Theme.** `Theme.swift` recoloured by token value, so every `MaudeTheme.*` call
   site recolours automatically. Retired fern-green `#31780E` / lime `#4EB818`,
   brown-clay `#BD7A33`, and near-black `#0B1B30`; dark mode = deep navy `#15243D`.
   No green hue in the UI — Cerulean carries consent/in-range.
 - **Type.** Headlines/body → system SF Pro (Dynamic-Type friendly); IBM Plex Mono
   retained for numbers/kickers; removed Lato/Schibsted/Instrument/Spline `.ttf`.
-- **Mark + icon.** In-app `LiviqaMark`/`Reversed` → Oxford-Navy arcs + brand green
+- **Mark + icon.** In-app `MaudeMark`/`Reversed` → Oxford-Navy arcs + brand green
   ring. App icon is now a hand-authored layered **`AppIcon.icon`** (Icon Composer
   format) — navy ground + honeydew halo + green iris ring/dot, lifted by the system
   on iOS 26, flattened on iOS 17–25. Mark geometry unchanged (never redrawn).
@@ -336,7 +336,7 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
 
 ## 2026-06-09 — DfG wallet (My DfG) integration — scaffold (feature-flagged OFF)
 
-- **Goal.** Prepare a live Liviqa → My DfG wallet consent demo (eIDAS 2.0 /
+- **Goal.** Prepare a live Maude → My DfG wallet consent demo (eIDAS 2.0 /
   verifiable credentials) for Folkemøde, pending Partisia sandbox credentials.
 - **Scaffold (inert while `Config.dfgWalletEnabled == false`).** `Config` gains
   wallet placeholders (request base, return URL, client id — all TBC from Partisia).
@@ -345,17 +345,17 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
   return (vp_token), with `DfGWalletConsentButton` (hidden unless enabled). Protocol
   payload (OpenID4VP) and presentation verification are TODO(Partisia).
 - **Website piece.** Staged AASA + README at
-  `10_Website/liviqa-web/_dfg-wallet-wellknown/` — `apple-app-site-association` so
+  `10_Website/maude-web/_dfg-wallet-wellknown/` — `apple-app-site-association` so
   iOS opens My DfG from a request link ("Apple connects to the right wallet"), to be
   finalised with Partisia's My DfG AppID and moved into `.well-known/`.
-- **Prep runbook:** `~/Desktop/Liviqa_DfG_Wallet_Demo_Prep_v01_20260609.md`. Critical
+- **Prep runbook:** `~/Desktop/Maude_DfG_Wallet_Demo_Prep_v01_20260609.md`. Critical
   path = Partisia credentials (email to Kim). Shipped app unaffected until enabled.
 
 ## 2026-06-09 — TestFlight cleanup: 10.15 as the single canonical build
 
 - **Goal.** Only the latest build (10.15) available to testers; retire the rest.
 - **Action (via `scripts/asc_cleanup_builds.py`, ASC API).** Expired 11 legacy
-  builds (v1, v2, 10.5–10.14). Attached 10.15 to the external "Liviqa beta tester"
+  builds (v1, v2, 10.5–10.14). Attached 10.15 to the external "Maude beta tester"
   group and **submitted it for Beta App Review** so it can reach the public link
   (`testflight.apple.com/join/hdXVzcSF`).
 - **TestFlight constraint recorded.** Internal groups always expose *every* non-
@@ -390,11 +390,11 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
 - **Verification.** Xcode `BUILD SUCCEEDED`; archived + uploaded via the isolated-
   keychain path (`scripts/archive_upload_isolated.sh`), Delivery UUID
   `9afca9b8-c48b-43a2-a4f4-aed64bef96b7`. Pairs with the console instant-call /
-  worklist / presence work (see `liviqa-b2b-console/CHANGELOG.md`).
+  worklist / presence work (see `maude-b2b-console/CHANGELOG.md`).
 
 ## 2026-06-09 — Design System v2 foundation: Paper default + clay attention tone (PR-47)
 
-- **Source.** A `claude.ai/design` handoff bundle (in `_liviqa_design_reference/`,
+- **Source.** A `claude.ai/design` handoff bundle (in `_maude_design_reference/`,
   outside the repo). Read the chat transcript for intent: the thesis is
   *comprehension → insight → behaviour change*, "not population averages — yours",
   with always-on evidence metadata (N · baseline · r · p + a "still learning" gate).
@@ -402,7 +402,7 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
   Correlation C, Home C, Baseline Aperture-arc, Week heatmap, Consent A, Privacy
   one-tap pause, Journal quick-capture, 5-tab IA.
 - **The foundation already matched.** `Theme.swift` is built from the same
-  `Liviqa_Design_Tokens_v01` source as the design's `colors.css`; the palette,
+  `Maude_Design_Tokens_v01` source as the design's `colors.css`; the palette,
   Lato, and IBM Plex Mono were already in place. So v2 is a small token *delta*,
   not a recolor.
 - **Decision — clay over amber (the keystone, founder-confirmed in design chat).**
@@ -415,12 +415,12 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
 - **Decision — default to Paper.** The design is light/paper-first; the app default
   flips Midnight → Paper. Midnight stays user-selectable; the dynamic tokens flip
   the whole app via one root `preferredColorScheme`, so no per-view change.
-- **Applied as a token sweep.** `amber → clay` across `Liviqa/Views/*.swift`
+- **Applied as a token sweep.** `amber → clay` across `Maude/Views/*.swift`
   (the amber token is retained for engine/console). Added the confidence ramp and
   the semantic type scale (with the design's exact tracking).
 - **Verification.** I cannot have Claus build (Xcode signing/destination issues on
   his side), so I build + screenshot myself: `xcodebuild` (iOS Sim) BUILD
-  SUCCEEDED, LiviqaTests 78/78 green, Today screen screenshotted in both Paper and
+  SUCCEEDED, MaudeTests 78/78 green, Today screen screenshotted in both Paper and
   Midnight — the glucose arc now reads moss → clay. Screens (Today hero,
   Correlation, Baseline arc, Week, sovereignty set) are the next, screenshot-
   reviewed phase. The 5-tab IA rename and any new insulin/AFib nudge copy are
@@ -449,7 +449,7 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
   union of the requested window and the inserted rows' span, so a boundary sample
   just outside the window is not re-inserted each sync. Fixes a pre-existing
   `reSyncIsIdempotent` failure with no data dropped.
-- **Verification.** `xcodebuild` (iOS Sim) BUILD SUCCEEDED; LiviqaTests **78/78
+- **Verification.** `xcodebuild` (iOS Sim) BUILD SUCCEEDED; MaudeTests **78/78
   green**; a baseline git-stash run confirmed Step A introduced zero new
   regressions (the only two reds were pre-existing and are now fixed). Real-device
   sanity items flagged to Claus: SpO₂/body-fat %-scaling and the VO₂max unit
@@ -460,9 +460,9 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
 - **Goal:** first TestFlight under the Data for Good team (`PS258XSNL8`), feeding
   live data through the sovereign backend + Supabase GoTrue. Gap analysis:
   `docs/TestFlight_Readiness_v01.md`.
-- **Decisions (locked):** bundle `app.liviqa.ios` (the personal team holds
-  `dev.liviqa.app`; bundle ids are globally unique); canonical hosts on
-  `liviqa.app`; **video consult gated off** in v1 (no EU Jitsi yet → avoids
+- **Decisions (locked):** bundle `app.maude.ios` (the personal team holds
+  `xyz.ppcn.maude`; bundle ids are globally unique); canonical hosts on
+  `maude.app`; **video consult gated off** in v1 (no EU Jitsi yet → avoids
   camera/mic + NFR-SEC-07 exposure); external testers on **synthetic data only**.
 - **Live by build config, not hardcoding.** `Config.backend` returns
   `sovereignProd` in Release/TestFlight and `.mock` in Debug, with an env override
@@ -476,7 +476,7 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
   registration, App Store Connect record + privacy nutrition labels, archive +
   upload. Signing identity is the one true blocker for the upload itself.
 - **Verification:** simulator build succeeds; privacy manifest is bundled; bundle
-  id resolves to `app.liviqa.ios`.
+  id resolves to `app.maude.ios`.
 
 ## 2026-06-03 — Auth: revert Ory → Supabase Auth (self-hosted GoTrue, EU) (PR-28)
 
@@ -492,7 +492,7 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
 - **Minimal blast radius.** The app was already built on `SupabaseServiceProtocol`;
   only the auth *source* changed. New `SupabaseAuthClient` (GoTrue: password grant,
   native Apple `id_token` grant, `/user`, logout) replaces `OryAuthClient`;
-  `LiviqaBackendService` swaps the injected client; `Config` gains
+  `MaudeBackendService` swaps the injected client; `Config` gains
   `supabaseAuthURL` + `.sovereign(authURL:)`. `AppleSignInCoordinator` is
   unchanged — its id_token + raw nonce now feed GoTrue. Access token is
   Keychain-only (`SessionTokenStore`, NFR-SEC-01).
@@ -603,8 +603,8 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
 ## 2026-06-03 — Repo bootstrap & deployment-agnostic signing (PR-1)
 
 - **Relocated** the locked Phase-1 SwiftUI prototype from the synced
-  `09_Liviqa_iOS_Prototype/Liviqa/Liviqa` into the non-synced canonical clone
-  `~/Developer/DataForGood/liviqa-ios`, per the Code-Home golden rule
+  `09_Maude_iOS_Prototype/Maude/Maude` into the non-synced canonical clone
+  `~/Developer/DataForGood/maude-ios`, per the Code-Home golden rule
   (git inside synced folders corrupts). Baseline imported verbatim — **no code
   changes** (CARDINAL: iterate, never rebuild). Added DfG `CLAUDE.md` guardrails.
 - **Decision D-STORE applied:** signing/identity centralised in
@@ -613,7 +613,7 @@ contemporaneous DHF entries; recorded after the fact by the 2026-08-12 audit._
   `DEVELOPMENT_TEAM` / `PRODUCT_BUNDLE_IDENTIFIER` / `APP_GROUP`; no identity is
   hardcoded in source, Info.plist, entitlements, or the project file. Migrating
   to the Data for Good account later is an xcconfig edit, not a code change.
-  Dev posture: personal team `G8MHRNS97R`, bundle `dev.liviqa.app`, automatic
+  Dev posture: personal team `G8MHRNS97R`, bundle `xyz.ppcn.maude`, automatic
   signing, HealthKit capability enabled. See `docs/SIGNING.md`.
 - **HealthKit** capability enabled in entitlements; `NSHealthShareUsageDescription`
   added. Read-only (empty write set) is enforced in code in a later PR

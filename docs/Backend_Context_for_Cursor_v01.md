@@ -1,9 +1,9 @@
-# Liviqa Sovereign Backend — Context for Cursor (v01)
+# Maude Sovereign Backend — Context for Cursor (v01)
 
-_2026-06-03. Read this alongside the **architecture diagrams**, **SRS v05**, and **Use Cases v04** you already feed Cursor. It tells the iOS agent what the backend is, how to talk to it, and how it maps to the specs. Pairs with `openapi.yaml` (machine-readable) and `Liviqa_iOS_Backend_Contract_v01.md` (the cross-repo contract)._
+_2026-06-03. Read this alongside the **architecture diagrams**, **SRS v05**, and **Use Cases v04** you already feed Cursor. It tells the iOS agent what the backend is, how to talk to it, and how it maps to the specs. Pairs with `openapi.yaml` (machine-readable) and `Maude_iOS_Backend_Contract_v01.md` (the cross-repo contract)._
 
 ## What this backend is
-The **EU-sovereign backend** the citizen app (`liviqa-ios`) and the B2B console (`liviqa-b2b-console`) both build to. NestJS + Prisma + Postgres on **Scaleway**; login via **Ory**. It is the production target that replaces the **Supabase** plumbing currently in the iOS app (Supabase is US-parented → fails `NFR-SEC-07` for real PII; keep it as sandbox only).
+The **EU-sovereign backend** the citizen app (`maude-ios`) and the B2B console (`maude-b2b-console`) both build to. NestJS + Prisma + Postgres on **Scaleway**; login via **Ory**. It is the production target that replaces the **Supabase** plumbing currently in the iOS app (Supabase is US-parented → fails `NFR-SEC-07` for real PII; keep it as sandbox only).
 
 **Cardinal scope (D-BACKEND-SCOPE / SRS FR-WAL-06):** it stores accounts, **consent grants + an append-only ledger**, opt-in journal, and **device-derived share packages** — **never raw HealthKit samples**. Raw stays on the phone.
 
@@ -18,7 +18,7 @@ The **EU-sovereign backend** the citizen app (`liviqa-ios`) and the B2B console 
 | Guardrails (UC-18, D9, mmol/L) | re-applied server-side: AFib `displayOnly`, insulin `patternOnly`, sexual-function meds stripped, provenance dropped |
 
 ## The iOS integration in one paragraph
-The iOS app keeps its `SupabaseServiceProtocol` seam and adds a `LiviqaBackendService` that implements it against this API (Ory auth + bearer). `fetchGrants → GET /grants`, `upsertGrant → POST /grants` (+ revoke), `fetchEvents → GET /ledger`, `fetchProfile → GET /me`, recipient picker → `GET /recipients`. The new piece is `pushDerivedShare → PUT /shares/{grantId}`, whose body is produced by **`DerivedShareBuilder`** (already in the repo, FR-SHARE-01). The citizen consents in **plain groups** (`glucose`, `activity`, `sleep`, `recovery`); the backend expands groups → fine metric keys and tightens to the recipient's role template. Full step list: `docs/Sovereign_Backend_Integration_v01.md`. This is **FR-SHARE-02**.
+The iOS app keeps its `SupabaseServiceProtocol` seam and adds a `MaudeBackendService` that implements it against this API (Ory auth + bearer). `fetchGrants → GET /grants`, `upsertGrant → POST /grants` (+ revoke), `fetchEvents → GET /ledger`, `fetchProfile → GET /me`, recipient picker → `GET /recipients`. The new piece is `pushDerivedShare → PUT /shares/{grantId}`, whose body is produced by **`DerivedShareBuilder`** (already in the repo, FR-SHARE-01). The citizen consents in **plain groups** (`glucose`, `activity`, `sleep`, `recovery`); the backend expands groups → fine metric keys and tightens to the recipient's role template. Full step list: `docs/Sovereign_Backend_Integration_v01.md`. This is **FR-SHARE-02**.
 
 ## Scope vocabulary (the one thing that bit us)
 The app consents at **group** level; the console renders **fine metrics**. One canonical map (backend `src/shared/scope-vocab.ts`):
@@ -26,9 +26,9 @@ The app consents at **group** level; the console renders **fine metrics**. One c
 
 ## Run it locally (to develop/test the iOS client against)
 ```bash
-# in liviqa-backend (ask Claus for the repo if you don't have it):
+# in maude-backend (ask Claus for the repo if you don't have it):
 npm i && npm run dev:db                 # embedded Postgres, no Docker
-export DATABASE_URL=postgresql://liviqa:liviqa@localhost:5432/liviqa?schema=public
+export DATABASE_URL=postgresql://maude:maude@localhost:5432/maude?schema=public
 npx prisma db push && npm run seed
 DEV_AUTH=true npm run build && node dist/main.js   # http://localhost:3001
 ```
@@ -44,4 +44,4 @@ curl localhost:3001/grants     -H "Authorization: Bearer dev-citizen-claus"
 - **Analyst:** `GET /cohort/aggregate` (k-anon). **Admin:** accounts, audit, recipients, recipient grants (metadata only)
 
 ## Invariants both codebases hold
-Raw never leaves device · derived-only off device · provenance never rendered or transmitted · mmol/L canonical (GMI headline) · AFib display-only · insulin pattern-only · sexual-function meds never shown · revocation immediate + evidenced · Liviqa never asserts clinical significance.
+Raw never leaves device · derived-only off device · provenance never rendered or transmitted · mmol/L canonical (GMI headline) · AFib display-only · insulin pattern-only · sexual-function meds never shown · revocation immediate + evidenced · Maude never asserts clinical significance.

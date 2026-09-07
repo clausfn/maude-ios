@@ -1,4 +1,4 @@
-// Copy to Liviqa/Config.swift and replace placeholders.
+// Copy to Maude/Config.swift and replace placeholders.
 import Foundation
 
 enum Config {

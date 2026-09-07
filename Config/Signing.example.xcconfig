@@ -1,4 +1,4 @@
-// Liviqa — signing & identity TEMPLATE (checked in). No real Team ID here.
+// Maude — signing & identity TEMPLATE (checked in). No real Team ID here.
 //
 // First-time setup (per machine / per developer):
 //   cp Config/Signing.example.xcconfig Config/Signing.xcconfig
@@ -14,12 +14,12 @@
 DEVELOPMENT_TEAM =
 
 // App identity — development defaults. DfG deployment overrides these.
-APP_BUNDLE_ID = dev.liviqa.app
-APP_GROUP = group.dev.liviqa.app
+APP_BUNDLE_ID = xyz.ppcn.maude
+APP_GROUP = group.xyz.ppcn.maude
 
 // Derived. Do NOT set PRODUCT_BUNDLE_IDENTIFIER per-target in the project;
 // it flows from APP_BUNDLE_ID here (test targets append .Tests / .UITests).
 PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_ID)
 
 // Entitlements file for the app target (default = canonical; local configs may override).
-LIVIQA_ENTITLEMENTS = Liviqa/Liviqa.entitlements
+MAUDE_ENTITLEMENTS = Maude/Maude.entitlements

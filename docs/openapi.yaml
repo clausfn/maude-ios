@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
-  title: Liviqa Sovereign Backend
+  title: Maude Sovereign Backend
   version: 0.1.0
   description: >
     EU-sovereign backend (NestJS + Prisma + Postgres on Scaleway; Ory login).
-    Citizen app (liviqa-ios) and B2B console (liviqa-b2b-console) both build to this.
+    Citizen app (maude-ios) and B2B console (maude-b2b-console) both build to this.
     Cardinal: NO raw HealthKit samples stored — only accounts, consent grants +
     append-only ledger, opt-in journal, and device-derived share packages. Consent
-    enforced server-side (D-SHARE). See Liviqa_iOS_Backend_Contract_v01.
+    enforced server-side (D-SHARE). See Maude_iOS_Backend_Contract_v01.
 servers:
   - url: http://localhost:3001
     description: Local dev (embedded Postgres; Bearer dev tokens)
@@ -120,7 +120,7 @@ paths:
 
   # ───────────────────── RECIPIENT (console, Mode A) ─────────────────────
   # Consult: recipient REQUESTS recording (recordingRequested); the CITIZEN grants
-  # consent via /consults/{id}/recording-consent. Jitsi room = liviqa-consult-{sessionId}.
+  # consent via /consults/{id}/recording-consent. Jitsi room = maude-consult-{sessionId}.
   /shared/citizens:
     get: { tags: [recipient], summary: Citizens who granted me an active grant, responses: { '200': { description: list } } }
   /shared/{citizenId}/view:

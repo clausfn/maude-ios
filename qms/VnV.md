@@ -62,7 +62,7 @@ in Xcode (signing/destination issues on his side), so verification is run here:*
 
 ```
 ✔ xcodebuild build — BUILD SUCCEEDED (iOS Simulator, CODE_SIGNING_ALLOWED=NO)
-✔ LiviqaTests — 78 tests in 19 suites, 0 failures
+✔ MaudeTests — 78 tests in 19 suites, 0 failures
    incl. readSetIsFullCaptureSet (PR-46), reSyncIsIdempotent + baselineRelativeRecovery
    (both pre-existing failures, now green)
 ```
@@ -113,12 +113,12 @@ grep -rn "G8MHRNS97R\|me.clausfnielsen" \
 git check-ignore Config/Signing.xcconfig   # → Config/Signing.xcconfig  ✓
 
 # 3. Settings resolve through the xcconfig:
-xcodebuild -showBuildSettings -project Liviqa.xcodeproj -scheme Liviqa -configuration Debug \
+xcodebuild -showBuildSettings -project Maude.xcodeproj -scheme Maude -configuration Debug \
   | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|APP_GROUP|CODE_SIGN_ENTITLEMENTS"
-#    → PRODUCT_BUNDLE_IDENTIFIER = dev.liviqa.app
+#    → PRODUCT_BUNDLE_IDENTIFIER = xyz.ppcn.maude
 #      DEVELOPMENT_TEAM          = G8MHRNS97R
-#      APP_GROUP                 = group.dev.liviqa.app
-#      CODE_SIGN_ENTITLEMENTS    = Liviqa/Liviqa.entitlements   ✓
+#      APP_GROUP                 = group.xyz.ppcn.maude
+#      CODE_SIGN_ENTITLEMENTS    = Maude/Maude.entitlements   ✓
 ```
 
 Result: **pass** on Xcode 26.4.1 (2026-06-03).
@@ -126,7 +126,7 @@ Result: **pass** on Xcode 26.4.1 (2026-06-03).
 ## T-PROV-01 — procedure & result (PR-3)
 
 ```sh
-bash scripts/guard_provenance.sh Liviqa
+bash scripts/guard_provenance.sh Maude
 #   → ✓ provenance-never-renders guard passed (T-PROV-01)
 ```
 
@@ -174,7 +174,7 @@ Standing up real CI with both as required checks remains an open owner action.
 
 ## Full-suite run — 2026-08-12 (PR-104 Phase 0, develop @ `530b32d`)
 
-`xcodebuild test` (Debug, iPhone 17 simulator, `-only-testing:LiviqaTests`):
+`xcodebuild test` (Debug, iPhone 17 simulator, `-only-testing:MaudeTests`):
 **161 tests in 34 suites — ALL PASS** (0.5 s). First recorded full-suite run
 since PR-103; includes the wave's new suites (`ReleasePostureTests` now 12
 checks incl. `providerForcingIsDebugGated`, `ReceiptDecodeTests`,

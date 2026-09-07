@@ -1,7 +1,7 @@
 # HealthKit ingestion coverage audit — 2026-08-18
 
 Branch `claude/a72-electric-ink` · sleep-incident wave (data-quality incident on the
-signal the nudge engine consumes). Scope: every HK type Liviqa reads today vs the
+signal the nudge engine consumes). Scope: every HK type Maude reads today vs the
 full set a health-and-lifestyle app for people-who-measure should consider.
 
 **Governing rule (held throughout): NO type is read without a named consumer.**
@@ -86,7 +86,7 @@ the NON-sleep path this audit owns.
 ## 4 · Report-only findings (files not owned by this audit)
 
 1. **HealthKit primer claims "these — and only these" over six rows, but the
-   app requests ~21 types** (`Liviqa/Views/HealthKitPrimerView.swift`, lead
+   app requests ~21 types** (`Maude/Views/HealthKitPrimerView.swift`, lead
    copy + `dataTypes`). Untrue since PR-46's full-capture expansion; wrist
    temperature widens it further. Needed change (screen owner): either add
    rows — heart & respiration panel (HR, walking HR, HR recovery, respiratory,
@@ -109,7 +109,7 @@ the NON-sleep path this audit owns.
 
 ## 5 · Verification
 
-- `T-COV-01…09` (`LiviqaTests/HealthKitCoverageTests.swift`) — pure-value; no
+- `T-COV-01…09` (`MaudeTests/HealthKitCoverageTests.swift`) — pure-value; no
   HK store constructed, no live path awaited.
 - Existing suites: `HealthKitTests`, `IngestionTests`, `ArbitrationTests`
   unchanged and green; full suite green (counts in the wave report).
@@ -128,6 +128,6 @@ breadth layer. The override is recorded as a controller decision in
 `qms/DHF.md` (2026-08-19 entry); requirement + risk rows: RTM FR-ING-19, RISK
 RK-ING-13/14 + RK-NDG-05. The four tuned pipelines this audit verified are
 unchanged — the universal layer stores everything EXCEPT their types, and
-`LiviqaTests/UniversalReadTests.swift` (T-UNI-01..14) pins the isolation.
+`MaudeTests/UniversalReadTests.swift` (T-UNI-01..14) pins the isolation.
 Report-only finding ① (§4.1, the primer's "these — and only these" lead) is
 CLOSED by `HealthKitPrimerView` v03.

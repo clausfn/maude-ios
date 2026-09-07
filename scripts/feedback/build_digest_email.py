@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# build_digest_email.py — render the Liviqa TestFlight feedback digest as a
+# build_digest_email.py — render the Maude TestFlight feedback digest as a
 # PPCN-design-system HTML email. Reads a JSON array of items on stdin; writes
-# HTML to --out (default /tmp/liviqa_digest.html) and prints the path.
+# HTML to --out (default /tmp/maude_digest.html) and prints the path.
 #
 # Each item: { "fb", "build", "tester", "date", "comment",
 #              "clickup_url" (optional), "screenshot" (optional local path) }
@@ -9,7 +9,7 @@ import sys, os, json, html, base64, subprocess, tempfile, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ap = argparse.ArgumentParser()
-ap.add_argument("--out", default="/tmp/liviqa_digest.html")
+ap.add_argument("--out", default="/tmp/maude_digest.html")
 args = ap.parse_args()
 items = json.load(sys.stdin)
 if not isinstance(items, list): items = [items]
@@ -69,13 +69,13 @@ HTML = f'''<!doctype html><html><head><meta charset="utf-8">
   <tr><td style="padding:24px 30px 0;"><img src="data:image/png;base64,{logo}" width="118" alt="PPCN" style="display:block;"></td></tr>
   <tr><td style="padding:16px 30px 0;"><div style="height:3px;width:48px;background:#D4622F;border-radius:3px;"></div></td></tr>
   <tr><td style="padding:14px 30px 0;">
-     <div style="font-family:'JetBrains Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6B7785;">Liviqa &middot; TestFlight beta</div>
+     <div style="font-family:'JetBrains Mono',Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6B7785;">Maude &middot; TestFlight beta</div>
      <div style="font-family:'Outfit',Helvetica,Arial,sans-serif;font-weight:700;font-size:27px;letter-spacing:-.4px;margin-top:7px;color:#0D1117;">{n} new feedback {plural} to approve</div>
      <div style="font-size:14px;color:#46586B;margin-top:9px;line-height:1.55;">{"One tester comment" if n==1 else str(n)+" tester comments"} arrived since the last check. Nothing has been built &mdash; each is logged and waiting for your go-ahead.</div>
   </td></tr>
   {cards}
   <tr><td style="padding:22px 30px 26px;">
-     <div style="border-top:1px solid #E4E2DE;padding-top:15px;font-family:'JetBrains Mono',Menlo,monospace;font-size:10px;letter-spacing:.04em;color:#6B7785;line-height:1.8;">PPCN &middot; ppcn.xyz &middot; Liviqa beta operations<br>Automated daily feedback digest &middot; nothing is built without your approval.</div>
+     <div style="border-top:1px solid #E4E2DE;padding-top:15px;font-family:'JetBrains Mono',Menlo,monospace;font-size:10px;letter-spacing:.04em;color:#6B7785;line-height:1.8;">PPCN &middot; ppcn.xyz &middot; Maude beta operations<br>Automated daily feedback digest &middot; nothing is built without your approval.</div>
   </td></tr>
 </table></td></tr></table></body></html>'''
 with open(args.out, "w") as f: f.write(HTML)

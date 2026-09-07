@@ -32,7 +32,7 @@ appears, so it is recorded here rather than absorbed as a visual tweak.
   it — and it is identical to the two charts that already shipped, which pass the
   same 2.0–14.0 defaults. Recorded because it will look like a bug to a reader
   who has not been told.
-- *Verification:* T-VIZ-06 = `LiviqaTests/ClinicalTIRZoneTests` (12) +
+- *Verification:* T-VIZ-06 = `MaudeTests/ClinicalTIRZoneTests` (12) +
   `ClinicalTIRZoneGeometryTests` (pre-refactor rect equivalence to 0.001 pt).
 
 **Observation, filed not fixed.** `GlucoseCurveView`'s two call sites pass the
@@ -82,7 +82,7 @@ and not a list of hits.
 - *Residual, ACCEPTED and stated:* a store may now fail to SAVE. The citizen can
   lose the one note or mark they just entered. That is the deliberate trade —
   refusing costs one entry, allowing cost every entry.
-- *Verification:* T-STORE-01 = `LiviqaTests/StoreFailClosedTests` (6).
+- *Verification:* T-STORE-01 = `MaudeTests/StoreFailClosedTests` (6).
 - *Cleared and recorded:* the vault index, KeyVault, the anchor store, the
   calendar store, the SwiftData container's protection class, and the legacy
   journal migration were all checked and hold — several are the reference
@@ -100,7 +100,7 @@ and not a list of hits.
 - *Mitigation:* position, both drag gestures and the handle derive from
   `.hour` over the drawn span; the axis math is `static` and unit-tested rather
   than trapped in a view body.
-- *Verification:* T-VIZ-05 = `LiviqaTests/DayReplayAxisTests` (3).
+- *Verification:* T-VIZ-05 = `MaudeTests/DayReplayAxisTests` (3).
 - *Residual, ACCEPTED:* the long-trend charts (weight, body fat, VO₂max, blood
   pressure dots) still space irregular readings by index under month labels.
   Unlike the day replay this needs a date-proportional axis in the primitive
@@ -132,7 +132,7 @@ and not a list of hits.
 **Why this is a risk section.** A chart is a claim about the citizen's record. If
 a week with three recorded nights is drawn as three adjacent bars, the chart
 asserts three consecutive nights — a statement the data does not support, made
-on a screen whose whole purpose is to be trusted more than memory. Liviqa has
+on a screen whose whole purpose is to be trusted more than memory. Maude has
 now found this shape five times (three in earlier waves, two here), which makes
 it a recurring failure mode rather than an incident, and one worth a standing
 entry.
@@ -159,7 +159,7 @@ entry.
   visible; a week before the citizen's first recorded workout has no record at
   all and must stay empty. Collapsing the two would invent a rest week that
   never happened.
-- *Verification:* T-VIZ-04 = `LiviqaTests/DayAxisIntegrityTests` (6 tests,
+- *Verification:* T-VIZ-04 = `MaudeTests/DayAxisIntegrityTests` (6 tests,
   covering all three sites plus the absent-vs-gap distinction).
 - *Residual:* Home's mini sparklines still draw compacted series. They carry no
   day labels and no axis, so they assert shape rather than dates — ACCEPTED, and
@@ -220,7 +220,7 @@ mental-health assessments, audiology. New/updated rows:
 |---|---|---|---|---|---|
 | RK-ING-13 | Sensitive special-category data at rest on the device is exposed (device loss, backup extraction) | Universal store holds every granted type, not a curated subset | SAME discipline as the sample store, verified by construction and test: on-device only (`cloudKitDatabase: .none`), `.completeUntilFirstUserAuthentication` file protection incl. WAL/SHM, NO egress path anywhere in the layer, GDPR erase via `UniversalHealthStore.eraseAll()` (T-UNI-09); the citizen chose every type on Apple's own sheet and can revoke in the Health app | Erase hook + browser entry land in the SAME integration PR (both lines reported in RTM/DHF); until then the layer is dormant — no call site constructs the reader, so no data can exist that the missing hook would strand. DPIA data-inventory re-run flagged to CN before tester exposure | FR-ING-19, NFR-PRIV-01, OD-09 |
 | RK-NDG-05 | An unfamiliar type (a symptom severity, a mental-health score) gets an implied judgment the app has no validated basis for | A browser row framing a value as good/bad/normal | STRUCTURAL: the browser generates no sentences — values, units, counts, source names and a day chart only; recorded category codes decode to HealthKit's OWN words ("Mild", "Severe" — reading back what was written, never assessing it); no NudgeGuard wiring exists in the file; T-UNI-14 lints every string literal against a judgment lexicon | None while T-UNI-14 holds; any future per-type verdict must arrive as its own FR with its own deriver + FR-NDG-06 coverage | FR-ING-19, FR-NDG-06 |
-| RK-ING-14 | The universal breadth silently distorts the four tuned core signals | Universal rows leaking into derivers/nudge inputs, or double-storage of tuned types | Type-set disjointness (storage set ∩ tuned readTypes = ∅, T-UNI-05) + source-lint isolation in BOTH directions (T-UNI-07) + a separate ModelContainer, so no LiviqaStore query can ever fetch a universal row | None while the T-UNI suite holds | FR-ING-19, FR-ING-01, FR-NDG-06 |
+| RK-ING-14 | The universal breadth silently distorts the four tuned core signals | Universal rows leaking into derivers/nudge inputs, or double-storage of tuned types | Type-set disjointness (storage set ∩ tuned readTypes = ∅, T-UNI-05) + source-lint isolation in BOTH directions (T-UNI-07) + a separate ModelContainer, so no MaudeStore query can ever fetch a universal row | None while the T-UNI suite holds | FR-ING-19, FR-ING-01, FR-NDG-06 |
 
 Honesty control alongside: the HealthKit primer's "these — and only these" claim
 (report-only finding ① of the 2026-08-18 audit, RK-ING-12) is CLOSED — the v03
@@ -262,7 +262,7 @@ post-PR-109 sleep path against six failure shapes with pathological fixtures
 - *Mitigation (code, this branch):* `SleepNightResolver` (SourceArbiter.swift, pure,
   portable): per night, ONE source — stage detail beats an undifferentiated span, then the
   larger asleep total, then name (deterministic) — which is the stance Apple Health itself
-  takes (it shows one source per night; it does not union across apps, so Liviqa now
+  takes (it shows one source per night; it does not union across apps, so Maude now
   agrees with the screen the citizen checks it against). Then main-episode isolation: an
   unrecorded gap > 4h splits the bucket into episodes and the episode with the most asleep
   time is the night (recorded AWAKE bridges its gap; untimed aggregated sources are never
@@ -289,7 +289,7 @@ post-PR-109 sleep path against six failure shapes with pathological fixtures
   `sleepAnalysis` type and nothing else); the report is a plain-text file built on device
   and handed to the share sheet — the app has no upload path for it; provenance and tier
   vocabulary never appear in the text (test-pinned); a structural lint fails the suite if
-  any transport construct enters `Liviqa/Diagnostics/` (same posture as T-DON-02). Sample
+  any transport construct enters `Maude/Diagnostics/` (same posture as T-DON-02). Sample
   mode blocks generation (FR-SMP-04: sample mode never reads real data). T-DIAG-01
   (`SleepDiagnosticsTests`, 8).
 
@@ -352,7 +352,7 @@ citizens read their own patterns. Both are honesty/privacy axes the QMS files he
 *Cause.* An engineer adds one line. `event.title` is right there next to `event.startDate`,
 the compiler is happy, and a debug `print` during an investigation is the classic way this
 leaks. Nothing about the shape of EventKit resists it.
-*Harm.* Liviqa would hold, on a citizen's phone, the titles, attendees and locations of
+*Harm.* Maude would hold, on a citizen's phone, the titles, attendees and locations of
 other people's appointments — data those people never consented to give us — and the
 permission prompt would be a lie.
 *Controls.*
@@ -477,7 +477,7 @@ metric-detail screens returned `.designSeed`; Home printed a day score of 42/50 
 momentum strip reading "Recovery up 4 vs your usual", a 14-point "last 30 days" recovery
 line, and an attention card whose canned sentence ("Late dinners are costing you sleep.")
 overrode the engine's own. The single label that might have marked any of it was a chip
-in one header, gated by `liviqaShowDemoChip`, **default FALSE**.
+in one header, gated by `maudeShowDemoChip`, **default FALSE**.
 *Harm.* A person makes a judgement about their health — or about this app's trustworthiness
 — on a figure that describes nobody. In a product whose whole claim is "your own normal,
 never a population average", this is the most damaging failure available to it.
@@ -495,7 +495,7 @@ watch face cannot carry this label, so it keeps the citizen's own last real valu
 of showing a synthetic number with nothing marking it.
 *Residual risk.* A modal presented by a screen the app shell does not own would be drawn
 above the banner. Every such presentation in the shell is covered; a NEW full-screen
-presentation added later would need `.liviqaSampleModeBanner()` too. Not lint-enforced —
+presentation added later would need `.maudeSampleModeBanner()` too. Not lint-enforced —
 recorded as a review item rather than claimed as closed.
 *Linked requirements.* FR-SMP-01, FR-SMP-03. *Status:* **mitigated** (T-SMP-01, T-SMP-03).
 
@@ -561,7 +561,7 @@ now either true (the offer exists and works) or removed.
 **Context and the decision this records.** CN, 2026-08-13, verbatim: *"forget about
 anonymity. We need to have a cloud version of the data. and a permit to use it for the
 training. You do what it needs to be able to work."* This RESOLVES OD-D1 of
-`Liviqa_DonorDataProgramme_v01_20260813.md` **against** that document's own
+`Maude_DonorDataProgramme_v01_20260813.md` **against** that document's own
 recommendation: the donated corpus is for MODEL TRAINING, not verification only, and
 anonymity is abandoned as a strategy. The corpus is identifiable special-category health
 data; its protection is lawful basis + explicit consent + encryption + access control +
@@ -614,7 +614,7 @@ control and is not implemented by this PR — flagged as an open owner action.
 
 **RK-DON-04 — an export happens without, or after, consent.** Cause: a flag left on, a
 withdrawn donor, an expired grant, a build shipped with the donor surfaces reachable.
-Controls: the flow requires a compile-time `-D LIVIQA_DONOR` (shipped binaries have a
+Controls: the flow requires a compile-time `-D MAUDE_DONOR` (shipped binaries have a
 constant `false`); a pure gate refuses on no-donor-build, no grant, wrong recipient type,
 inactive grant, expired grant, empty scope, missing programme key, demo data, and empty
 window — each with its own on-screen reason; the grant expires at 12 months with no
@@ -670,7 +670,7 @@ the surface whose whole job is to tell the citizen what the app holds and where
 it came from. A citizen who believes documents are stored when none are may
 delete their only copy elsewhere; a citizen told Apple Health is connected has
 no reason to fix a connection that never worked, and will read an empty app as
-"Liviqa has nothing to say about me" rather than "Liviqa is not reading
+"Maude has nothing to say about me" rather than "Maude is not reading
 anything". Both corrupt the informed picture the consent and data-sovereignty
 promises rest on.
 
@@ -802,7 +802,7 @@ data-integrity/privacy hazard, not cosmetics.
   FR-ACC-NAME-01. **Residual:** when the account email is unknown (a session
   restored without it) a bare mailbox-shaped id cannot be recognised as such and
   would still render; in the observed sovereign path `/me` always carries the
-  email. Follow-up (NOT in this change): `LiviqaAppBar.initials(nil)` falls back
+  email. Follow-up (NOT in this change): `MaudeAppBar.initials(nil)` falls back
   to the letter "C" when no name is known — no longer an email fragment, but
   still a stand-in; owner of the chrome to replace it with a neutral mark.
 
@@ -873,7 +873,7 @@ Controls now in place:
   talking to (name · organisation, FB 10.39), and one honest line.
 - **Every line is derived by `CallStageDeriver` (pure Foundation) and asserted**
   (`CallStageDeriverTests`): `.live` is the only phase that prints nothing (the
-  video provider owns the surface and Liviqa claims nothing); a stage with no
+  video provider owns the surface and Maude claims nothing); a stage with no
   configured room may not say "connecting"; an unreachable room says "Not
   connected" and offers a retry; "Waiting for your camera" is sayable only while
   a connection is actually being attempted.
@@ -894,7 +894,7 @@ Controls now in place:
 layers below the consent surface.** Found while hardening T-PRO-01. Hazard: the
 share screens promise summaries only, but `AppState.createGrantAndShare` passes
 `granularity: nil` and the value that actually goes on the wire comes from
-`LiviqaBackendService.createGrant`'s `?? "summary"` default. The promise is true
+`MaudeBackendService.createGrant`'s `?? "summary"` default. The promise is true
 today (asserted on the wire by `ConsultShareTests.theWireBodyCarriesSummariesOnlyGranularity`),
 but a refactor of that default would widen **every** share silently, with no
 screen changing a word. Mitigations landed: `ShareGranularity` (pure Foundation)
@@ -958,7 +958,7 @@ decomposition of a demo seed or a still-calibrating window. Controls:
   load and later meals") was rendering over real readings and is now gated to the
   illustrative values it was written for.
 
-**RK-XPL-01c — a shared reference passes as "your usual".** Liviqa is
+**RK-XPL-01c — a shared reference passes as "your usual".** Maude is
 personal-baseline-relative except in two places, and an explanation that quietly
 omitted them would be worse than no explanation. Controls:
 
@@ -980,7 +980,7 @@ anywhere on the surface. Danish translation of the new copy is a separate gate.
 
 ## FR-NOT-02 — earned-attention micro-loop off session (Bevel absorb ⑤, 2026-08-13)
 
-Until now every notification Liviqa could send was a **clock** loop: fixed text
+Until now every notification Maude could send was a **clock** loop: fixed text
 at a fixed hour. This change adds the first notification whose existence depends
 on the user's own numbers, and it is decided while the app is in the background —
 a safety-path change on two counts (new generated-output surface, and a decision
@@ -1003,7 +1003,7 @@ no baseline, no "why this?". Controls:
   `userInfo` for the deep link — is re-checked with `NudgeGuard` and *dropped*
   rather than carried if it ever failed.
 - **The banner's job is to hand over to the shown work.** Tapping opens that
-  nudge's evidence view, which is Liviqa's structural answer to score opacity.
+  nudge's evidence view, which is Maude's structural answer to score opacity.
   The alert says only that one thing is worth a look; the workings are on the card.
 
 **RK-NOT-02b — a stale or context-blind alert alarms the user.** An
@@ -1022,7 +1022,7 @@ something the user had already explained away. Controls:
 - **The AFib / route-to-clinician lane is deliberately excluded from this loop.**
   Apple Watch already notifies for an irregular-rhythm signal at the moment it
   records one. A second, opportunistically-timed echo hours later would be an
-  alarm Liviqa can neither time nor interpret — and D9 forbids interpretation.
+  alarm Maude can neither time nor interpret — and D9 forbids interpretation.
   The routing nudge still sits at the top of the edition, which is where the
   "share this with your cardiologist" sentence belongs. `EarnedAttentionTests.theAFibRouteNeverProducesAnAlertEvenAtTopPriority`
   proves it cannot fire even at priority 100.
@@ -1087,7 +1087,7 @@ OCR does not fail loudly; it fails plausibly ("6.4" read as "64"). Controls:
   T-REC-03 covers normalisation, the allow-list, and each refusal class.
 
 **RK-REC-03b — an imported value is read as a clinical verdict.** A lab report
-arrives covered in reference intervals; carrying those into Liviqa would import
+arrives covered in reference intervals; carrying those into Maude would import
 exactly the population-normal framing the product exists to avoid. Controls:
 
 - **The lab's bands are structurally unreadable.** Bracketed text, anything
@@ -1143,12 +1143,12 @@ through the widget channel.** A widget extension is a separate process with its
 own sandbox; whatever the app writes into the shared App Group is rendered
 outside every in-app guard. Controls:
 
-- **Allow-list by construction.** `LiviqaWidgetSnapshot` has six explicit
+- **Allow-list by construction.** `MaudeWidgetSnapshot` has six explicit
   `CodingKeys` (`schema`, `derivedAt`, `edition`, `verdict`, `chips`,
   `timeInRange`) and carries no raw samples, identifiers, or clinician data.
   `provenance` is absent, has no key, and must never be added; T-WID-01 asserts
   the encoded top-level key set, so a new stored property cannot start crossing
-  the boundary unnoticed. `scripts/guard_provenance.sh LiviqaWidgets` green.
+  the boundary unnoticed. `scripts/guard_provenance.sh MaudeWidgets` green.
 - **FR-NDG-06 re-checked at the boundary (designated control).** The verdict
   sentence is the same allow-listed line Home and the wrist show, but the
   publisher does not assume that: `NudgeGuard.check` runs immediately before the
@@ -1158,14 +1158,14 @@ outside every in-app guard. Controls:
   because `NudgeGuard` itself is not a member of the extension targets.
 - **Red stays clinical.** The widget's time-in-range is two-state — inside your
   range (`moss`) on an outside track (`line`). `clinRed` and the five-band `tir*`
-  ramp appear nowhere in `LiviqaWidgets/`; a home-screen surface is not a
+  ramp appear nowhere in `MaudeWidgets/`; a home-screen surface is not a
   clinical surface. The attention state remains the locked amber `clay`.
 - **No composite score.** The absorb exists because Bevel's opaque score was its
   loudest complaint. The widget shows the sentence and the decomposed parts
   behind it. Adding a single blended figure to this surface would reintroduce the
   hazard the feature was built to avoid.
 - **Fails closed, never stale-and-silent.** The App Group id comes from the
-  Info.plist `LiviqaAppGroup` (`$(APP_GROUP)`); if it is missing or unexpanded
+  Info.plist `MaudeAppGroup` (`$(APP_GROUP)`); if it is missing or unexpanded
   the store reads `nil` and writes `false` rather than guessing a container.
   When the app has nothing honest to publish it *clears* the snapshot, so a
   figure cannot outlive its data, and every surface carries "as of HH:MM".
@@ -1204,7 +1204,7 @@ the `blockedIntent` widening already recorded under Area ⑨.
 ## FR-CTX-04 — context status flag (Bevel absorb ③, 2026-08-13)
 
 The user can mark a stretch of days as **travelling / unwell / off-routine**. The
-marker is *declared* data — Liviqa never infers it — and it touches a designated
+marker is *declared* data — Maude never infers it — and it touches a designated
 safety control, so it gets a row rather than a "no new hazard" note.
 
 New hazard considered: **RK-CTX-01 — a context flag silences something the user
@@ -1298,7 +1298,7 @@ Controls now in place:
   `hrvDailyDates` plus `windowStart`/`windowEnd`; `TodaySignals` carries a date
   array per week series. The deriver builds value and date in one pass, so they
   cannot desync.
-- **One alignment primitive, unit tested.** `Liviqa/Intelligence/DaySeries.swift`
+- **One alignment primitive, unit tested.** `Maude/Intelligence/DaySeries.swift`
   (pure Foundation) turns a dated series into one `DaySlot` per calendar day.
   Axis labels derive from those slot dates, so a chart cannot claim a span its
   data does not cover.
@@ -1309,7 +1309,7 @@ Controls now in place:
 - **A gap renders as a gap.** A day with no reading draws no bar, no dot and no
   line through it. Never a zero (which would assert 0% in range), never an
   interpolated segment (which would assert an observation nobody made).
-- **Regression tests that fail on the defect.** `LiviqaTests/DayAxisAlignmentTests`
+- **Regression tests that fail on the defect.** `MaudeTests/DayAxisAlignmentTests`
   (14 tests). Verified by re-introducing index alignment inside `DaySeries.slots`:
   5 tests fail; restored, 14/14 pass.
 
@@ -1411,7 +1411,7 @@ redirect) on the existing ChatGuard-protected chat. Safety posture:
   ("time to titrate my basal?", "how much bolus for pasta?") passed the input
   guard (outcome stayed safe — the deterministic responder cannot advise — but
   the question did not route to care as designed). New additive pattern
-  `titrat…|basal|bolus|prescri…` in `Liviqa/Chat/LiviqaChat.swift`; pinned by
+  `titrat…|basal|bolus|prescri…` in `Maude/Chat/MaudeChat.swift`; pinned by
   new `ChatGuardTests` red-team arguments. No pattern was removed or narrowed;
   a companion test pins that the designed descriptive prompts are NOT refused.
   Residual risk: unlisted drug names still pass the input guard; the
@@ -1462,7 +1462,7 @@ fixes. Safety posture:
 - **FR-REG-01 — MDR notice single-sourced (safety-copy move).** The two
   DIVERGENT wordings of the wellness-not-device notice (SettingsView
   regulatory card vs InAppPrivacyView) are replaced by ONE canonical constant
-  (`Liviqa/Models/RegulatoryCopy.mdrNotice`, the long form); the Account
+  (`Maude/Models/RegulatoryCopy.mdrNotice`, the long form); the Account
   screen's short DfG footer lives in the same file so the two sentences are
   reviewed together and can never drift into contradicting claims. A wording
   review now touches exactly one line.
@@ -1529,7 +1529,7 @@ Safety posture:
   over a hardcoded demo seed (`VaultSeed`) — no document was ever stored, and
   the Data-sources "import" set only a toast string, so a citizen could
   believe a sensitive document was safely kept when it was silently discarded.
-  Mitigation: `Liviqa/Security/HealthVaultStore.swift` — every document AND
+  Mitigation: `Maude/Security/HealthVaultStore.swift` — every document AND
   the metadata index (names are sensitive) sealed with AES-256-GCM
   (`CryptoBox` over the KeyVault DEK, ECIES-wrapped to the Secure-Enclave
   P-256 device key), written atomic + `NSFileProtectionComplete`, namespaced
@@ -1690,7 +1690,7 @@ donate-first rework, InAppPrivacyView proof surface. Safety posture:
   otherwise). Provenance renders nowhere on any Area-⑥ surface; no red/TIR;
   FR-NDG-06 untouched.
 
-## A7.2 Area ⑤ — Care & Liviqa PRO citizen surface rebuilt to the A7 canvases (branch claude/a72-electric-ink, 2026-08-12)
+## A7.2 Area ⑤ — Care & Maude PRO citizen surface rebuilt to the A7 canvases (branch claude/a72-electric-ink, 2026-08-12)
 
 - **RK-CONSULT-SHARE-01 (NEW) — the pre-visit share tick now creates a REAL
   consent grant (FR-PRO-01).** Hazards: (a) the citizen could believe more (or
@@ -1752,7 +1752,7 @@ donate-first rework, InAppPrivacyView proof surface. Safety posture:
   consented route exists. The sheet closes on a consent-ledger-style receipt
   listing exactly what is queued, and both the form and the receipt carry the
   urgent-care footer ("For anything urgent about your health, contact your care
-  team. Liviqa doesn't diagnose or treat."). FR-NDG-06 is untouched — the
+  team. Maude doesn't diagnose or treat."). FR-NDG-06 is untouched — the
   channel feeds the guard's post-market loop, it never alters engine output
   (T-NDG-06* remain blocking).
 - **Trends (FR-TOD-06) — correlation claims gated; red rail held.** The rebuilt
@@ -1781,7 +1781,7 @@ donate-first rework, InAppPrivacyView proof surface. Safety posture:
 Seven surfaces: Sleep, Heart, Fitness, Activity, Body, Vitals rebuilt/created
 (`SleepDetailView` / `HeartDetailView` / `FitnessDetailView` /
 `ActivityDetailView` / `BodyDetailView` / `VitalsDetailView` + derivers in
-`Liviqa/Intelligence/`), plus the restyled baseline sheet
+`Maude/Intelligence/`), plus the restyled baseline sheet
 (`MetricBaselineView` + `BaselineDeriver`). Safety posture:
 
 - **RK-ALARM-01 lock held — no clinical red on any Area-④ surface.** Heart uses
@@ -1897,7 +1897,7 @@ surfaces as above.
   sundhed.dk's terms and recommended out-of-app; extraction depends on
   undocumented endpoints/DOM and can break silently on their side. Mitigations
   in place: SELF-ACCESS only (the citizen reads their own record, signed in
-  themselves; credentials never visible to Liviqa); terminal sink is the
+  themselves; credentials never visible to Maude); terminal sink is the
   on-device store ONLY (auto-upload removed — off-device requires the separate
   explicit FR-RSCH-05 act); honest empty/none-found states rather than
   fabricated results (hardened 10.94–10.98). NOT mitigated: the lawfulness
@@ -1911,7 +1911,7 @@ surfaces as above.
   mis-tiering) — mitigated.** Hazard: a citizen misreads the plain-language
   diagnosis list, or the major/minor tiering demotes something they consider
   serious. Mitigations: display-only presentation of the citizen's OWN record
-  (Liviqa adds no interpretation, no normality judgement, no advice); tiering
+  (Maude adds no interpretation, no normality judgement, no advice); tiering
   is presentation-only with the full list reachable; entries attributed to the
   national record as source; the nudge engine is NOT coupled to conditions
   (FR-NDG-06 guard untouched — T-NDG-06/06b/06c green in the 2026-08-12 full
@@ -1949,7 +1949,7 @@ surfaces as above.
   `POST /me/erase` FIRST and runs the local wipe ONLY after the server
   confirmed `erased: true`; a server failure aborts before anything local is
   touched and surfaces a retryable, honest error ("nothing was removed yet —
-  not from Liviqa's servers and not from this device"). Ordering pinned by
+  not from Maude's servers and not from this device"). Ordering pinned by
   `EraseOrderingTests` (failure aborts pre-wipe; success ordering
   server→local). The residual failure direction is the SAFE one: worst case
   the server is erased and the local wipe is interrupted (app killed
@@ -2048,7 +2048,7 @@ hazard** — palette/type/icon/glass change no data, nudge, unit, or the AFib la
     not hue alone. Re-confirm at the next human-factors / regulatory review that
     amber-as-fill reads as "notice", not "warning".
 - **Liquid Glass legibility (positive):** the new glass surfaces (tab bar, sheets)
-  fall back to an **opaque** `LiviqaTheme.paper/paper2` fill under Reduce Transparency
+  fall back to an **opaque** `MaudeTheme.paper/paper2` fill under Reduce Transparency
   / Increase Contrast, so text contrast is preserved for low-vision users — no
   legibility regression introduced.
 - **provenance-never-renders (`T-PROV-01`):** A6 added no `provenance` rendering. The
@@ -2123,7 +2123,7 @@ consent/confidentiality controls.
   consent):** mitigated. Recording consent is one-directional — the recipient may
   only set `recordingRequested`; `recordingConsent` is writable ONLY on the
   citizen route (`CitizenService.recordingConsent`). The recipient route was
-  corrected (liviqa-backend `73453ae`) and is now locked by a regression test
+  corrected (maude-backend `73453ae`) and is now locked by a regression test
   (`workspace.service.spec.ts`) asserting it writes `{ recordingRequested }` only
   and never `recordingConsent`. The console shows "requested → awaiting citizen
   consent" until the citizen grants, and only then "Recording — consented by the
@@ -2149,7 +2149,7 @@ No new clinical hazard introduced.
 
 The derived-share PUSH is now wired to the EU-sovereign backend.
 - **RK-SEC-RESIDENCY-01 (real PII to US-parented cloud, NFR-SEC-07):** mitigated —
-  `LiviqaBackendService` targets the sovereign backend (Scaleway+Ory); Supabase is
+  `MaudeBackendService` targets the sovereign backend (Scaleway+Ory); Supabase is
   demoted to `.supabaseSandbox`; default backend is `.mock`. Real-user cutover sets
   `.sovereign`.
 - **RK-PRIV-EGRESS-01 (raw/provenance leaving device):** mitigated by construction —
@@ -2207,7 +2207,7 @@ the top hazards. Mitigations are now **implemented and verified** (executed this
 session), not just planned:
 
 - **RK-CARD-01 (AFib read as diagnosis):** the cardiac lane is `displayOnly`.
-  The only output is a `routeToClinician` nudge that explicitly states Liviqa
+  The only output is a `routeToClinician` nudge that explicitly states Maude
   does not interpret heart rhythm and routes to the cardiologist — no verdict,
   band, or trend. No-signal ⇒ no cardiac nudge (T-NDG-02/03).
 - **RK-GLU-01 (acting on a glucose nudge for dosing):** no insulin/dosing

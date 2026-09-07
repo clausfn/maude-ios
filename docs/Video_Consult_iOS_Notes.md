@@ -1,12 +1,12 @@
 # Video Consultation — iOS side (heads-up for the iOS build)
 
-_2026-06-03. **New use case you may not have yet.** The B2B console (recipient) can start a secure video consultation; the **citizen joins from this app**. So the iOS app is the other end of the call. Backend: `liviqa-backend` (see its `docs/openapi.yaml`)._
+_2026-06-03. **New use case you may not have yet.** The B2B console (recipient) can start a secure video consultation; the **citizen joins from this app**. So the iOS app is the other end of the call. Backend: `maude-backend` (see its `docs/openapi.yaml`)._
 
 ## The provider: EU-sovereign Jitsi (NOT Zoom/US)
 A clinical consult carries health discussion = personal data → **no US-parented provider on this PII path** (NFR-SEC-07). Use **Jitsi** (self-hosted EU in prod; `meet.jit.si` is dev-only and US-operated — never real PII). The console uses the same provider; both read a configurable domain. On iOS use the **Jitsi Meet SDK** (`JitsiMeetSDK`).
 
 ## Room naming (must match the console)
-`roomName = "liviqa-consult-<consultSessionId>"`. The citizen and the recipient join the **same** room. The backend gives you the exact `roomName` — don't construct your own.
+`roomName = "maude-consult-<consultSessionId>"`. The citizen and the recipient join the **same** room. The backend gives you the exact `roomName` — don't construct your own.
 
 ## Flow (citizen side)
 1. **Discover** an active consult: `GET /consults/active` (citizen auth) →
@@ -21,4 +21,4 @@ A clinical consult carries health discussion = personal data → **no US-parente
 - `GET /notifications` (consult invites, unread care-team messages, access requests)
 
 ## Why this is a heads-up
-The earlier contract focused on grants + the derived-share push. The **video consult is a separate, real surface** the citizen app needs: a Jitsi join screen, a recording-consent prompt (citizen-authoritative), and a notification to join. Build it against the EU Jitsi domain, room `liviqa-consult-<id>`. Full API: `docs/openapi.yaml`; cross-repo contract: `docs/Liviqa_iOS_Backend_Contract_v01.md`.
+The earlier contract focused on grants + the derived-share push. The **video consult is a separate, real surface** the citizen app needs: a Jitsi join screen, a recording-consent prompt (citizen-authoritative), and a notification to join. Build it against the EU Jitsi domain, room `maude-consult-<id>`. Full API: `docs/openapi.yaml`; cross-repo contract: `docs/Maude_iOS_Backend_Contract_v01.md`.

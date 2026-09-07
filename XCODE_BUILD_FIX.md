@@ -1,14 +1,14 @@
-# Liviqa — Xcode build fix (read this if Build fails)
+# Maude — Xcode build fix (read this if Build fails)
 
 The project **builds successfully** from the command line. If Xcode still shows errors, follow these steps **in order**.
 
 ## 1. Open the correct project
 
 ```
-09_Liviqa_iOS_Prototype/Liviqa/Liviqa/Liviqa.xcodeproj
+09_Maude_iOS_Prototype/Maude/Maude/Maude.xcodeproj
 ```
 
-Do **not** open the older folder `09_Liviqa_iOS_Prototype/Liviqa/` (no `.xcodeproj` there).
+Do **not** open the older folder `09_Maude_iOS_Prototype/Maude/` (no `.xcodeproj` there).
 
 ## 2. Reset Xcode caches
 
@@ -16,14 +16,14 @@ Do **not** open the older folder `09_Liviqa_iOS_Prototype/Liviqa/` (no `.xcodepr
 2. In Terminal:
 
 ```bash
-rm -rf ~/Library/Developer/Xcode/DerivedData/Liviqa-*
+rm -rf ~/Library/Developer/Xcode/DerivedData/Maude-*
 ```
 
-3. Reopen `Liviqa.xcodeproj`
+3. Reopen `Maude.xcodeproj`
 
 ## 3. Remove Supabase package (if Xcode added it back)
 
-1. Project navigator → click **Liviqa** (blue icon)
+1. Project navigator → click **Maude** (blue icon)
 2. **Package Dependencies** tab
 3. If **supabase-swift** or **swift-algorithms** appear → select → **−** Remove
 4. **File → Packages → Reset Package Caches**
@@ -41,7 +41,7 @@ Top toolbar, next to the scheme:
 
 ## 5. Signing (physical device only)
 
-1. Target **Liviqa** → **Signing & Capabilities**
+1. Target **Maude** → **Signing & Capabilities**
 2. **Team:** choose your Apple ID team
 3. If you see “requires a development team” — this is signing, not code. Add a team.
 
@@ -53,7 +53,7 @@ Top toolbar, next to the scheme:
 ## 7. Verify from Terminal (optional)
 
 ```bash
-cd "/Users/claus/Documents/Claude/Projects/Liviqa/09_Liviqa_iOS_Prototype/Liviqa/Liviqa"
+cd "/Users/claus/Documents/Claude/Projects/Maude/09_Maude_iOS_Prototype/Maude/Maude"
 ./build-ios.sh
 ```
 
@@ -64,5 +64,5 @@ You should see `BUILD SUCCEEDED`.
 Copy the **first red line** from Xcode’s Issue navigator (⚠️ left sidebar) and send it. Examples:
 
 - `Cannot find type 'UUID' in scope` → old Supabase file; pull latest repo changes
-- `Signing for "Liviqa" requires a development team` → step 5
+- `Signing for "Maude" requires a development team` → step 5
 - `iOS 26.x doesn't match deployment target` → pick a simulator or lower device OS

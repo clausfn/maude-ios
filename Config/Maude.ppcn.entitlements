@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Canonical Maude entitlements (PPCN). HealthKit + Sign in with Apple.
+     The predecessor App ID xyz.ppcn.liviqa already had APPLE_ID_AUTH registered
+     and was added to GoTrue's Apple audience; xyz.ppcn.maude needs the same two
+     steps performed once against the new App ID. App Groups stays off until the
+     Watch app and widgets need shared storage — headless ASC-key signing cannot
+     register it. -->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>

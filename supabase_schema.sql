@@ -1,4 +1,4 @@
--- Liviqa Supabase schema — Phase 1
+-- Maude Supabase schema — Phase 1
 -- Run in Supabase SQL editor. All tables use RLS; only the signed-in user touches their own rows.
 
 -- ─────────────────────────────────────────────

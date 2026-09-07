@@ -1,6 +1,6 @@
-# Liviqa Assistant (wellness-scope AI chat) — Build Note v01
+# Maude Assistant (wellness-scope AI chat) — Build Note v01
 
-_2026-06-09. Scope authority: 06_Regulatory/Liviqa_CounselMemo_AIChat_WellnessScope_v01_20260609.docx._
+_2026-06-09. Scope authority: 06_Regulatory/Maude_CounselMemo_AIChat_WellnessScope_v01_20260609.docx._
 
 **Where inference runs.** Fully **on-device and deterministic**. The MVP ships a
 rule-based descriptive responder (`LocalDataResponder`) that reports the user's own
@@ -14,7 +14,7 @@ and the UI (not a prompt instruction — models drift). Two layers: `inputIsOutO
 refuses prediction/prognosis/diagnosis/symptom/triage/treatment **requests** before
 generation; `sanitizeOutput` blocks/rewrites drifting **responses** (→ the single
 static safety line), strips imperative advice, and silently strips sexual-function
-meds. 10 acceptance tests (`LiviqaTests/ChatGuardTests`) green, incl. all red-team
+meds. 10 acceptance tests (`MaudeTests/ChatGuardTests`) green, incl. all red-team
 prompts → safety line.
 
 **Cloud / "Enhanced" mode is NOT built.** Its consent toggle is present but disabled;
