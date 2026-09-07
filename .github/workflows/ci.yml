@@ -59,19 +59,28 @@ jobs:
           fi
           echo "no dead CTAs"
 
-      # Liviqa is Data for Good's. Its name must not reappear in SHIPPED SOURCE —
-      # identifiers, types, asset names or user-facing strings. Documentation is
-      # exempt on purpose: PROVENANCE.md, the design manifest and the entitlements
-      # comment all name Liviqa deliberately, because the fork is a fact and hiding
-      # it would be worse than recording it. Existing DfG product surfaces are
-      # tracked separately in DFG_SEPARATION.md; this catches only the name.
+      # Liviqa is Data for Good's. Its name must not reappear in anything that SHIPS —
+      # identifiers, types, asset names, user-facing strings. Two exemptions, both
+      # deliberate, because the fork is a fact and hiding it would be worse than
+      # recording it:
+      #
+      #   Documentation — PROVENANCE.md, DFG_SEPARATION.md, the design manifest.
+      #   Comments in source — a `//` line explaining WHY something was inherited or
+      #     inverted is provenance, not branding. Config.swift and ReleasePosture.swift
+      #     both need to say plainly that the sovereign hosts are Liviqa's and why
+      #     Maude was pointed away from them; a rule that forced those comments to be
+      #     vague would make the codebase less safe, not more separate.
+      #
+      # So: strip comment lines, then look. A line whose first non-space characters
+      # are `//` is a comment; this codebase uses no `/* */` blocks.
       - name: No Liviqa in shipped source
         run: |
-          if grep -rIi 'liviqa' Maude MaudeWatch MaudeWidgets MaudeTests MaudeUITests; then
-            echo "::error::Liviqa reference in shipped source — rename it, and see PROVENANCE.md for why"
+          if grep -rIn --include='*' -i 'liviqa' Maude MaudeWatch MaudeWidgets MaudeTests MaudeUITests \
+             | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+            echo "::error::Liviqa reference in shipped source outside a comment — rename it, and see PROVENANCE.md for why"
             exit 1
           fi
-          echo "no Liviqa references in shipped source"
+          echo "no Liviqa references in shipped source (comments exempt, by design)"
 
   build:
     name: Build (macOS)

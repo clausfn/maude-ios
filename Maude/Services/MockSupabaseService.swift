@@ -6,8 +6,16 @@ final class MockSupabaseService: SupabaseServiceProtocol, @unchecked Sendable {
 
     // In-memory state
     private var _session: UserSession? = nil
+    // Release seeds NOTHING. `.mock` is Maude's on-device service, not a demo, so
+    // fabricated grants and ledger events must not render as the user's own — the
+    // same rule ColdStartSeeds already holds for every other surface (PR-102).
+    #if DEBUG
     private var _grants: [WalletGrant] = MockData.walletGrants
     private var _events: [WalletEvent] = MockData.walletEvents
+    #else
+    private var _grants: [WalletGrant] = []
+    private var _events: [WalletEvent] = []
+    #endif
     private var _entries: [JournalEntry] = []
 
     // Simulated network latency

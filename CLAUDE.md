@@ -21,7 +21,12 @@ never push a Maude commit to `clausfn/liviqa-ios`.
 
 - `/qms/` is kept as engineering record and changelog. It is **not** a regulatory gate: one user,
   no market placement, no MDR. Do not add release-blocking QMS ceremony.
-- Distribution is **Ad Hoc**, not TestFlight and not the App Store.
+- Distribution is **TestFlight, internal testing only** (CN, 2026-09-07 — this reverses the
+  earlier Ad Hoc rule). Never App Store review, never public. `.github/workflows/release.yml`
+  is manual-dispatch only; `docs/TESTFLIGHT.md` is the setup.
+- **The shipped build talks to no server.** `Config.backend` is `.mock` in every configuration,
+  and `ReleasePosture.verify()` crashes on launch if a Release build ever resolves to a
+  sovereign backend — those hosts (`api.maude.app`, `auth.maude.app`) are Data for Good's.
 - No insulin dose and no order placement may exist in this codebase at all — absent, not disabled.
 - One unconditional safety rule survives, for the owner's sake rather than a regulator's: symptoms
   suggesting DKA, stroke on an AFib background, or NET red flags stop everything and say go now.
