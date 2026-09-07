@@ -28,11 +28,12 @@
 // in either mode. Night clears every threshold with room to spare.
 //
 // What the measurement did find is INHERITED from A7.2 and predates this file. Every figure is
-// in docs/CONTRAST_AUDIT.md. The one that matters: the TIR headline percentage renders in
-// `tirTarget` as TEXT (OuraComponents 198/200/248), and clinical green on white is 2.05:1 — the
-// most important number on the glucose screen is the least legible thing on it. The fix is NOT
-// to move tirTarget, which RK-ALARM-01 freezes; it is a text-safe sibling, the way `clayText`
-// already solves exactly this for amber. That is a clinical-display decision and waits for CN.
+// in docs/CONTRAST_AUDIT.md; the two glucose findings are fixed and recorded in qms/RISK.md.
+//   · tirTarget was used as TEXT — 2.05:1 on white. Fixed with `tirTargetText` below: an
+//     ADDITION at the same hue, never an edit to the ramp.
+//   · the five TIR band labels were drawn in each band's own colour on a 12% wash of itself
+//     (HIGH 1.44:1). They render in `ink` now. That was PR-105's never-colour-alone closure
+//     not actually being delivered, so it is a safety repair, not styling.
 // Standing rule if a clinical token ever does fail: darken the token, never lighten the ground.
 //
 // Mode raw values (`midnight`, `paper`) are PERSISTED in @AppStorage("maudeThemeMode").
@@ -210,6 +211,23 @@ enum MaudeTheme {
     static let tirVeryLow  = Color.dyn(0x6A1B4D, 0xA85E93)   // < 3.0 mmol/L  L2 hypo (plum + hatch)
     static let tirLow      = Color.dyn(0xE8556D, 0xF08CA0)   // 3.0–3.8       L1 hypo (warm red-rose)
     static let tirTarget   = Color.dyn(0x00CC63, 0x4FE08F)   // 3.9–10.0      TARGET (clinical green)
+    /// TEXT-ONLY sibling of `tirTarget`. The ramp above does not move — this is an ADDITION,
+    /// not an edit, and `tirTarget` stays the fill everywhere it is a band, a swatch or a dot.
+    ///
+    /// Why it exists: 0x00CC63 is 2.05:1 on white. Wherever the token rendered WORDS — the
+    /// target-edge figures on the glucose axis, the in-range label, the TIR headline percentage
+    /// — the most important number on the screen was the least legible thing on it. Same hue
+    /// (149.1°), same saturation (fully saturated), lightness 0.40 -> 0.246. It reads as the
+    /// same green and clears AA: 5.02 canvas · 5.25 card · 4.69 surface · 4.53 on the target
+    /// band's own 12% wash, which is the ground the in-range label actually sits on.
+    ///
+    /// Night needs no sibling: 0x4FE08F is already 8.98–10.21 on the graphite grounds, so the
+    /// dark value is carried over unchanged and Night looks exactly as it did.
+    ///
+    /// Precedent: `clayText` solves the same problem for amber. Amber cannot be darkened and
+    /// still be amber, so its words render in ink. Green survives darkening, so its words keep
+    /// the colour — the signal is preserved AND readable, which is the better of the two.
+    static let tirTargetText = Color.dyn(0x007D3D, 0x4FE08F)
     static let tirHigh     = Color.dyn(0xFFC533, 0xFFD76B)   // 10.1–13.9     L1 hyper (amber)
     static let tirVeryHigh = Color.dyn(0xB5561E, 0xD97E45)   // > 13.9        L2 hyper (sienna + dots)
     /// Clinical out-of-range MARK — glucose charts ONLY (RK-ALARM-01): the out-of-range

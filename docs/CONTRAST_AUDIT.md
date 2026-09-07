@@ -25,7 +25,8 @@ flagged below is inherited from A7.2 and was already true before the theme was t
 |---|---|---:|---:|---:|---:|---|---|
 | `tirVeryLow` | `#6A1B4D` | 10.71 | 11.19 | 9.99 | 3.0 | pass | band fill + hatch |
 | `tirLow` | `#E8556D` | 3.38 | 3.53 | 3.15 | 3.0 | pass | band fill |
-| `tirTarget` | `#00CC63` | 2.05 | 2.14 | 1.91 | 4.5 | **below** | band fill AND text — see below |
+| `tirTarget` | `#00CC63` | 2.05 | 2.14 | 1.91 | 3.0 | **below** | band fill, swatch, dot — FILL ONLY since 2026-09-07 |
+| `tirTargetText` | `#007D3D` | 5.02 | 5.25 | 4.69 | 4.5 | pass | the words: axis target edges, in-range label, TIR headline |
 | `tirHigh` | `#FFC533` | 1.51 | 1.58 | 1.41 | 3.0 | **below** | band fill |
 | `tirVeryHigh` | `#B5561E` | 4.66 | 4.87 | 4.35 | 3.0 | pass | band fill + dots |
 | `clinRed` | `#DA2F46` | 4.49 | 4.69 | 4.19 | 3.0 | pass | chart mark, always paired with a word |
@@ -38,22 +39,39 @@ The fills that sit under 3:1 against the ground — `tirTarget`, `tirHigh`, `dev
 each other rather than against the paper, and each carries its own word, so meaning
 survives without the ground contrast doing any work.
 
-**The one real defect this audit found:** `tirTarget` is not only a fill. It is also
-used as text:
+### The glucose legibility fix — decided and applied 2026-09-07
 
-- `Maude/Views/OuraComponents.swift:198,200` — the band edge figures
-- `Maude/Views/OuraComponents.swift:248` — the in-range readout
-- `Maude/Views/_GlassLab.swift:135` — `Text("\(tirPct)%")` at 16pt mono
+Two defects were found here, both inherited, and both are now fixed. The ramp itself did
+not move: `tirTarget` is unchanged and is still the fill everywhere it is a band, a
+swatch or a dot. What changed is what happens when a clinical colour renders **words**.
 
-Clinical green on white is **2.05:1**, against a 4.5:1 requirement. The time-in-range
-percentage is the most important number on the glucose screen and it is the least
-legible thing on it.
+**1. `tirTarget` was used as text.** Clinical green is 2.05:1 on white, against a 4.5:1
+requirement, at these sites:
 
-The fix is not to move `tirTarget`: RK-ALARM-01 freezes the ramp, and the fill usage is
-correct. It is a text-safe sibling used only where the token renders words — exactly
-how `clayText` already solves this for amber, which is 1.51:1 as text and therefore
-renders its words in ink instead. That is a clinical-display change, so it is recorded
-here and waits for CN rather than being taken unilaterally.
+- `OuraComponents.swift:198,200` and `GlucoseDetailView.swift:570,572` — the target-edge
+  figures on the y-axis, 9pt mono
+- `OuraComponents.swift:248` and `GlucoseDetailView.swift:604` — the in-range band label
+- `_GlassLab.swift:135` — the TIR headline percentage, 16pt mono
+
+The time-in-range percentage is the most important number on the glucose screen and it
+was the least legible thing on it.
+
+Fixed by adding `tirTargetText` `#007D3D` — same hue (149.1°), same full saturation,
+lightness 0.40 to 0.246 — used ONLY where the token renders words. It reads as the same
+green and clears AA on every ground including the target band's own 12% wash, which is
+what the in-range label actually sits on. Night needs no sibling and is untouched.
+`GlucoseDetailView` had one property serving both roles; it is now `inBandColor` for
+fills and `inBandText` for words.
+
+**2. The five band labels were text on a 12% wash of themselves.** `ClinicalTIRZones`
+drew VERY LOW / LOW / IN RANGE / HIGH / VERY HIGH in each band's own colour, over that
+colour at 12% opacity: measured 1.44:1 for HIGH, 1.85:1 for IN RANGE, 2.93:1 for LOW.
+
+These labels ARE the never-colour-alone mechanism (PR-105). A label nobody can read is
+not a redundant channel, it is a decoration, so the guarantee was not being met. The
+words now render in `ink` — 14.5:1 to 17.2:1 on every band — and the colour channel is
+untouched: the fill and the hatch and dot patterns still carry it at full strength. This
+follows the `clayText` precedent, which solves the identical problem for amber.
 
 ### Per-domain data colours
 
@@ -111,7 +129,8 @@ Night clears every threshold on every ground. Tabulated for completeness.
 |---|---|---:|---:|---:|---:|---|---|
 | `tirVeryLow` | `#A85E93` | 3.86 | 3.40 | 3.65 | 3.0 | pass | band fill + hatch |
 | `tirLow` | `#F08CA0` | 7.38 | 6.50 | 6.98 | 3.0 | pass | band fill |
-| `tirTarget` | `#4FE08F` | 10.21 | 8.98 | 9.65 | 4.5 | pass | band fill AND text — see below |
+| `tirTarget` | `#4FE08F` | 10.21 | 8.98 | 9.65 | 3.0 | pass | band fill, swatch, dot — FILL ONLY since 2026-09-07 |
+| `tirTargetText` | `#4FE08F` | 10.21 | 8.98 | 9.65 | 4.5 | pass | the words: axis target edges, in-range label, TIR headline |
 | `tirHigh` | `#FFD76B` | 12.51 | 11.00 | 11.83 | 3.0 | pass | band fill |
 | `tirVeryHigh` | `#D97E45` | 5.78 | 5.09 | 5.47 | 3.0 | pass | band fill + dots |
 | `clinRed` | `#F0637A` | 5.58 | 4.91 | 5.27 | 3.0 | pass | chart mark, always paired with a word |

@@ -132,7 +132,7 @@ private struct TIRZoneChartDemo: View {
             HStack(spacing: 6) {
                 Text("Time in range").font(.lato(13, .semibold)).foregroundStyle(MaudeTheme.ink)
                 Spacer()
-                Text("\(tirPct)%").font(.maudeMono(16)).foregroundStyle(MaudeTheme.tirTarget)
+                Text("\(tirPct)%").font(.maudeMono(16)).foregroundStyle(MaudeTheme.tirTargetText)
                 Text("in target").font(.lato(11)).foregroundStyle(MaudeTheme.ink3)
             }
             GeometryReader { geo in
@@ -144,7 +144,7 @@ private struct TIRZoneChartDemo: View {
                     band(10.0, 13.9, MaudeTheme.tirHigh, h, w)
                     band(13.9, hi, MaudeTheme.tirVeryHigh, h, w)
                     Text("TARGET 3.9–10.0").font(.maudeKicker(8)).tracking(1)
-                        .foregroundStyle(MaudeTheme.tirTarget)
+                        .foregroundStyle(MaudeTheme.tirTargetText)
                         .padding(.leading, 4)
                         .position(x: 64, y: (y(3.9, h) + y(10.0, h)) / 2)
                     Path { p in
