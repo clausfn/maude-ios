@@ -112,17 +112,22 @@ enum Config {
     /// unaffected while this is `false`.
     static let dfgWalletEnabled = false
 
-    /// Sign in with Apple needs three things bound to the running bundle: the SIWA
-    /// entitlement, the backend/GoTrue token audience, and Apple's team-scoped user
-    /// identifiers. Both shipping bundles now satisfy all three — the canonical DfG
-    /// build (`xyz.ppcn.maude`) and the temporary PPCN beta (`xyz.ppcn.maude`,
-    /// 2026-07-07: SIWA capability registered on the App ID, entitlement in
-    /// `Maude.ppcn.entitlements`, and `xyz.ppcn.maude` added to GoTrue's Apple
-    /// audience). Caveat on PPCN: Apple's user id is team-scoped, so a sign-in there
-    /// links to an existing account only when Apple releases the real email; a
-    /// "Hide My Email" relay makes a fresh account. Any *other* bundle → hide the
-    /// button rather than show-and-break.
-    static let appleSignInBundles: Set<String> = ["xyz.ppcn.maude", "xyz.ppcn.maude"]
+    /// Sign in with Apple needs the SIWA entitlement and Apple's team-scoped user
+    /// identifiers bound to the running bundle. Maude ships ONE bundle, `xyz.ppcn.maude`,
+    /// signed by PPCN's Apple team (CN, 2026-09-07). Any other bundle hides the button
+    /// rather than showing one that cannot work.
+    ///
+    /// This list read `["xyz.ppcn.maude", "xyz.ppcn.maude"]` until now — the same string
+    /// twice, which a Set collapses to one entry, so it was harmless but meaningless. It
+    /// is a fork artefact: Liviqa shipped two bundles, Data for Good's and a PPCN beta,
+    /// and the rename mapped both onto Maude's single identifier. The comment above it
+    /// still described two builds that no longer exist. Corrected rather than left to
+    /// mislead the next reader.
+    ///
+    /// Note for the App Store Connect setup: Apple's user id is TEAM-scoped. A sign-in
+    /// under PPCN's team is a different identity from the same Apple ID signing in under
+    /// any other team, so nothing carries over from an earlier build.
+    static let appleSignInBundles: Set<String> = ["xyz.ppcn.maude"]
     static var appleSignInAvailable: Bool {
         guard let id = Bundle.main.bundleIdentifier else { return false }
         return appleSignInBundles.contains(id)

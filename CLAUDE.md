@@ -24,6 +24,9 @@ never push a Maude commit to `clausfn/liviqa-ios`.
 - Distribution is **TestFlight, internal testing only** (CN, 2026-09-07 — this reverses the
   earlier Ad Hoc rule). Never App Store review, never public. `.github/workflows/release.yml`
   is manual-dispatch only; `docs/TESTFLIGHT.md` is the setup.
+- **Signed by PPCN's Apple Developer account** (CN, 2026-09-07), never Data for Good's and
+  never a personal one. One bundle, `xyz.ppcn.maude`. The Team ID lives only in the
+  `APPLE_TEAM_ID` repository secret and the git-ignored `Config/Signing.xcconfig`.
 - **The shipped build talks to no server.** `Config.backend` is `.mock` in every configuration,
   and `ReleasePosture.verify()` crashes on launch if a Release build ever resolves to a
   sovereign backend — those hosts (`api.maude.app`, `auth.maude.app`) are Data for Good's.
