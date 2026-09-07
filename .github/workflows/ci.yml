@@ -1,0 +1,104 @@
+name: CI
+
+# Two jobs, deliberately split by cost.
+#
+# `guards` runs on Linux: the provenance, donation-egress, dead-CTA and bundled-font
+# guards are bash and Python, need no Xcode, and catch the failures that actually
+# recur. It runs on every push and every pull request because it is nearly free.
+#
+# `build` runs on a macOS runner, which GitHub bills at 10x the Linux rate. It is
+# therefore scoped to pull requests and pushes to main — not to every commit on a
+# working branch. Push freely; the expensive check runs when it matters.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: Guards (no Xcode needed)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install fonttools
+        run: pip install --quiet fonttools
+
+      # T-PROV-01. `provenance` is a DATA field for arbitration and storage only.
+      # It must never reach a user-facing surface. Blocking.
+      - name: Provenance never renders
+        run: bash scripts/guard_provenance.sh Maude
+
+      # T-DON-02. Donation is an EXPORT the donor performs, never an upload the
+      # app performs. Fails on any transport construct in the donation path.
+      - name: Donation is export-only
+        run: bash scripts/guard_donation_egress.sh .
+
+      # T-FONT-01. Bundled faces must be static instances with the PostScript name
+      # and weight Theme.swift resolves, and must be registered in UIAppFonts.
+      - name: Bundled fonts are static and registered
+        run: python3 scripts/guard_fonts.py .
+
+      # No live empty `Button { }` closures may ship. A disabled honest stub is
+      # exempt via an explicit `// HONEST-STUB` marker on the Button line.
+      - name: No dead CTAs
+        run: |
+          if grep -rn -E 'Button *\{ *\}' Maude --include='*.swift' | grep -v 'HONEST-STUB'; then
+            echo "::error::empty Button { } closure(s) found — wire the action, or mark a disabled honest stub with // HONEST-STUB"
+            exit 1
+          fi
+          echo "no dead CTAs"
+
+      # Liviqa is Data for Good's. Its name must not reappear in SHIPPED SOURCE —
+      # identifiers, types, asset names or user-facing strings. Documentation is
+      # exempt on purpose: PROVENANCE.md, the design manifest and the entitlements
+      # comment all name Liviqa deliberately, because the fork is a fact and hiding
+      # it would be worse than recording it. Existing DfG product surfaces are
+      # tracked separately in DFG_SEPARATION.md; this catches only the name.
+      - name: No Liviqa in shipped source
+        run: |
+          if grep -rIi 'liviqa' Maude MaudeWatch MaudeWidgets MaudeTests MaudeUITests; then
+            echo "::error::Liviqa reference in shipped source — rename it, and see PROVENANCE.md for why"
+            exit 1
+          fi
+          echo "no Liviqa references in shipped source"
+
+  build:
+    name: Build (macOS)
+    runs-on: macos-15
+    needs: guards
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Signing config is git-ignored and absent on CI. The example has an empty
+      # DEVELOPMENT_TEAM, which is what a simulator build wants — no signing.
+      - name: Stage signing config
+        run: cp Config/Signing.example.xcconfig Config/Signing.xcconfig
+
+      # Generic simulator destination rather than a named device: the runner image's
+      # simulator list changes between Xcode releases, and pinning a device name is
+      # the usual reason an iOS workflow breaks for no reason.
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -scheme Maude \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
