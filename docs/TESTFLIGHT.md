@@ -4,9 +4,20 @@
 Not Data for Good's, not a personal one. The app's identity is `xyz.ppcn.maude`,
 which matches.
 
-Everything on the code side is built and green. What is left is four things only
-you can do, because they happen inside your Apple account in a browser and nobody
-else can sign in as you. About twenty minutes, once.
+Everything on the code side is built and green.
+
+**What is actually left is small, and smaller than an earlier draft of this file
+claimed.** The App ID, its capabilities, the app group, the signing certificate and
+the provisioning profiles are all created automatically by the archive step —
+`-allowProvisioningUpdates` with the API key is Xcode's create-what-is-missing mode.
+None of that is yours to do.
+
+Two things are:
+
+  1. An App Store Connect API key — **reuse the one you already have** if there is
+     one on this team. It is team-wide, not per-app.
+  2. One App Store Connect app record. Two minutes, and the only step Apple offers
+     no automated route for.
 
 When they are done, pressing one button in GitHub archives the app, signs it, and
 uploads it to TestFlight on its own, every time.
@@ -15,7 +26,7 @@ uploads it to TestFlight on its own, every time.
 
 ## Before you open anything
 
-One check, because it decides whether the next twenty minutes work at all.
+One check, because it decides whether any of the rest works at all.
 
 Sign in at [developer.apple.com/account](https://developer.apple.com/account) with
 the PPCN account and look at **Membership details**. You want to see an active
@@ -34,87 +45,94 @@ on an Apple team before. If that was this account, you are already enrolled.
 
 ---
 
-## 1. Register the app identity (5 minutes)
+## 1. The API key — reuse the one you have (0–4 minutes)
 
-Apple has to know the app exists before it will accept a build.
+**Check first whether this is already done.** The Team ID and the App Store Connect
+API key are TEAM-WIDE at Apple, not per-app. A key made for any earlier upload on
+the PPCN team — Liviqa's, for instance — uploads Maude unchanged. If you still have
+the `.p8` file, skip to step 3 and paste what you already have.
 
-1. Go to [developer.apple.com/account/resources/identifiers](https://developer.apple.com/account/resources/identifiers)
-2. Click the blue **+** next to *Identifiers*.
-3. Choose **App IDs** → **Continue** → **App** → **Continue**.
-4. Description: `Maude`. Bundle ID: select **Explicit** and type `xyz.ppcn.maude`
-5. Scroll the capability list and tick these three. The app does not build without them:
-   - **HealthKit** — reading your Apple Health data, which is the point
-   - **App Groups** — so the watch app and the phone app share one store
-   - **Sign in with Apple**
-6. **Continue** → **Register**.
+If it is gone (Apple only lets you download it once), make a new one:
 
-Then the app group, on the same Identifiers page:
+1. Go to [appstoreconnect.apple.com/access/integrations/api](https://appstoreconnect.apple.com/access/integrations/api)
+2. **Team Keys** tab, not Individual Keys.
+3. **+** → name `Maude CI` → access **App Manager**.
+   It must be App Manager. A lesser role cannot create the signing certificate, and
+   the build dies at the last step with an unhelpful message.
+4. **Generate**, then take all three: the **Issuer ID** (UUID at the top), the
+   **Key ID** (10 characters), and the downloaded **`.p8`**.
 
-7. **+** again → scroll to **App Groups** → **Continue**.
-8. Description: `Maude`. Identifier: `group.xyz.ppcn.maude` → **Continue** → **Register**.
+Your **Team ID** is 10 characters, on [developer.apple.com/account](https://developer.apple.com/account)
+under Membership details.
 
-Then click back into your App ID, **Edit** next to App Groups, tick the group you
-just made, **Save**.
+## 2. Create the App Store Connect record (2 minutes)
 
-*If Apple says `xyz.ppcn.maude` is already taken:* it is registered on another team.
-Tell me the exact wording — the fix is either to release it from that team or to
-change one line of the app's identity, and which one depends on where it sits.
-
-## 2. Create the App Store Connect record (3 minutes)
+This is the ONE step that cannot be automated, and it is worth saying why rather
+than leaving it looking like an oversight. Apple's official App Store Connect API
+has no endpoint that creates an app record. The only programmatic route is
+fastlane's `produce`, which does not use an API key at all — it logs in as you with
+your Apple ID, password and a 2FA code over an unofficial cookie session. That is
+not something to run from a cloud session, and not something to put a password into
+a chat window for. So: two minutes in a browser, once, for the life of the app.
 
 1. Go to [appstoreconnect.apple.com/apps](https://appstoreconnect.apple.com/apps)
 2. Blue **+** → **New App**.
 3. Platform: **iOS**. Name: `Maude`. Primary language: **English (U.K.)**.
-   Bundle ID: pick `xyz.ppcn.maude` from the dropdown — if it is not listed, step 1
-   did not save. SKU: `maude-ppcn` (internal only, nobody sees it).
+   Bundle ID: `xyz.ppcn.maude` — see the note below if it is not in the dropdown.
+   SKU: `maude-ppcn` (internal only, nobody sees it).
 4. **Create**.
 
-You never submit this for review. TestFlight builds go to you and anyone you invite
-on the team, with no Apple review, as long as they are internal testers.
+**If `xyz.ppcn.maude` is not in the dropdown**, the App ID has not been registered
+yet. You do not have to register it by hand: run the pipeline once in `upload` mode
+and stop worrying about the failure — `xcodebuild -allowProvisioningUpdates` uses
+the API key to create the App ID, tick HealthKit / App Groups / Sign in with Apple
+from the entitlements file, create `group.xyz.ppcn.maude`, and issue the
+distribution certificate and profiles. Then come back here and the bundle ID will be
+in the list. *(Apple's behaviour, not something this repo can test — if the archive
+instead fails with a provisioning error naming something it could not create, send
+me the error and that one thing gets registered by hand.)*
 
-## 3. Make an API key so the robot can upload (4 minutes)
+You never submit this record for review. TestFlight builds go to you and anyone you
+invite on the team, with no Apple review, as long as they are internal testers.
 
-This is what lets GitHub upload without your password.
-
-1. Go to [appstoreconnect.apple.com/access/integrations/api](https://appstoreconnect.apple.com/access/integrations/api)
-2. Make sure you are on the **Team Keys** tab, not Individual Keys.
-3. Blue **+**. Name: `Maude CI`. Access: **App Manager**.
-   It must be App Manager. A lesser role cannot create the signing certificate, and
-   the build fails at the last step with an unhelpful message.
-4. **Generate**.
-5. The page now shows three things, and the file downloads **once only**:
-   - **Issuer ID** — a long UUID at the top of the page. Copy it.
-   - **Key ID** — 10 characters, in the row for the key you just made. Copy it.
-   - **Download** the `.p8` file. Apple will not give it to you again.
-
-## 4. Put the four values into GitHub (3 minutes)
+## 3. Put four values into GitHub (3 minutes)
 
 1. Go to [github.com/clausfn/maude-ios/settings/secrets/actions](https://github.com/clausfn/maude-ios/settings/secrets/actions)
-2. **New repository secret**, four times:
+2. **New repository secret**, for each one you do not already have:
 
 | Name | Value |
 |---|---|
 | `APPLE_TEAM_ID` | the 10 characters from Membership details |
-| `ASC_ISSUER_ID` | the UUID from step 3 |
-| `ASC_KEY_ID` | the 10 characters from step 3 |
+| `ASC_ISSUER_ID` | the UUID from step 1 |
+| `ASC_KEY_ID` | the 10 characters from step 1 |
 | `ASC_KEY_P8_BASE64` | the `.p8` file, converted — see below |
 
-The last one has to be turned into a single line of text first. On your Mac, open
-Terminal and run this with the real filename:
+The last one has to become a single line of text first. In Terminal, with the real
+filename:
 
 ```
 base64 -i ~/Downloads/AuthKey_XXXXXXXXXX.p8 | pbcopy
 ```
 
-That puts the converted text on your clipboard. Paste it straight into the secret.
-Nothing is printed on screen, and the workflow never prints it either.
+That puts the converted text on your clipboard. Paste it straight in. Nothing is
+printed on screen, and the workflow never prints it either.
+
+**Not sure which are already set?** Run the pipeline in **check** mode (below). It
+reports all four as SET or MISSING and stops — no build, no upload, nothing that
+reaches a tester.
 
 ---
 
 ## Then press the button
 
 1. Go to [github.com/clausfn/maude-ios/actions/workflows/release.yml](https://github.com/clausfn/maude-ios/actions/workflows/release.yml)
-2. **Run workflow** → pick the branch → **Run workflow**.
+
+   **The button only appears once this workflow is on the `main` branch.** GitHub
+   lists manual workflows from the default branch only, so until PR #1 is merged the
+   page is empty. That is not a setup mistake; it is how `workflow_dispatch` works.
+
+2. **Run workflow** → **mode: check** first. It reports which secrets are in place
+   and stops. Then run it again with **mode: upload**.
 3. About fifteen minutes to build and upload. Apple then processes it for another
    five to fifteen.
 4. Install **TestFlight** from the App Store on your phone, sign in with the same
