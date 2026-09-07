@@ -15,15 +15,25 @@
 //     would collide with that lock. Unchanged here.
 //   · Signals ship as shape + word + colour so meaning survives grayscale. Colour is never
 //     the only channel. Unchanged here.
-//   · Amber is a SIGNAL colour, never small text on a light ground (1.8:1). Unchanged here.
-//   · ink4 was darkened one step from the A7.2 package value for a 3:1 floor. The PPCN value
-//     below (0x8A97A5) is picked to hold ≥3:1 on the WARM ground, not the cool one.
+//   · Amber is a SIGNAL colour, never small text on a light ground (measured 1.51:1). Unchanged.
+//   · ink4 was darkened one step from the A7.2 package value for a 3:1 floor. 0x8A97A5 was
+//     carried over on the assumption it held that floor on the warm ground; measured, it gives
+//     2.85:1 and does not. Corrected below to 0x7F8D9D, same hue, which does.
 //
-// CONSEQUENCE OF THE GROUND MOVE, recorded so nobody has to rediscover it: the canvas went from
-// cool 0xE9F1FA to warm 0xFAFAF8. Every clinical contrast ratio in this file was originally
-// computed against the cool ground. The ratios noted inline on the CLINICAL tokens are the
-// A7.2 figures and are NOT re-verified for the warm ground — that is an open task. Where one
-// fails, darken the CLINICAL token; never lighten the ground.
+// CONSEQUENCE OF THE GROUND MOVE — measured 2026-09-07, the open task is closed. The canvas went
+// from cool 0xE9F1FA (relative luminance 0.871) to warm 0xFAFAF8 (0.955), so the ground got
+// LIGHTER. Contrast is a ratio against that ground, so every token in this file gained and none
+// lost: the smallest gain was +0.10, and `brass` — which is used as text — crossed from 4.36 to
+// 4.75 on the canvas, i.e. from failing AA to passing it. The move caused no regression anywhere,
+// in either mode. Night clears every threshold with room to spare.
+//
+// What the measurement did find is INHERITED from A7.2 and predates this file. Every figure is
+// in docs/CONTRAST_AUDIT.md. The one that matters: the TIR headline percentage renders in
+// `tirTarget` as TEXT (OuraComponents 198/200/248), and clinical green on white is 2.05:1 — the
+// most important number on the glucose screen is the least legible thing on it. The fix is NOT
+// to move tirTarget, which RK-ALARM-01 freezes; it is a text-safe sibling, the way `clayText`
+// already solves exactly this for amber. That is a clinical-display decision and waits for CN.
+// Standing rule if a clinical token ever does fail: darken the token, never lighten the ground.
 //
 // Mode raw values (`midnight`, `paper`) are PERSISTED in @AppStorage("maudeThemeMode").
 // They are deliberately unchanged so no one's stored preference resets. Only the labels moved
@@ -83,19 +93,24 @@ enum MaudeTheme {
     static let surface = Color.dyn(0xF3F2EF, 0x1B2028)
 
     // Text / icons — PPCN ink by day, warm off-white stepped by opacity at night
-    static let ink     = Color.dyn(0x0D1117, 0xFAFAF8)                 // 18.4:1 on warm-white
-    static let ink2    = Color.dyn(0x2A2E33, 0xFAFAF8, 1, 0.68)        // graphite — 13.1:1
-    static let ink3    = Color.dyn(0x6B7785, 0xFAFAF8, 1, 0.45)        // steel — 4.6:1, captions/kickers/inactive tabs
-    /// Hint tier. 0x8A97A5 holds ≥3:1 on the warm ground (≈3.2:1) — large text and UI only.
-    /// Body-size text belongs in ink3 or darker (iOS .tertiaryLabel convention).
-    static let ink4    = Color.dyn(0x8A97A5, 0xFAFAF8, 1, 0.30)
+    static let ink     = Color.dyn(0x0D1117, 0xFAFAF8)                 // 18.11:1 on the canvas
+    static let ink2    = Color.dyn(0x2A2E33, 0xFAFAF8, 1, 0.68)        // graphite — 13.07:1
+    /// Captions, kickers, inactive tabs. This is body-size text, so it owes a real 4.5:1 and the
+    /// A7.2 value did not pay it: 0x6B7785 measures 4.37 on the canvas and 4.08 on `surface`,
+    /// missing AA on two of the three grounds it sits on. Darkened one step at the SAME hue
+    /// (212°) and saturation — 4.82 canvas · 5.04 card · 4.50 surface. The shift is 0.03 in
+    /// lightness; nothing about the look changes, the claim just becomes true.
+    static let ink3    = Color.dyn(0x65707D, 0xFAFAF8, 1, 0.45)
+    /// Hint tier — large text and UI only, never body size (iOS .tertiaryLabel convention).
+    /// Same correction, same reason: 3.24 canvas · 3.39 card · 3.03 surface.
+    static let ink4    = Color.dyn(0x7F8D9D, 0xFAFAF8, 1, 0.30)
 
     // Borders / dividers — warm hairlines
     static let line    = Color.dyn(0xE4E2DE, 0xFAFAF8, 1, 0.14)
     static let line2   = Color.dyn(0xEFEDE9, 0xFAFAF8, 1, 0.08)
 
     /// THE accent — PPCN teal as TEXT/BUTTONS (links, primary, positive, consent, chip label).
-    /// 0x2E6E6A is 5.9:1 on white cards and 5.5:1 on the warm canvas — passes AA in both,
+    /// 0x2E6E6A is 5.91:1 on white cards and 5.65:1 on the warm canvas — passes AA in both,
     /// which the A7.2 fjord teal did not (4.33:1 on canvas, cards only).
     /// Night value lifted for the graphite ground (≥4.5:1 on 0x161B22).
     static let moss    = Color.dyn(0x2E6E6A, 0x6FB5AF)
@@ -166,7 +181,9 @@ enum MaudeTheme {
 
     /// Brass — consent / witness moments ONLY. Now PPCN bronze, which is the same idea in
     /// the house palette: a quiet frame that reads as ceremony rather than alarm.
-    static let brass   = Color.dyn(0x8A6A45, 0xC0A075)
+    /// Used as TEXT (Settings, onboarding, token wallet, study consent), so it owes 4.5:1.
+    /// 0x8A6A45 gave 4.44 on `surface`; one step darker at the same hue clears it everywhere.
+    static let brass   = Color.dyn(0x896944, 0xC0A075)
     static let brass2  = Color.dyn(0xF4EDDF, 0xC0A075, 1, 0.16)
 
     // Confidence ramp — the trust mechanism. Derives from the accent, so it follows the brand.
