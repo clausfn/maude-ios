@@ -20,6 +20,12 @@ name: TestFlight
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "check = report what is already set up and stop. upload = build and send to TestFlight."
+        required: true
+        type: choice
+        default: check
+        options: [check, upload]
       notes:
         description: "What testers should know about this build"
         required: false
@@ -31,13 +37,19 @@ concurrency:
 
 jobs:
   upload:
-    name: Archive and upload to TestFlight
+    name: TestFlight
     runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check the secrets are present
+      # Reports on ALL FOUR rather than dying on the first gap, so one run tells you
+      # everything that is left to do instead of one thing per run. Two of the four
+      # (APPLE_TEAM_ID, and the API key trio's issuer) are TEAM-WIDE at Apple, not
+      # per-app: a key made for any earlier upload on the same team works here, so
+      # this is often a shorter list than it looks.
+      - name: What is already set up
+        id: secrets
         env:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
           KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -45,26 +57,41 @@ jobs:
           P8: ${{ secrets.ASC_KEY_P8_BASE64 }}
         run: |
           missing=""
-          [ -n "$TEAM" ]   || missing="$missing APPLE_TEAM_ID"
-          [ -n "$KEY_ID" ] || missing="$missing ASC_KEY_ID"
-          [ -n "$ISSUER" ] || missing="$missing ASC_ISSUER_ID"
-          [ -n "$P8" ]     || missing="$missing ASC_KEY_P8_BASE64"
+          mark() { if [ -n "$2" ]; then echo "  SET      $1"; else echo "  MISSING  $1"; missing="$missing $1"; fi; }
+          echo "Repository secrets:"
+          mark APPLE_TEAM_ID      "$TEAM"
+          mark ASC_ISSUER_ID      "$ISSUER"
+          mark ASC_KEY_ID         "$KEY_ID"
+          mark ASC_KEY_P8_BASE64  "$P8"
+          echo ""
           if [ -n "$missing" ]; then
+            echo "Still needed:$missing"
+            echo "docs/TESTFLIGHT.md has the click-by-click. Reminder: the Team ID and the"
+            echo "App Store Connect API key are team-wide — if you made a key for an earlier"
+            echo "app on this same Apple team, reuse it rather than making a new one."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing missing. Run this workflow again with mode = upload."
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+          # In check mode a gap is the ANSWER, not a failure. In upload mode it is fatal.
+          if [ -n "$missing" ] && [ "${{ inputs.mode }}" = "upload" ]; then
             echo "::error::Missing repository secret(s):$missing — see docs/TESTFLIGHT.md"
             exit 1
           fi
-          echo "all four secrets present"
 
       # Same reason as the CI workflow: Maude/AppIcon.icon is Icon Composer format
       # and needs Xcode 26 or later, so select the newest on the image rather than
       # trusting the default.
       - name: Select newest Xcode
+        if: inputs.mode == 'upload'
         run: |
           LATEST="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)"
           [ -n "$LATEST" ] && sudo xcode-select -s "$LATEST/Contents/Developer"
           xcodebuild -version
 
       - name: Write the App Store Connect API key
+        if: inputs.mode == 'upload'
         env:
           P8: ${{ secrets.ASC_KEY_P8_BASE64 }}
         run: |
@@ -79,6 +106,7 @@ jobs:
       # else in it (bundle id, app group, entitlements path) comes from the checked-in
       # template, so the shipped identity is xyz.ppcn.maude — PPCN's, not DfG's.
       - name: Stage local-only config
+        if: inputs.mode == 'upload'
         env:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
@@ -91,11 +119,13 @@ jobs:
       # string, so it has to increase on every upload. The workflow run number does
       # that for free and is visible in the Actions UI next to the build.
       - name: Set the build number
+        if: inputs.mode == 'upload'
         run: |
           echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
           echo "build number ${{ github.run_number }}"
 
       - name: Archive
+        if: inputs.mode == 'upload'
         run: |
           set -o pipefail
           xcodebuild \
@@ -124,6 +154,7 @@ jobs:
       # TestFlight; nothing is left to do by hand afterwards. uploadSymbols gives
       # readable crash reports.
       - name: Write ExportOptions.plist
+        if: inputs.mode == 'upload'
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -142,6 +173,7 @@ jobs:
           echo "export options written"
 
       - name: Export and upload to TestFlight
+        if: inputs.mode == 'upload'
         run: |
           set -o pipefail
           xcodebuild -exportArchive \
@@ -162,7 +194,7 @@ jobs:
           grep -iE 'error|failed|invalid|rejected|ITMS' "$LOG" | sort -u | head -60 || true
 
       - name: What happens next
-        if: success()
+        if: success() && inputs.mode == 'upload'
         run: |
           echo "Build ${{ github.run_number }} uploaded."
           echo "Apple processes it for 5–15 minutes, then it appears in TestFlight."
