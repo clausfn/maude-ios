@@ -114,13 +114,21 @@ public nonisolated enum GlucoseDetailDeriver {
         // Whole-week TIR + the 5-band clinical distribution.
         let inRangePct = pct(week)
         let n = Double(week.count)
-        let bandPcts: [Double] = [
-            week.filter { $0.mmol < 3.0 }.count,
-            week.filter { $0.mmol >= 3.0 && $0.mmol < lo }.count,
-            week.filter { inRange($0.mmol) }.count,
-            week.filter { $0.mmol > hi && $0.mmol <= 13.9 }.count,
-            week.filter { $0.mmol > 13.9 }.count,
-        ].map { Double($0) / n * 100 }
+
+        // Counted into named constants rather than one array literal of five
+        // closures with a trailing `.map`. That form made the Swift type-checker
+        // exceed its budget ("unable to type-check this expression in reasonable
+        // time") — it has to solve the literal as [Int] from the map closure while
+        // the outer annotation says [Double], across five closures at once.
+        // Thresholds and ordering are unchanged: L2 hypo · L1 hypo · target ·
+        // L1 hyper · L2 hyper, matching the TIR ramp in Theme.swift.
+        let countVeryLow  = week.filter { $0.mmol < 3.0 }.count
+        let countLow      = week.filter { $0.mmol >= 3.0 && $0.mmol < lo }.count
+        let countTarget   = week.filter { inRange($0.mmol) }.count
+        let countHigh     = week.filter { $0.mmol > hi && $0.mmol <= 13.9 }.count
+        let countVeryHigh = week.filter { $0.mmol > 13.9 }.count
+        let bandCounts: [Int] = [countVeryLow, countLow, countTarget, countHigh, countVeryHigh]
+        let bandPcts: [Double] = bandCounts.map { Double($0) / n * 100 }
 
         // Previous week, for the honest "vs last week" comparison.
         let prev = s.glucose.filter { $0.ts >= prevStart && $0.ts < weekStart }
