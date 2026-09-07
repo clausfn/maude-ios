@@ -100,10 +100,19 @@ jobs:
           xcodebuild -version
           swift --version
 
-      # Signing config is git-ignored and absent on CI. The example has an empty
-      # DEVELOPMENT_TEAM, which is what a simulator build wants — no signing.
-      - name: Stage signing config
-        run: cp Config/Signing.example.xcconfig Config/Signing.xcconfig
+      # Two files are git-ignored by design and absent on a fresh checkout. Both
+      # have checked-in templates; CI uses the templates, never real values.
+      #
+      #   Config/Signing.xcconfig — the example has an empty DEVELOPMENT_TEAM,
+      #     which is exactly what a simulator build wants: no signing.
+      #   Maude/Secrets.swift — the example has an empty mistralAPIKey, so
+      #     MistralClient.hasKey is false and the Debug build never reaches the
+      #     cloud path. A real key must never appear here.
+      - name: Stage local-only config from templates
+        run: |
+          cp Config/Signing.example.xcconfig Config/Signing.xcconfig
+          cp Maude/Secrets.swift.example Maude/Secrets.swift
+          echo "staged:"; ls -1 Config/Signing.xcconfig Maude/Secrets.swift
 
       # Generic simulator destination rather than a named device: the runner image's
       # simulator list changes between Xcode releases, and pinning a device name is
