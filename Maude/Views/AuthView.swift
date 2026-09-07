@@ -310,7 +310,7 @@ struct AuthView: View {
             }
             HStack(spacing: 9) {
                 walletCell(logo: "igrant-logo", swatch: nil, name: "iGrant.io") { activeIDP = .iGrant }
-                walletCell(logo: "dfg-logo-negative", tileColor: MaudeTheme.dfgNavy, swatch: nil, name: "DfG Wallet") { showWalletLogin = true }
+                walletCell(logo: "dfg-logo-negative", tileColor: MaudeTheme.partnerTile, swatch: nil, name: "DfG Wallet") { showWalletLogin = true }
             }
         }
         .fullScreenCover(item: $activeIDP) { p in

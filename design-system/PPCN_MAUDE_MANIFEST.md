@@ -87,6 +87,38 @@ Outfit at 600/700 carries headline weight instead.
 
 ---
 
+## The style, not just the palette
+
+Taken from the live site components, not described from memory. These are PPCN's signatures and
+they are what make a screen read as PPCN rather than merely use its colours.
+
+**The kicker.** A short terracotta hairline — 1pt × 32pt — then mono uppercase at +0.18em, in
+terracotta. It opens a section. `MaudeTheme.Rule.kickerWidth/Height`, `Tracking.kickerAt(_:)`.
+
+**The meta rail.** A narrow left column in mono uppercase at +0.14em, ink at 45%, carrying
+standing facts: `Est. 2014`, `Position § 00`. Sections are numbered with **§**, not with 01/02/03.
+On a 390pt phone the rail collapses — the site hides it under 768px — so the § number moves inline
+above the heading. `Tracking.metaAt(_:)`.
+
+**Display type is tight.** −0.028em at 0.96–1.04 leading. Much tighter than iOS defaults.
+`Tracking.display(_:)` returns the em value scaled to the point size, because SwiftUI tracking is
+absolute and a fixed constant is only right at one size.
+
+**Terracotta inside the sentence.** The single most characteristic PPCN move: one phrase inside an
+ink headline set in terracotta. *"We write the **architectural frameworks** behind EU health
+innovation."* Not a highlight, not a background — the word itself changes colour. Use it once per
+screen, on the phrase that carries the argument.
+
+**Body breathes.** 18–22px at 1.45–1.5 leading, ink at 80%. Never full-strength ink for running
+text.
+
+**The hero ground.** Warm-white with a tan bloom off-centre — a radial gradient at 78%/22%, tan at
+18% opacity, fading by 55%. `MaudeTheme.heroGround`. It is the only gradient in the system.
+
+**Rules over cards.** The site separates with hairlines at `ink/15` and short thick terracotta
+rules, not with a card-and-shadow for every block. Spend the card treatment on the one thing per
+screen that earns it.
+
 ## Mode names
 
 A7 shipped `midnight` / `paper`. PPCN keeps two modes but renames them to the house vocabulary:
