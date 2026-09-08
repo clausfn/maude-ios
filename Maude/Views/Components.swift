@@ -2,9 +2,15 @@
 // Design ref: Maude_App_UI_Aperture_v01_20260521.html
 import SwiftUI
 
-// MARK: - Aperture mark
-// Embeds the LOCKED iris-mark asset (brand v2) — never redraw the mark in code (brand
-// kit §1; code redraws caused prior drift). Same source SVGs as maude.app.
+// MARK: - The mark
+// Embeds the PPCN mark as an ASSET — never redraw it in code (code redraws caused prior
+// drift). The path is copied verbatim from ppcn-site/public/favicon.svg; if the mark
+// changes it changes there first. Replaced Liviqa's iris on 2026-09-07 (CN).
+//
+// `MaudeMark` and `MaudeMarkReversed` currently carry the SAME artwork, because PPCN's
+// mark is tan 0xC8B59A in both the light and the dark lockup — only the wordmark flips,
+// and the app draws no wordmark. The two-asset mechanism is kept rather than removed: it
+// is where a dark-ground variant goes if one is ever needed.
 
 struct MaudeApertureMark: View {
     var size: CGFloat = 28

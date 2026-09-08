@@ -80,15 +80,22 @@ struct ReleasePostureTests {
         try expectDebugGated(file: "Maude/Config.swift", marker: "nationalIDLoginEnabled = true")
     }
 
-    @Test func backendDefaultsToSovereignProdInRelease() throws {
+    @Test func backendIsOnDeviceInEveryConfiguration() throws {
         let src = try source("Maude/Config.swift")
-        // The default (no env override) branch must be: DEBUG → .mock,
-        // Release → sovereignProd. (`case "mock": return .mock` above it is
-        // the MAUDE_BACKEND env hook — local QA only, unreachable on
-        // TestFlight installs, checked by ReleasePosture.verify at runtime.)
-        let pattern = #"#if DEBUG\s*\n\s*return \.mock[^\n]*\n\s*#else\s*\n\s*return sovereignProd"#
+        // Maude ships on-device. The default (no env override) branch must resolve
+        // to `.mock` in EVERY configuration — no `#if DEBUG` fork, and above all no
+        // `sovereignProd`, whose hosts (api.maude.app / auth.maude.app) are Data for
+        // Good's. The `case "..."` arms above the default are the MAUDE_BACKEND env
+        // hook: local QA only, unreachable on a TestFlight or App Store install, and
+        // checked again at runtime by ReleasePosture.verify().
+        let pattern = #"default:\n(?:\s*//[^\n]*\n)*\s*return \.mock"#
         #expect(src.range(of: pattern, options: .regularExpression) != nil,
-                "Config.backend default must be DEBUG→.mock / Release→sovereignProd")
+                "Config.backend default must be .mock in every configuration")
+        // Belt and braces: the default arm must not name a sovereign case at all.
+        let defaultArm = src.components(separatedBy: "default:").last ?? ""
+        let arm = String(defaultArm.prefix(400))
+        #expect(!arm.contains("sovereignProd"),
+                "Config.backend default must never resolve to sovereignProd — those hosts are DfG's")
     }
 
     @Test func sandboxWalletRailDetourIsRetired() throws {

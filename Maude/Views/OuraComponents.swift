@@ -195,9 +195,9 @@ struct GlucoseCurveView: View {
             VStack(alignment: .trailing) {
                 Text(fmt(yMax))
                 Spacer()
-                Text(fmt(high)).foregroundStyle(showsClinicalZones ? MaudeTheme.tirTarget : MaudeTheme.moss)
+                Text(fmt(high)).foregroundStyle(showsClinicalZones ? MaudeTheme.tirTargetText : MaudeTheme.moss)
                 Spacer()
-                Text(fmt(low)).foregroundStyle(showsClinicalZones ? MaudeTheme.tirTarget : MaudeTheme.moss)
+                Text(fmt(low)).foregroundStyle(showsClinicalZones ? MaudeTheme.tirTargetText : MaudeTheme.moss)
                 Spacer()
                 Text(fmt(yMin))
             }
@@ -245,7 +245,7 @@ struct GlucoseCurveView: View {
                 if let targetLabel {
                     Text(targetLabel)
                         .font(.maudeKicker(8)).tracking(0.4)
-                        .foregroundStyle(MaudeTheme.tirTarget)
+                        .foregroundStyle(MaudeTheme.tirTargetText)
                         .offset(x: 4, y: y(high, h) + 2)
                 }
                 if values.count > 1 {
@@ -897,10 +897,16 @@ struct ClinicalTIRZones: View {
             if b.pattern == .hatch { ZoneHatch(color: b.color.opacity(0.30)) }
             if b.pattern == .dots  { ZoneDots(color: b.color.opacity(0.30)) }
             if bandH >= 13 {
+                // The word is INK, not the band colour. In the band colour it was text on a 12%
+                // wash of ITSELF: measured 1.44:1 for HIGH, 1.85:1 for IN RANGE, 2.93:1 for LOW.
+                // These labels ARE the never-colour-alone mechanism (PR-105) — a label nobody can
+                // read is not a redundant channel, it is a decoration. In ink they run 14.5:1 to
+                // 17.2:1 on every band. The colour channel is untouched: the fill and the hatch
+                // and dot patterns still carry it, at full strength.
                 Text(b.label)
                     .font(.system(size: 7, weight: .bold))
                     .tracking(0.4)
-                    .foregroundStyle(b.color)
+                    .foregroundStyle(MaudeTheme.ink)
                     .padding(.trailing, 3).padding(.top, 1.5)
             }
         }

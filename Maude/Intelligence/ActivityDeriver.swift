@@ -99,10 +99,19 @@ public nonisolated enum ActivityDeriver {
             ? prior.map(\.value).reduce(0, +) / Double(prior.count)
             : weekMean
         let priorKcal = series(s.activeEnergy, daysBack: -27, -7)
-        let usualKcal: Double? = priorKcal.count >= 5
-            ? priorKcal.map(\.value).reduce(0, +) / Double(priorKcal.count)
-            : (kcalWeek.count >= 2
-                ? kcalWeek.map(\.value).reduce(0, +) / Double(kcalWeek.count) : nil)
+        // Written as statements rather than a nested ternary. The original had to
+        // unify Double and Double? through two ternary levels with keypath maps on
+        // both branches, and the type-checker exceeded its budget on it. Same
+        // preference order: three prior weeks if there are at least 5 days, else
+        // this week if there are at least 2, else nothing.
+        let usualKcal: Double?
+        if priorKcal.count >= 5 {
+            usualKcal = priorKcal.map(\.value).reduce(0, +) / Double(priorKcal.count)
+        } else if kcalWeek.count >= 2 {
+            usualKcal = kcalWeek.map(\.value).reduce(0, +) / Double(kcalWeek.count)
+        } else {
+            usualKcal = nil
+        }
 
         let pct: Int? = usualFromHistory && usual > 0
             ? Int(((weekMean - usual) / usual * 100).rounded()) : nil

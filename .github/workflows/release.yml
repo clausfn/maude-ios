@@ -1,0 +1,207 @@
+name: TestFlight
+
+# Manual only. Nothing about a push or a pull request uploads a build — the run is
+# started deliberately from the Actions tab, because every upload consumes a build
+# number that can never be reused and lands in front of a tester.
+#
+# WHAT IT NEEDS (four repository secrets, all from App Store Connect — see
+# docs/TESTFLIGHT.md for the click-by-click):
+#
+#   APPLE_TEAM_ID        10 characters, e.g. A1B2C3D4E5
+#   ASC_KEY_ID           10 characters, the App Store Connect API key id
+#   ASC_ISSUER_ID        a UUID
+#   ASC_KEY_P8_BASE64    the downloaded .p8 file, base64-encoded
+#
+# The API key does the provisioning too (`-allowProvisioningUpdates`): Xcode uses it
+# to create the App ID, the distribution certificate and the profiles on demand. So
+# there is no certificate to export, no .mobileprovision to store, and no keychain
+# dance in this file. The key needs the App Manager role for that to work.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check = report what is already set up and stop. upload = build and send to TestFlight."
+        required: true
+        type: choice
+        default: check
+        options: [check, upload]
+      notes:
+        description: "What testers should know about this build"
+        required: false
+        default: "Internal build from the working branch."
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reports on ALL FOUR rather than dying on the first gap, so one run tells you
+      # everything that is left to do instead of one thing per run. Two of the four
+      # (APPLE_TEAM_ID, and the API key trio's issuer) are TEAM-WIDE at Apple, not
+      # per-app: a key made for any earlier upload on the same team works here, so
+      # this is often a shorter list than it looks.
+      - name: What is already set up
+        id: secrets
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+          P8: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          missing=""
+          mark() { if [ -n "$2" ]; then echo "  SET      $1"; else echo "  MISSING  $1"; missing="$missing $1"; fi; }
+          echo "Repository secrets:"
+          mark APPLE_TEAM_ID      "$TEAM"
+          mark ASC_ISSUER_ID      "$ISSUER"
+          mark ASC_KEY_ID         "$KEY_ID"
+          mark ASC_KEY_P8_BASE64  "$P8"
+          echo ""
+          if [ -n "$missing" ]; then
+            echo "Still needed:$missing"
+            echo "docs/TESTFLIGHT.md has the click-by-click. Reminder: the Team ID and the"
+            echo "App Store Connect API key are team-wide — if you made a key for an earlier"
+            echo "app on this same Apple team, reuse it rather than making a new one."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing missing. Run this workflow again with mode = upload."
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+          # In check mode a gap is the ANSWER, not a failure. In upload mode it is fatal.
+          if [ -n "$missing" ] && [ "${{ inputs.mode }}" = "upload" ]; then
+            echo "::error::Missing repository secret(s):$missing — see docs/TESTFLIGHT.md"
+            exit 1
+          fi
+
+      # Same reason as the CI workflow: Maude/AppIcon.icon is Icon Composer format
+      # and needs Xcode 26 or later, so select the newest on the image rather than
+      # trusting the default.
+      - name: Select newest Xcode
+        if: inputs.mode == 'upload'
+        run: |
+          LATEST="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)"
+          [ -n "$LATEST" ] && sudo xcode-select -s "$LATEST/Contents/Developer"
+          xcodebuild -version
+
+      - name: Write the App Store Connect API key
+        if: inputs.mode == 'upload'
+        env:
+          P8: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "$P8" | base64 --decode > "$RUNNER_TEMP/asc/key.p8"
+          # Sanity check without printing the key: a .p8 is a PEM private key.
+          head -1 "$RUNNER_TEMP/asc/key.p8" | grep -q "BEGIN PRIVATE KEY" \
+            || { echo "::error::ASC_KEY_P8_BASE64 did not decode to a .p8 private key — re-encode the file with: base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy"; exit 1; }
+          echo "key written"
+
+      # Config/Signing.xcconfig is gitignored and carries the Team ID. Everything
+      # else in it (bundle id, app group, entitlements path) comes from the checked-in
+      # template, so the shipped identity is xyz.ppcn.maude — PPCN's, not DfG's.
+      - name: Stage local-only config
+        if: inputs.mode == 'upload'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cp Config/Signing.example.xcconfig Config/Signing.xcconfig
+          printf '\nDEVELOPMENT_TEAM = %s\n' "$TEAM" >> Config/Signing.xcconfig
+          cp Maude/Secrets.swift.example Maude/Secrets.swift
+          echo "staged (team id not printed)"
+
+      # TestFlight rejects a build number it has seen before for the same version
+      # string, so it has to increase on every upload. The workflow run number does
+      # that for free and is visible in the Actions UI next to the build.
+      - name: Set the build number
+        if: inputs.mode == 'upload'
+        run: |
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "build number ${{ github.run_number }}"
+
+      - name: Archive
+        if: inputs.mode == 'upload'
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -scheme Maude \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/Maude.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/key.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            archive 2>&1 | tee "$RUNNER_TEMP/archive.log"
+
+      - name: Archive diagnostics
+        if: failure()
+        run: |
+          LOG="$RUNNER_TEMP/archive.log"
+          [ -f "$LOG" ] || { echo "no log — the archive step failed before xcodebuild ran"; exit 0; }
+          echo "----- file:line diagnostics -----"
+          grep -E ':[0-9]+:[0-9]+: (error|fatal error):' "$LOG" | sort -u | head -60 || true
+          echo "----- signing and provisioning -----"
+          grep -iE 'provisioning|signing|certificate|entitlement|No profiles|team' "$LOG" | sort -u | head -40 || true
+
+      # method app-store-connect + destination upload sends the build straight to
+      # TestFlight; nothing is left to do by hand afterwards. uploadSymbols gives
+      # readable crash reports.
+      - name: Write ExportOptions.plist
+        if: inputs.mode == 'upload'
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          echo "export options written"
+
+      - name: Export and upload to TestFlight
+        if: inputs.mode == 'upload'
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Maude.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/key.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            2>&1 | tee "$RUNNER_TEMP/export.log"
+
+      - name: Export diagnostics
+        if: failure()
+        run: |
+          LOG="$RUNNER_TEMP/export.log"
+          [ -f "$LOG" ] || exit 0
+          grep -iE 'error|failed|invalid|rejected|ITMS' "$LOG" | sort -u | head -60 || true
+
+      - name: What happens next
+        if: success() && inputs.mode == 'upload'
+        run: |
+          echo "Build ${{ github.run_number }} uploaded."
+          echo "Apple processes it for 5–15 minutes, then it appears in TestFlight."
+          echo "Notes for testers: ${{ inputs.notes }}"
+
+      # The key is on a throwaway runner that is destroyed after the job, but delete
+      # it anyway rather than relying on that.
+      - name: Shred the API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc/key.p8"

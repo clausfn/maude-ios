@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 63.10 51.20" width="512" height="512" role="img" aria-label="PPCN mark, reversed">
+  <!-- The PPCN mark, taken verbatim from ppcn-site/public/favicon.svg — same path
+       data, same rotation, same tan. Never redraw it in code or by eye; if it must
+       change, it changes at the source and is copied here. Tan 0xC8B59A is the mark
+       colour in BOTH of PPCN's lockups (light and dark); only the wordmark flips,
+       and the app draws no wordmark. -->
+  <g transform="translate(-13.7,-20.5)" fill="#C8B59A">
+    <g transform="rotate(-23.9,49.93,50.81)">
+      <path d="M73.232,28.96c-5.631,0-10.194,4.567-10.194,10.197c0,8.74-4.368,13.108-13.11,13.108c-8.737,0-13.111-4.369-13.111-13.108c0-5.63-4.563-10.197-10.194-10.197s-10.194,4.567-10.194,10.197c0,5.631,4.563,10.198,10.194,10.198c8.742,0,13.111,4.369,13.111,13.111c0,5.631,4.563,10.194,10.195,10.194c5.63,0,10.2-4.563,10.2-10.194c0-8.742,4.368-13.111,13.104-13.111c5.637,0,10.2-4.567,10.2-10.198C83.433,33.527,78.869,28.96,73.232,28.96z"/>
+    </g>
+  </g>
+</svg>

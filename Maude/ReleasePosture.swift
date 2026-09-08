@@ -3,8 +3,14 @@
 // A Release/TestFlight build must NEVER:
 //   • present fabricated (demo/LV001/mock) data as the user's own,
 //   • expose simulated identity logins (DfG wallet / national eID / demo entry),
-//   • talk to any host but the sovereign prod backend (api.maude.app) —
-//     including the retired sandbox wallet-rail detour.
+//   • talk to Data for Good's backend, or any other remote host, at all.
+//
+// THAT LAST RULE IS INVERTED FROM LIVIQA, DELIBERATELY (2026-09-07). In Liviqa the
+// posture was "the backend MUST be api.maude.app" — correct there, because that is
+// Data for Good's own sovereign stack. Maude is PPCN's fork, one user, on-device;
+// for Maude the same line reversed is the safety property: a shipped build must
+// NEVER resolve to a sovereign backend, because the only sovereign hosts in this
+// file belong to DfG. See PROVENANCE.md, DFG_SEPARATION.md and Config.backend.
 //
 // Swift has no value-level static assert, so the posture is enforced in two
 // layers that both fail BEFORE a human review could miss them:
@@ -27,21 +33,20 @@ enum ReleasePosture {
         precondition(Config.nationalIDLoginEnabled == false,
                      "Release posture violation: national-eID simulated login enabled")
 
-        // All rails ride the sovereign prod backend — no sandbox detour (T1).
+        // No rail may be pointed at a remote host.
         precondition(Config.walletRailBaseURL == nil,
-                     "Release posture violation: wallet rail routed off the main backend")
+                     "Release posture violation: wallet rail routed to a remote host")
 
-        // Default backend (no env override) must be sovereign prod on maude.app.
-        // `MAUDE_BACKEND` env is a local-QA hook; TestFlight/App Store installs
-        // cannot set process env, so the default IS the shipped behaviour.
+        // Default backend (no env override) must be on-device. `MAUDE_BACKEND` is a
+        // local-QA hook; TestFlight and App Store installs cannot set process env,
+        // so the default IS the shipped behaviour. A regression that repointed Maude
+        // at DfG's stack crashes the very first Release launch rather than quietly
+        // signing a PPCN build into someone else's production.
         if ProcessInfo.processInfo.environment["MAUDE_BACKEND"] == nil {
-            if case .sovereign(let baseURL, let devToken, _) = Config.backend {
-                precondition(baseURL.host == "api.maude.app",
-                             "Release posture violation: backend is not api.maude.app")
-                precondition(devToken == nil,
-                             "Release posture violation: dev seed token in Release")
-            } else {
-                preconditionFailure("Release posture violation: non-sovereign backend in Release")
+            if case .sovereign = Config.backend {
+                preconditionFailure(
+                    "Release posture violation: Maude resolved to a sovereign backend. "
+                    + "Those hosts are Data for Good's — Maude ships on-device.")
             }
         }
         #endif

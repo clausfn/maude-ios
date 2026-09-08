@@ -151,9 +151,12 @@ struct SettingsView: View {
                             .font(.footnote).foregroundStyle(MaudeTheme.ink)
                         Spacer()
                     }
+                    // Labels come from Mode.label so the picker cannot drift from the theme.
+                    // Raw values stay `midnight`/`paper` — they are persisted in @AppStorage.
                     Picker("Theme", selection: $themeModeRaw) {
-                        Text("Midnight").tag(MaudeTheme.Mode.midnight.rawValue)
-                        Text("Paper").tag(MaudeTheme.Mode.paper.rawValue)
+                        ForEach(MaudeTheme.Mode.allCases) { mode in
+                            Text(mode.label).tag(mode.rawValue)
+                        }
                     }
                     .pickerStyle(.segmented)
                 }

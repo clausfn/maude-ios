@@ -559,7 +559,12 @@ struct GlucoseWeekRangeBars: View {
     }
     private func fmt(_ v: Double) -> String { String(format: "%.0f", v.rounded()) }
 
+    /// FILL role: bands, bars, washes. Full clinical green.
     private var inBandColor: Color { clinical ? MaudeTheme.tirTarget : MaudeTheme.moss }
+    /// TEXT role: the axis target-edge figures and the band caption. Same hue, darkened so it
+    /// clears AA — 0x00CC63 is 2.05:1 on white and these are 9pt and 8pt. `moss` already passed
+    /// (5.65:1), so the non-clinical path is unchanged.
+    private var inBandText: Color { clinical ? MaudeTheme.tirTargetText : MaudeTheme.moss }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -567,9 +572,9 @@ struct GlucoseWeekRangeBars: View {
             VStack(alignment: .trailing) {
                 Text(fmt(yMax))
                 Spacer()
-                Text(fmt(high)).foregroundStyle(inBandColor)
+                Text(fmt(high)).foregroundStyle(inBandText)
                 Spacer()
-                Text(fmt(low)).foregroundStyle(inBandColor)
+                Text(fmt(low)).foregroundStyle(inBandText)
                 Spacer()
                 Text(fmt(yMin))
             }
@@ -601,7 +606,7 @@ struct GlucoseWeekRangeBars: View {
                     .offset(y: y(high, h))
                 Text(clinical ? "target 3.9–10.0" : "your range")
                     .font(.maudeKicker(8)).tracking(0.4)
-                    .foregroundStyle(inBandColor)
+                    .foregroundStyle(inBandText)
                     .offset(x: 4, y: y(high, h) + 2)
                 ForEach(Array(days.enumerated()), id: \.offset) { i, day in
                     let cx = slot * (CGFloat(i) + 0.5)

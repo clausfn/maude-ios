@@ -303,11 +303,33 @@ struct UsualDayBars: View {
             .padding(.top, 5)
         }
         .accessibilityElement()
-        .accessibilityLabel("Daily bars\(unit.isEmpty ? "" : ", in \(unit)")")
-        .accessibilityValue(zip(labels, values)
-            .map { label, v in v.map { "\(label): \(fmt($0))" } ?? "\(label): no data" }
-            .joined(separator: ". ")
-            + (usual.map { ". Your usual is \(fmt($0))." } ?? ""))
+        .accessibilityLabel(spokenLabel)
+        .accessibilityValue(spokenValue)
+    }
+
+    // The spoken strings are built as statements, not as one chained expression.
+    // Inline, the value was zip → map (with a nested Optional.map and `??` inside
+    // the closure) → joined → `+` a second optional map. The type-checker has to
+    // resolve the `+` overload set against two interpolated literals while still
+    // solving both closures, and it exceeds its budget on current Xcode. Every
+    // other chart in this file already precomputes its a11y string; this was one
+    // of two exceptions. Wording is unchanged, including the "no data" slot text.
+    private var spokenLabel: String {
+        unit.isEmpty ? "Daily bars" : "Daily bars, in \(unit)"
+    }
+
+    private var spokenValue: String {
+        var parts: [String] = []
+        for (label, slot) in zip(labels, values) {
+            if let v = slot {
+                parts.append("\(label): \(fmt(v))")
+            } else {
+                parts.append("\(label): no data")
+            }
+        }
+        var out: String = parts.joined(separator: ". ")
+        if let usual { out += ". Your usual is \(fmt(usual))." }
+        return out
     }
 }
 
@@ -657,9 +679,16 @@ struct DotBandStrip: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Readings against your own typical band, in \(unit)")
-        .accessibilityValue(
-            "Latest \(values.last.map(fmt) ?? "none"). Your typical is "
-            + "\(fmt(band.lowerBound)) to \(fmt(band.upperBound)). \(verdict).")
+        .accessibilityValue(spokenValue)
+    }
+
+    /// Same reason as UsualDayBars.spokenValue: `+` between two interpolated
+    /// literals, with an optional map inside the first, is expensive to solve.
+    private var spokenValue: String {
+        let latest: String = values.last.map(fmt) ?? "none"
+        let low: String = fmt(band.lowerBound)
+        let high: String = fmt(band.upperBound)
+        return "Latest \(latest). Your typical is \(low) to \(high). \(verdict)."
     }
 }
 

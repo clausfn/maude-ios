@@ -2,6 +2,57 @@
 
 _Hazard → cause → mitigation → residual risk → linked requirement. Cardiac/glucose/medication lanes carry the top entries. Safety-path code changes require a row here (or an explicit "no new hazard" PR note). Version: 2026-06-03._
 
+## The clinical ramp's words were unreadable (2026-09-07, PR "PPCN v3 theme", branch claude/ppcn-theme, maude-ios)
+
+**Why this is a risk touch and not just a contrast tweak.** PR-105 closes the
+deuteranopia hazard by promising the ramp is never colour-alone: every band
+carries a hatch or dot pattern AND a word. Measurement showed the words were
+being drawn in each band's own colour on a 12% wash of that same colour, at 7pt.
+HIGH measured 1.44:1, IN RANGE 1.85:1, LOW 2.93:1. A label that cannot be read is
+not a redundant channel, so the closure PR-105 records was not actually being
+delivered on the screen. That is a safety-path defect, not a visual preference,
+and it is recorded here rather than absorbed as styling.
+
+**PR-105 (repaired) — the never-colour-alone guarantee is now real.**
+- *What changed:* `ClinicalTIRZones.band(_:)` renders `Text(b.label)` in
+  `MaudeTheme.ink` instead of `b.color`. Measured 14.5:1 to 17.2:1 on all five
+  band washes.
+- *Colour channel untouched:* the band fill, the very-low hatch and the very-high
+  dots still carry the colour at full strength. Nothing about the ramp's palette,
+  boundaries, patterns or order moves. `tirTarget` and every other ramp token is
+  byte-identical.
+- *Why ink and not five darkened colours:* three of the five cannot be darkened
+  to a readable ratio and still be the colour they name — `tirHigh` at 4.5:1 is
+  brown, not amber. Uniform ink is legible on every band, is the same decision
+  `clayText` already records for amber, and keeps the ramp reading as a ramp.
+
+**RK-ALARM-01 (unchanged, and deliberately so) — the target green got a text
+sibling rather than a new value.**
+- *What changed:* `tirTargetText` `#007D3D` added. Used ONLY where the token
+  renders words: the target-edge figures on the glucose axis (9pt mono), the
+  in-range band label (8pt), and the TIR headline percentage (16pt mono).
+- *Why it was needed:* `tirTarget` `#00CC63` is 2.05:1 on white against a 4.5:1
+  requirement for text that size. The time-in-range percentage is the headline
+  figure of the glucose screen and was its least legible element.
+- *Why this does not widen anything:* same hue (149.1°), same full saturation,
+  lightness 0.400 to 0.246. It reads as the same green, so no new colour enters
+  the vocabulary and no colour acquires a new meaning. Red stays confined to
+  glucose; nothing about RK-ALARM-01's scope changes.
+- *Night:* no sibling. `#4FE08F` already measures 8.98–10.21 on the graphite
+  grounds, so the dark value is carried over unchanged and Night is untouched.
+- *Fill and text separated at the call site:* `GlucoseDetailView` had a single
+  `inBandColor` serving both roles. It is now `inBandColor` (bands, bars, washes)
+  and `inBandText` (axis figures, band caption). The non-clinical path uses
+  `moss`, which already measured 5.65:1, and is unchanged in both roles.
+
+- *Residual, ACCEPTED:* `tirTarget` remains 2.05:1 against the page as a FILL.
+  This is correct rather than a defect — the bands are large regions read against
+  each other, each labelled and two of them patterned, and lifting the fill's
+  contrast would mean repainting the ramp that PR-105 froze.
+- *Verification:* every figure in `docs/CONTRAST_AUDIT.md`, regenerated from
+  `Maude/Theme.swift` by `scripts/contrast_audit.py` so the record cannot drift
+  from the code. Not yet checked on a physical device.
+
 ## Red reaches a third screen — the clinical ramp on Day Replay (2026-08-24, FB-APC4qJBj, PR-118, branch develop)
 
 **Why this is a risk touch and not just a chart change.** RK-ALARM-01 scopes the

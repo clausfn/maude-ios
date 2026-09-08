@@ -1,6 +1,11 @@
 // Config.swift — Backend selection + credentials.
-// Default backend is `.mock` (FR-ARCH-05 demo). The sovereign backend is the real
-// PII target (NFR-SEC-07); Supabase is sandbox-only and US-parented.
+//
+// MAUDE SHIPS ON-DEVICE: `.mock` in every configuration, meaning no network service.
+// The sovereign hosts named below (api.maude.app, auth.maude.app) and the Supabase
+// sandbox belong to DATA FOR GOOD and are Liviqa's, not Maude's. They are retained
+// so the fork's history stays readable and are reachable only through the
+// MAUDE_BACKEND env hook, which a shipped install cannot set. See `backend` below,
+// ReleasePosture.swift, PROVENANCE.md and DFG_SEPARATION.md.
 import Foundation
 
 enum Config {
@@ -53,9 +58,24 @@ enum Config {
     }
 
     /// Active backend.
-    /// - **Release / TestFlight → live sovereign prod** (`api.maude.app` + Supabase
-    ///   GoTrue), so the shipped build feeds real/live data with no extra config.
-    /// - **Debug → `.mock`** (synthetic demo, FR-ARCH-05).
+    ///
+    /// MAUDE IS ON-DEVICE. Both Debug and Release resolve to `.mock`, which in this
+    /// app means "no network service at all": sign-in is satisfied locally and every
+    /// surface starts EMPTY and fills only from the user's own HealthKit backfill.
+    /// `ColdStartSeeds` already ships empty in Release, so nothing is fabricated.
+    ///
+    /// WHY THIS CHANGED (2026-09-07). Inherited from Liviqa, Release resolved to
+    /// `sovereignProd` — `api.maude.app` and `auth.maude.app`, which are Data for
+    /// Good's live sovereign stack carrying other people's health data. Maude is
+    /// PPCN's, one user, forked from Liviqa; shipping it pointed there would have
+    /// signed a PPCN-branded app into DfG production. That is the merge the fork
+    /// exists to prevent (see PROVENANCE.md and DFG_SEPARATION.md), so the default
+    /// had to move before any build could be distributed.
+    ///
+    /// The sovereign cases below are RETAINED, not deleted: they are how Liviqa
+    /// works and the fork keeps its history readable. They are reachable only via
+    /// the `MAUDE_BACKEND` env hook, which a TestFlight or App Store install cannot
+    /// set — so they cannot be reached by a shipped build.
     /// - `MAUDE_BACKEND` env always wins (local QA / e2e), e.g.
     ///   `sovereignLocal|sovereignStaging|sovereignProd|supabaseSandbox|mock`.
     static var backend: Backend {
@@ -66,11 +86,9 @@ enum Config {
         case "supabaseSandbox":  return .supabaseSandbox
         case "mock":             return .mock
         default:
-            #if DEBUG
-            return .mock              // dev default = synthetic
-            #else
-            return sovereignProd      // TestFlight/App Store = live data
-            #endif
+            // On-device in both configurations. Debug additionally seeds synthetic
+            // demo data (ColdStartSeeds); Release seeds nothing and starts empty.
+            return .mock
         }
     }
 
@@ -94,17 +112,22 @@ enum Config {
     /// unaffected while this is `false`.
     static let dfgWalletEnabled = false
 
-    /// Sign in with Apple needs three things bound to the running bundle: the SIWA
-    /// entitlement, the backend/GoTrue token audience, and Apple's team-scoped user
-    /// identifiers. Both shipping bundles now satisfy all three — the canonical DfG
-    /// build (`xyz.ppcn.maude`) and the temporary PPCN beta (`xyz.ppcn.maude`,
-    /// 2026-07-07: SIWA capability registered on the App ID, entitlement in
-    /// `Maude.ppcn.entitlements`, and `xyz.ppcn.maude` added to GoTrue's Apple
-    /// audience). Caveat on PPCN: Apple's user id is team-scoped, so a sign-in there
-    /// links to an existing account only when Apple releases the real email; a
-    /// "Hide My Email" relay makes a fresh account. Any *other* bundle → hide the
-    /// button rather than show-and-break.
-    static let appleSignInBundles: Set<String> = ["xyz.ppcn.maude", "xyz.ppcn.maude"]
+    /// Sign in with Apple needs the SIWA entitlement and Apple's team-scoped user
+    /// identifiers bound to the running bundle. Maude ships ONE bundle, `xyz.ppcn.maude`,
+    /// signed by PPCN's Apple team (CN, 2026-09-07). Any other bundle hides the button
+    /// rather than showing one that cannot work.
+    ///
+    /// This list read `["xyz.ppcn.maude", "xyz.ppcn.maude"]` until now — the same string
+    /// twice, which a Set collapses to one entry, so it was harmless but meaningless. It
+    /// is a fork artefact: Liviqa shipped two bundles, Data for Good's and a PPCN beta,
+    /// and the rename mapped both onto Maude's single identifier. The comment above it
+    /// still described two builds that no longer exist. Corrected rather than left to
+    /// mislead the next reader.
+    ///
+    /// Note for the App Store Connect setup: Apple's user id is TEAM-scoped. A sign-in
+    /// under PPCN's team is a different identity from the same Apple ID signing in under
+    /// any other team, so nothing carries over from an earlier build.
+    static let appleSignInBundles: Set<String> = ["xyz.ppcn.maude"]
     static var appleSignInAvailable: Bool {
         guard let id = Bundle.main.bundleIdentifier else { return false }
         return appleSignInBundles.contains(id)
