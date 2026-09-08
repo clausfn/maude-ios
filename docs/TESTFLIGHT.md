@@ -75,6 +75,20 @@ your Apple ID, password and a 2FA code over an unofficial cookie session. That i
 not something to run from a cloud session, and not something to put a password into
 a chat window for. So: two minutes in a browser, once, for the life of the app.
 
+**There is a way to avoid the browser entirely.** Run this on your own Mac:
+
+```
+bash scripts/create-app-on-apple.sh
+```
+
+It signs in as you through fastlane, creates the App ID and the app record, and
+your whole part is a password prompt and one code from your phone. It has to run
+on your machine: this repository's cloud sessions cannot reach Apple at all — the
+egress policy denies `api.appstoreconnect.apple.com` outright (verified 2026-09-07,
+403 at the gateway) — and no API key can create an app record anyway.
+
+Otherwise, by hand:
+
 1. Go to [appstoreconnect.apple.com/apps](https://appstoreconnect.apple.com/apps)
 2. Blue **+** → **New App**.
 3. Platform: **iOS**. Name: `Maude`. Primary language: **English (U.K.)**.
